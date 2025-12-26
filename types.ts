@@ -86,8 +86,10 @@ export interface Notebook {
   nextReview?: string;
   /** Anotações textuais rápidas (Markdown supportado futuramente) */
   notes?: string;
-  /** Base64 string da imagem do mapa mental ou resumo */
+  /** @deprecated Use 'images' array instead. Mantido para compatibilidade. */
   image?: string;
+  /** Lista de imagens em Base64 para rascunhos e resumos */
+  images?: string[];
   /** ID da semana no planejamento (ex: 'week-1') ou null se estiver no backlog. (Nota: Em v2, gerenciado pelo Cycle) */
   weekId?: string | null;
   /** Marcador se o estudo foi concluído naquela semana específica - NOVO */

@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, Relevance, Trend, WEIGHT_SCORE } from '../types';
-import { GripVertical, Plus, Search, Copy, Pencil, TrendingUp, X, Save, Link as LinkIcon, RefreshCw, Upload, CalendarCheck, ImageIcon, StickyNote, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, ArrowRightFromLine, ArrowLeftFromLine, FileCode, Square, CheckSquare, Check, Timer, Calculator, PieChart, AlertCircle, ArrowRight, Settings2, GanttChartSquare } from 'lucide-react';
+import { GripVertical, Plus, Search, Copy, Pencil, TrendingUp, X, Save, Link as LinkIcon, RefreshCw, Upload, CalendarCheck, ImageIcon, StickyNote, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, ArrowRightFromLine, ArrowLeftFromLine, FileCode, Square, CheckSquare, Check, Timer, Calculator, PieChart, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2 } from 'lucide-react';
 import { calculateNextReview } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 
@@ -28,6 +28,7 @@ export const Setup: React.FC = () => {
   // Edit Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   
   const initialFormState = {
     discipline: '',
@@ -41,7 +42,7 @@ export const Setup: React.FC = () => {
     relevance: Relevance.MEDIA,
     trend: Trend.ESTAVEL,
     notes: '',
-    image: ''
+    images: [] as string[]
   };
   
   const [formData, setFormData] = useState(initialFormState);
@@ -161,6 +162,13 @@ export const Setup: React.FC = () => {
   // --- EDIT MODAL LOGIC ---
   const handleEditClick = (notebook: Notebook) => {
     setEditingId(notebook.id);
+    
+    // Fallback: If 'images' is empty but legacy 'image' exists, use it.
+    let currentImages = notebook.images || [];
+    if (currentImages.length === 0 && notebook.image) {
+        currentImages = [notebook.image];
+    }
+
     setFormData({
       discipline: notebook.discipline,
       name: notebook.name,
@@ -173,7 +181,7 @@ export const Setup: React.FC = () => {
       relevance: notebook.relevance,
       trend: notebook.trend,
       notes: notebook.notes || '',
-      image: notebook.image || ''
+      images: currentImages
     });
     setIsModalOpen(true);
   };
@@ -191,10 +199,22 @@ export const Setup: React.FC = () => {
       }
       const reader = new FileReader();
       reader.onloadend = () => {
-        setFormData(prev => ({ ...prev, image: reader.result as string }));
+        if(reader.result) {
+            setFormData(prev => ({ 
+                ...prev, 
+                images: [...prev.images, reader.result as string] 
+            }));
+        }
       };
       reader.readAsDataURL(file);
     }
+  };
+
+  const removeImage = (index: number) => {
+      setFormData(prev => ({
+          ...prev,
+          images: prev.images.filter((_, i) => i !== index)
+      }));
   };
 
   const handleManualReview = () => {
@@ -231,6 +251,24 @@ export const Setup: React.FC = () => {
   return (
     <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-slate-950">
       
+      {/* Lightbox for zooming images */}
+      {lightboxImage && (
+          <div 
+            className="fixed inset-0 z-[60] bg-slate-950/95 flex flex-col items-center justify-center p-4 backdrop-blur-sm"
+            onClick={() => setLightboxImage(null)}
+          >
+             <button onClick={() => setLightboxImage(null)} className="absolute top-4 right-4 text-white hover:text-emerald-500 z-50">
+                 <X size={32} />
+             </button>
+             <img 
+                src={lightboxImage} 
+                className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" 
+                onClick={(e) => e.stopPropagation()} // Prevent closing when clicking image
+             />
+             <p className="mt-4 text-slate-400 text-sm">Clique fora para fechar</p>
+          </div>
+      )}
+
       {/* === LEFT SIDEBAR: LIBRARY (Visible only in Timeline Mode) === */}
       {viewMode === 'timeline' && (
       <aside className="w-72 flex-shrink-0 border-r border-slate-800 bg-slate-900/30 flex flex-col z-20 hidden md:flex">
@@ -281,10 +319,8 @@ export const Setup: React.FC = () => {
       {/* === MAIN AREA === */}
       <main className="flex-1 flex flex-col min-w-0 bg-slate-950 relative">
          
-         {/* MODERN RESPONSIVE HEADER v2.0 */}
+         {/* HEADER - Kept same as previous ... */}
          <header className="flex flex-col lg:flex-row items-center justify-between gap-4 px-6 py-4 border-b border-slate-800 bg-slate-900/90 backdrop-blur-xl sticky top-0 z-30 shadow-lg">
-            
-            {/* 1. Left: Date & Cycle Info (Flex-1 to take space if needed) */}
             <div className="flex items-center gap-4 w-full lg:w-auto lg:flex-1">
                  <div className="flex flex-col">
                     <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Início do Ciclo</span>
@@ -300,7 +336,6 @@ export const Setup: React.FC = () => {
                  </div>
             </div>
 
-            {/* 2. Center: Tabs (Natural Flow, no absolute positioning) */}
             <div className="w-full lg:w-auto flex justify-center order-3 lg:order-2">
                 <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 shadow-xl">
                     <button 
@@ -318,9 +353,7 @@ export const Setup: React.FC = () => {
                 </div>
             </div>
 
-            {/* 3. Right: Pace & Stats (Flex-1 to align end) */}
             <div className="flex items-center gap-3 w-full lg:w-auto lg:flex-1 justify-between lg:justify-end order-2 lg:order-3">
-                 {/* BIGGER PACE SELECTOR (IMPROVED UX) */}
                  <div className="relative group w-full md:w-auto max-w-[200px]">
                     <div className="absolute inset-0 bg-slate-800 rounded-xl border border-slate-700 pointer-events-none group-hover:border-emerald-500/50 transition-colors shadow-sm"></div>
                     <div className="relative flex items-center px-4 py-2 gap-3 cursor-pointer">
@@ -524,10 +557,10 @@ export const Setup: React.FC = () => {
 
       </main>
 
-       {/* === EDIT MODAL === */}
+       {/* === EDIT MODAL (UPDATED FOR MULTI-IMAGE) === */}
        {isModalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
             <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900">
                 <h3 className="text-xl font-bold text-white flex items-center gap-2">
                    <Pencil size={20} className="text-emerald-500"/> Editar Caderno (Rápido)
@@ -662,7 +695,7 @@ export const Setup: React.FC = () => {
               </div>
 
               <div className="space-y-4 pt-2">
-                <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">3. Conteúdo & Anotações</h4>
+                <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">3. Rascunhos & Anotações</h4>
                 
                 {/* Obsidian / Notion Link Input */}
                 <div>
@@ -685,16 +718,49 @@ export const Setup: React.FC = () => {
                         <textarea 
                             value={formData.notes} 
                             onChange={e => handleChange('notes', e.target.value)} 
-                            className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500 transition-all min-h-[140px] resize-none text-sm" 
+                            className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500 transition-all min-h-[200px] resize-none text-sm" 
                             placeholder="Mnemônicos..." 
                         />
                     </div>
-                    <div>
-                        <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Imagem / Mapa Mental</label>
-                        <div 
-                            onClick={() => fileInputRef.current?.click()}
-                            className="w-full h-[140px] bg-slate-800 border-2 border-dashed border-slate-700 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-emerald-500 hover:bg-slate-800/80 transition-all relative overflow-hidden group"
-                        >
+                    
+                    {/* NEW: Multi-Image Gallery & Uploader */}
+                    <div className="flex flex-col h-full">
+                        <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Galeria de Mapas Mentais</label>
+                        <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 min-h-[200px] flex flex-col">
+                            
+                            {/* Gallery Grid */}
+                            <div className="grid grid-cols-3 gap-2 mb-3">
+                                {formData.images.map((img, idx) => (
+                                    <div key={idx} className="relative group aspect-square bg-slate-900 rounded-lg overflow-hidden border border-slate-700 hover:border-emerald-500 transition-colors cursor-pointer">
+                                        <img 
+                                            src={img} 
+                                            alt={`Anexo ${idx + 1}`} 
+                                            className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
+                                            onClick={() => setLightboxImage(img)}
+                                        />
+                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 pointer-events-none">
+                                            <ZoomIn size={16} className="text-white" />
+                                        </div>
+                                        <button 
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); removeImage(idx); }}
+                                            className="absolute top-1 right-1 bg-red-600 hover:bg-red-500 text-white rounded p-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto"
+                                        >
+                                            <Trash2 size={12} />
+                                        </button>
+                                    </div>
+                                ))}
+                                
+                                {/* Upload Button */}
+                                <div 
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="aspect-square border-2 border-dashed border-slate-700 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-emerald-500 hover:bg-slate-700/50 transition-colors text-slate-500 hover:text-emerald-500"
+                                >
+                                    <Plus size={24} />
+                                    <span className="text-[10px] uppercase font-bold mt-1">Add Imagem</span>
+                                </div>
+                            </div>
+                            
                             <input 
                                 type="file" 
                                 ref={fileInputRef} 
@@ -702,14 +768,10 @@ export const Setup: React.FC = () => {
                                 accept="image/*"
                                 onChange={handleImageUpload}
                             />
-                            {formData.image ? (
-                                <img src={formData.image} alt="Upload" className="w-full h-full object-cover opacity-50 group-hover:opacity-30 transition-opacity" />
-                            ) : (
-                                <div className="text-center text-slate-500 group-hover:text-emerald-500 transition-colors">
-                                    <Upload size={24} className="mx-auto mb-2" />
-                                    <span className="text-xs font-bold">Clique para enviar</span>
-                                </div>
-                            )}
+                            
+                            <p className="text-[10px] text-slate-500 mt-auto text-center italic">
+                                Suporta múltiplas imagens. Clique em uma imagem para ampliar.
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -921,6 +983,8 @@ const DraggableCard: React.FC<{
   };
 
   const isCompleted = notebook.isWeekCompleted && origin === 'week';
+  // Check if notebook has any images (legacy or new)
+  const hasImages = (notebook.images && notebook.images.length > 0) || !!notebook.image;
 
   return (
     <div
@@ -961,7 +1025,7 @@ const DraggableCard: React.FC<{
                  {notebook.tecLink && <LinkIcon size={12} className="text-slate-600 hover:text-sky-400 transition-colors" />}
                  {notebook.obsidianLink && <FileCode size={12} className="text-slate-600 hover:text-purple-400 transition-colors" />}
                  {notebook.notes && <StickyNote size={12} className="text-slate-600 hover:text-yellow-400 transition-colors" />}
-                 {notebook.image && <ImageIcon size={12} className="text-slate-600 hover:text-purple-400 transition-colors" />}
+                 {hasImages && <ImageIcon size={12} className="text-slate-600 hover:text-purple-400 transition-colors" />}
               </div>
             </div>
           </div>

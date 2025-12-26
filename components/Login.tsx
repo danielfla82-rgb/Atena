@@ -92,7 +92,7 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
         </h1>
         
         <p className="text-slate-400 mb-8 text-lg font-light tracking-wide">
-          Sincronização de Inteligência Tática na Nuvem
+          Plataforma de planejamento para concurso
         </p>
 
         <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm">

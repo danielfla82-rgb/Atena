@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleGenAI } from "@google/genai";
-import { Send, User, RefreshCcw, Loader2, Sparkles } from 'lucide-react';
+import { Send, User, RefreshCcw, Loader2, Sparkles, KeyRound } from 'lucide-react';
 
 interface Message {
   role: 'user' | 'model';
@@ -23,13 +23,20 @@ export const Psychoanalyst: React.FC = () => {
   const handleSend = async () => {
     if (!input.trim() || loading) return;
 
+    // Validação da API Key antes de tentar enviar
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
+        setMessages(prev => [...prev, { role: 'model', text: "ERRO DE CONFIGURAÇÃO: A chave da API (VITE_API_KEY) não foi detectada no Vercel. Por favor, adicione-a nas configurações de ambiente." }]);
+        return;
+    }
+
     const userMsg = input;
     setInput('');
     setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
     setLoading(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: apiKey });
       // Construct history for context
       const history = messages.map(m => ({
           role: m.role,
@@ -67,8 +74,17 @@ export const Psychoanalyst: React.FC = () => {
       const responseText = result.text;
 
       setMessages(prev => [...prev, { role: 'model', text: responseText }]);
-    } catch (error) {
-      setMessages(prev => [...prev, { role: 'model', text: "A conexão com o inconsciente falhou momentaneamente. Tente novamente." }]);
+    } catch (error: any) {
+      console.error("Erro Junguiano:", error);
+      let errorMsg = "A conexão com o inconsciente falhou momentaneamente.";
+      
+      if (error.message?.includes("API key")) {
+          errorMsg = "Erro de Autenticação: A chave API parece inválida ou expirada.";
+      } else if (error.message?.includes("429")) {
+          errorMsg = "O inconsciente está sobrecarregado (Muitas requisições). Tente em alguns minutos.";
+      }
+
+      setMessages(prev => [...prev, { role: 'model', text: errorMsg }]);
     } finally {
       setLoading(false);
     }
@@ -165,7 +181,7 @@ export const Psychoanalyst: React.FC = () => {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                    placeholder="Explore seus sentimentos..."
+                    placeholder={!process.env.API_KEY ? "Erro: API Key não detectada" : "Explore seus sentimentos..."}
                     className="w-full bg-transparent border-none px-4 py-3 text-white placeholder-slate-400 focus:ring-0 outline-none text-lg"
                     disabled={loading}
                     autoFocus

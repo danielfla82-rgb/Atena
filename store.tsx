@@ -185,7 +185,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   obsidianLink: n.obsidian_link,
                   targetAccuracy: n.target_accuracy,
                   lastPractice: n.last_practice,
-                  nextReview: n.next_review
+                  nextReview: n.next_review,
+                  // Backward compatibility: If 'images' column is missing, try 'image'.
+                  images: n.images || (n.image ? [n.image] : []) 
               }));
               setNotebooks(formattedNotebooks);
           }
@@ -335,7 +337,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               accuracy: newNotebook.accuracy,
               status: newNotebook.status,
               notes: newNotebook.notes,
-              image: newNotebook.image,
+              image: newNotebook.images?.[0] || null, // Legacy support
+              images: newNotebook.images || [],
               last_practice: newNotebook.lastPractice,
               next_review: newNotebook.nextReview
           });
@@ -406,7 +409,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if(updates.relevance !== undefined) dbUpdates.relevance = updates.relevance;
           if(updates.trend !== undefined) dbUpdates.trend = updates.trend;
           if(updates.notes !== undefined) dbUpdates.notes = updates.notes;
-          if(updates.image !== undefined) dbUpdates.image = updates.image;
+          
+          if(updates.images !== undefined) {
+              dbUpdates.images = updates.images;
+              // Legacy fallback
+              if (updates.images && updates.images.length > 0) {
+                  dbUpdates.image = updates.images[0];
+              } else {
+                  dbUpdates.image = null;
+              }
+          }
           
           if(Object.keys(dbUpdates).length > 0) {
               await supabase.from('notebooks').update(dbUpdates).eq('id', id);
