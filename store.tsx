@@ -32,7 +32,7 @@ interface StoreContextType {
   user: any;
   isGuest: boolean;
   
-  enterGuestMode: () => void; // New action
+  enterGuestMode: () => void;
 
   createCycle: (name: string, targetRole: string) => void;
   selectCycle: (id: string) => void;
@@ -56,6 +56,14 @@ interface StoreContextType {
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
+export const useStore = () => {
+  const context = useContext(StoreContext);
+  if (context === undefined) {
+    throw new Error('useStore must be used within a StoreProvider');
+  }
+  return context;
+};
+
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -74,14 +82,30 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // --- 1. AUTH & INITIAL FETCH ---
   useEffect(() => {
-    // Verificar sessão atual
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!isGuest) {
-        setUser(session?.user ?? null);
-        if (session?.user) fetchAllData(session.user.id);
-        else setLoading(false);
-      }
-    });
+    const initSession = async () => {
+        try {
+            // Verificar sessão atual
+            const { data, error } = await supabase.auth.getSession();
+            
+            if (error) throw error;
+
+            if (!isGuest) {
+                setUser(data.session?.user ?? null);
+                if (data.session?.user) {
+                    await fetchAllData(data.session.user.id);
+                } else {
+                    setLoading(false);
+                }
+            }
+        } catch (err) {
+            console.error("Erro crítico na inicialização (Verifique sua chave Supabase):", err);
+            // IMPORTANTE: Se der erro (ex: chave inválida), paramos o loading 
+            // para permitir que o usuário use o Modo Visitante.
+            setLoading(false);
+        }
+    };
+
+    initSession();
 
     // Escutar mudanças de auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -92,7 +116,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         } else {
             setNotebooks([]);
             setCycles([]);
-            setLoading(false);
+            // Não forçamos loading false aqui pois o initSession cuida do load inicial
         }
       }
     });
@@ -101,7 +125,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [isGuest]);
 
   // --- GUEST MODE PERSISTENCE ---
-  // Salva no LocalStorage sempre que o estado muda no modo Guest
   useEffect(() => {
       if (isGuest) {
           const guestData = {
@@ -122,28 +145,31 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setIsGuest(true);
       setUser({ id: 'guest', email: 'visitante@offline.mode' });
       
-      const savedData = localStorage.getItem('athena_guest_db');
-      if (savedData) {
-          const parsed = JSON.parse(savedData);
-          setNotebooks(parsed.notebooks || []);
-          setReports(parsed.reports || []);
-          setProtocol(parsed.protocol || []);
-          setFramework(parsed.framework || DEFAULT_FRAMEWORK);
-          setCycles(parsed.cycles || []);
-          setActiveCycleId(parsed.activeCycleId || null);
-          setConfig(parsed.config || DEFAULT_CONFIG);
-      } else {
-          // Seed initial data for new guests? Optional.
-          setNotebooks([]);
-          setCycles([]);
+      try {
+        const savedData = localStorage.getItem('athena_guest_db');
+        if (savedData) {
+            const parsed = JSON.parse(savedData);
+            setNotebooks(parsed.notebooks || []);
+            setReports(parsed.reports || []);
+            setProtocol(parsed.protocol || []);
+            setFramework(parsed.framework || DEFAULT_FRAMEWORK);
+            setCycles(parsed.cycles || []);
+            setActiveCycleId(parsed.activeCycleId || null);
+            setConfig(parsed.config || DEFAULT_CONFIG);
+        } else {
+            setNotebooks([]);
+            setCycles([]);
+        }
+      } catch (e) {
+          console.error("Erro ao carregar dados locais", e);
+      } finally {
+          setLoading(false);
       }
-      setLoading(false);
   };
 
   const fetchAllData = async (userId: string) => {
       setLoading(true);
       try {
-          // Promise.all para buscar tudo em paralelo
           const [nbRes, cyRes, frRes, prRes, rpRes] = await Promise.all([
               supabase.from('notebooks').select('*').eq('user_id', userId),
               supabase.from('cycles').select('*').eq('user_id', userId),
@@ -152,7 +178,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               supabase.from('reports').select('*').eq('user_id', userId)
           ]);
 
-          // Transformar dados do banco (snake_case) para app (camelCase)
           if(nbRes.data) {
               const formattedNotebooks = nbRes.data.map((n: any) => ({
                   ...n,
@@ -173,7 +198,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                  weeklyCompletion: c.weekly_completion
               }));
               setCycles(formattedCycles);
-              // Set active cycle logic
               const lastActive = localStorage.getItem('athena_active_cycle');
               const target = formattedCycles.find((c: any) => c.id === lastActive) || formattedCycles[0];
               setActiveCycleId(target.id);
@@ -208,7 +232,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (activeCycle) {
               setConfig(activeCycle.config);
               
-              // Map Notebooks to Cycle Planning
               setNotebooks(prev => prev.map(nb => ({
                   ...nb,
                   weekId: activeCycle.planning[nb.id] || null,
@@ -217,7 +240,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               
               if (!isGuest) {
                   localStorage.setItem('athena_active_cycle', activeCycleId);
-                  // Update last_access in DB
                   if(user) {
                       supabase.from('cycles')
                         .update({ last_access: new Date().toISOString() })
@@ -229,15 +251,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
   }, [activeCycleId, cycles, isGuest, user]);
 
-  // --- ACTIONS (Optimistic Updates + DB Sync) ---
+  // --- ACTIONS ---
 
   const updateFramework = async (data: FrameworkData) => {
-      setFramework(data); // Optimistic
+      setFramework(data);
       if(user && !isGuest) {
-          await supabase.from('frameworks').upsert({
-              user_id: user.id,
-              ...data
-          });
+          await supabase.from('frameworks').upsert({ user_id: user.id, ...data });
       }
   };
 
@@ -277,7 +296,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if(user && !isGuest) await supabase.from('cycles').delete().eq('id', id);
   };
 
-  // Helper to sync Active Cycle Data (Config/Planning)
   const syncCycleData = async (cycleId: string, updates: Partial<Cycle>) => {
       if(!user || isGuest) return;
       
@@ -302,7 +320,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setNotebooks(prev => [...prev, newNotebook]);
 
       if(user && !isGuest) {
-          // Insert into Notebooks Table
           const { error } = await supabase.from('notebooks').insert({
               id: newNotebook.id,
               user_id: user.id,
@@ -324,7 +341,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           });
           if(error) console.error("Error adding notebook:", error);
 
-          // Update Cycle Planning if needed
           if (newNotebook.weekId && activeCycleId) {
              const activeCycle = cycles.find(c => c.id === activeCycleId);
              if(activeCycle) {
@@ -334,7 +350,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
              }
           }
       } else if (isGuest && activeCycleId) {
-          // For Guest, we still need to update the cycle planning structure in state
           const activeCycle = cycles.find(c => c.id === activeCycleId);
           if (activeCycle && newNotebook.weekId) {
               const newPlanning = { ...activeCycle.planning, [newNotebook.id]: newNotebook.weekId };
@@ -346,7 +361,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const editNotebook = async (id: string, updates: Partial<Notebook>) => {
       setNotebooks(prev => prev.map(nb => nb.id === id ? { ...nb, ...updates } : nb));
 
-      // Handle Cycle specific updates (Planning/Completion) for local state first
       if (activeCycleId) {
           const activeCycle = cycles.find(c => c.id === activeCycleId);
           if (activeCycle) {
@@ -378,7 +392,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       if(user && !isGuest) {
-          // Prepare DB updates (map camelCase to snake_case)
           const dbUpdates: any = {};
           if(updates.name !== undefined) dbUpdates.name = updates.name;
           if(updates.discipline !== undefined) dbUpdates.discipline = updates.discipline;
@@ -444,7 +457,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     );
     
     dueItems.sort((a, b) => {
-        // Simplified Logic
         if (a.weight !== b.weight) return a.weight === Weight.MUITO_ALTO ? -1 : 1;
         return 0;
     });
@@ -452,7 +464,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return dueItems.length > 0 ? dueItems[0] : null;
   };
 
-  // Protocols & Reports follow similar pattern (Insert/Delete)
   const addProtocolItem = async (item: Omit<ProtocolItem, 'id' | 'checked'>) => {
       const newItem = { ...item, id: crypto.randomUUID(), checked: false };
       setProtocol(prev => [...prev, newItem]);
@@ -499,10 +510,4 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       {children}
     </StoreContext.Provider>
   );
-};
-
-export const useStore = () => {
-  const context = useContext(StoreContext);
-  if (!context) throw new Error("useStore must be used within StoreProvider");
-  return context;
 };
