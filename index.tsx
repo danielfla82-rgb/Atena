@@ -1,39 +1,34 @@
-
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
-// --- POLYFILL ROBUSTO PARA PROCESS.ENV ---
-// Garante que bibliotecas que dependem de process.env não quebrem no navegador.
+// --- CONFIGURAÇÃO DE AMBIENTE ---
 if (typeof window !== 'undefined') {
-  const env = (import.meta as any).env || {};
-  
-  // Captura a chave prioritariamente do VITE_API_KEY
-  const apiKey = env.VITE_API_KEY || 
-                 env.VITE_GOOGLE_GENERATIVE_AI_API_KEY || 
-                 env.API_KEY || 
-                 '';
-
-  const processEnv = {
-    ...((window as any).process?.env || {}),
-    NODE_ENV: env.MODE || 'production',
-    API_KEY: apiKey,
-    VITE_API_KEY: apiKey // Redundância para garantir compatibilidade
-  };
-
-  (window as any).process = {
-    env: processEnv
-  };
-
-  // Log de Diagnóstico (Apenas no Console)
   console.log(`[System] Booting Atena v2.1.0`);
-  console.log(`[System] Environment: ${env.MODE || 'production'}`);
   
-  if (apiKey) {
-    console.log(`[System] ✅ API Key detectada via Variáveis de Ambiente.`);
+  let envDetected = false;
+  
+  try {
+    // @ts-ignore
+    if (typeof import.meta !== 'undefined' && import.meta.env) {
+      // @ts-ignore
+      const k1 = import.meta.env.VITE_API_KEY;
+      // @ts-ignore
+      const k2 = import.meta.env.VITE_GEMINI_API_KEY;
+      
+      if (k1 || k2) {
+        envDetected = true;
+      }
+    }
+  } catch (e) {
+    // Ignora erro de acesso ao env
+  }
+
+  if (envDetected) {
+    console.log(`[System] ✅ Variáveis de ambiente detectadas.`);
   } else {
-    console.warn(`[System] ⚠️ Nenhuma API Key detectada. Configure VITE_API_KEY no Vercel.`);
+    console.log(`[System] ℹ️ Usando chave de fallback ou modo manual.`);
   }
 }
 

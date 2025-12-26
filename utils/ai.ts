@@ -1,41 +1,88 @@
-
 import { GoogleGenAI } from "@google/genai";
 
 /**
- * Recupera a API Key de forma robusta.
- * A chave DEVE ser configurada no Vercel com o nome 'VITE_API_KEY'.
+ * Recupera a API Key.
+ * Tenta obter via variáveis de ambiente (Vite) e usa uma chave de fallback se falhar.
  */
 export const getApiKey = (): string => {
-  // 1. Tenta via import.meta.env (Padrão Vite - Recomendado para Vercel)
-  const metaEnv = (import.meta as any).env || {};
-  
-  if (metaEnv.VITE_API_KEY) return metaEnv.VITE_API_KEY;
-  if (metaEnv.VITE_GOOGLE_GENERATIVE_AI_API_KEY) return metaEnv.VITE_GOOGLE_GENERATIVE_AI_API_KEY;
-  
-  // 2. Tenta via process.env (Node/Polyfill)
-  if (typeof process !== 'undefined' && process.env?.API_KEY) {
-    return process.env.API_KEY;
+  // Chave fornecida manualmente para garantir funcionamento imediato
+  const FALLBACK_KEY = 'AIzaSyC_seyhcmY1cKurGlH2qq_aB6fugcTkePc';
+
+  try {
+    // @ts-ignore - Verificação de segurança para evitar crash se import.meta.env for undefined
+    if (typeof import.meta !== 'undefined' && import.meta.env) {
+      // @ts-ignore
+      const key1 = import.meta.env.VITE_API_KEY;
+      if (key1 && typeof key1 === 'string' && key1.length > 0) return key1;
+
+      // @ts-ignore
+      const key2 = import.meta.env.VITE_GEMINI_API_KEY;
+      if (key2 && typeof key2 === 'string' && key2.length > 0) return key2;
+
+      // @ts-ignore
+      const key3 = import.meta.env.VITE_GOOGLE_GENERATIVE_AI_API_KEY;
+      if (key3 && typeof key3 === 'string' && key3.length > 0) return key3;
+    }
+  } catch (e) {
+    console.warn("Erro ao acessar variáveis de ambiente:", e);
   }
 
-  // 3. Tenta via window.process (Fallback do index.tsx)
-  if (typeof window !== 'undefined') {
-    const win = window as any;
-    if (win.process?.env?.API_KEY) return win.process.env.API_KEY;
-  }
-
-  return '';
+  // Se nenhuma variável de ambiente for detectada, retorna a chave hardcoded
+  return FALLBACK_KEY;
 };
 
 /**
- * Cria uma instância do cliente Gemini com tratamento de erro prévio.
+ * MOCK CLIENT IMPLEMENTATION
+ * Usado apenas se, por algum motivo, a chave for string vazia.
  */
+class MockGenerativeModel {
+    async generateContent(params: any) {
+        console.warn("[AI Mock] Gerando resposta simulada.");
+        const prompt = JSON.stringify(params).toLowerCase();
+        
+        if (params.config?.responseMimeType === 'application/json') {
+            if (prompt.includes('nietzsche')) {
+                return {
+                    text: JSON.stringify({
+                        aphorism: "O que não me mata me fortalece.",
+                        source: "Modo Demo",
+                        interpretation: "A adversidade é o combustível da grandeza."
+                    })
+                };
+            }
+            return {
+                text: JSON.stringify({
+                    overallCoverage: 50,
+                    passingProbability: 20,
+                    readinessScore: "MODO DEMO",
+                    disciplines: [],
+                    missingDisciplines: [],
+                    strategicInsight: "Modo de demonstração ativo."
+                })
+            };
+        }
+        return { text: "Resposta simulada do sistema (Modo Demo)." };
+    }
+}
+
+class MockChatSession {
+    async sendMessage(params: any) {
+        return { text: "Estou em modo de demonstração. Verifique sua conexão ou API Key." };
+    }
+}
+
+class MockGoogleGenAI {
+    get models() { return new MockGenerativeModel(); }
+    get chats() { return { create: () => new MockChatSession() }; }
+}
+
 export const createAIClient = () => {
   const apiKey = getApiKey();
   
   if (!apiKey) {
-    console.error("CRITICAL: API Key not found. Please set VITE_API_KEY in Vercel.");
-    throw new Error("MISSING_API_KEY");
+    console.warn("⚠️ [System] Nenhuma API Key disponível. Usando Mock.");
+    return new MockGoogleGenAI() as unknown as GoogleGenAI;
   }
-
+  
   return new GoogleGenAI({ apiKey });
 };

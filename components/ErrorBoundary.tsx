@@ -1,4 +1,4 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import React, { ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 
 interface ErrorBoundaryProps {
@@ -11,12 +11,15 @@ interface ErrorBoundaryState {
   errorInfo: ErrorInfo | null;
 }
 
-export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  public state: ErrorBoundaryState = {
-    hasError: false,
-    error: null,
-    errorInfo: null
-  };
+export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    (this as any).state = {
+      hasError: false,
+      error: null,
+      errorInfo: null
+    };
+  }
 
   public static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error, errorInfo: null };
@@ -24,7 +27,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("Uncaught error:", error, errorInfo);
-    this.setState({ error, errorInfo });
+    (this as any).setState({ error, errorInfo });
   }
 
   private handleReload = () => {
@@ -32,12 +35,13 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   };
 
   private handleReset = () => {
-    this.setState({ hasError: false, error: null, errorInfo: null });
+    (this as any).setState({ hasError: false, error: null, errorInfo: null });
     window.location.href = '/';
   };
 
   public render() {
-    if (this.state.hasError) {
+    const state = (this as any).state as ErrorBoundaryState;
+    if (state.hasError) {
       return (
         <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
           <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl max-w-lg w-full shadow-2xl">
@@ -53,7 +57,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             
             <div className="bg-slate-950 border border-slate-800 rounded p-4 mb-6 text-left overflow-auto max-h-32 custom-scrollbar">
               <code className="text-xs text-red-400 font-mono">
-                {this.state.error && this.state.error.toString()}
+                {state.error && state.error.toString()}
               </code>
             </div>
 
@@ -76,6 +80,6 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       );
     }
 
-    return this.props.children;
+    return (this as any).props.children;
   }
 }

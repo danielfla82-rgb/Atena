@@ -13,14 +13,15 @@ import { Psychoanalyst } from './components/Psychoanalyst';
 import { News } from './components/News';
 import { Protocol } from './components/Protocol';
 import { Framework } from './components/Framework';
+import { Documentation } from './components/Documentation';
 import { 
   LayoutDashboard, Settings, Layers, Menu, X, Library as LibraryIcon, 
-  Activity, Lightbulb, Flame, Brain, Newspaper, Pill, Pyramid
+  Activity, Lightbulb, Flame, Brain, Newspaper, Pill, Pyramid, Book
 } from 'lucide-react';
 import { Logo } from './components/Logo';
 
 const AppContent: React.FC = () => {
-  const [view, setView] = useState<'login' | 'selection' | 'dashboard' | 'setup' | 'library' | 'diagnostics' | 'tips' | 'nietzsche' | 'psycho' | 'news' | 'protocol' | 'framework'>('login');
+  const [view, setView] = useState<'login' | 'selection' | 'dashboard' | 'setup' | 'library' | 'diagnostics' | 'tips' | 'nietzsche' | 'psycho' | 'news' | 'protocol' | 'framework' | 'docs'>('login');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // If in login or selection, show full screen components
@@ -145,6 +146,15 @@ const AppContent: React.FC = () => {
               <Lightbulb size={18} />
               <span className="font-medium text-sm">Dicas de Elite</span>
           </button>
+
+          <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-2 mt-6">Sistema</p>
+          <button 
+              onClick={() => { setView('docs'); setSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${view === 'docs' ? 'bg-slate-800 text-white border border-slate-700' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+            >
+              <Book size={18} />
+              <span className="font-medium text-sm">Documentação</span>
+          </button>
         </div>
 
         <div className="mt-6 pt-6 border-t border-slate-800">
@@ -174,6 +184,7 @@ const AppContent: React.FC = () => {
           view === 'news' ? <News /> :
           view === 'protocol' ? <Protocol /> :
           view === 'framework' ? <Framework /> :
+          view === 'docs' ? <Documentation /> :
           <Diagnostics />
          }
       </main>
