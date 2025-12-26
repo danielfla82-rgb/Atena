@@ -1,32 +1,38 @@
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
-// --- POLYFILL PARA PROCESS.ENV (CRÍTICO PARA VERCEL/VITE) ---
-// O SDK do Google e algumas libs esperam 'process.env', que não existe no browser.
+// --- POLYFILL ROBUSTO PARA PROCESS.ENV ---
+// Garante que bibliotecas que dependem de process.env não quebrem no navegador.
 if (typeof window !== 'undefined') {
   const env = (import.meta as any).env || {};
   
-  // Tenta capturar a chave de várias formas possíveis
+  // Captura a chave prioritariamente do VITE_API_KEY
   const apiKey = env.VITE_API_KEY || 
                  env.VITE_GOOGLE_GENERATIVE_AI_API_KEY || 
-                 env.API_KEY || // Caso raro de estar exposto sem prefixo
+                 env.API_KEY || 
                  '';
 
-  (window as any).process = {
-    env: {
-      ...((window as any).process?.env || {}),
-      NODE_ENV: env.MODE || 'production',
-      API_KEY: apiKey
-    }
+  const processEnv = {
+    ...((window as any).process?.env || {}),
+    NODE_ENV: env.MODE || 'production',
+    API_KEY: apiKey,
+    VITE_API_KEY: apiKey // Redundância para garantir
   };
 
-  // Log de Debug (Seguro: mostra apenas se existe ou não)
-  if (!apiKey) {
-    console.warn("⚠️ ATENÇÃO: API_KEY não encontrada. Verifique as Variáveis de Ambiente no Vercel (deve começar com VITE_API_KEY).");
+  (window as any).process = {
+    env: processEnv
+  };
+
+  // Log de Diagnóstico (Apenas no Console)
+  console.log(`[System] Booting Atena v2.1.0`);
+  console.log(`[System] Environment: ${env.MODE || 'production'}`);
+  if (apiKey) {
+    console.log(`[System] ✅ API Key detectada (${apiKey.substring(0, 4)}...${apiKey.slice(-4)})`);
   } else {
-    console.log("✅ API Key carregada com sucesso.");
+    console.warn(`[System] ⚠️ Nenhuma API Key detectada. Verifique VITE_API_KEY no Vercel.`);
   }
 }
 

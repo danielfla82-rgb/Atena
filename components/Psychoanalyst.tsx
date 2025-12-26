@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { GoogleGenAI } from "@google/genai";
-import { Send, User, RefreshCcw, Loader2, Sparkles, KeyRound } from 'lucide-react';
+import { createAIClient } from '../utils/ai';
+import { Send, User, RefreshCcw, Loader2 } from 'lucide-react';
 
 interface Message {
   role: 'user' | 'model';
@@ -23,21 +23,14 @@ export const Psychoanalyst: React.FC = () => {
   const handleSend = async () => {
     if (!input.trim() || loading) return;
 
-    // Validação da API Key antes de tentar enviar
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) {
-        setMessages(prev => [...prev, { role: 'model', text: "ERRO DE CONFIGURAÇÃO: A chave da API (VITE_API_KEY) não foi detectada no Vercel. Por favor, adicione-a nas configurações de ambiente." }]);
-        return;
-    }
-
     const userMsg = input;
     setInput('');
     setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
     setLoading(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: apiKey });
-      // Construct history for context
+      const ai = createAIClient();
+      
       const history = messages.map(m => ({
           role: m.role,
           parts: [{ text: m.text }]
@@ -47,41 +40,25 @@ export const Psychoanalyst: React.FC = () => {
         model: 'gemini-3-flash-preview',
         config: {
             systemInstruction: `
-                Você é Carl Gustav Jung, ou um analista Junguiano sênior.
-                O usuário é um estudante de elite (concurseiro) em busca de aprovação (sua 'Jornada do Herói').
-
-                OBJETIVO:
-                Ajudar o usuário a integrar sua psique, lidar com a Sombra (medos, procrastinação, autossabotagem) e encontrar o Self.
-
-                CONCEITOS CHAVE A UTILIZAR:
-                - A Sombra: O lado obscuro, o medo do fracasso, a preguiça. Não deve ser reprimida, mas integrada.
-                - A Persona: A máscara social de "estudante perfeito" que pode estar pesando.
-                - Arquétipos: O Herói (que luta), o Sábio (que estuda), o Mártir (que sofre).
-                - Individuação: O processo de se tornar quem se realmente é através desse desafio.
-                - Inconsciente Coletivo: A dor que ele sente é universal.
-
-                ESTILO:
-                - Profundo, simbólico, mas acolhedor.
-                - Use metáforas (ex: "O dragão guarda o tesouro", "A caverna que você teme entrar").
-                - Evite conselhos práticos de estudo (horários, técnicas). Foque na ALMA e na MENTE.
-                - Respostas reflexivas, perguntas abertas.
+                Você é Carl Gustav Jung. O usuário é um estudante de elite (concurseiro).
+                Ajude-o a integrar a Sombra (medos, preguiça) e fortalecer o Self.
+                Seja profundo, simbólico e acolhedor. Use metáforas.
             `
         },
         history: history
       });
 
       const result = await chat.sendMessage({ message: userMsg });
-      const responseText = result.text;
+      setMessages(prev => [...prev, { role: 'model', text: result.text }]);
 
-      setMessages(prev => [...prev, { role: 'model', text: responseText }]);
     } catch (error: any) {
       console.error("Erro Junguiano:", error);
-      let errorMsg = "A conexão com o inconsciente falhou momentaneamente.";
+      let errorMsg = "O inconsciente está silencioso. Tente novamente.";
       
-      if (error.message?.includes("API key")) {
-          errorMsg = "Erro de Autenticação: A chave API parece inválida ou expirada.";
+      if (error.message === "MISSING_API_KEY") {
+          errorMsg = "⚠️ ERRO CRÍTICO: Chave de API não encontrada. Verifique se 'VITE_API_KEY' está configurada no Vercel.";
       } else if (error.message?.includes("429")) {
-          errorMsg = "O inconsciente está sobrecarregado (Muitas requisições). Tente em alguns minutos.";
+          errorMsg = "Muitas requisições. O oráculo precisa descansar um pouco.";
       }
 
       setMessages(prev => [...prev, { role: 'model', text: errorMsg }]);
@@ -110,11 +87,7 @@ export const Psychoanalyst: React.FC = () => {
       <div className="relative z-20 p-6 flex items-center justify-between bg-gradient-to-b from-slate-950 to-transparent">
          <div className="flex items-center gap-4">
              <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-slate-600 shadow-2xl">
-                 <img 
-                    src={bgImage} 
-                    alt="Analyst" 
-                    className="w-full h-full object-cover"
-                 />
+                 <img src={bgImage} alt="Analyst" className="w-full h-full object-cover" />
              </div>
              <div>
                  <h2 className="text-2xl font-bold text-white drop-shadow-md">Analista Junguiano</h2>
@@ -124,13 +97,12 @@ export const Psychoanalyst: React.FC = () => {
          <button 
             onClick={() => setMessages([{ role: 'model', text: 'Vamos olhar para dentro. O que sua Sombra está dizendo hoje?' }])}
             className="p-3 bg-slate-900/50 backdrop-blur-md hover:bg-slate-800 rounded-full text-slate-300 hover:text-white transition-colors border border-slate-700"
-            title="Reiniciar Sessão"
          >
              <RefreshCcw size={20} />
          </button>
       </div>
 
-      {/* Chat Area - Transparente */}
+      {/* Chat Area */}
       <div className="relative z-20 flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar scroll-smooth">
          {messages.map((msg, idx) => (
              <div key={idx} className={`flex gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500 ${msg.role === 'user' ? 'justify-end' : 'justify-start max-w-3xl'}`}>
@@ -139,16 +111,9 @@ export const Psychoanalyst: React.FC = () => {
                          <img src={bgImage} alt="AI" className="w-full h-full object-cover" />
                      </div>
                  )}
-                 
-                 <div className={`
-                    relative p-5 rounded-3xl text-base leading-relaxed shadow-xl backdrop-blur-md
-                    ${msg.role === 'user' 
-                        ? 'bg-emerald-600/90 text-white rounded-tr-sm border border-emerald-500/30 max-w-[85%]' 
-                        : 'bg-slate-900/80 text-slate-100 rounded-tl-sm border border-slate-700/50'}
-                 `}>
+                 <div className={`relative p-5 rounded-3xl text-base leading-relaxed shadow-xl backdrop-blur-md ${msg.role === 'user' ? 'bg-emerald-600/90 text-white rounded-tr-sm border border-emerald-500/30 max-w-[85%]' : 'bg-slate-900/80 text-slate-100 rounded-tl-sm border border-slate-700/50'}`}>
                      {msg.text}
                  </div>
-
                  {msg.role === 'user' && (
                      <div className="hidden md:flex w-10 h-10 rounded-full bg-emerald-900/50 items-center justify-center flex-shrink-0 mt-2 border border-emerald-500/30">
                          <User size={18} className="text-emerald-400" />
@@ -156,7 +121,6 @@ export const Psychoanalyst: React.FC = () => {
                  )}
              </div>
          ))}
-         
          {loading && (
              <div className="flex gap-4 max-w-3xl animate-pulse">
                  <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border border-slate-600">
@@ -181,16 +145,12 @@ export const Psychoanalyst: React.FC = () => {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                    placeholder={!process.env.API_KEY ? "Erro: API Key não detectada" : "Explore seus sentimentos..."}
+                    placeholder="Explore seus sentimentos..."
                     className="w-full bg-transparent border-none px-4 py-3 text-white placeholder-slate-400 focus:ring-0 outline-none text-lg"
                     disabled={loading}
                     autoFocus
                   />
-                  <button 
-                    onClick={handleSend}
-                    disabled={!input.trim() || loading}
-                    className="p-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded-xl transition-all shadow-lg hover:scale-105 active:scale-95"
-                  >
+                  <button onClick={handleSend} disabled={!input.trim() || loading} className="p-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded-xl transition-all shadow-lg hover:scale-105">
                       <Send size={20} />
                   </button>
               </div>
