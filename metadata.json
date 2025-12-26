@@ -1,0 +1,7 @@
+{
+  "name": "Projeto Atena v2.0.0 (Elite Edition)",
+  "description": "Plataforma SaaS de alta performance para concurseiros de elite. Versão 2.0.0. Stack: React 19 + Tailwind + Lucide. Features: Algoritmo de Revisão Espaçada (Anki-like), Matriz Estratégica (Pareto), Suporte a Mapas Mentais (Blob/Base64), Modo Offline, Integração Gemini AI (Google GenAI SDK), Protocolo Fisiológico e Framework Piramidal de Alta Performance.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
