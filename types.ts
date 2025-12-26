@@ -1,10 +1,17 @@
 
 /**
- * DOCUMENTAÇÃO TÉCNICA - PROJETO ATENA V2.0.0
+ * DOCUMENTAÇÃO TÉCNICA - PROJETO ATENA V2.1.0
  * ============================================
  * Data Model e Tipagem do Sistema.
  * 
- * Esta documentação define as entidades principais do sistema "SaaS Concurso de Elite".
+ * STATUS: STABLE / ELITE EDITION
+ * DATA: 2024-05-22
+ * 
+ * CHANGELOG V2.1.0:
+ * - [FIX] Implementação de sanitização de JSON para respostas da IA (Markdown stripping).
+ * - [FIX] Validação robusta de datas no módulo Library.
+ * - [DOCS] Atualização da tipagem do NotebookStatus.
+ * - [CORE] Refinamento da Matriz Estratégica.
  * 
  * PRINCIPAIS ENTIDADES:
  * 1. Notebook (Caderno): A unidade atômica de estudo. Contém performance, metadados e conteúdo.

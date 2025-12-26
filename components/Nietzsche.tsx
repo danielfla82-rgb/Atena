@@ -14,6 +14,18 @@ export const Nietzsche: React.FC = () => {
   const [data, setData] = useState<NietzscheResponse | null>(null);
   const [showInterpretation, setShowInterpretation] = useState(false);
 
+  // Helper to clean JSON from markdown blocks
+  const cleanJsonString = (text: string) => {
+    if (!text) return '{}';
+    let cleaned = text.trim();
+    if (cleaned.startsWith('```json')) {
+        cleaned = cleaned.replace(/^```json/, '').replace(/```$/, '');
+    } else if (cleaned.startsWith('```')) {
+        cleaned = cleaned.replace(/^```/, '').replace(/```$/, '');
+    }
+    return cleaned.trim();
+  };
+
   const summonNietzsche = async () => {
     setLoading(true);
     setShowInterpretation(false);
@@ -50,7 +62,8 @@ export const Nietzsche: React.FC = () => {
         }
       });
 
-      const result = JSON.parse(response.text || '{}');
+      const cleanedJson = cleanJsonString(response.text || '{}');
+      const result = JSON.parse(cleanedJson);
       setData(result);
 
     } catch (error) {

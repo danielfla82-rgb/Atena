@@ -109,6 +109,14 @@ export const Library: React.FC = () => {
 
   // --- REAL-TIME ALGORITHM PROJECTION ---
   const projection = useMemo(() => {
+      let lastPracticeDate = new Date();
+      if (formData.lastPractice) {
+          const parsed = new Date(formData.lastPractice);
+          if (!isNaN(parsed.getTime())) {
+              lastPracticeDate = parsed;
+          }
+      }
+
       // Use config directly for calculation
       const nextDate = calculateNextReview(
           Number(formData.accuracy),
@@ -117,7 +125,6 @@ export const Library: React.FC = () => {
           config.algorithm
       );
 
-      const lastPracticeDate = new Date(formData.lastPractice);
       const diffTime = Math.abs(nextDate.getTime() - lastPracticeDate.getTime());
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
 
@@ -196,6 +203,15 @@ export const Library: React.FC = () => {
   const openCreateModal = () => { setEditingId(null); setFormData(initialFormState); setIsModalOpen(true); };
   const openEditModal = (nb: Notebook) => {
       setEditingId(nb.id);
+      
+      let safeDate = new Date().toISOString().split('T')[0];
+      if (nb.lastPractice) {
+          const check = new Date(nb.lastPractice);
+          if (!isNaN(check.getTime())) {
+              safeDate = nb.lastPractice.split('T')[0];
+          }
+      }
+
       setFormData({
           discipline: nb.discipline,
           name: nb.name,
@@ -210,7 +226,7 @@ export const Library: React.FC = () => {
           status: nb.status || NotebookStatus.NOT_STARTED,
           notes: nb.notes || '',
           image: nb.image || '',
-          lastPractice: nb.lastPractice ? nb.lastPractice.split('T')[0] : new Date().toISOString().split('T')[0]
+          lastPractice: safeDate
       });
       setIsModalOpen(true);
   };
@@ -220,7 +236,15 @@ export const Library: React.FC = () => {
       
       // Use the projection calculation for consistency
       const nextReviewDate = projection.nextDate.toISOString();
-      const lastPracticeDate = new Date(formData.lastPractice).toISOString();
+      
+      // Validate date
+      let lastPracticeDate = new Date().toISOString();
+      if (formData.lastPractice) {
+          const d = new Date(formData.lastPractice);
+          if (!isNaN(d.getTime())) {
+              lastPracticeDate = d.toISOString();
+          }
+      }
 
       const payload: any = { 
           ...formData, 

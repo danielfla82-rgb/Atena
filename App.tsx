@@ -57,7 +57,7 @@ const AppContent: React.FC = () => {
              <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent tracking-tight">ATENA</h1>
           </div>
           <div className="flex justify-between items-center mt-2 pl-1">
-             <span className="text-[10px] bg-emerald-900/30 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-900/50 font-bold">v2.0.0</span>
+             <span className="text-[10px] bg-emerald-900/30 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-900/50 font-bold">v2.1.0</span>
           </div>
         </div>
 

@@ -58,6 +58,19 @@ export const Diagnostics: React.FC = () => {
     }
   };
 
+  // --- HELPER: CLEAN JSON ---
+  const cleanJsonString = (text: string) => {
+    if (!text) return '{}';
+    let cleaned = text.trim();
+    // Remove markdown code blocks if present
+    if (cleaned.startsWith('```json')) {
+        cleaned = cleaned.replace(/^```json/, '').replace(/```$/, '');
+    } else if (cleaned.startsWith('```')) {
+        cleaned = cleaned.replace(/^```/, '').replace(/```$/, '');
+    }
+    return cleaned.trim();
+  };
+
   // --- TACTICAL DIAGNOSTIC ---
   const runTacticalDiagnostics = async () => {
     setLoading(true);
@@ -181,12 +194,13 @@ export const Diagnostics: React.FC = () => {
         }
       });
 
-      const result = JSON.parse(response.text || '{}') as EditalAnalysisResult;
+      const cleanedJson = cleanJsonString(response.text || '{}');
+      const result = JSON.parse(cleanedJson) as EditalAnalysisResult;
       setEditalAnalysis(result);
 
     } catch (error) {
-      console.error(error);
-      alert("Erro ao processar auditoria de edital.");
+      console.error("Error parsing AI response:", error);
+      alert("Erro ao processar auditoria de edital. A IA retornou um formato inválido. Tente novamente.");
     } finally {
       setLoading(false);
     }
