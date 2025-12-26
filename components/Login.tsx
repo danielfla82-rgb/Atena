@@ -1,107 +1,189 @@
 
 import React, { useState } from 'react';
-import { ShieldCheck, ArrowRight, Loader2, WifiOff } from 'lucide-react';
+import { Loader2, Mail, Lock, UserPlus, LogIn, KeyRound, WifiOff, User } from 'lucide-react';
 import { Logo } from './Logo';
+import { supabase } from '../lib/supabase';
+import { useStore } from '../store';
 
 interface Props {
   onLoginSuccess: () => void;
 }
 
+// Simple Google Icon SVG for clean UI
+const GoogleIcon = () => (
+  <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg">
+    <g transform="matrix(1, 0, 0, 1, 27.009001, -39.238998)">
+      <path fill="#4285F4" d="M -3.264 51.509 C -3.264 50.719 -3.334 49.969 -3.454 49.239 L -14.754 49.239 L -14.754 53.749 L -8.284 53.749 C -8.574 55.229 -9.424 56.479 -10.684 57.329 L -10.684 60.329 L -6.824 60.329 C -4.564 58.239 -3.264 55.159 -3.264 51.509 Z" />
+      <path fill="#34A853" d="M -14.754 63.239 C -11.514 63.239 -8.804 62.159 -6.824 60.329 L -10.684 57.329 C -11.764 58.049 -13.134 58.489 -14.754 58.489 C -17.884 58.489 -20.534 56.379 -21.484 53.529 L -25.464 53.529 L -25.464 56.619 C -23.494 60.539 -19.444 63.239 -14.754 63.239 Z" />
+      <path fill="#FBBC05" d="M -21.484 53.529 C -21.734 52.769 -21.864 51.959 -21.864 51.129 C -21.864 50.299 -21.734 49.489 -21.484 48.729 L -21.484 45.639 L -25.464 45.639 C -26.284 47.269 -26.754 49.129 -26.754 51.129 C -26.754 53.129 -26.284 54.989 -25.464 56.619 L -21.484 53.529 Z" />
+      <path fill="#EA4335" d="M -14.754 43.769 C -12.984 43.769 -11.404 44.379 -10.154 45.579 L -6.734 42.159 C -8.804 40.229 -11.514 39.239 -14.754 39.239 C -19.444 39.239 -23.494 41.939 -25.464 45.859 L -21.484 48.949 C -20.534 46.099 -17.884 43.769 -14.754 43.769 Z" />
+    </g>
+  </svg>
+);
+
 export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
+  const { enterGuestMode } = useStore();
   const [loading, setLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [message, setMessage] = useState<{text: string, type: 'error' | 'success'} | null>(null);
+
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage(null);
+
+    try {
+        if (isSignUp) {
+            const { error } = await supabase.auth.signUp({ email, password });
+            if (error) throw error;
+            setMessage({ text: "Conta criada! Verifique seu email para confirmar.", type: 'success' });
+        } else {
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) throw error;
+            onLoginSuccess();
+        }
+    } catch (error: any) {
+        setMessage({ text: error.message, type: 'error' });
+    } finally {
+        setLoading(false);
+    }
+  };
 
   const handleGoogleLogin = async () => {
     setLoading(true);
+    setMessage(null);
     try {
-      // Access aistudio via casting to avoid global type conflicts with existing AIStudio definitions
-      const aiStudio = (window as any).aistudio;
-
-      // Simulate/Check Google connection via AI Studio Key Check
-      if (aiStudio) {
-        const hasKey = await aiStudio.hasSelectedApiKey();
-        if (!hasKey) {
-          await aiStudio.openSelectKey();
-          // Re-check after dialog closes
-          const hasKeyAfter = await aiStudio.hasSelectedApiKey();
-          if(hasKeyAfter) {
-             onLoginSuccess();
-          }
-        } else {
-          // Add a small delay for effect
-          setTimeout(() => {
-             onLoginSuccess();
-          }, 800);
-        }
-      } else {
-        // Fallback for dev environments without the extension
-        console.warn("AI Studio object not found, bypassing check.");
-        setTimeout(() => {
-           onLoginSuccess();
-        }, 800);
-      }
-    } catch (error) {
-      console.error("Login failed", error);
-    } finally {
-      setLoading(false);
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+                redirectTo: window.location.origin
+            }
+        });
+        if (error) throw error;
+    } catch (error: any) {
+        setMessage({ text: "Erro ao conectar com Google: " + error.message, type: 'error' });
+        setLoading(false);
     }
+  };
+
+  const handleGuestAccess = () => {
+      enterGuestMode();
+      onLoginSuccess();
   };
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center relative overflow-hidden">
       {/* Background Effects */}
       <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950 z-0"></div>
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-500/10 blur-[120px] rounded-full z-0"></div>
-
+      
       <div className="z-10 text-center max-w-2xl w-full p-8 flex flex-col items-center">
         
-        {/* ÁREA DO LOGOTIPO - AUMENTADO PARA 4XL */}
         <div className="flex justify-center mb-8 relative">
           <div className="relative group">
-             {/* Efeito de brilho atrás do logo */}
              <div className="absolute -inset-10 bg-gradient-to-r from-emerald-500/20 to-cyan-600/20 rounded-full blur-2xl opacity-40 group-hover:opacity-60 transition duration-1000"></div>
-             
-             {/* Componente Logo Inteligente - Tamanho 4XL (Massivo) */}
              <Logo size="4xl" className="relative drop-shadow-[0_0_25px_rgba(16,185,129,0.4)]" />
           </div>
         </div>
         
-        <h1 className="text-5xl font-extrabold text-white mb-4 tracking-tight uppercase">
+        <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-4 tracking-tight uppercase">
           Projeto <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">Atena</span>
         </h1>
         
-        {/* Subtítulo SaaS Atualizado */}
-        <p className="text-slate-300 mb-12 text-xl font-light tracking-wide max-w-lg mx-auto leading-relaxed">
-          Plataforma de Inteligência Tática para Aprovação em Alta Performance em concursos
+        <p className="text-slate-400 mb-8 text-lg font-light tracking-wide">
+          Sincronização de Inteligência Tática na Nuvem
         </p>
 
-        <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-md space-y-4">
-           <button 
-             onClick={handleGoogleLogin}
-             disabled={loading}
-             className="w-full bg-white hover:bg-slate-100 text-slate-900 font-bold py-4 rounded-xl flex items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed shadow-lg"
-           >
-             {loading ? (
-               <Loader2 className="animate-spin" />
-             ) : (
-               <>
-                 <svg className="w-5 h-5" viewBox="0 0 24 24">
-                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                 </svg>
-                 Entrar com Google
-               </>
-             )}
-           </button>
+        <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm">
+           
+           <form onSubmit={handleAuth} className="space-y-4">
+               <div>
+                   <label className="block text-xs font-bold text-slate-500 uppercase mb-1 text-left">Email</label>
+                   <div className="relative">
+                       <Mail className="absolute left-3 top-3 text-slate-500" size={18} />
+                       <input 
+                           type="email" 
+                           value={email}
+                           onChange={e => setEmail(e.target.value)}
+                           className="w-full bg-slate-950 border border-slate-700 rounded-lg py-2.5 pl-10 text-white outline-none focus:border-emerald-500"
+                           placeholder="seu@email.com"
+                           required
+                       />
+                   </div>
+               </div>
+               
+               <div>
+                   <label className="block text-xs font-bold text-slate-500 uppercase mb-1 text-left">Senha</label>
+                   <div className="relative">
+                       <Lock className="absolute left-3 top-3 text-slate-500" size={18} />
+                       <input 
+                           type="password" 
+                           value={password}
+                           onChange={e => setPassword(e.target.value)}
+                           className="w-full bg-slate-950 border border-slate-700 rounded-lg py-2.5 pl-10 text-white outline-none focus:border-emerald-500"
+                           placeholder="••••••••"
+                           required
+                           minLength={6}
+                       />
+                   </div>
+               </div>
 
-           <button 
-             onClick={onLoginSuccess}
-             className="w-full bg-slate-800/50 hover:bg-slate-800 border border-slate-700 text-slate-400 hover:text-white font-medium py-3 rounded-xl flex items-center justify-center gap-2 transition-all"
-           >
-             <WifiOff size={18} />
-             Conheça a plataforma
-           </button>
+               {message && (
+                   <div className={`text-xs p-3 rounded-lg text-left ${message.type === 'error' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}`}>
+                       {message.text}
+                   </div>
+               )}
+
+               <button 
+                 type="submit"
+                 disabled={loading}
+                 className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-900/20 mt-4"
+               >
+                 {loading ? <Loader2 className="animate-spin" /> : isSignUp ? <UserPlus size={18} /> : <LogIn size={18} />}
+                 {isSignUp ? "Criar Conta" : "Acessar Sistema"}
+               </button>
+           </form>
+
+            <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-slate-700"></div>
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-slate-900/90 px-2 text-slate-500 font-bold">Ou continue com</span>
+                </div>
+            </div>
+
+            <button 
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={loading}
+                className="w-full bg-slate-800 hover:bg-slate-700 text-white font-medium py-3 rounded-xl flex items-center justify-center gap-3 transition-colors border border-slate-700 mb-4"
+            >
+                <GoogleIcon />
+                <span>Google</span>
+            </button>
+
+            <button 
+                type="button"
+                onClick={handleGuestAccess}
+                disabled={loading}
+                className="w-full bg-transparent border border-slate-700 hover:border-slate-500 text-slate-400 hover:text-white font-medium py-3 rounded-xl flex items-center justify-center gap-2 transition-all group"
+            >
+                <WifiOff size={18} className="group-hover:text-emerald-400 transition-colors" />
+                <span>Modo Visitante (Offline)</span>
+            </button>
+            <p className="text-[10px] text-slate-600 mt-2">Dados locais não são sincronizados com a nuvem.</p>
+
+           <div className="mt-6 pt-4 border-t border-slate-800">
+               <button 
+                  onClick={() => { setIsSignUp(!isSignUp); setMessage(null); }}
+                  className="text-sm text-slate-500 hover:text-emerald-400 transition-colors flex items-center justify-center gap-2 w-full"
+               >
+                   <KeyRound size={14} />
+                   {isSignUp ? "Já tenho conta" : "Criar nova conta"}
+               </button>
+           </div>
         </div>
       </div>
     </div>

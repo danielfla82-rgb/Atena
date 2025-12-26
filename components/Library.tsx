@@ -12,14 +12,14 @@ import { Weight, Relevance, Trend, Notebook, NotebookStatus, WEIGHT_SCORE } from
 import { calculateNextReview } from '../utils/algorithm';
 
 export const Library: React.FC = () => {
-  const { notebooks, deleteNotebook, addNotebook, editNotebook, bulkUpdateNotebooks } = useStore();
+  const { notebooks, deleteNotebook, addNotebook, editNotebook, bulkUpdateNotebooks, config } = useStore();
   
   // UI State
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState<'ALL' | 'CRITICAL' | 'NEW' | 'OVERDUE' | 'HIGH_WEIGHT'>('ALL');
   const [expandedDisciplines, setExpandedDisciplines] = useState<Set<string>>(new Set());
   
-  // Detail Expansion State (New)
+  // Detail Expansion State
   const [expandedDetailsId, setExpandedDetailsId] = useState<string | null>(null);
 
   // Bulk Selection State
@@ -109,50 +109,24 @@ export const Library: React.FC = () => {
 
   // --- REAL-TIME ALGORITHM PROJECTION ---
   const projection = useMemo(() => {
-      let days = 1;
-      const acc = Number(formData.accuracy);
-      let reasons: string[] = [];
+      // Use config directly for calculation
+      const nextDate = calculateNextReview(
+          Number(formData.accuracy),
+          formData.relevance,
+          formData.trend,
+          config.algorithm
+      );
 
-      // 1. Accuracy Base
-      if (acc < 60) {
-          days = 1;
-          reasons.push("Reaprendizagem (Acerto < 60%)");
-      } else if (acc >= 60 && acc <= 79) {
-          days = 3;
-          reasons.push("Fase de Consolidação");
-      } else if (acc >= 80 && acc <= 89) {
-          days = 7;
-          reasons.push("Boa Performance");
-      } else if (acc >= 90) {
-          days = 15;
-          reasons.push("Manutenção (Elite)");
-      }
-
-      // 2. Modifiers
-      if (formData.relevance === Relevance.ALTISSIMA) {
-          days = Math.max(1, Math.round(days * 0.7));
-          reasons.push("Acelerador: Relevância Altíssima");
-      } else if (formData.relevance === Relevance.ALTA) {
-          days = Math.max(1, Math.round(days * 0.9));
-          reasons.push("Acelerador: Relevância Alta");
-      }
-
-      if (formData.trend === Trend.ALTA) {
-          days = Math.max(1, Math.round(days * 0.9));
-          reasons.push("Ajuste de Tendência");
-      }
-
-      // Calculate Dates
       const lastPracticeDate = new Date(formData.lastPractice);
-      const nextReviewDate = new Date(lastPracticeDate);
-      nextReviewDate.setDate(lastPracticeDate.getDate() + days);
+      const diffTime = Math.abs(nextDate.getTime() - lastPracticeDate.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
 
       return {
-          daysToAdd: days,
-          nextDate: nextReviewDate,
-          reasons
+          daysToAdd: diffDays,
+          nextDate: nextDate,
+          reasons: ["Baseado em Config"] 
       };
-  }, [formData.accuracy, formData.relevance, formData.trend, formData.lastPractice]);
+  }, [formData.accuracy, formData.relevance, formData.trend, formData.lastPractice, config.algorithm]);
 
 
   // --- HANDLERS ---
@@ -361,442 +335,401 @@ export const Library: React.FC = () => {
                                   {isAllSelected ? <CheckSquare size={18} className="text-emerald-500" /> : isPartialSelected ? <Square size={18} className="text-emerald-500 fill-emerald-500/20" /> : <Square size={18} />}
                               </button>
                               
-                              <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center text-slate-400">
-                                  {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500 font-bold text-xs border border-emerald-500/20">
+                                  {discipline.charAt(0)}
                               </div>
-                              
                               <div>
-                                  <h3 className="font-bold text-white text-sm">{discipline}</h3>
-                                  <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-                                      <span>{stats.total} Tópicos</span>
-                                      <span className="w-1 h-1 rounded-full bg-slate-700"></span>
-                                      <span>{stats.avgAcc}% Média Acerto</span>
+                                  <h3 className="font-bold text-slate-200 text-sm">{discipline}</h3>
+                                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                                      <span>{stats.total} itens</span>
+                                      <span>•</span>
+                                      <span className={stats.avgAcc < 60 ? 'text-red-400' : 'text-emerald-400'}>{stats.avgAcc}% acerto médio</span>
                                   </div>
                               </div>
                           </div>
-
+                          
                           <div className="flex items-center gap-4">
-                              <div className="w-24 h-2 bg-slate-800 rounded-full overflow-hidden">
-                                  <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                              <div className="w-24 h-2 bg-slate-800 rounded-full overflow-hidden hidden md:block">
+                                  <div className="h-full bg-emerald-500 transition-all duration-500" style={{width: `${progress}%`}}></div>
                               </div>
-                              <span className="text-xs font-bold text-slate-400 w-8 text-right">{progress}%</span>
+                              <span className="text-xs font-bold text-slate-500 w-8 text-right hidden md:block">{progress}%</span>
+                              <ChevronRight size={18} className={`text-slate-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                           </div>
                       </div>
 
-                      {/* Accordion Body */}
+                      {/* Items List */}
                       {isExpanded && (
                           <div className="border-t border-slate-800">
-                              <table className="w-full text-left border-collapse">
-                                  <thead className="bg-slate-950/50 text-slate-500 text-[10px] uppercase font-bold tracking-wider">
-                                      <tr>
-                                          <th className="p-3 w-10 text-center"></th>
-                                          <th className="p-3">Tópico</th>
-                                          <th className="p-3">Status</th>
-                                          <th className="p-3">Estratégia</th>
-                                          <th className="p-3 text-right">Acurácia</th>
-                                          <th className="p-3 w-10"></th>
-                                      </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-slate-800/50 text-sm">
-                                      {groupedData.groups[discipline].map(nb => (
-                                        <React.Fragment key={nb.id}>
-                                          <tr className={`hover:bg-slate-800/30 transition-colors ${selectedIds.has(nb.id) ? 'bg-emerald-900/10' : ''} ${expandedDetailsId === nb.id ? 'bg-slate-800/50' : ''}`}>
-                                              <td className="p-3 text-center">
-                                                  <button onClick={() => toggleSelection(nb.id)} className="text-slate-600 hover:text-emerald-500">
-                                                      {selectedIds.has(nb.id) ? <CheckSquare size={16} className="text-emerald-500"/> : <Square size={16}/>}
-                                                  </button>
-                                              </td>
-                                              <td className="p-3">
-                                                  <div className="flex items-start gap-2">
-                                                      <button 
-                                                          onClick={() => toggleDetails(nb.id)}
-                                                          className={`mt-0.5 p-0.5 rounded transition-all ${expandedDetailsId === nb.id ? 'text-emerald-400 bg-emerald-400/10' : 'text-slate-600 hover:text-slate-300'}`}
-                                                      >
-                                                          {expandedDetailsId === nb.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                                                      </button>
-                                                      <div>
-                                                          <div className="font-medium text-slate-200">{nb.name}</div>
-                                                          <div className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
-                                                              {nb.subtitle}
-                                                              {nb.tecLink && <LinkIcon size={10} className="text-slate-600" />}
-                                                              {(nb.notes || nb.image) && (
-                                                                  <span className="flex items-center gap-0.5 text-[9px] bg-slate-800 px-1 rounded text-slate-400 border border-slate-700">
-                                                                      {nb.notes && <FileText size={8} />}
-                                                                      {nb.image && <ImageIcon size={8} />}
-                                                                  </span>
-                                                              )}
-                                                          </div>
-                                                      </div>
+                              {groupedData.groups[discipline].map(nb => (
+                                  <div 
+                                    key={nb.id} 
+                                    className={`
+                                        p-3 pl-12 border-b border-slate-800/50 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors hover:bg-slate-800/20
+                                        ${selectedIds.has(nb.id) ? 'bg-emerald-900/10' : ''}
+                                    `}
+                                  >
+                                      <div className="flex items-center gap-3 flex-1">
+                                          <button 
+                                            onClick={() => toggleSelection(nb.id)}
+                                            className="text-slate-600 hover:text-emerald-500 transition-colors"
+                                          >
+                                              {selectedIds.has(nb.id) ? <CheckSquare size={16} className="text-emerald-500"/> : <Square size={16}/>}
+                                          </button>
+                                          <div>
+                                              <div className="flex items-center gap-2">
+                                                  <h4 className="text-sm font-medium text-slate-300">{nb.name}</h4>
+                                                  {nb.subtitle && <span className="text-xs text-slate-500 hidden lg:inline-block">• {nb.subtitle}</span>}
+                                                  {nb.weekId && <span className="text-[9px] bg-slate-800 text-slate-400 px-1.5 rounded border border-slate-700">Planejado</span>}
+                                              </div>
+                                              
+                                              {expandedDetailsId === nb.id && (
+                                                  <div className="mt-2 text-xs text-slate-500 flex gap-4 animate-in slide-in-from-top-1">
+                                                      <span>Peso: <strong className="text-slate-300">{nb.weight}</strong></span>
+                                                      <span>Relevância: <strong className="text-slate-300">{nb.relevance}</strong></span>
+                                                      <span>Última: <strong className="text-slate-300">{nb.lastPractice ? new Date(nb.lastPractice).toLocaleDateString() : '-'}</strong></span>
+                                                      {nb.nextReview && <span>Próx: <strong className="text-emerald-400">{new Date(nb.nextReview).toLocaleDateString()}</strong></span>}
                                                   </div>
-                                              </td>
-                                              <td className="p-3">
-                                                  <StatusBadge status={nb.status} />
-                                              </td>
-                                              <td className="p-3">
-                                                  <div className="flex gap-1">
-                                                      <span className={`text-[9px] px-1.5 py-0.5 rounded border uppercase font-bold ${nb.weight === Weight.MUITO_ALTO ? 'border-red-900 text-red-400 bg-red-900/20' : 'border-slate-700 text-slate-500'}`}>{nb.weight.substring(0,3)}</span>
-                                                      <span className={`text-[9px] px-1.5 py-0.5 rounded border uppercase font-bold border-slate-700 text-slate-500`}>{nb.relevance.substring(0,3)}</span>
-                                                  </div>
-                                              </td>
-                                              <td className="p-3 text-right font-mono font-bold text-slate-400">
-                                                  <span className={nb.accuracy >= nb.targetAccuracy ? 'text-emerald-400' : nb.accuracy < 60 ? 'text-red-400' : 'text-amber-400'}>
-                                                      {nb.accuracy}%
-                                                  </span>
-                                              </td>
-                                              <td className="p-3 text-center relative group/actions">
-                                                  <button className="text-slate-600 hover:text-white"><MoreHorizontal size={16}/></button>
-                                                  <div className="absolute right-8 top-1/2 -translate-y-1/2 bg-slate-900 border border-slate-700 rounded-lg shadow-xl p-1 hidden group-hover/actions:flex flex-col z-20">
-                                                      <button onClick={() => openEditModal(nb)} className="p-2 hover:bg-slate-800 text-slate-300 rounded text-xs flex items-center gap-2 whitespace-nowrap"><Pencil size={12}/> Editar</button>
-                                                      <button onClick={() => deleteNotebook(nb.id)} className="p-2 hover:bg-red-900/30 text-red-400 rounded text-xs flex items-center gap-2 whitespace-nowrap"><Trash2 size={12}/> Excluir</button>
-                                                  </div>
-                                              </td>
-                                          </tr>
-                                          {expandedDetailsId === nb.id && (
-                                              <tr>
-                                                  <td colSpan={6} className="p-0 border-b border-slate-800/50">
-                                                      <div className="bg-slate-900/50 p-4 shadow-inner flex flex-col md:flex-row gap-6 animate-in slide-in-from-top-2 duration-200">
-                                                          {/* Notes Section */}
-                                                          <div className="flex-1 min-w-0 space-y-2">
-                                                              <h4 className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
-                                                                  <StickyNote size={14} className="text-emerald-500"/>
-                                                                  Anotações Rápidas
-                                                              </h4>
-                                                              <div className="bg-slate-950 border border-slate-800 rounded-lg p-3 min-h-[120px] text-sm text-slate-300 whitespace-pre-wrap font-sans leading-relaxed">
-                                                                  {nb.notes || <span className="text-slate-600 italic">Nenhuma anotação registrada.</span>}
-                                                              </div>
-                                                          </div>
+                                              )}
+                                          </div>
+                                      </div>
 
-                                                          {/* Image Section */}
-                                                          <div className="w-full md:w-1/3 space-y-2">
-                                                              <h4 className="text-xs font-bold text-slate-500 uppercase flex items-center gap-2">
-                                                                  <ImageIcon size={14} className="text-purple-500"/>
-                                                                  Mapa Mental
-                                                              </h4>
-                                                              {nb.image ? (
-                                                                  <div className="relative group/image overflow-hidden rounded-lg border border-slate-700 bg-slate-950 aspect-video flex items-center justify-center">
-                                                                      <img src={nb.image} alt="Mapa Mental" className="w-full h-full object-cover transition-transform group-hover/image:scale-105" />
-                                                                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/image:opacity-100 transition-opacity flex items-center justify-center">
-                                                                          <button 
-                                                                             onClick={() => {
-                                                                                 const w = window.open();
-                                                                                 if(w) {
-                                                                                     w.document.write(`<img src="${nb.image}" style="width:100%"/>`);
-                                                                                 }
-                                                                             }}
-                                                                             className="p-2 bg-slate-800 rounded-full text-white hover:bg-emerald-600"
-                                                                          >
-                                                                              <Maximize2 size={20} />
-                                                                          </button>
-                                                                      </div>
-                                                                  </div>
-                                                              ) : (
-                                                                  <div className="aspect-video rounded-lg border-2 border-dashed border-slate-800 bg-slate-950/50 flex flex-col items-center justify-center text-slate-600 gap-2">
-                                                                      <ImageIcon size={24} className="opacity-20"/>
-                                                                      <span className="text-[10px]">Sem imagem</span>
-                                                                  </div>
-                                                              )}
-                                                          </div>
-                                                      </div>
-                                                  </td>
-                                              </tr>
-                                          )}
-                                        </React.Fragment>
-                                      ))}
-                                  </tbody>
-                              </table>
+                                      <div className="flex items-center gap-3 pl-8 md:pl-0">
+                                          <StatusBadge status={nb.status} />
+                                          <div className={`text-xs font-bold px-2 py-0.5 rounded border ${nb.accuracy < 60 ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
+                                              {nb.accuracy}%
+                                          </div>
+                                          
+                                          <div className="flex items-center gap-1 border-l border-slate-800 pl-3 ml-2">
+                                              <button onClick={() => toggleDetails(nb.id)} className="p-1.5 text-slate-500 hover:text-white rounded hover:bg-slate-800" title="Ver Detalhes">
+                                                  <Maximize2 size={14} />
+                                              </button>
+                                              <button onClick={() => openEditModal(nb)} className="p-1.5 text-slate-500 hover:text-emerald-400 rounded hover:bg-slate-800" title="Editar">
+                                                  <Pencil size={14} />
+                                              </button>
+                                          </div>
+                                      </div>
+                                  </div>
+                              ))}
                           </div>
                       )}
                   </div>
               );
           })}
-          {groupedData.sortedKeys.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-20 text-slate-500">
-                  <Layers size={48} className="mb-4 opacity-20"/>
-                  <p>Nenhum caderno encontrado para este filtro.</p>
+          
+          {filteredNotebooks.length === 0 && (
+              <div className="text-center py-20 opacity-50">
+                  <BookOpen size={48} className="mx-auto text-slate-600 mb-4" />
+                  <p className="text-slate-400">Nenhum caderno encontrado com os filtros atuais.</p>
+                  <button onClick={() => {setSearchTerm(''); setActiveFilter('ALL');}} className="text-emerald-500 text-sm mt-2 hover:underline">
+                      Limpar Filtros
+                  </button>
               </div>
           )}
       </div>
 
-      {/* MODAL: BULK ACTIONS */}
+      {/* MODAL - CREATE / EDIT */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+                <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900">
+                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                    {editingId ? <Pencil size={20} className="text-emerald-500"/> : <Plus size={20} className="text-emerald-500"/>} 
+                    {editingId ? 'Editar Caderno Tático' : 'Novo Caderno Tático'}
+                    </h3>
+                    <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white">
+                        <X size={24} />
+                    </button>
+                </div>
+
+                <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
+                    {/* 1. Identification */}
+                    <section>
+                        <h4 className="text-xs font-bold text-emerald-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <BookOpen size={14}/> Identificação
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Disciplina</label>
+                                <input 
+                                    required 
+                                    list="disciplines"
+                                    value={formData.discipline} 
+                                    onChange={e => setFormData({...formData, discipline: e.target.value})} 
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500"
+                                    placeholder="Ex: Direito Constitucional"
+                                />
+                                <datalist id="disciplines">
+                                    {existingDisciplines.map(d => <option key={d} value={d} />)}
+                                </datalist>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Tópico</label>
+                                <input 
+                                    required 
+                                    value={formData.name} 
+                                    onChange={e => setFormData({...formData, name: e.target.value})} 
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500"
+                                    placeholder="Ex: Controle de Constitucionalidade"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Subtópico / Foco</label>
+                                <input 
+                                    value={formData.subtitle} 
+                                    onChange={e => setFormData({...formData, subtitle: e.target.value})} 
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500"
+                                    placeholder="Ex: ADI, ADC, ADPF"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Link Externo (Tec/QConcursos)</label>
+                                <div className="relative">
+                                    <LinkIcon className="absolute left-3 top-3.5 text-slate-500" size={16} />
+                                    <input 
+                                        type="url"
+                                        value={formData.tecLink} 
+                                        onChange={e => setFormData({...formData, tecLink: e.target.value})} 
+                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 pl-10 text-white outline-none focus:border-emerald-500"
+                                        placeholder="https://..."
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <div className="h-px bg-slate-800"></div>
+
+                    {/* 2. Strategy & Algorithm */}
+                    <section>
+                        <h4 className="text-xs font-bold text-emerald-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <Calculator size={14}/> Parâmetros do Algoritmo
+                        </h4>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                            <div>
+                                <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Peso</label>
+                                <select 
+                                    value={formData.weight} 
+                                    onChange={(e) => setFormData({...formData, weight: e.target.value as Weight})} 
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm"
+                                >
+                                    {Object.values(Weight).map(w => <option key={w} value={w}>{w}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Relevância</label>
+                                <select 
+                                    value={formData.relevance} 
+                                    onChange={(e) => setFormData({...formData, relevance: e.target.value as Relevance})} 
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm"
+                                >
+                                    {Object.values(Relevance).map(r => <option key={r} value={r}>{r}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Tendência</label>
+                                <select 
+                                    value={formData.trend} 
+                                    onChange={(e) => setFormData({...formData, trend: e.target.value as Trend})} 
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm"
+                                >
+                                    {Object.values(Trend).map(t => <option key={t} value={t}>{t}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Meta (%)</label>
+                                <input 
+                                    type="number"
+                                    min="0"
+                                    max="100"
+                                    value={formData.targetAccuracy} 
+                                    onChange={e => setFormData({...formData, targetAccuracy: Number(e.target.value)})} 
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm text-center font-bold" 
+                                />
+                            </div>
+                        </div>
+
+                        {/* Interactive Algorithm Preview */}
+                        <div className="bg-slate-950 border border-slate-800 rounded-xl p-6 flex flex-col md:flex-row gap-8 relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-2 opacity-10"><Calculator size={120} /></div>
+                            
+                            <div className="flex-1 space-y-4 z-10">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-emerald-400 mb-1 uppercase">Acurácia Atual (%)</label>
+                                        <input 
+                                            type="number"
+                                            min="0"
+                                            max="100"
+                                            value={formData.accuracy}
+                                            onChange={e => setFormData({...formData, accuracy: Number(e.target.value)})}
+                                            className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white font-mono text-center font-bold text-lg focus:border-emerald-500 outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Data da Prática</label>
+                                        <input 
+                                            type="date"
+                                            value={formData.lastPractice}
+                                            onChange={e => setFormData({...formData, lastPractice: e.target.value})}
+                                            className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white text-sm outline-none focus:border-emerald-500"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex-1 border-l border-slate-800 pl-8 flex flex-col justify-center z-10">
+                                <span className="text-[10px] text-slate-500 uppercase font-bold mb-1">Previsão do Algoritmo</span>
+                                <div className="text-3xl font-black text-white flex items-baseline gap-2">
+                                    +{projection.daysToAdd} <span className="text-sm font-medium text-slate-400">dias</span>
+                                </div>
+                                <div className="text-emerald-400 text-sm font-bold mt-1 flex items-center gap-2">
+                                    <CalendarCheck size={14}/>
+                                    {projection.nextDate.toLocaleDateString()}
+                                </div>
+                                <div className="text-[10px] text-slate-500 mt-2">
+                                    Fatores: {projection.reasons.join(', ')}
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <div className="h-px bg-slate-800"></div>
+
+                    {/* 3. Resources */}
+                    <section>
+                         <h4 className="text-xs font-bold text-emerald-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <FileText size={14}/> Material de Apoio
+                        </h4>
+                        
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Link Obsidian / Notion</label>
+                                <div className="relative">
+                                    <FileCode className="absolute left-3 top-3.5 text-slate-500" size={16} />
+                                    <input 
+                                        type="url"
+                                        value={formData.obsidianLink} 
+                                        onChange={e => setFormData({...formData, obsidianLink: e.target.value})} 
+                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 pl-10 text-white outline-none focus:border-emerald-500"
+                                        placeholder="obsidian://open?vault=..."
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Anotações Rápidas</label>
+                                    <textarea 
+                                        value={formData.notes} 
+                                        onChange={e => setFormData({...formData, notes: e.target.value})} 
+                                        className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500 transition-all min-h-[140px] resize-none text-sm" 
+                                        placeholder="Mnemônicos, dicas, erros comuns..." 
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Imagem / Mapa Mental</label>
+                                    <div 
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="w-full h-[140px] bg-slate-800 border-2 border-dashed border-slate-700 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-emerald-500 hover:bg-slate-800/80 transition-all relative overflow-hidden group"
+                                    >
+                                        <input 
+                                            type="file" 
+                                            ref={fileInputRef} 
+                                            className="hidden" 
+                                            accept="image/*"
+                                            onChange={handleImageUpload}
+                                        />
+                                        {formData.image ? (
+                                            <img src={formData.image} alt="Upload" className="w-full h-full object-cover opacity-50 group-hover:opacity-30 transition-opacity" />
+                                        ) : (
+                                            <div className="text-center text-slate-500 group-hover:text-emerald-500 transition-colors">
+                                                <Upload size={24} className="mx-auto mb-2" />
+                                                <span className="text-xs font-bold">Clique para enviar</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </form>
+
+                {/* Footer */}
+                <div className="p-6 border-t border-slate-800 bg-slate-900 flex justify-between gap-4">
+                     {editingId && (
+                         <button 
+                            type="button" 
+                            onClick={() => { 
+                                if(confirm('Tem certeza que deseja excluir este caderno?')) { 
+                                    deleteNotebook(editingId); 
+                                    setIsModalOpen(false); 
+                                } 
+                            }} 
+                            className="text-red-400 hover:text-red-300 px-4 py-2 text-sm font-bold flex items-center gap-2"
+                        >
+                             <Trash2 size={16} /> Excluir
+                         </button>
+                     )}
+                     <div className="flex gap-4 ml-auto">
+                        <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">Cancelar</button>
+                        <button type="button" onClick={handleSave} className="px-6 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-900/20 transition-all">
+                            Salvar Alterações
+                        </button>
+                     </div>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* BULK ACTION MODAL */}
       {bulkActionOpen && (
-          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-              <div className="bg-slate-900 border border-slate-700 rounded-xl w-full max-w-sm p-6 shadow-2xl">
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-sm p-6 shadow-2xl">
                   <h3 className="text-lg font-bold text-white mb-4">Ação em Massa</h3>
+                  <p className="text-sm text-slate-400 mb-6">
+                      Aplicar alteração para {selectedIds.size} itens selecionados.
+                  </p>
                   
                   {bulkActionType === 'WEIGHT' && (
-                      <div className="space-y-2">
-                          <p className="text-sm text-slate-400 mb-2">Definir Peso para {selectedIds.size} itens:</p>
+                      <div className="space-y-2 mb-6">
                           {Object.values(Weight).map(w => (
-                              <button key={w} onClick={() => executeBulkAction(w)} className="w-full text-left p-3 hover:bg-slate-800 rounded border border-slate-800 hover:border-slate-600 text-slate-300 text-sm">
-                                  {w}
+                              <button key={w} onClick={() => executeBulkAction(w)} className="w-full text-left px-4 py-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm">
+                                  Definir como {w}
                               </button>
                           ))}
                       </div>
                   )}
 
                   {bulkActionType === 'STATUS' && (
-                      <div className="space-y-2">
-                          <p className="text-sm text-slate-400 mb-2">Definir Status para {selectedIds.size} itens:</p>
+                      <div className="space-y-2 mb-6">
                           {Object.values(NotebookStatus).map(s => (
-                              <button key={s} onClick={() => executeBulkAction(s)} className="w-full text-left p-3 hover:bg-slate-800 rounded border border-slate-800 hover:border-slate-600 text-slate-300 text-sm">
-                                  {s}
+                              <button key={s} onClick={() => executeBulkAction(s)} className="w-full text-left px-4 py-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm">
+                                  Definir como {s}
                               </button>
                           ))}
                       </div>
                   )}
-                  
-                  <button onClick={() => setBulkActionOpen(false)} className="mt-4 w-full py-2 text-slate-500 hover:text-white text-sm">Cancelar</button>
+
+                  <button onClick={() => setBulkActionOpen(false)} className="w-full py-2 text-slate-500 hover:text-white">Cancelar</button>
               </div>
           </div>
       )}
 
-      {/* MODAL: CREATE / EDIT (FULL FORM RESTORED) */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900">
-                <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                   {editingId ? <><Pencil size={20} className="text-emerald-500"/> Editar Caderno</> : <><Plus size={20} className="text-emerald-500"/> Novo Caderno</>}
-                </h3>
-                <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white"><X size={24} /></button>
-            </div>
-            
-            <form onSubmit={handleSave} className="overflow-y-auto p-6 space-y-6 custom-scrollbar">
-                {/* SECTION 1: IDENTIFICATION */}
-                <div className="space-y-4">
-                    <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">1. Identificação</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Disciplina</label>
-                            <input 
-                                required 
-                                list="disciplines"
-                                value={formData.discipline} 
-                                onChange={e => setFormData({...formData, discipline: e.target.value})} 
-                                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" 
-                            />
-                            <datalist id="disciplines">
-                                {existingDisciplines.map(d => <option key={d} value={d} />)}
-                            </datalist>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Nome do Tópico</label>
-                            <input 
-                                required 
-                                value={formData.name} 
-                                onChange={e => setFormData({...formData, name: e.target.value})} 
-                                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" 
-                            />
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Subtópico / Foco</label>
-                            <input 
-                                value={formData.subtitle} 
-                                onChange={e => setFormData({...formData, subtitle: e.target.value})} 
-                                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" 
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Caderno / Anki</label>
-                            <div className="relative">
-                                <LinkIcon className="absolute left-3 top-3.5 text-slate-500" size={16} />
-                                <input 
-                                    type="url"
-                                    value={formData.tecLink} 
-                                    onChange={e => setFormData({...formData, tecLink: e.target.value})} 
-                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 pl-10 text-white outline-none focus:border-emerald-500" 
-                                    placeholder="https://..."
-                                />
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* SECTION 2: STRATEGY */}
-                <div className="space-y-4 pt-2">
-                    <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">2. Estratégia & Algoritmo</h4>
-                    
-                    {/* ALGORITHM CALCULATION BOX (AUTO) */}
-                    <div className="bg-slate-950/50 border border-slate-800 rounded-xl p-4 flex flex-col md:flex-row gap-6 items-center">
-                        <div className="flex-1 space-y-4 w-full">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider flex items-center gap-2">
-                                    <Calendar size={12}/> Data da Última Prática (Anki/Questões)
-                                </label>
-                                <input 
-                                    type="date"
-                                    required
-                                    value={formData.lastPractice}
-                                    onChange={e => setFormData({...formData, lastPractice: e.target.value})}
-                                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 cursor-pointer"
-                                />
-                            </div>
-                            <div className="flex gap-4">
-                                <div className="flex-1">
-                                    <label className="block text-[10px] font-bold text-emerald-400 mb-1 uppercase">Acurácia (%)</label>
-                                    <input type="number" min="0" max="100" className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white font-mono text-center font-bold" value={formData.accuracy} onChange={e => setFormData({...formData, accuracy: Number(e.target.value)})} />
-                                </div>
-                                <div className="flex-1">
-                                    <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Meta (%)</label>
-                                    <input type="number" min="0" max="100" className="w-full bg-slate-900 border border-slate-700 rounded p-2 text-white font-mono text-center font-bold" value={formData.targetAccuracy} onChange={e => setFormData({...formData, targetAccuracy: Number(e.target.value)})} />
-                                </div>
-                            </div>
-                        </div>
-                        
-                        {/* THE AUTOMATIC PREDICTION BOX */}
-                        <div className="w-full md:w-64 bg-slate-900 rounded-lg border border-slate-700 p-4 relative overflow-hidden group">
-                             <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
-                                 <Calculator size={48} />
-                             </div>
-                             <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">Previsão do Algoritmo</p>
-                             <div className="text-2xl font-bold text-emerald-400 mb-1">
-                                 {projection.nextDate.toLocaleDateString('pt-BR')}
-                             </div>
-                             <div className="text-xs text-slate-400 mb-3 font-mono">
-                                 Intervalo: +{projection.daysToAdd} dias
-                             </div>
-                             <div className="flex flex-wrap gap-1">
-                                 {projection.reasons.map((r, i) => (
-                                     <span key={i} className="text-[9px] bg-emerald-900/30 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-900/50">
-                                         {r}
-                                     </span>
-                                 ))}
-                             </div>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div>
-                            <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Cobertura</label>
-                            <select 
-                                value={formData.status} 
-                                onChange={e => setFormData({...formData, status: e.target.value as NotebookStatus})} 
-                                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm"
-                            >
-                                {Object.values(NotebookStatus).map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Peso</label>
-                            <select 
-                                value={formData.weight} 
-                                onChange={e => setFormData({...formData, weight: e.target.value as Weight})} 
-                                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm"
-                            >
-                                {Object.values(Weight).map(w => <option key={w} value={w}>{w}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Relevância</label>
-                            <select 
-                                value={formData.relevance} 
-                                onChange={e => setFormData({...formData, relevance: e.target.value as Relevance})} 
-                                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm"
-                            >
-                                {Object.values(Relevance).map(r => <option key={r} value={r}>{r}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Tendência</label>
-                            <select 
-                                value={formData.trend} 
-                                onChange={e => setFormData({...formData, trend: e.target.value as Trend})} 
-                                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm"
-                            >
-                                {Object.values(Trend).map(t => <option key={t} value={t}>{t}</option>)}
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                {/* SECTION 3: CONTENT */}
-                <div className="space-y-4 pt-2">
-                    <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">3. Conteúdo & Anotações</h4>
-                    
-                    {/* Obsidian / Notion Link Input */}
-                    <div>
-                        <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Obsidian / Notion</label>
-                        <div className="relative">
-                            <FileCode className="absolute left-3 top-3.5 text-slate-500" size={16} />
-                            <input 
-                                type="url"
-                                value={formData.obsidianLink} 
-                                onChange={e => setFormData({...formData, obsidianLink: e.target.value})} 
-                                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 pl-10 text-white outline-none focus:border-emerald-500" 
-                                placeholder="obsidian://open?vault=..."
-                            />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Anotações / Resumo</label>
-                            <textarea 
-                                value={formData.notes} 
-                                onChange={e => setFormData({...formData, notes: e.target.value})} 
-                                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500 transition-all min-h-[140px] resize-none text-sm" 
-                                placeholder="Mnemônicos e pontos chave..." 
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Imagem / Mapa Mental</label>
-                            <div 
-                                onClick={() => fileInputRef.current?.click()}
-                                className="w-full h-[140px] bg-slate-800 border-2 border-dashed border-slate-700 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-emerald-500 hover:bg-slate-800/80 transition-all relative overflow-hidden group"
-                            >
-                                <input 
-                                    type="file" 
-                                    ref={fileInputRef} 
-                                    className="hidden" 
-                                    accept="image/*"
-                                    onChange={handleImageUpload}
-                                />
-                                {formData.image ? (
-                                    <img src={formData.image} alt="Upload" className="w-full h-full object-cover opacity-50 group-hover:opacity-30 transition-opacity" />
-                                ) : (
-                                    <div className="text-center text-slate-500 group-hover:text-emerald-500 transition-colors">
-                                        <Upload size={24} className="mx-auto mb-2" />
-                                        <span className="text-xs font-bold">Clique para enviar</span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-            </form>
-
-            <div className="p-6 border-t border-slate-800 bg-slate-900 flex gap-4">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 bg-slate-800 text-slate-300 py-3 rounded-xl hover:bg-slate-700 font-medium transition-colors">Cancelar</button>
-                <button type="button" onClick={handleSave} className="flex-1 bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-500 font-bold shadow-lg shadow-emerald-900/20">Salvar</button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
 
-// Helper Component for Filter Chips
-const FilterButton = ({ active, onClick, icon, label, color = 'emerald' }: any) => {
-    const activeClass = 
-        color === 'red' ? 'bg-red-500 text-white border-red-400' : 
-        color === 'blue' ? 'bg-blue-500 text-white border-blue-400' :
-        color === 'amber' ? 'bg-amber-500 text-white border-amber-400' :
-        color === 'purple' ? 'bg-purple-500 text-white border-purple-400' :
-        'bg-emerald-600 text-white border-emerald-500';
-
-    return (
-        <button 
-            onClick={onClick}
-            className={`
-                flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold border transition-all whitespace-nowrap
-                ${active ? activeClass : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:border-slate-600'}
-            `}
-        >
-            {icon} {label}
-        </button>
-    );
-};
+// Filter Button Helper
+const FilterButton = ({ active, onClick, icon, label, color = 'emerald' }: any) => (
+    <button 
+        onClick={onClick}
+        className={`
+            flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all border
+            ${active 
+                ? `bg-${color}-500/20 text-${color}-400 border-${color}-500/50 shadow-[0_0_10px_rgba(16,185,129,0.2)]` 
+                : 'bg-slate-900 text-slate-500 border-slate-800 hover:border-slate-600 hover:text-slate-300'}
+        `}
+    >
+        {icon} {label}
+    </button>
+);

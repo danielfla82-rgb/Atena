@@ -97,6 +97,21 @@ export interface ProtocolItem {
   checked: boolean; // Reset diário
 }
 
+/** Configuração Avançada do Algoritmo de Revisão */
+export interface AlgorithmConfig {
+  baseIntervals: {
+    learning: number; // Acurácia < 60%
+    reviewing: number; // Acurácia 60-79%
+    mastering: number; // Acurácia 80-89%
+    maintaining: number; // Acurácia >= 90%
+  };
+  multipliers: {
+    relevanceHigh: number; // Multiplicador para Relevância Alta
+    relevanceExtreme: number; // Multiplicador para Relevância Altíssima
+    trendHigh: number; // Multiplicador para Tendência Alta
+  };
+}
+
 /** Configuração Global do Concurso (Contexto para IA) */
 export interface AthensConfig {
   targetRole: string;
@@ -109,6 +124,8 @@ export interface AthensConfig {
   banca?: string;
   editalText?: string; // Texto raw
   editalLink?: string;
+  // Algoritmo Customizável
+  algorithm?: AlgorithmConfig;
 }
 
 /** 

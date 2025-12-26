@@ -8,7 +8,7 @@ import {
   BookOpen, Target, Calendar, Award, Zap, BrainCircuit, Settings, 
   FileText, Save, X, ExternalLink, TrendingUp, Link as LinkIcon,
   PieChart as PieChartIcon, Activity, Layers, Siren, Sparkles, ArrowRight, CheckCircle2,
-  MoreHorizontal
+  MoreHorizontal, Calculator
 } from 'lucide-react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -16,6 +16,7 @@ import {
   ComposedChart, Bar, Legend, ReferenceLine,
   Treemap
 } from 'recharts';
+import { runAlgorithmUnitTests } from '../utils/algorithm';
 
 // Custom Content for Treemap to make it look "Elite"
 const CustomTreemapContent = (props: any) => {
@@ -248,6 +249,26 @@ export const Dashboard: React.FC = () => {
       e.preventDefault();
       updateConfig(localConfig);
       setIsConfigOpen(false);
+  };
+
+  const handleAlgoChange = (section: 'baseIntervals' | 'multipliers', key: string, value: string) => {
+      if(!localConfig.algorithm) return;
+      
+      setLocalConfig({
+          ...localConfig,
+          algorithm: {
+              ...localConfig.algorithm,
+              [section]: {
+                  ...localConfig.algorithm[section],
+                  [key]: Number(value)
+              }
+          }
+      });
+  };
+
+  const runTests = () => {
+      runAlgorithmUnitTests();
+      alert("Testes unitários executados no console (F12). Verifique os resultados.");
   };
 
   return (
@@ -632,6 +653,89 @@ export const Dashboard: React.FC = () => {
                             * Estes dados serão enviados para a inteligência artificial (Gemini) para ajudar a personalizar suas sugestões de revisão e prioridades.
                         </p>
                     </div>
+
+                     {/* SECTION 3: ADVANCED ALGORITHM CONFIG */}
+                     <div className="space-y-4 pt-2">
+                        <div className="flex justify-between items-end border-b border-emerald-500/20 pb-2">
+                             <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest flex items-center gap-2">
+                                <Calculator size={16} /> 3. Ajuste Fino do Algoritmo
+                             </h4>
+                             <button type="button" onClick={runTests} className="text-[10px] text-emerald-400 hover:text-white underline">
+                                 Executar Testes Unitários
+                             </button>
+                        </div>
+                        
+                        <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800">
+                            <p className="text-xs text-slate-400 mb-4">
+                                Personalize os intervalos (em dias) e multiplicadores de retenção. Cuidado: alterações aqui afetam todo o cronograma.
+                            </p>
+                            
+                            {localConfig.algorithm && (
+                                <>
+                                    <div className="mb-4">
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Intervalos Base (Dias)</label>
+                                        <div className="grid grid-cols-4 gap-2">
+                                            <div>
+                                                <span className="block text-[9px] text-red-400 mb-1">Learning (&lt;60%)</span>
+                                                <input type="number" className="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white text-center text-xs"
+                                                    value={localConfig.algorithm.baseIntervals.learning}
+                                                    onChange={(e) => handleAlgoChange('baseIntervals', 'learning', e.target.value)}
+                                                />
+                                            </div>
+                                            <div>
+                                                <span className="block text-[9px] text-amber-400 mb-1">Reviewing (60-79%)</span>
+                                                <input type="number" className="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white text-center text-xs"
+                                                    value={localConfig.algorithm.baseIntervals.reviewing}
+                                                    onChange={(e) => handleAlgoChange('baseIntervals', 'reviewing', e.target.value)}
+                                                />
+                                            </div>
+                                            <div>
+                                                <span className="block text-[9px] text-blue-400 mb-1">Mastering (80-89%)</span>
+                                                <input type="number" className="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white text-center text-xs"
+                                                    value={localConfig.algorithm.baseIntervals.mastering}
+                                                    onChange={(e) => handleAlgoChange('baseIntervals', 'mastering', e.target.value)}
+                                                />
+                                            </div>
+                                            <div>
+                                                <span className="block text-[9px] text-emerald-400 mb-1">Maintaining (90%+)</span>
+                                                <input type="number" className="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white text-center text-xs"
+                                                    value={localConfig.algorithm.baseIntervals.maintaining}
+                                                    onChange={(e) => handleAlgoChange('baseIntervals', 'maintaining', e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Aceleradores (Multiplicadores)</label>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <div>
+                                                <span className="block text-[9px] text-slate-400 mb-1">Relev. Extrema</span>
+                                                <input type="number" step="0.1" className="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white text-center text-xs"
+                                                    value={localConfig.algorithm.multipliers.relevanceExtreme}
+                                                    onChange={(e) => handleAlgoChange('multipliers', 'relevanceExtreme', e.target.value)}
+                                                />
+                                            </div>
+                                            <div>
+                                                <span className="block text-[9px] text-slate-400 mb-1">Relev. Alta</span>
+                                                <input type="number" step="0.1" className="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white text-center text-xs"
+                                                    value={localConfig.algorithm.multipliers.relevanceHigh}
+                                                    onChange={(e) => handleAlgoChange('multipliers', 'relevanceHigh', e.target.value)}
+                                                />
+                                            </div>
+                                            <div>
+                                                <span className="block text-[9px] text-slate-400 mb-1">Tendência Alta</span>
+                                                <input type="number" step="0.1" className="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white text-center text-xs"
+                                                    value={localConfig.algorithm.multipliers.trendHigh}
+                                                    onChange={(e) => handleAlgoChange('multipliers', 'trendHigh', e.target.value)}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                     </div>
 
                 </form>
 
