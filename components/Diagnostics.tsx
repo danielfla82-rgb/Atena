@@ -100,7 +100,7 @@ export const Diagnostics: React.FC = () => {
          setIsApiDisabled(true);
          setErrorMsg("A API 'Generative Language' não está ativada no seu projeto Google Cloud.");
       } else {
-         setErrorMsg(`Erro na IA: ${error.message || error.toString()}`);
+         setErrorMsg(`Erro na IA: ${error.message || error.toString()}. Verifique se a chave se chama VITE_API_KEY.`);
       }
     } finally {
       setLoading(false);
@@ -168,6 +168,41 @@ export const Diagnostics: React.FC = () => {
     }
   };
 
+  // Helper function for consistent Markdown rendering
+  const renderMarkdown = (text: string) => {
+    return text.split('\n').map((line, i) => {
+        // Parse Bold (**text**)
+        const parseInline = (lineText: string) => {
+            return lineText.split(/\*\*(.*?)\*\*/g).map((part, index) => 
+                index % 2 === 1 ? <strong key={index} className="text-emerald-400 font-bold">{part}</strong> : part
+            );
+        };
+
+        const trimmed = line.trim();
+
+        if (trimmed.startsWith('###')) {
+            return <h4 key={i} className="text-lg font-bold text-white mt-4 mb-2">{parseInline(trimmed.replace(/^###\s*/, ''))}</h4>;
+        }
+        if (trimmed.startsWith('##')) {
+            return <h3 key={i} className="text-xl font-bold text-emerald-400 mt-6 mb-3 border-b border-emerald-500/20 pb-2">{parseInline(trimmed.replace(/^##\s*/, ''))}</h3>;
+        }
+        if (trimmed.startsWith('# ')) {
+             return <h2 key={i} className="text-2xl font-black text-white mt-6 mb-4">{parseInline(trimmed.replace(/^#\s*/, ''))}</h2>;
+        }
+        if (trimmed.startsWith('-') || trimmed.startsWith('*')) {
+            return (
+                <li key={i} className="flex gap-2 text-slate-300 ml-4 mb-2">
+                    <span className="text-emerald-500 mt-1.5 min-w-[6px] h-[6px] rounded-full bg-emerald-500 block"></span>
+                    <span className="flex-1">{parseInline(trimmed.replace(/^[-*]\s*/, ''))}</span>
+                </li>
+            );
+        }
+        if (!trimmed) return <div key={i} className="h-2" />;
+        
+        return <p key={i} className="text-slate-300 mb-2 leading-relaxed">{parseInline(line)}</p>;
+    });
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8 pb-20 relative">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-800 pb-6 gap-4">
@@ -197,24 +232,22 @@ export const Diagnostics: React.FC = () => {
               <h3 className="text-white font-bold mb-1">Erro na Análise</h3>
               <p className="text-red-300 text-sm font-mono mb-4">{errorMsg}</p>
               
-              {isApiDisabled && (
-                  <div className="flex flex-col md:flex-row items-center justify-center gap-3 mb-2">
-                    <a 
-                        href="https://console.developers.google.com/apis/api/generativelanguage.googleapis.com/overview" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 px-6 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-bold text-sm transition-colors"
-                    >
-                        <ExternalLink size={16} /> 1. Conferir Console
-                    </a>
-                    <button 
-                        onClick={activeTab === 'tactical' ? runTacticalDiagnostics : runEditalAudit}
-                        className="inline-flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold text-sm transition-colors shadow-lg shadow-red-900/20"
-                    >
-                        <RefreshCw size={16} /> 2. Tentar Novamente
-                    </button>
-                  </div>
-              )}
+              <div className="flex flex-col md:flex-row items-center justify-center gap-3 mb-2">
+                <a 
+                    href="https://console.developers.google.com/apis/api/generativelanguage.googleapis.com/overview" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-6 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-bold text-sm transition-colors"
+                >
+                    <ExternalLink size={16} /> 1. Conferir Console
+                </a>
+                <button 
+                    onClick={activeTab === 'tactical' ? runTacticalDiagnostics : runEditalAudit}
+                    className="inline-flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold text-sm transition-colors shadow-lg shadow-red-900/20"
+                >
+                    <RefreshCw size={16} /> 2. Tentar Novamente
+                </button>
+              </div>
               
               <div className="mt-2">
                   <button onClick={() => setErrorMsg(null)} className="text-xs text-slate-400 underline hover:text-white">Voltar</button>
@@ -235,11 +268,7 @@ export const Diagnostics: React.FC = () => {
                <div className="lg:col-span-2 bg-slate-900 border border-slate-700 rounded-2xl p-8 shadow-2xl relative overflow-hidden">
                  <button onClick={handleSaveCurrentReport} className="absolute top-6 right-6 p-2 bg-slate-800 hover:bg-emerald-600 text-slate-400 hover:text-white rounded-lg transition-colors z-20"><Save size={20} /></button>
                  <div className="prose prose-invert prose-emerald max-w-none">
-                    {tacticalAnalysis.split('\n').map((line, i) => {
-                      if (line.startsWith('##')) return <h3 key={i} className="text-xl font-bold text-emerald-400 mt-6 mb-3 border-b border-emerald-500/20 pb-2">{line.replace(/#/g, '')}</h3>;
-                      if (line.startsWith('-')) return <li key={i} className="text-slate-300 ml-4 mb-2">{line.replace('-', '')}</li>;
-                      return <p key={i} className="text-slate-300 mb-2 leading-relaxed">{line}</p>;
-                    })}
+                    {renderMarkdown(tacticalAnalysis)}
                  </div>
                </div>
                <div className="space-y-4">

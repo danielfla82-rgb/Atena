@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useStore } from '../store';
 import { createAIClient } from '../utils/ai';
@@ -37,11 +36,32 @@ export const Tips: React.FC = () => {
 
   const renderFormattedText = (text: string) => {
     return text.split('\n').map((line, index) => {
-        const parseInline = (lineText: string) => lineText.split(/\*\*(.*?)\*\*/g).map((part, i) => i % 2 === 1 ? <strong key={i} className="text-emerald-400 font-bold bg-emerald-950/30 px-1 rounded">{part}</strong> : part);
-        if (line.startsWith('# ')) return <h2 key={index} className="text-3xl font-black text-white mb-6 mt-8">{parseInline(line.replace(/^#\s+/, ''))}</h2>;
-        if (line.startsWith('## ')) return <h3 key={index} className="text-xl font-bold text-emerald-200 mb-4 mt-8">{parseInline(line.replace(/^##\s+/, ''))}</h3>;
-        if (line.startsWith('- ')) return <div key={index} className="flex gap-3 mb-3 ml-2"><div className="mt-2 w-1.5 h-1.5 rounded-full bg-emerald-500"></div><p className="text-slate-300">{parseInline(line.replace(/^- /, ''))}</p></div>;
-        if (!line.trim()) return <div key={index} className="h-4"></div>;
+        // Handle Bold (**text**)
+        const parseInline = (lineText: string) => lineText.split(/\*\*(.*?)\*\*/g).map((part, i) => 
+            i % 2 === 1 ? <strong key={i} className="text-emerald-400 font-bold bg-emerald-950/30 px-1 rounded">{part}</strong> : part
+        );
+
+        const trimmed = line.trim();
+
+        if (trimmed.startsWith('# ')) 
+            return <h2 key={index} className="text-3xl font-black text-white mb-6 mt-8">{parseInline(trimmed.replace(/^#\s+/, ''))}</h2>;
+        
+        if (trimmed.startsWith('## ')) 
+            return <h3 key={index} className="text-xl font-bold text-emerald-200 mb-4 mt-8 border-b border-slate-700 pb-2">{parseInline(trimmed.replace(/^##\s+/, ''))}</h3>;
+        
+        if (trimmed.startsWith('### ')) 
+            return <h4 key={index} className="text-lg font-bold text-emerald-100 mb-3 mt-6">{parseInline(trimmed.replace(/^###\s+/, ''))}</h4>;
+
+        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) 
+            return (
+                <div key={index} className="flex gap-3 mb-3 ml-2">
+                    <div className="mt-2 w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0"></div>
+                    <p className="text-slate-300 leading-relaxed">{parseInline(trimmed.replace(/^[-*]\s+/, ''))}</p>
+                </div>
+            );
+
+        if (!trimmed) return <div key={index} className="h-4"></div>;
+        
         return <p key={index} className="text-slate-300 mb-4 text-lg leading-7">{parseInline(line)}</p>;
     });
   };

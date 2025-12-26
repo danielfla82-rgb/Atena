@@ -1,7 +1,6 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { createAIClient } from '../utils/ai';
-import { Send, User, RefreshCcw, Loader2 } from 'lucide-react';
+import { Send, User, RefreshCcw, Loader2, Sparkles } from 'lucide-react';
 
 interface Message {
   role: 'user' | 'model';
@@ -42,7 +41,8 @@ export const Psychoanalyst: React.FC = () => {
             systemInstruction: `
                 Você é Carl Gustav Jung. O usuário é um estudante de elite (concurseiro).
                 Ajude-o a integrar a Sombra (medos, preguiça) e fortalecer o Self.
-                Seja profundo, simbólico e acolhedor. Use metáforas.
+                Seja profundo, simbólico e acolhedor. Use metáforas ricas.
+                Use Markdown para formatar: **negrito** para conceitos chave, listas para passos práticos.
             `
         },
         history: history
@@ -67,6 +67,38 @@ export const Psychoanalyst: React.FC = () => {
     }
   };
 
+  const renderMarkdown = (text: string) => {
+    return text.split('\n').map((line, index) => {
+        const trimmed = line.trim();
+        if (!trimmed) return <div key={index} className="h-2"></div>;
+
+        // Função interna para processar negrito inline
+        const parseInline = (str: string) => str.split(/\*\*(.*?)\*\*/g).map((part, i) => 
+            i % 2 === 1 ? <strong key={i} className="font-bold text-emerald-300 bg-emerald-950/30 px-1 rounded">{part}</strong> : part
+        );
+
+        // Headers
+        if (trimmed.startsWith('### ')) 
+            return <h3 key={index} className="text-emerald-400 font-bold mt-3 mb-2 text-sm uppercase tracking-wider border-b border-emerald-500/20 pb-1">{parseInline(trimmed.replace(/^###\s+/, ''))}</h3>;
+        
+        if (trimmed.startsWith('## ')) 
+            return <h2 key={index} className="text-white font-bold mt-4 mb-2 text-base">{parseInline(trimmed.replace(/^##\s+/, ''))}</h2>;
+
+        // Listas
+        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+           return (
+             <div key={index} className="flex gap-2 ml-1 mb-2 items-start">
+                <span className="text-emerald-500 mt-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+                <span className="text-slate-200 leading-relaxed text-sm md:text-base">{parseInline(trimmed.replace(/^[-*]\s+/, ''))}</span>
+             </div>
+           );
+        }
+
+        // Parágrafos normais
+        return <p key={index} className="mb-2 text-slate-200 leading-relaxed text-sm md:text-base">{parseInline(line)}</p>;
+    });
+  };
+
   const bgImage = "https://i.postimg.cc/nhrKqVFj/Gemini-Generated-Image-bxykegbxykegbxyk.png";
 
   return (
@@ -86,17 +118,19 @@ export const Psychoanalyst: React.FC = () => {
       {/* Header Flutuante */}
       <div className="relative z-20 p-6 flex items-center justify-between bg-gradient-to-b from-slate-950 to-transparent">
          <div className="flex items-center gap-4">
-             <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-slate-600 shadow-2xl">
+             <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-slate-600 shadow-2xl relative">
                  <img src={bgImage} alt="Analyst" className="w-full h-full object-cover" />
+                 <div className="absolute inset-0 bg-emerald-500/10 mix-blend-overlay"></div>
              </div>
              <div>
-                 <h2 className="text-2xl font-bold text-white drop-shadow-md">Analista Junguiano</h2>
+                 <h2 className="text-2xl font-bold text-white drop-shadow-md flex items-center gap-2">Analista Junguiano <Sparkles size={14} className="text-emerald-400"/></h2>
                  <p className="text-slate-300 text-sm font-medium drop-shadow">Integração do Inconsciente e da Sombra.</p>
              </div>
          </div>
          <button 
             onClick={() => setMessages([{ role: 'model', text: 'Vamos olhar para dentro. O que sua Sombra está dizendo hoje?' }])}
             className="p-3 bg-slate-900/50 backdrop-blur-md hover:bg-slate-800 rounded-full text-slate-300 hover:text-white transition-colors border border-slate-700"
+            title="Reiniciar Sessão"
          >
              <RefreshCcw size={20} />
          </button>
@@ -111,8 +145,8 @@ export const Psychoanalyst: React.FC = () => {
                          <img src={bgImage} alt="AI" className="w-full h-full object-cover" />
                      </div>
                  )}
-                 <div className={`relative p-5 rounded-3xl text-base leading-relaxed shadow-xl backdrop-blur-md ${msg.role === 'user' ? 'bg-emerald-600/90 text-white rounded-tr-sm border border-emerald-500/30 max-w-[85%]' : 'bg-slate-900/80 text-slate-100 rounded-tl-sm border border-slate-700/50'}`}>
-                     {msg.text}
+                 <div className={`relative p-5 rounded-3xl text-base leading-relaxed shadow-xl backdrop-blur-md ${msg.role === 'user' ? 'bg-emerald-600/90 text-white rounded-tr-sm border border-emerald-500/30 max-w-[85%]' : 'bg-slate-900/80 text-slate-100 rounded-tl-sm border border-slate-700/50 min-w-[300px]'}`}>
+                     {msg.role === 'user' ? msg.text : renderMarkdown(msg.text)}
                  </div>
                  {msg.role === 'user' && (
                      <div className="hidden md:flex w-10 h-10 rounded-full bg-emerald-900/50 items-center justify-center flex-shrink-0 mt-2 border border-emerald-500/30">
@@ -145,7 +179,7 @@ export const Psychoanalyst: React.FC = () => {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                    placeholder="Explore seus sentimentos..."
+                    placeholder="Explore seus sentimentos e bloqueios..."
                     className="w-full bg-transparent border-none px-4 py-3 text-white placeholder-slate-400 focus:ring-0 outline-none text-lg"
                     disabled={loading}
                     autoFocus

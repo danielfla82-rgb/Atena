@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Type } from "@google/genai";
 import { createAIClient } from '../utils/ai';
@@ -32,6 +31,7 @@ export const Nietzsche: React.FC = () => {
       const ai = createAIClient();
       const prompt = `
           Você é Nietzsche. Gere uma citação motivacional profunda (real) para um estudante em dificuldade.
+          Sempre inclua uma interpretação prática em Markdown (use negrito **texto** para ênfase).
           JSON: { aphorism: string, source: string, interpretation: string }.
       `;
 
@@ -61,11 +61,18 @@ export const Nietzsche: React.FC = () => {
       setData({
           aphorism: isKeyError ? "Onde falta a chave, falta o poder." : "Aquele que luta com monstros deve acautelar-se para não tornar-se também um monstro.",
           source: isKeyError ? "Erro de Configuração" : "Além do Bem e do Mal",
-          interpretation: isKeyError ? "Adicione a VITE_API_KEY no Vercel." : "Mantenha a nobreza mesmo na dor."
+          interpretation: isKeyError ? "Adicione a **VITE_API_KEY** no Vercel." : "Mantenha a nobreza mesmo na dor."
       });
     } finally {
       setLoading(false);
     }
+  };
+
+  const renderInterpretation = (text: string) => {
+      const parts = text.split(/\*\*(.*?)\*\*/g);
+      return parts.map((part, i) => 
+          i % 2 === 1 ? <strong key={i} className="text-emerald-400 font-bold">{part}</strong> : part
+      );
   };
 
   return (
@@ -83,7 +90,20 @@ export const Nietzsche: React.FC = () => {
                 <Quote className="text-emerald-800 w-16 h-16 mx-auto mb-6 opacity-40" />
                 <p className="text-2xl md:text-3xl font-medium text-slate-100 leading-relaxed tracking-wide mb-8 drop-shadow-lg">"{data.aphorism}"</p>
                 <div className="inline-flex items-center gap-2 text-emerald-500 border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 rounded-full text-sm font-bold uppercase tracking-widest mb-8"><BookOpen size={14} />{data.source}</div>
-                <div className="mt-2">{!showInterpretation ? (<button onClick={() => setShowInterpretation(true)} className="text-slate-500 hover:text-white text-xs uppercase tracking-[0.2em] flex items-center gap-2 mx-auto transition-colors">Contemplar Significado <ChevronDown size={14} /></button>) : (<div className="bg-slate-900/80 border border-slate-800 p-6 rounded-xl max-w-xl mx-auto animate-in slide-in-from-top-2"><h4 className="text-emerald-500 text-xs font-bold uppercase mb-2 flex items-center justify-center gap-2"><Flame size={12}/> Interpretação</h4><p className="text-slate-300 text-base leading-relaxed italic">{data.interpretation}</p></div>)}</div>
+                <div className="mt-2">
+                    {!showInterpretation ? (
+                        <button onClick={() => setShowInterpretation(true)} className="text-slate-500 hover:text-white text-xs uppercase tracking-[0.2em] flex items-center gap-2 mx-auto transition-colors">
+                            Contemplar Significado <ChevronDown size={14} />
+                        </button>
+                    ) : (
+                        <div className="bg-slate-900/80 border border-slate-800 p-6 rounded-xl max-w-xl mx-auto animate-in slide-in-from-top-2">
+                            <h4 className="text-emerald-500 text-xs font-bold uppercase mb-2 flex items-center justify-center gap-2"><Flame size={12}/> Interpretação</h4>
+                            <p className="text-slate-300 text-base leading-relaxed italic">
+                                {renderInterpretation(data.interpretation)}
+                            </p>
+                        </div>
+                    )}
+                </div>
             </div>
         )}
         <div className="mt-8">

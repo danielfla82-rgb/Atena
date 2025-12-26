@@ -18,11 +18,11 @@ export const News: React.FC = () => {
   const [errorDetail, setErrorDetail] = useState<string | null>(null);
   const [mode, setMode] = useState<'live' | 'offline' | 'demo'>('live');
 
-  // Dados Estáticos de Fallback (Caso a API não esteja ativada no Google Cloud)
+  // Dados Estáticos de Fallback
   const STATIC_BRIEFING = `
 ### Panorama Estratégico (Modo de Segurança)
 
-**Atenção:** O sistema de Inteligência Artificial está operando em modo restrito (API não ativada). Exibindo dados de referência para ${config.targetRole}.
+**Atenção:** O sistema de Inteligência Artificial está operando em modo restrito (API não ativada ou Chave Inválida). Exibindo dados de referência para ${config.targetRole}.
 
 ## 1. Perfil da Banca (Tendência Geral)
 *   **Português:** Foco em interpretação de texto complexa e reescrita de frases. A gramática é cobrada de forma contextual.
@@ -48,7 +48,6 @@ Aumente a carga horária em **resolução de questões** e reduza a leitura pass
     const ai = createAIClient();
 
     try {
-      // TENTATIVA 1: Modo Online (Google Search)
       const promptLive = `
         Atue como Analista de Inteligência de Concursos (Alvo: ${config.targetRole}).
         Faça uma varredura nas últimas notícias sobre este concurso ou área.
@@ -57,7 +56,7 @@ Aumente a carga horária em **resolução de questões** e reduza a leitura pass
       `;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.0-flash', 
+        model: 'gemini-3-flash-preview', 
         contents: promptLive,
         config: {
             tools: [{ googleSearch: {} }]
@@ -69,7 +68,6 @@ Aumente a carga horária em **resolução de questões** e reduza a leitura pass
       
       setBriefing(text);
 
-      // Extração de fontes
       const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
       const extractedSources: GroundingSource[] = [];
       const seenUrls = new Set();
@@ -95,14 +93,12 @@ Aumente a carga horária em **resolução de questões** e reduza a leitura pass
       console.warn("Falha no Google Search (Live Mode).", error);
       const errStr = JSON.stringify(error);
       
-      // VERIFICAÇÃO CRÍTICA: Se a API estiver desativada, NÃO tenta o fallback de IA, pois falhará também.
-      if (errStr.includes("SERVICE_DISABLED") || errStr.includes("Generative Language API has not been used")) {
+      if (errStr.includes("SERVICE_DISABLED") || errStr.includes("Generative Language API has not been used") || errStr.includes("API_KEY") || error.status === 403) {
           setMode('demo');
           setBriefing(STATIC_BRIEFING);
           setLastUpdate(new Date().toLocaleTimeString());
-          setErrorDetail("⚠️ API Google Cloud não ativada. Exibindo dados estáticos.");
+          setErrorDetail("⚠️ API Google Cloud não ativada ou Chave Incorreta.");
       } else {
-          // Se for outro erro (ex: 500, timeout), tenta o fallback da IA (conhecimento interno)
           setMode('offline');
           try {
               const promptFallback = `
@@ -116,7 +112,7 @@ Aumente a carga horária em **resolução de questões** e reduza a leitura pass
               `;
               
               const fallbackResponse = await ai.models.generateContent({
-                model: 'gemini-2.0-flash',
+                model: 'gemini-3-flash-preview',
                 contents: promptFallback
               });
 
@@ -124,7 +120,6 @@ Aumente a carga horária em **resolução de questões** e reduza a leitura pass
               setLastUpdate(new Date().toLocaleTimeString());
               
           } catch (fallbackError: any) {
-              // Se até o fallback falhar, usa o estático
               setMode('demo');
               setBriefing(STATIC_BRIEFING);
               setErrorDetail("Erro total de conexão com a IA.");
@@ -139,8 +134,10 @@ Aumente a carga horária em **resolução de questões** e reduza a leitura pass
     fetchNews();
   }, []);
 
+  // Enhanced Markdown Renderer
   const renderNewsText = (text: string) => {
     return text.split('\n').map((line, index) => {
+        // Função para processar negrito (**texto**)
         const parseInline = (lineText: string) => {
             const parts = lineText.split(/\*\*(.*?)\*\*/g);
             return parts.map((part, i) => 
@@ -148,11 +145,40 @@ Aumente a carga horária em **resolução de questões** e reduza a leitura pass
             );
         };
 
-        if (line.startsWith('### ')) return <h3 key={index} className="text-lg font-bold text-white mt-4 mb-2">{parseInline(line.replace('### ', ''))}</h3>;
-        if (line.startsWith('## ')) return <h2 key={index} className="text-xl font-bold text-white mt-5 mb-3 border-b border-slate-700 pb-1">{parseInline(line.replace('## ', ''))}</h2>;
-        if (line.trim().startsWith('- ') || line.trim().startsWith('* ')) return <li key={index} className="text-slate-300 ml-4 mb-2 list-disc marker:text-cyan-500 pl-2 leading-relaxed">{parseInline(line.replace(/^[-*]\s/, ''))}</li>;
-        if (!line.trim()) return <div key={index} className="h-2"></div>;
-        return <p key={index} className="text-slate-300 mb-2 leading-relaxed">{parseInline(line)}</p>;
+        const trimmedLine = line.trim();
+
+        // H3 (###)
+        if (trimmedLine.startsWith('###')) {
+             return <h3 key={index} className="text-lg font-bold text-white mt-6 mb-2 flex items-center gap-2"><div className="w-1 h-4 bg-cyan-500 rounded"></div>{parseInline(trimmedLine.replace(/^###\s*/, ''))}</h3>;
+        }
+        
+        // H2 (##)
+        if (trimmedLine.startsWith('##')) {
+             return <h2 key={index} className="text-xl font-bold text-emerald-400 mt-6 mb-3 border-b border-slate-700 pb-2">{parseInline(trimmedLine.replace(/^##\s*/, ''))}</h2>;
+        }
+
+        // H1 (#) - Raro, mas tratado como H2 grande
+        if (trimmedLine.startsWith('# ')) {
+             return <h1 key={index} className="text-2xl font-black text-white mt-8 mb-4">{parseInline(trimmedLine.replace(/^#\s*/, ''))}</h1>;
+        }
+
+        // Listas (- ou *)
+        if (trimmedLine.startsWith('- ') || trimmedLine.startsWith('* ')) {
+             return (
+                <div key={index} className="flex gap-3 mb-2 ml-1">
+                    <span className="text-cyan-500 mt-1.5 min-w-[6px] h-[6px] rounded-full bg-cyan-500 block"></span>
+                    <p className="text-slate-300 leading-relaxed text-sm md:text-base flex-1">
+                        {parseInline(trimmedLine.replace(/^[-*]\s*/, ''))}
+                    </p>
+                </div>
+             );
+        }
+
+        // Espaço vazio
+        if (!trimmedLine) return <div key={index} className="h-3"></div>;
+
+        // Parágrafo Normal
+        return <p key={index} className="text-slate-300 mb-2 leading-relaxed text-sm md:text-base">{parseInline(trimmedLine)}</p>;
     });
   };
 
@@ -195,15 +221,19 @@ Aumente a carga horária em **resolução de questões** e reduza a leitura pass
                           {mode === 'demo' && (
                               <div className="mb-4 p-4 bg-red-900/20 border border-red-500/20 rounded-xl text-red-200 text-xs flex flex-col gap-3">
                                   <div>
-                                    <div className="flex items-center gap-2 font-bold text-sm mb-1"><ShieldAlert size={16} /> API Google Cloud Desativada</div>
-                                    <p className="text-slate-300">O Google bloqueou o acesso porque a API "Generative Language" não estava ativa. Se você acabou de ativar, aguarde 2 minutos.</p>
+                                    <div className="flex items-center gap-2 font-bold text-sm mb-1"><ShieldAlert size={16} /> Conexão IA Interrompida</div>
+                                    <p className="text-slate-300">
+                                      Possíveis causas:
+                                      <br/>1. API "Generative Language" desativada no Google Cloud.
+                                      <br/>2. Nome da variável incorreto no Vercel (Deve ser <strong>VITE_API_KEY</strong>).
+                                    </p>
                                   </div>
-                                  <div className="flex items-center gap-3 mt-1">
+                                  <div className="flex items-center gap-3 mt-1 flex-wrap">
                                       <a href="https://console.developers.google.com/apis/api/generativelanguage.googleapis.com/overview" target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-bold transition-colors">
-                                          1. Conferir Console
+                                          1. Conferir Console Google
                                       </a>
                                       <button onClick={fetchNews} className="px-4 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold transition-colors flex items-center gap-2 shadow-lg shadow-red-900/20">
-                                          <CheckCircle2 size={14} /> 2. Já ativei, Tentar Novamente
+                                          <CheckCircle2 size={14} /> 2. Tentar Novamente
                                       </button>
                                   </div>
                               </div>
