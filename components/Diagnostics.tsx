@@ -4,7 +4,7 @@ import { Type } from "@google/genai";
 import { createAIClient } from '../utils/ai';
 import { EditalAnalysisResult, SavedReport } from '../types';
 import { 
-  Activity, BrainCircuit, Loader2, Sparkles, History, Save, TrendingUp, FileText, CheckSquare, Target, ListX, Trash2, PieChart as PieChartIcon, AlertTriangle
+  Activity, BrainCircuit, Loader2, Sparkles, History, Save, TrendingUp, FileText, CheckSquare, Target, ListX, Trash2, PieChart as PieChartIcon, AlertTriangle, ExternalLink
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer 
@@ -19,6 +19,7 @@ export const Diagnostics: React.FC = () => {
   const [editalAnalysis, setEditalAnalysis] = useState<EditalAnalysisResult | null>(null);
   const [tempEditalText, setTempEditalText] = useState(config.editalText || '');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isApiDisabled, setIsApiDisabled] = useState(false);
 
   const loadReport = (report: SavedReport) => {
     if (report.type === 'tactical') {
@@ -63,6 +64,8 @@ export const Diagnostics: React.FC = () => {
   const runTacticalDiagnostics = async () => {
     setLoading(true);
     setErrorMsg(null);
+    setIsApiDisabled(false);
+
     try {
       const performanceData = notebooks.map(nb => ({
         discipline: nb.discipline, topic: nb.name, accuracy: nb.accuracy,
@@ -91,7 +94,14 @@ export const Diagnostics: React.FC = () => {
       setTacticalAnalysis(response.text || "Erro na análise.");
     } catch (error: any) {
       console.error(error);
-      setErrorMsg(`Erro na IA: ${error.message || error.toString()}`);
+      const errStr = JSON.stringify(error);
+      
+      if (errStr.includes("SERVICE_DISABLED") || errStr.includes("Generative Language API")) {
+         setIsApiDisabled(true);
+         setErrorMsg("A API 'Generative Language' não está ativada no seu projeto Google Cloud.");
+      } else {
+         setErrorMsg(`Erro na IA: ${error.message || error.toString()}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -106,6 +116,8 @@ export const Diagnostics: React.FC = () => {
 
     setLoading(true);
     setErrorMsg(null);
+    setIsApiDisabled(false);
+
     try {
       const currentPlan = notebooks.map(nb => ({
         fullTitle: `${nb.discipline}: ${nb.name}`, accuracy: nb.accuracy, weight: nb.weight
@@ -143,7 +155,14 @@ export const Diagnostics: React.FC = () => {
       setEditalAnalysis(result);
     } catch (error: any) {
       console.error(error);
-      setErrorMsg(`Erro na IA: ${error.message || error.toString()}`);
+      const errStr = JSON.stringify(error);
+
+      if (errStr.includes("SERVICE_DISABLED") || errStr.includes("Generative Language API")) {
+         setIsApiDisabled(true);
+         setErrorMsg("A API 'Generative Language' não está ativada no seu projeto Google Cloud.");
+      } else {
+         setErrorMsg(`Erro na IA: ${error.message || error.toString()}`);
+      }
     } finally {
       setLoading(false);
     }
@@ -176,8 +195,22 @@ export const Diagnostics: React.FC = () => {
           <div className="bg-red-500/10 border border-red-500/30 p-6 rounded-xl text-center">
               <AlertTriangle className="text-red-500 mx-auto mb-2" size={32} />
               <h3 className="text-white font-bold mb-1">Erro na Análise</h3>
-              <p className="text-red-300 text-sm font-mono">{errorMsg}</p>
-              <button onClick={() => setErrorMsg(null)} className="mt-4 text-xs text-slate-400 underline hover:text-white">Tentar Novamente</button>
+              <p className="text-red-300 text-sm font-mono mb-4">{errorMsg}</p>
+              
+              {isApiDisabled && (
+                  <a 
+                    href="https://console.developers.google.com/apis/api/generativelanguage.googleapis.com/overview" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold text-sm transition-colors mb-2"
+                  >
+                      <ExternalLink size={16} /> Ativar API no Google Cloud
+                  </a>
+              )}
+              
+              <div className="mt-2">
+                  <button onClick={() => setErrorMsg(null)} className="text-xs text-slate-400 underline hover:text-white">Voltar</button>
+              </div>
           </div>
       )}
 
