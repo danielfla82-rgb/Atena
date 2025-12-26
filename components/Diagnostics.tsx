@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useStore } from '../store';
 import { Type } from "@google/genai";
@@ -19,6 +18,7 @@ export const Diagnostics: React.FC = () => {
   const [tacticalAnalysis, setTacticalAnalysis] = useState<string | null>(null);
   const [editalAnalysis, setEditalAnalysis] = useState<EditalAnalysisResult | null>(null);
   const [tempEditalText, setTempEditalText] = useState(config.editalText || '');
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const loadReport = (report: SavedReport) => {
     if (report.type === 'tactical') {
@@ -31,6 +31,7 @@ export const Diagnostics: React.FC = () => {
         setTacticalAnalysis(null);
     }
     setShowHistory(false);
+    setErrorMsg(null);
   };
 
   const handleSaveCurrentReport = () => {
@@ -61,6 +62,7 @@ export const Diagnostics: React.FC = () => {
 
   const runTacticalDiagnostics = async () => {
     setLoading(true);
+    setErrorMsg(null);
     try {
       const performanceData = notebooks.map(nb => ({
         discipline: nb.discipline, topic: nb.name, accuracy: nb.accuracy,
@@ -89,7 +91,7 @@ export const Diagnostics: React.FC = () => {
       setTacticalAnalysis(response.text || "Erro na análise.");
     } catch (error: any) {
       console.error(error);
-      setTacticalAnalysis(error.message === "MISSING_API_KEY" ? "Erro: API Key não configurada no Vercel." : "Erro ao conectar com a IA.");
+      setErrorMsg(`Erro na IA: ${error.message || error.toString()}`);
     } finally {
       setLoading(false);
     }
@@ -103,6 +105,7 @@ export const Diagnostics: React.FC = () => {
     if (tempEditalText !== config.editalText) updateConfig({ ...config, editalText: tempEditalText });
 
     setLoading(true);
+    setErrorMsg(null);
     try {
       const currentPlan = notebooks.map(nb => ({
         fullTitle: `${nb.discipline}: ${nb.name}`, accuracy: nb.accuracy, weight: nb.weight
@@ -140,13 +143,12 @@ export const Diagnostics: React.FC = () => {
       setEditalAnalysis(result);
     } catch (error: any) {
       console.error(error);
-      alert(error.message === "MISSING_API_KEY" ? "Erro: Configure a API Key no Vercel." : "Erro ao processar auditoria.");
+      setErrorMsg(`Erro na IA: ${error.message || error.toString()}`);
     } finally {
       setLoading(false);
     }
   };
 
-  // Render logic remains mostly same, simplified for brevity in XML update
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8 pb-20 relative">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-800 pb-6 gap-4">
@@ -170,7 +172,16 @@ export const Diagnostics: React.FC = () => {
         </div>
       )}
 
-      {!loading && activeTab === 'tactical' && (
+      {errorMsg && !loading && (
+          <div className="bg-red-500/10 border border-red-500/30 p-6 rounded-xl text-center">
+              <AlertTriangle className="text-red-500 mx-auto mb-2" size={32} />
+              <h3 className="text-white font-bold mb-1">Erro na Análise</h3>
+              <p className="text-red-300 text-sm font-mono">{errorMsg}</p>
+              <button onClick={() => setErrorMsg(null)} className="mt-4 text-xs text-slate-400 underline hover:text-white">Tentar Novamente</button>
+          </div>
+      )}
+
+      {!loading && !errorMsg && activeTab === 'tactical' && (
         <>
           {!tacticalAnalysis ? (
             <div className="flex flex-col items-center justify-center py-20 bg-slate-900/50 border border-slate-800 rounded-2xl border-dashed">
@@ -202,7 +213,7 @@ export const Diagnostics: React.FC = () => {
         </>
       )}
 
-      {!loading && activeTab === 'edital' && (
+      {!loading && !errorMsg && activeTab === 'edital' && (
         <>
           {!editalAnalysis ? (
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8">

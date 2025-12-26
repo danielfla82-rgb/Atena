@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../store';
 import { createAIClient } from '../utils/ai';
-import { Newspaper, ExternalLink, RefreshCw, Globe, AlertTriangle } from 'lucide-react';
+import { Newspaper, ExternalLink, RefreshCw, Globe, AlertTriangle, Radio } from 'lucide-react';
 
 interface GroundingSource {
   title: string;
@@ -16,32 +15,42 @@ export const News: React.FC = () => {
   const [sources, setSources] = useState<GroundingSource[]>([]);
   const [loading, setLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
+  const [mode, setMode] = useState<'live' | 'offline'>('live');
 
   const fetchNews = async () => {
     setLoading(true);
     setBriefing("");
     setSources([]);
+    setErrorDetail(null);
+    setMode('live');
     
+    const ai = createAIClient();
+
     try {
-      const ai = createAIClient();
-      
-      const prompt = `
-        Analista de Inteligência de Concursos (Alvo: ${config.targetRole}).
-        Varredura web últimas 4 semanas: Editais, Bancas, Movimentações Políticas.
-        Saída: Briefing Tático em Markdown (Bullet points).
+      // TENTATIVA 1: Modo Online (Google Search)
+      // Requer que a API Key tenha permissão para Generative Language API e Billing configurado em alguns casos.
+      const promptLive = `
+        Atue como Analista de Inteligência de Concursos (Alvo: ${config.targetRole}).
+        Faça uma varredura nas últimas notícias sobre este concurso ou área.
+        Busque: Movimentações de bancas, autorizações, boatos políticos e editais recentes.
+        Formato: Briefing Tático em Markdown.
       `;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview', 
-        contents: prompt,
+        model: 'gemini-2.0-flash', 
+        contents: promptLive,
         config: {
             tools: [{ googleSearch: {} }]
         }
       });
 
-      const text = response.text || "Sem dados de inteligência disponíveis no momento.";
+      const text = response.text;
+      if (!text) throw new Error("Resposta vazia da IA");
+      
       setBriefing(text);
 
+      // Extração de fontes
       const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
       const extractedSources: GroundingSource[] = [];
       const seenUrls = new Set();
@@ -60,13 +69,37 @@ export const News: React.FC = () => {
             }
         });
       }
-      
       setSources(extractedSources);
       setLastUpdate(new Date().toLocaleTimeString());
 
     } catch (error: any) {
-      console.error("News fetch error", error);
-      setBriefing(error.message === "MISSING_API_KEY" ? "⚠️ Erro: API Key não configurada. Verifique o Vercel." : "Erro na conexão com o satélite de notícias.");
+      console.warn("Falha no Google Search (Live Mode), ativando fallback offline...", error);
+      setMode('offline');
+
+      // TENTATIVA 2: Fallback (Conhecimento Interno)
+      // Garante que o usuário receba algo útil mesmo se a tool de busca falhar (erro 403, etc)
+      try {
+          const promptFallback = `
+            Atue como Mentor de Concursos para o cargo: ${config.targetRole}.
+            Como não conseguimos acessar as notícias em tempo real agora, forneça um:
+            "Panorama Estratégico Atemporal"
+            1. O que geralmente é cobrado para este cargo?
+            2. Qual o perfil das bancas mais prováveis?
+            3. Dicas de preparação de longo prazo.
+            Formato: Markdown.
+          `;
+          
+          const fallbackResponse = await ai.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: promptFallback
+          });
+
+          setBriefing(fallbackResponse.text || "Sem dados disponíveis.");
+          setLastUpdate(new Date().toLocaleTimeString());
+          
+      } catch (fallbackError: any) {
+          setErrorDetail(fallbackError.message || "Erro fatal na conexão IA.");
+      }
     } finally {
       setLoading(false);
     }
@@ -105,20 +138,59 @@ export const News: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 flex-1 min-h-0">
           <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl relative flex flex-col">
               <div className="absolute top-0 right-0 p-4 opacity-10"><Globe size={120} /></div>
-              <h3 className="text-cyan-500 font-bold uppercase tracking-widest text-xs mb-6 flex items-center gap-2 z-10"><span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></span> Briefing Tático • {lastUpdate || '--:--'}</h3>
+              
+              <div className="flex items-center justify-between mb-6 z-10 relative">
+                  <h3 className="text-cyan-500 font-bold uppercase tracking-widest text-xs flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${loading ? 'bg-slate-500' : mode === 'live' ? 'bg-green-500 animate-pulse' : 'bg-amber-500'}`}></span> 
+                      {loading ? 'Sincronizando Satélite...' : mode === 'live' ? 'Conexão Viva (Live Web)' : 'Modo Offline (Base Interna)'}
+                  </h3>
+                  <span className="text-[10px] text-slate-500 font-mono">{lastUpdate}</span>
+              </div>
+
               <div className="flex-1 overflow-y-auto custom-scrollbar z-10 pr-2">
-                  {loading ? <div className="space-y-4 animate-pulse mt-8"><div className="h-4 bg-slate-800 rounded w-3/4"></div><div className="h-4 bg-slate-800 rounded w-full"></div></div> : briefing ? <div className="text-sm md:text-base">{renderNewsText(briefing)}</div> : <div className="flex flex-col items-center justify-center h-full text-slate-500"><AlertTriangle size={48} className="mb-4 opacity-20"/><p>Sem dados.</p></div>}
+                  {loading ? (
+                      <div className="space-y-4 animate-pulse mt-8">
+                          <div className="h-4 bg-slate-800 rounded w-3/4"></div>
+                          <div className="h-4 bg-slate-800 rounded w-full"></div>
+                          <div className="h-4 bg-slate-800 rounded w-5/6"></div>
+                      </div>
+                  ) : errorDetail ? (
+                      <div className="flex flex-col items-center justify-center h-full text-red-400 text-center p-6 bg-red-900/10 rounded-xl border border-red-900/30">
+                          <AlertTriangle size={32} className="mb-2"/>
+                          <p className="font-bold mb-2">Falha na Conexão</p>
+                          <p className="text-xs font-mono">{errorDetail}</p>
+                      </div>
+                  ) : briefing ? (
+                      <div className="text-sm md:text-base">
+                          {mode === 'offline' && (
+                              <div className="mb-4 p-3 bg-amber-900/20 border border-amber-500/20 rounded-lg text-amber-200 text-xs flex items-center gap-2">
+                                  <Radio size={14} />
+                                  <span>O acesso em tempo real à web foi interrompido. Exibindo análise estratégica baseada em dados históricos.</span>
+                              </div>
+                          )}
+                          {renderNewsText(briefing)}
+                      </div>
+                  ) : (
+                      <div className="flex flex-col items-center justify-center h-full text-slate-500">
+                          <p>Aguardando varredura...</p>
+                      </div>
+                  )}
               </div>
           </div>
           <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 flex flex-col h-full overflow-hidden">
-              <h3 className="text-slate-500 font-bold uppercase tracking-widest text-xs mb-4 flex items-center gap-2"><ExternalLink size={14} /> Fontes</h3>
+              <h3 className="text-slate-500 font-bold uppercase tracking-widest text-xs mb-4 flex items-center gap-2"><ExternalLink size={14} /> Fontes Detectadas</h3>
               <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3">
-                  {loading ? <div className="text-center py-10 text-slate-600 text-xs">Validando...</div> : sources.map((source, idx) => (
+                  {loading ? <div className="text-center py-10 text-slate-600 text-xs">Validando...</div> : sources.length > 0 ? sources.map((source, idx) => (
                       <a key={idx} href={source.url} target="_blank" rel="noopener noreferrer" className="block bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/30 p-4 rounded-xl transition-all group">
                           <div className="flex justify-between items-start"><span className="text-[10px] font-bold text-cyan-600 uppercase mb-1 block">{source.domain}</span><ExternalLink size={12} className="text-slate-600 group-hover:text-cyan-400" /></div>
                           <h4 className="text-sm font-medium text-slate-300 group-hover:text-white line-clamp-2 leading-snug">{source.title}</h4>
                       </a>
-                  ))}
+                  )) : (
+                      <div className="flex flex-col items-center justify-center h-full text-slate-600 opacity-60">
+                          <Globe size={32} className="mb-2 text-slate-700"/>
+                          <p className="text-xs text-center italic">Nenhuma fonte externa indexada nesta varredura.</p>
+                      </div>
+                  )}
               </div>
           </div>
       </div>

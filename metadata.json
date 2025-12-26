@@ -1,6 +1,6 @@
 {
-  "name": "Projeto Atena v2.1.0 (Stable Elite)",
-  "description": "Plataforma SaaS de alta performance para concurseiros de elite. Versão 2.1.0. Stack: React 19 + Tailwind + Lucide. Changelog: Correção de parsing JSON do Gemini, validação de datas, atualização de dependências e estabilização do core.",
+  "name": "Projeto Atena v2.1.1 (Stable Elite)",
+  "description": "Plataforma SaaS de alta performance para concurseiros de elite. Versão 2.1.1. Stack: React 19 + Tailwind + Lucide. Changelog: [CRITICAL] Correção de acesso a variáveis de ambiente (Vite/Production), [CORE] Otimização de carregamento de dados resiliente, [DOCS] Histórico de versões atualizado.",
   "requestFramePermissions": [
     "microphone"
   ]

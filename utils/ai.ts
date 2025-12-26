@@ -9,25 +9,27 @@ export const getApiKey = (): string => {
   const FALLBACK_KEY = 'AIzaSyC_seyhcmY1cKurGlH2qq_aB6fugcTkePc';
 
   try {
-    // @ts-ignore - Verificação de segurança para evitar crash se import.meta.env for undefined
+    // @ts-ignore
     if (typeof import.meta !== 'undefined' && import.meta.env) {
       // @ts-ignore
       const key1 = import.meta.env.VITE_API_KEY;
-      if (key1 && typeof key1 === 'string' && key1.length > 0) return key1;
-
       // @ts-ignore
       const key2 = import.meta.env.VITE_GEMINI_API_KEY;
-      if (key2 && typeof key2 === 'string' && key2.length > 0) return key2;
 
-      // @ts-ignore
-      const key3 = import.meta.env.VITE_GOOGLE_GENERATIVE_AI_API_KEY;
-      if (key3 && typeof key3 === 'string' && key3.length > 0) return key3;
+      if (key1 && typeof key1 === 'string' && key1.length > 10) {
+        console.log("[AI] Usando VITE_API_KEY do ambiente.");
+        return key1;
+      }
+      if (key2 && typeof key2 === 'string' && key2.length > 10) {
+        console.log("[AI] Usando VITE_GEMINI_API_KEY do ambiente.");
+        return key2;
+      }
     }
   } catch (e) {
     console.warn("Erro ao acessar variáveis de ambiente:", e);
   }
 
-  // Se nenhuma variável de ambiente for detectada, retorna a chave hardcoded
+  console.log("[AI] Variáveis de ambiente ausentes. Usando chave de Fallback.");
   return FALLBACK_KEY;
 };
 

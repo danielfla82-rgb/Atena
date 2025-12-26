@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { Book, Code, Database, Cpu, Layers, Shield, Server, FileJson } from 'lucide-react';
+import { Book, Code, Database, Cpu, Layers, Shield, Server, FileJson, GitCommit, CheckCircle } from 'lucide-react';
 
 export const Documentation: React.FC = () => {
   return (
@@ -12,11 +11,11 @@ export const Documentation: React.FC = () => {
           <h1 className="text-3xl font-bold text-white flex items-center gap-3">
             <Book className="text-emerald-500" /> Documentação Técnica
           </h1>
-          <p className="text-slate-400 mt-2 text-lg">Projeto Atena (GurujaApp) <span className="text-xs bg-emerald-900/30 text-emerald-400 px-2 py-0.5 rounded border border-emerald-900/50 font-bold ml-2">v2.1.0</span></p>
+          <p className="text-slate-400 mt-2 text-lg">Projeto Atena (GurujaApp) <span className="text-xs bg-emerald-900/30 text-emerald-400 px-2 py-0.5 rounded border border-emerald-900/50 font-bold ml-2">v2.1.1</span></p>
         </div>
         <div className="text-right hidden md:block">
             <p className="text-xs text-slate-500 uppercase font-bold tracking-widest">Última Atualização</p>
-            <p className="text-slate-300 font-mono">22 Maio 2024</p>
+            <p className="text-slate-300 font-mono">Versão Estável</p>
         </div>
       </div>
 
@@ -38,6 +37,9 @@ export const Documentation: React.FC = () => {
                    </a>
                    <a href="#dados" className="flex items-center gap-2 text-sm text-slate-300 hover:text-emerald-400 transition-colors group">
                        <span className="w-1.5 h-1.5 rounded-full bg-slate-600 group-hover:bg-emerald-500"></span> 4. Modelagem de Dados
+                   </a>
+                   <a href="#changelog" className="flex items-center gap-2 text-sm text-slate-300 hover:text-emerald-400 transition-colors group">
+                       <span className="w-1.5 h-1.5 rounded-full bg-slate-600 group-hover:bg-emerald-500"></span> 5. Changelog
                    </a>
                </nav>
            </div>
@@ -81,7 +83,7 @@ export const Documentation: React.FC = () => {
                     </h3>
                     <ul className="space-y-2">
                        <TechItem label="React 19" desc="Hooks, Context API, Suspense" />
-                       <TechItem label="Vite" desc="Build Tooling ultra-rápido" />
+                       <TechItem label="Vite" desc="Build Tooling ultra-rápido (Static Replacement)" />
                        <TechItem label="TypeScript" desc="Tipagem estrita e interfaces compartilhadas" />
                        <TechItem label="Tailwind CSS" desc="Estilização utilitária e Design System Dark" />
                     </ul>
@@ -172,6 +174,57 @@ Ajuste Fino (Multiplicadores):
               </div>
            </section>
 
+            {/* Section 5: Changelog */}
+           <section id="changelog" className="space-y-6 scroll-mt-24">
+              <div className="flex items-center gap-3 border-b border-slate-800 pb-2">
+                 <GitCommit size={24} className="text-slate-400" />
+                 <h2 className="text-2xl font-bold text-white">5. Histórico de Versões</h2>
+              </div>
+
+              <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+                   {/* v2.1.1 */}
+                  <div className="p-6 border-b border-slate-800">
+                      <div className="flex justify-between items-start mb-4">
+                          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                              <span className="bg-emerald-900/40 text-emerald-400 px-2 py-0.5 rounded text-xs border border-emerald-500/30">v2.1.1</span> 
+                              Stable Elite Patch
+                          </h3>
+                          <span className="text-xs text-slate-500 font-mono">Current Build</span>
+                      </div>
+                      <ul className="space-y-3">
+                          <ChangelogItem 
+                            type="fix" 
+                            desc="Correção crítica de acesso a 'import.meta.env'. Implementada verificação segura para evitar crash em ambientes onde 'env' é undefined." 
+                          />
+                          <ChangelogItem 
+                            type="core" 
+                            desc="Otimização do carregamento de dados (Store). Substituição de Promise.all por Promise.allSettled para evitar que falhas em tabelas secundárias bloqueiem o carregamento dos cadernos." 
+                          />
+                          <ChangelogItem 
+                            type="feat" 
+                            desc="Implementação de chave de API Fallback para garantir funcionamento imediato do sistema de IA em demonstrações." 
+                          />
+                      </ul>
+                  </div>
+
+                  {/* v2.1.0 */}
+                  <div className="p-6 bg-slate-950/50">
+                      <div className="flex justify-between items-start mb-4">
+                          <h3 className="text-lg font-bold text-slate-400 flex items-center gap-2">
+                              <span className="bg-slate-800 text-slate-500 px-2 py-0.5 rounded text-xs border border-slate-700">v2.1.0</span> 
+                              Elite Edition
+                          </h3>
+                          <span className="text-xs text-slate-600 font-mono">22 Maio 2024</span>
+                      </div>
+                      <ul className="space-y-3 opacity-70">
+                          <ChangelogItem type="feat" desc="Integração completa com Google Gemini 2.0 (Flash/Pro)." />
+                          <ChangelogItem type="ui" desc="Refatoração completa do Dashboard (Matriz Heatmap + Gráficos Recharts)." />
+                          <ChangelogItem type="core" desc="Suporte a múltiplos ciclos de estudo (Multitenancy local)." />
+                      </ul>
+                  </div>
+              </div>
+           </section>
+
         </div>
       </div>
     </div>
@@ -209,3 +262,22 @@ const DataEntity = ({ title, desc, fields }: { title: string, desc: string, fiel
         </div>
     </div>
 );
+
+const ChangelogItem = ({ type, desc }: { type: 'fix' | 'feat' | 'core' | 'ui' | 'docs', desc: string }) => {
+    const colors = {
+        fix: 'text-red-400 bg-red-900/20 border-red-500/30',
+        feat: 'text-emerald-400 bg-emerald-900/20 border-emerald-500/30',
+        core: 'text-purple-400 bg-purple-900/20 border-purple-500/30',
+        ui: 'text-blue-400 bg-blue-900/20 border-blue-500/30',
+        docs: 'text-amber-400 bg-amber-900/20 border-amber-500/30'
+    };
+    
+    return (
+        <li className="flex items-start gap-3 text-sm">
+            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border flex-shrink-0 mt-0.5 ${colors[type]}`}>
+                {type}
+            </span>
+            <span className="text-slate-300">{desc}</span>
+        </li>
+    );
+};

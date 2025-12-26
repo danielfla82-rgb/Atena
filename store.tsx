@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Notebook, AthensConfig, Weight, Relevance, Trend, SavedReport, ProtocolItem, NotebookStatus, Cycle, FrameworkData } from './types';
 import { calculateNextReview } from './utils/algorithm';
@@ -170,7 +169,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const fetchAllData = async (userId: string) => {
       setLoading(true);
       try {
-          const [nbRes, cyRes, frRes, prRes, rpRes] = await Promise.all([
+          // OPTIMIZATION: Use allSettled to prevent one failure from blocking everything
+          const results = await Promise.allSettled([
               supabase.from('notebooks').select('*').eq('user_id', userId),
               supabase.from('cycles').select('*').eq('user_id', userId),
               supabase.from('frameworks').select('*').eq('user_id', userId).single(),
@@ -178,22 +178,25 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               supabase.from('reports').select('*').eq('user_id', userId)
           ]);
 
-          if(nbRes.data) {
-              const formattedNotebooks = nbRes.data.map((n: any) => ({
+          // Extract Notebooks
+          if (results[0].status === 'fulfilled' && results[0].value.data) {
+              const formattedNotebooks = results[0].value.data.map((n: any) => ({
                   ...n,
                   tecLink: n.tec_link,
                   obsidianLink: n.obsidian_link,
                   targetAccuracy: n.target_accuracy,
                   lastPractice: n.last_practice,
                   nextReview: n.next_review,
-                  // Backward compatibility: If 'images' column is missing, try 'image'.
                   images: n.images || (n.image ? [n.image] : []) 
               }));
               setNotebooks(formattedNotebooks);
+          } else {
+              console.error("Failed to load notebooks", results[0]);
           }
 
-          if(cyRes.data && cyRes.data.length > 0) {
-              const formattedCycles = cyRes.data.map((c: any) => ({
+          // Extract Cycles
+          if (results[1].status === 'fulfilled' && results[1].value.data && results[1].value.data.length > 0) {
+              const formattedCycles = results[1].value.data.map((c: any) => ({
                  ...c,
                  lastAccess: c.last_access,
                  createdAt: c.created_at,
@@ -207,21 +210,30 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               setCycles([]);
           }
 
-          if(frRes.data) {
+          // Extract Framework
+          if (results[2].status === 'fulfilled' && results[2].value.data) {
+              const fr = results[2].value.data;
               setFramework({
-                  values: frRes.data.values || '',
-                  dream: frRes.data.dream || '',
-                  motivation: frRes.data.motivation || '',
-                  action: frRes.data.action || '',
-                  habit: frRes.data.habit || ''
+                  values: fr.values || '',
+                  dream: fr.dream || '',
+                  motivation: fr.motivation || '',
+                  action: fr.action || '',
+                  habit: fr.habit || ''
               });
           }
 
-          if(prRes.data) setProtocol(prRes.data);
-          if(rpRes.data) setReports(rpRes.data);
+          // Extract Protocol
+          if (results[3].status === 'fulfilled' && results[3].value.data) {
+              setProtocol(results[3].value.data);
+          }
+
+          // Extract Reports
+          if (results[4].status === 'fulfilled' && results[4].value.data) {
+              setReports(results[4].value.data);
+          }
 
       } catch (error) {
-          console.error("Erro ao sincronizar dados:", error);
+          console.error("Erro geral ao sincronizar dados:", error);
       } finally {
           setLoading(false);
       }
