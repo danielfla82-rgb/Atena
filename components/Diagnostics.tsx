@@ -4,7 +4,7 @@ import { Type } from "@google/genai";
 import { createAIClient } from '../utils/ai';
 import { EditalAnalysisResult, SavedReport } from '../types';
 import { 
-  Activity, BrainCircuit, Loader2, Sparkles, History, Save, TrendingUp, FileText, CheckSquare, Target, ListX, Trash2, PieChart as PieChartIcon, AlertTriangle, ExternalLink
+  Activity, BrainCircuit, Loader2, Sparkles, History, Save, TrendingUp, FileText, CheckSquare, Target, ListX, Trash2, PieChart as PieChartIcon, AlertTriangle, ExternalLink, RefreshCw
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer 
@@ -198,14 +198,22 @@ export const Diagnostics: React.FC = () => {
               <p className="text-red-300 text-sm font-mono mb-4">{errorMsg}</p>
               
               {isApiDisabled && (
-                  <a 
-                    href="https://console.developers.google.com/apis/api/generativelanguage.googleapis.com/overview" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold text-sm transition-colors mb-2"
-                  >
-                      <ExternalLink size={16} /> Ativar API no Google Cloud
-                  </a>
+                  <div className="flex flex-col md:flex-row items-center justify-center gap-3 mb-2">
+                    <a 
+                        href="https://console.developers.google.com/apis/api/generativelanguage.googleapis.com/overview" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-6 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-bold text-sm transition-colors"
+                    >
+                        <ExternalLink size={16} /> 1. Conferir Console
+                    </a>
+                    <button 
+                        onClick={activeTab === 'tactical' ? runTacticalDiagnostics : runEditalAudit}
+                        className="inline-flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold text-sm transition-colors shadow-lg shadow-red-900/20"
+                    >
+                        <RefreshCw size={16} /> 2. Tentar Novamente
+                    </button>
+                  </div>
               )}
               
               <div className="mt-2">

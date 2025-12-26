@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../store';
 import { createAIClient } from '../utils/ai';
-import { Newspaper, ExternalLink, RefreshCw, Globe, AlertTriangle, Radio, ShieldAlert } from 'lucide-react';
+import { Newspaper, ExternalLink, RefreshCw, Globe, AlertTriangle, Radio, ShieldAlert, CheckCircle2 } from 'lucide-react';
 
 interface GroundingSource {
   title: string;
@@ -193,9 +193,19 @@ Aumente a carga horária em **resolução de questões** e reduza a leitura pass
                               </div>
                           )}
                           {mode === 'demo' && (
-                              <div className="mb-4 p-3 bg-red-900/20 border border-red-500/20 rounded-lg text-red-200 text-xs flex flex-col gap-1">
-                                  <div className="flex items-center gap-2 font-bold"><ShieldAlert size={14} /> API Google Cloud Desativada</div>
-                                  <p>Ative a "Generative Language API" no Google Cloud Console para obter dados reais.</p>
+                              <div className="mb-4 p-4 bg-red-900/20 border border-red-500/20 rounded-xl text-red-200 text-xs flex flex-col gap-3">
+                                  <div>
+                                    <div className="flex items-center gap-2 font-bold text-sm mb-1"><ShieldAlert size={16} /> API Google Cloud Desativada</div>
+                                    <p className="text-slate-300">O Google bloqueou o acesso porque a API "Generative Language" não estava ativa. Se você acabou de ativar, aguarde 2 minutos.</p>
+                                  </div>
+                                  <div className="flex items-center gap-3 mt-1">
+                                      <a href="https://console.developers.google.com/apis/api/generativelanguage.googleapis.com/overview" target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-bold transition-colors">
+                                          1. Conferir Console
+                                      </a>
+                                      <button onClick={fetchNews} className="px-4 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold transition-colors flex items-center gap-2 shadow-lg shadow-red-900/20">
+                                          <CheckCircle2 size={14} /> 2. Já ativei, Tentar Novamente
+                                      </button>
+                                  </div>
                               </div>
                           )}
                           {renderNewsText(briefing)}
