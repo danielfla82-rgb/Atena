@@ -71,10 +71,11 @@ const AppContent: React.FC = () => {
       } else if (!loading && !user && isProcessingOAuth) {
           // Se parou de carregar, não tem usuário, mas estavamos esperando OAuth...
           // Pode ter ocorrido um erro na validação do token ou mismatch de URL
+          // Aumentado para 10s para garantir
           const timer = setTimeout(() => {
               setIsProcessingOAuth(false);
               setAuthError("Tempo limite excedido na autenticação. Verifique se a URL do site está adicionada no Supabase > Authentication > URL Configuration.");
-          }, 4000); 
+          }, 10000); 
           return () => clearTimeout(timer);
       }
   }, [user, loading, view, isProcessingOAuth]);

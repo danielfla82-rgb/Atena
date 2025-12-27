@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, Mail, Lock, UserPlus, LogIn, KeyRound, WifiOff, User, AlertTriangle, ExternalLink, Copy, Settings, ShieldAlert } from 'lucide-react';
+import { Loader2, Mail, Lock, UserPlus, LogIn, KeyRound, WifiOff, User, AlertTriangle, ExternalLink, Copy, Settings, ShieldAlert, Database } from 'lucide-react';
 import { Logo } from './Logo';
-import { supabase, isUsingFallback } from '../lib/supabase';
+import { supabase, isUsingFallback, projectUrl } from '../lib/supabase';
 import { useStore } from '../store';
 
 interface Props {
@@ -36,7 +36,7 @@ export const Login: React.FC<Props> = ({ onLoginSuccess, initialError }) => {
       }
   }, [initialError]);
   
-  // Detectar problema de configuração (Crítico para Vercel)
+  // Detectar problema de configuração
   const isProduction = typeof window !== 'undefined' && window.location.hostname !== 'localhost';
   const showConfigWarning = isProduction && isUsingFallback;
 
@@ -46,16 +46,6 @@ export const Login: React.FC<Props> = ({ onLoginSuccess, initialError }) => {
     e.preventDefault();
     setLocalLoading(true);
     setMessage(null);
-
-    // Bloqueia se estiver em prod com chaves de fallback, pois o Auth do Supabase demo não permite origens aleatórias
-    if (showConfigWarning) {
-        setLocalLoading(false);
-        setMessage({ 
-            text: "Ação Bloqueada: Configure as variáveis de ambiente na Vercel para habilitar o login.", 
-            type: 'error' 
-        });
-        return;
-    }
 
     try {
         if (isSignUp) {
@@ -79,14 +69,9 @@ export const Login: React.FC<Props> = ({ onLoginSuccess, initialError }) => {
     setMessage(null);
     const origin = window.location.origin;
     
-    // Bloqueio Rígido
+    // Aviso no console se estiver usando fallback em produção
     if (showConfigWarning) {
-        setMessage({ 
-            text: "ERRO DE CONFIGURAÇÃO: Chaves do Supabase ausentes na Vercel.", 
-            type: 'error' 
-        });
-        setLocalLoading(false);
-        return;
+        console.warn("Tentando login Google com chaves de Fallback. Isso provavelmente falhará se não for localhost.");
     }
 
     try {
@@ -140,32 +125,21 @@ export const Login: React.FC<Props> = ({ onLoginSuccess, initialError }) => {
 
         <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm relative">
            
-           {/* Critical Config Warning */}
-           {showConfigWarning && (
-               <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-4 mb-6 text-left relative overflow-hidden">
-                   <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>
-                   <h3 className="text-red-400 font-bold text-xs uppercase flex items-center gap-2 mb-2">
-                       <Settings size={14} /> Configuração Pendente
-                   </h3>
-                   <p className="text-[10px] text-slate-300 leading-relaxed mb-2">
-                       Login bloqueado. Você está usando as chaves de demonstração em um domínio de produção.
-                   </p>
-                   <p className="text-[10px] text-slate-300 leading-relaxed font-bold">
-                       Ação Necessária (Vercel):
-                   </p>
-                   <ul className="text-[10px] text-slate-400 list-disc ml-4 mt-1 space-y-1">
-                       <li>Vá em <strong>Settings &gt; Environment Variables</strong> na Vercel.</li>
-                       <li>Adicione <code>VITE_SUPABASE_URL</code> e <code>VITE_SUPABASE_ANON_KEY</code> do seu projeto Supabase.</li>
-                       <li>Faça Redeploy da aplicação.</li>
-                   </ul>
-                   <button 
-                     onClick={() => window.location.reload()}
-                     className="mt-3 w-full py-1.5 bg-red-900/30 hover:bg-red-900/50 border border-red-500/30 text-red-200 text-xs rounded transition-colors"
-                   >
-                       Tentar Novamente (Reload)
-                   </button>
+           {/* Debug Info / Config Warning */}
+           <div className={`mb-6 p-3 rounded-lg text-left text-[10px] flex flex-col gap-1 border ${showConfigWarning ? 'bg-amber-500/10 border-amber-500/30 text-amber-200' : 'bg-slate-800/50 border-slate-700 text-slate-400'}`}>
+               <div className="flex items-center gap-2 font-bold uppercase tracking-wider">
+                   <Database size={12} />
+                   {showConfigWarning ? "Ambiente de Demonstração" : "Conectado ao Supabase"}
                </div>
-           )}
+               <div className="font-mono truncate opacity-70" title={projectUrl}>
+                   URL: {projectUrl.replace('https://', '').split('.')[0]}...
+               </div>
+               {showConfigWarning && (
+                   <div className="mt-1 pt-1 border-t border-amber-500/20">
+                       Aviso: Se você configurou as variáveis no Vercel, certifique-se de ter feito <strong>Redeploy</strong>.
+                   </div>
+               )}
+           </div>
 
            {/* Loader Overlay */}
            {isLoading && (
@@ -189,7 +163,7 @@ export const Login: React.FC<Props> = ({ onLoginSuccess, initialError }) => {
                            className="w-full bg-slate-950 border border-slate-700 rounded-lg py-2.5 pl-10 text-white outline-none focus:border-emerald-500 disabled:opacity-50"
                            placeholder="seu@email.com"
                            required
-                           disabled={isLoading || showConfigWarning}
+                           disabled={isLoading}
                        />
                    </div>
                </div>
@@ -206,7 +180,7 @@ export const Login: React.FC<Props> = ({ onLoginSuccess, initialError }) => {
                            placeholder="••••••••"
                            required
                            minLength={6}
-                           disabled={isLoading || showConfigWarning}
+                           disabled={isLoading}
                        />
                    </div>
                </div>
@@ -236,7 +210,7 @@ export const Login: React.FC<Props> = ({ onLoginSuccess, initialError }) => {
 
                <button 
                  type="submit"
-                 disabled={isLoading || showConfigWarning}
+                 disabled={isLoading}
                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-900/20 mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
                >
                  {isSignUp ? <UserPlus size={18} /> : <LogIn size={18} />}
@@ -253,14 +227,15 @@ export const Login: React.FC<Props> = ({ onLoginSuccess, initialError }) => {
                 </div>
             </div>
 
+            {/* UNBLOCKED GOOGLE BUTTON FOR TESTING CONFIG */}
             <button 
                 type="button"
                 onClick={handleGoogleLogin}
-                disabled={isLoading || showConfigWarning}
-                className={`w-full bg-slate-800 hover:bg-slate-700 text-white font-medium py-3 rounded-xl flex items-center justify-center gap-3 transition-colors border border-slate-700 mb-4 disabled:opacity-50 ${showConfigWarning ? 'cursor-not-allowed opacity-50' : ''}`}
+                disabled={isLoading}
+                className={`w-full bg-slate-800 hover:bg-slate-700 text-white font-medium py-3 rounded-xl flex items-center justify-center gap-3 transition-colors border border-slate-700 mb-4 disabled:opacity-50`}
             >
-                {showConfigWarning ? <ShieldAlert size={18} className="text-red-400" /> : <GoogleIcon />}
-                <span>{showConfigWarning ? "Configuração Necessária" : "Google"}</span>
+                <GoogleIcon />
+                <span>Google</span>
             </button>
 
             <button 
