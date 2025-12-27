@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useStore } from '../store';
 import { createAIClient } from '../utils/ai';
 import { Newspaper, ExternalLink, RefreshCw, Globe, AlertTriangle, Radio, ShieldAlert, CheckCircle2 } from 'lucide-react';
@@ -134,8 +134,8 @@ Aumente a carga horária em **resolução de questões** e reduza a leitura pass
     fetchNews();
   }, []);
 
-  // Enhanced Markdown Renderer
-  const renderNewsText = (text: string) => {
+  // Enhanced Markdown Renderer (Memoized)
+  const renderNewsText = useCallback((text: string) => {
     return text.split('\n').map((line, index) => {
         // Função para processar negrito (**texto**)
         const parseInline = (lineText: string) => {
@@ -180,7 +180,7 @@ Aumente a carga horária em **resolução de questões** e reduza a leitura pass
         // Parágrafo Normal
         return <p key={index} className="text-slate-300 mb-2 leading-relaxed text-sm md:text-base">{parseInline(trimmedLine)}</p>;
     });
-  };
+  }, []);
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6 h-full flex flex-col">

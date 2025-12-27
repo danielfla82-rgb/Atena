@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useStore } from '../store';
 import { createAIClient } from '../utils/ai';
 import { Lightbulb, Globe2, Brain, Swords, Zap, Loader2, ScrollText, Trophy, GraduationCap, RefreshCw } from 'lucide-react';
@@ -34,7 +34,7 @@ export const Tips: React.FC = () => {
     }
   };
 
-  const renderFormattedText = (text: string) => {
+  const renderFormattedText = useCallback((text: string) => {
     return text.split('\n').map((line, index) => {
         // Handle Bold (**text**)
         const parseInline = (lineText: string) => lineText.split(/\*\*(.*?)\*\*/g).map((part, i) => 
@@ -43,20 +43,20 @@ export const Tips: React.FC = () => {
 
         const trimmed = line.trim();
 
+        if (trimmed.startsWith('###')) 
+            return <h4 key={index} className="text-lg font-bold text-emerald-100 mb-3 mt-6">{parseInline(trimmed.replace(/^###\s*/, ''))}</h4>;
+
+        if (trimmed.startsWith('##')) 
+            return <h3 key={index} className="text-xl font-bold text-emerald-200 mb-4 mt-8 border-b border-slate-700 pb-2">{parseInline(trimmed.replace(/^##\s*/, ''))}</h3>;
+        
         if (trimmed.startsWith('# ')) 
-            return <h2 key={index} className="text-3xl font-black text-white mb-6 mt-8">{parseInline(trimmed.replace(/^#\s+/, ''))}</h2>;
-        
-        if (trimmed.startsWith('## ')) 
-            return <h3 key={index} className="text-xl font-bold text-emerald-200 mb-4 mt-8 border-b border-slate-700 pb-2">{parseInline(trimmed.replace(/^##\s+/, ''))}</h3>;
-        
-        if (trimmed.startsWith('### ')) 
-            return <h4 key={index} className="text-lg font-bold text-emerald-100 mb-3 mt-6">{parseInline(trimmed.replace(/^###\s+/, ''))}</h4>;
+            return <h2 key={index} className="text-3xl font-black text-white mb-6 mt-8">{parseInline(trimmed.replace(/^#\s*/, ''))}</h2>;
 
         if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) 
             return (
                 <div key={index} className="flex gap-3 mb-3 ml-2">
                     <div className="mt-2 w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0"></div>
-                    <p className="text-slate-300 leading-relaxed">{parseInline(trimmed.replace(/^[-*]\s+/, ''))}</p>
+                    <p className="text-slate-300 leading-relaxed">{parseInline(trimmed.replace(/^[-*]\s*/, ''))}</p>
                 </div>
             );
 
@@ -64,7 +64,7 @@ export const Tips: React.FC = () => {
         
         return <p key={index} className="text-slate-300 mb-4 text-lg leading-7">{parseInline(line)}</p>;
     });
-  };
+  }, []);
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8 pb-20 relative min-h-full flex flex-col">

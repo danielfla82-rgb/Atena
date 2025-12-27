@@ -1,14 +1,14 @@
-
 import React, { useState, useMemo } from 'react';
 import { useStore } from '../store';
 import { QuadrantChart } from './QuadrantChart';
 import { StudySession } from './StudySession';
+import { LiquidityGauge } from './LiquidityGauge';
 import { Notebook, WEIGHT_SCORE, RELEVANCE_SCORE, Weight } from '../types';
 import { 
   BookOpen, Target, Calendar, Award, Zap, BrainCircuit, Settings, 
   FileText, Save, X, ExternalLink, TrendingUp, Link as LinkIcon,
   PieChart as PieChartIcon, Activity, Layers, Siren, Sparkles, ArrowRight, CheckCircle2,
-  MoreHorizontal, Calculator
+  MoreHorizontal, Calculator, Clock, Check, XCircle, HelpCircle, Quote
 } from 'lucide-react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -61,6 +61,18 @@ const CustomTreemapContent = (props: any) => {
   );
 };
 
+const NIETZSCHE_QUOTES = [
+  "Quem tem um porquê enfrenta qualquer como.",
+  "O que não nos mata nos fortalece.",
+  "Torna-te quem tu és.",
+  "Quanto mais alto voamos, menores parecemos aos olhos de quem não sabe voar.",
+  "Ninguém pode construir a ponte pela qual você deve cruzar o fluxo da vida, ninguém a não ser você.",
+  "Aquele que luta com monstros deve acautelar-se para não tornar-se também um monstro.",
+  "Amor Fati: não querer nada de diferente do que é, nem no futuro, nem no passado, nem por toda a eternidade.",
+  "A disciplina é a mãe do sucesso.",
+  "O homem é uma corda esticada entre o animal e o super-homem: uma corda sobre um abismo."
+];
+
 export const Dashboard: React.FC = () => {
   const { notebooks, config, updateConfig, getWildcardNotebook } = useStore();
   const [selectedSession, setSelectedSession] = useState<Notebook | null>(null);
@@ -76,6 +88,76 @@ export const Dashboard: React.FC = () => {
       nb.weekId && nb.nextReview && nb.nextReview.split('T')[0] <= today
     ).sort((a, b) => (a.nextReview! > b.nextReview! ? 1 : -1));
   }, [notebooks, today]);
+
+  const randomQuote = useMemo(() => {
+      const index = Math.floor(Math.random() * NIETZSCHE_QUOTES.length);
+      return NIETZSCHE_QUOTES[index];
+  }, []);
+
+  // --- NEW METRICS CALCULATIONS ---
+  const metrics = useMemo(() => {
+      // 1. Time Calculation: 45 min per block (notebook with accuracy > 0)
+      const activeNotebooks = notebooks.filter(n => n.accuracy > 0);
+      const totalMinutes = activeNotebooks.length * 45;
+      const hours = Math.floor(totalMinutes / 60);
+      const mins = totalMinutes % 60;
+
+      // 2. Performance
+      const totalAcc = activeNotebooks.reduce((sum, n) => sum + n.accuracy, 0);
+      const avgAccuracy = activeNotebooks.length > 0 ? Math.round(totalAcc / activeNotebooks.length) : 0;
+      
+      // Mocking "Correct/Wrong" based on avg percentage for visual representation
+      const baseQuestions = activeNotebooks.length * 10; 
+      const estimatedCorrect = Math.round(baseQuestions * (avgAccuracy / 100));
+      const estimatedWrong = baseQuestions - estimatedCorrect;
+
+      // 3. Progress
+      const totalTopics = notebooks.filter(n => n.discipline !== 'Revisão Geral').length;
+      const completedTopics = notebooks.filter(n => (n.status === 'Dominado' || n.accuracy >= n.targetAccuracy) && n.discipline !== 'Revisão Geral').length;
+      const progressPercent = totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0;
+
+      // 4. Consistency (Last 14 days)
+      const dates = [];
+      const streakMap: Record<string, boolean> = {};
+      let currentStreak = 0;
+      let streakBroken = false;
+
+      // Generate last 14 days
+      for (let i = 13; i >= 0; i--) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          const dateStr = d.toISOString().split('T')[0];
+          
+          // Check if any notebook was practiced on this date
+          const hasPractice = notebooks.some(n => n.lastPractice && n.lastPractice.startsWith(dateStr));
+          streakMap[dateStr] = hasPractice;
+          dates.push({ date: dateStr, active: hasPractice, day: d.getDate(), month: d.getMonth() + 1 });
+      }
+
+      // Calculate Streak (from yesterday/today backwards)
+      const sortedDatesDesc = [...dates].reverse();
+      for (const d of sortedDatesDesc) {
+          if (d.active) {
+              if (!streakBroken) currentStreak++;
+          } else {
+              // Allow missing today if it's still early, but generally breaks streak
+              if (d.date !== today) streakBroken = true; 
+          }
+      }
+
+      return {
+          time: `${hours}h${mins > 0 ? mins + 'min' : ''}`,
+          avgAccuracy,
+          estimatedCorrect,
+          estimatedWrong,
+          completedTopics,
+          pendingTopics: totalTopics - completedTopics,
+          progressPercent,
+          dates,
+          currentStreak
+      };
+  }, [notebooks]);
+
 
   // --- LOGIC: ATHENA RECOMMENDATION ENGINE ---
   const athenaRecommendation = useMemo(() => {
@@ -286,6 +368,88 @@ export const Dashboard: React.FC = () => {
           </button>
       </div>
 
+      {/* === TOP METRICS CARDS (ELITE PRINT STYLE) === */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          
+          {/* Card 1: Tempo de Estudo */}
+          <div className="bg-slate-50 text-slate-900 rounded-xl p-5 shadow-lg border border-slate-200 flex flex-col justify-between h-32">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Tempo de Estudo</span>
+              <div className="text-right">
+                  <span className="text-3xl font-black text-slate-900 tracking-tight">{metrics.time}</span>
+              </div>
+          </div>
+
+          {/* Card 2: Desempenho */}
+          <div className="bg-slate-50 text-slate-900 rounded-xl p-5 shadow-lg border border-slate-200 flex flex-col justify-between h-32">
+              <div className="flex justify-between items-start">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Desempenho</span>
+              </div>
+              <div className="flex justify-between items-end">
+                  <div className="flex flex-col">
+                      <span className="text-xs font-semibold text-emerald-600">~{metrics.estimatedCorrect} Acertos Est.</span>
+                      <span className="text-xs font-semibold text-red-500">~{metrics.estimatedWrong} Erros Est.</span>
+                  </div>
+                  <span className="text-4xl font-black text-slate-900">{metrics.avgAccuracy}%</span>
+              </div>
+          </div>
+
+          {/* Card 3: Progresso Edital */}
+          <div className="bg-slate-50 text-slate-900 rounded-xl p-5 shadow-lg border border-slate-200 flex flex-col justify-between h-32">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Progresso no Edital</span>
+              <div className="flex justify-between items-end">
+                  <div className="flex flex-col">
+                      <span className="text-xs font-semibold text-emerald-600">{metrics.completedTopics} Tópicos Concluídos</span>
+                      <span className="text-xs font-semibold text-orange-500">{metrics.pendingTopics} Tópicos Pendentes</span>
+                  </div>
+                  <span className="text-4xl font-black text-slate-900">{metrics.progressPercent}%</span>
+              </div>
+          </div>
+
+          {/* Card 4: Quote */}
+          <div className="bg-slate-50 text-slate-900 rounded-xl p-5 shadow-lg border border-slate-200 flex items-center justify-center h-32 relative overflow-hidden group">
+              <Quote className="absolute top-2 left-2 text-slate-200 w-8 h-8 opacity-50" />
+              <p className="text-sm font-medium text-slate-700 italic text-center leading-relaxed z-10 px-2 font-serif group-hover:scale-105 transition-transform duration-500">
+                  "{randomQuote}"
+              </p>
+              <span className="absolute bottom-2 right-4 text-[9px] text-slate-400 font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity">F. Nietzsche</span>
+          </div>
+      </div>
+
+      {/* === CONSTÂNCIA NOS ESTUDOS (STREAK) === */}
+      <div className="bg-white text-slate-900 rounded-xl p-6 border border-slate-200 shadow-lg">
+          <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">Constância nos Estudos</h3>
+              <div className="text-[10px] font-mono text-slate-400 flex items-center gap-2">
+                  <span className="cursor-pointer hover:text-emerald-600">&lt;</span> 
+                  {metrics.dates[0]?.date.split('-').reverse().join('/')} ~ {metrics.dates[metrics.dates.length-1]?.date.split('-').reverse().join('/')} 
+                  <span className="cursor-pointer hover:text-emerald-600">&gt;</span>
+              </div>
+          </div>
+          
+          <div className="mb-6">
+              <p className="text-lg text-slate-800">
+                  Você está há <strong className="text-slate-900">{metrics.currentStreak} dias</strong> sem falhar! Seu recorde é de <strong className="text-slate-900">{metrics.currentStreak} dias</strong>. <HelpCircle size={14} className="inline text-slate-400 cursor-help" />
+              </p>
+          </div>
+
+          <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
+              {metrics.dates.map((day, idx) => (
+                  <div key={idx} className="flex flex-col items-center gap-2 flex-1 min-w-[30px]">
+                      <div 
+                        className={`w-full h-8 rounded-md flex items-center justify-center border transition-all
+                            ${day.active 
+                                ? 'bg-emerald-200 border-emerald-300 text-emerald-700' 
+                                : 'bg-red-100 border-red-200 text-red-400 opacity-50'}
+                        `}
+                        title={day.date}
+                      >
+                          {day.active ? <Check size={14} strokeWidth={3} /> : <XCircle size={14} />}
+                      </div>
+                  </div>
+              ))}
+          </div>
+      </div>
+
       {/* === ATHENA DYNAMIC RECOMMENDATION FEED (V2.0 REDESIGN) === */}
       {athenaRecommendation && (
         <div className={`w-full p-1 rounded-2xl bg-gradient-to-r from-transparent via-slate-700 to-transparent p-[1px]`}>
@@ -320,51 +484,14 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Header Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4">
-          <div className="bg-emerald-500/10 p-3 rounded-lg text-emerald-500">
-            <Target size={24} />
-          </div>
-          <div>
-            <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Cargo Alvo</p>
-            <p className="text-white font-semibold">{config.targetRole}</p>
-          </div>
-        </div>
-        <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4">
-          <div className="bg-indigo-500/10 p-3 rounded-lg text-indigo-500">
-            <Calendar size={24} />
-          </div>
-          <div>
-            <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Semanas Restantes</p>
-            <p className="text-white font-semibold">{config.weeksUntilExam} Semanas</p>
-          </div>
-        </div>
-        <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4">
-          <div className="bg-amber-500/10 p-3 rounded-lg text-amber-500">
-            <Zap size={24} />
-          </div>
-          <div>
-            <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Ritmo</p>
-            <p className="text-white font-semibold">{config.studyPace}</p>
-          </div>
-        </div>
-        <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4 cursor-pointer hover:bg-slate-800 transition-colors" onClick={startWildcard}>
-          <div className="bg-purple-500/10 p-3 rounded-lg text-purple-500 animate-pulse">
-            <Award size={24} />
-          </div>
-          <div>
-            <p className="text-slate-400 text-xs uppercase font-bold tracking-wider">Revisão Inteligente</p>
-            <p className="text-purple-400 font-bold text-sm">Iniciar Bloco Coringa</p>
-          </div>
-        </div>
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* === COLUNA PRINCIPAL === */}
         <div className="lg:col-span-2 space-y-6">
           
+          {/* LIQUIDITY GAUGE (NEW FEATURE) */}
+          <LiquidityGauge notebooks={notebooks} />
+
           {/* Matriz Estratégica (Heatmap) */}
           <QuadrantChart data={quadrantData} />
 

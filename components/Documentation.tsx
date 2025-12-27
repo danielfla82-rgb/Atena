@@ -1,5 +1,5 @@
 import React from 'react';
-import { Book, Code, Database, Cpu, Layers, Shield, Server, FileJson, GitCommit, CheckCircle } from 'lucide-react';
+import { Book, Code, Database, Cpu, Layers, Shield, Server, FileJson, GitCommit, CheckCircle, GraduationCap, Sword, Eye } from 'lucide-react';
 
 export const Documentation: React.FC = () => {
   return (
@@ -11,11 +11,11 @@ export const Documentation: React.FC = () => {
           <h1 className="text-3xl font-bold text-white flex items-center gap-3">
             <Book className="text-emerald-500" /> Documentação Técnica
           </h1>
-          <p className="text-slate-400 mt-2 text-lg">Projeto Atena (GurujaApp) <span className="text-xs bg-emerald-900/30 text-emerald-400 px-2 py-0.5 rounded border border-emerald-900/50 font-bold ml-2">v2.1.1</span></p>
+          <p className="text-slate-400 mt-2 text-lg">Projeto Atena (GurujaApp) <span className="text-xs bg-emerald-900/30 text-emerald-400 px-2 py-0.5 rounded border border-emerald-900/50 font-bold ml-2">v3.0.0</span></p>
         </div>
         <div className="text-right hidden md:block">
             <p className="text-xs text-slate-500 uppercase font-bold tracking-widest">Última Atualização</p>
-            <p className="text-slate-300 font-mono">Versão Estável</p>
+            <p className="text-slate-300 font-mono">Olympus Edition</p>
         </div>
       </div>
 
@@ -40,6 +40,10 @@ export const Documentation: React.FC = () => {
                    </a>
                    <a href="#changelog" className="flex items-center gap-2 text-sm text-slate-300 hover:text-emerald-400 transition-colors group">
                        <span className="w-1.5 h-1.5 rounded-full bg-slate-600 group-hover:bg-emerald-500"></span> 5. Changelog
+                   </a>
+                   <div className="border-t border-slate-700 my-2 pt-2"></div>
+                   <a href="#sobre" className="flex items-center gap-2 text-sm font-bold text-amber-400 hover:text-amber-300 transition-colors group">
+                       <Shield size={14} /> Sobre Atena
                    </a>
                </nav>
            </div>
@@ -182,14 +186,43 @@ Ajuste Fino (Multiplicadores):
               </div>
 
               <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-                   {/* v2.1.1 */}
-                  <div className="p-6 border-b border-slate-800">
+                   {/* v3.0.0 */}
+                   <div className="p-6 border-b border-slate-800">
                       <div className="flex justify-between items-start mb-4">
                           <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                              <span className="bg-emerald-900/40 text-emerald-400 px-2 py-0.5 rounded text-xs border border-emerald-500/30">v2.1.1</span> 
-                              Stable Elite Patch
+                              <span className="bg-emerald-600 text-white px-2 py-0.5 rounded text-xs shadow-lg shadow-emerald-900/50">v3.0.0</span> 
+                              Olympus Edition
                           </h3>
-                          <span className="text-xs text-slate-500 font-mono">Current Build</span>
+                          <span className="text-xs text-slate-500 font-mono">Stable Release</span>
+                      </div>
+                      <ul className="space-y-3">
+                          <ChangelogItem 
+                            type="feat" 
+                            desc="[Edital Verticalizado] Módulo completo de auditoria de tópicos com sugestões inteligentes baseadas em Peso/Relevância." 
+                          />
+                          <ChangelogItem 
+                            type="ui" 
+                            desc="[Interface] Melhorias significativas na diagramação de textos (Markdown Parser) em Dicas e Notícias." 
+                          />
+                          <ChangelogItem 
+                            type="core" 
+                            desc="[Planejamento] Cálculo automático de semanas restantes baseado na data da prova." 
+                          />
+                          <ChangelogItem 
+                            type="ui" 
+                            desc="[Galeria] Visualizador de mapas mentais com suporte a Zoom e múltiplas imagens." 
+                          />
+                      </ul>
+                  </div>
+
+                   {/* v2.1.1 */}
+                  <div className="p-6 bg-slate-950/30 border-b border-slate-800/50">
+                      <div className="flex justify-between items-start mb-4">
+                          <h3 className="text-lg font-bold text-slate-300 flex items-center gap-2">
+                              <span className="bg-emerald-900/40 text-emerald-400 px-2 py-0.5 rounded text-xs border border-emerald-500/30">v2.1.1</span> 
+                              Stable Patch
+                          </h3>
+                          <span className="text-xs text-slate-600 font-mono">Legacy</span>
                       </div>
                       <ul className="space-y-3">
                           <ChangelogItem 
@@ -198,29 +231,68 @@ Ajuste Fino (Multiplicadores):
                           />
                           <ChangelogItem 
                             type="core" 
-                            desc="Otimização do carregamento de dados (Store). Substituição de Promise.all por Promise.allSettled para evitar que falhas em tabelas secundárias bloqueiem o carregamento dos cadernos." 
-                          />
-                          <ChangelogItem 
-                            type="feat" 
-                            desc="Implementação de chave de API Fallback para garantir funcionamento imediato do sistema de IA em demonstrações." 
+                            desc="Otimização do carregamento de dados (Store). Substituição de Promise.all por Promise.allSettled." 
                           />
                       </ul>
                   </div>
+              </div>
+           </section>
 
-                  {/* v2.1.0 */}
-                  <div className="p-6 bg-slate-950/50">
-                      <div className="flex justify-between items-start mb-4">
-                          <h3 className="text-lg font-bold text-slate-400 flex items-center gap-2">
-                              <span className="bg-slate-800 text-slate-500 px-2 py-0.5 rounded text-xs border border-slate-700">v2.1.0</span> 
-                              Elite Edition
-                          </h3>
-                          <span className="text-xs text-slate-600 font-mono">22 Maio 2024</span>
+           {/* SECTION 6: SOBRE ATENA (NEW) */}
+           <section id="sobre" className="space-y-8 scroll-mt-24 pt-8">
+              <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 shadow-2xl">
+                  {/* Decorative Elements */}
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
+                  <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none"></div>
+
+                  <div className="p-8 md:p-12 relative z-10">
+                      <div className="flex flex-col md:flex-row items-start gap-8">
+                          <div className="md:w-1/3 flex flex-col items-center text-center md:text-left">
+                              <div className="w-24 h-24 rounded-full bg-slate-800 border-2 border-emerald-500/30 flex items-center justify-center mb-6 shadow-lg shadow-emerald-900/20">
+                                  <Shield size={48} className="text-emerald-500" />
+                              </div>
+                              <h2 className="text-3xl font-black text-white mb-2 uppercase tracking-tight">Deusa Atena</h2>
+                              <p className="text-sm text-emerald-400 font-bold uppercase tracking-widest mb-4">Pallas Athena</p>
+                              <p className="text-slate-400 text-sm leading-relaxed">
+                                  Filha de Zeus, nascida de sua cabeça, já vestida para a batalha. Ela não é apenas uma guerreira; ela é a general que vence antes do primeiro golpe.
+                              </p>
+                          </div>
+
+                          <div className="md:w-2/3 space-y-6">
+                              <div>
+                                  <h3 className="text-xl font-bold text-white mb-3 flex items-center gap-2">
+                                      <GraduationCap className="text-indigo-400" size={20} />
+                                      Por que Atena para Concursos?
+                                  </h3>
+                                  <p className="text-slate-300 leading-relaxed text-sm">
+                                      No mundo dos concursos de alto nível, força bruta (estudar 12h sem direção) não vence. Atena representa a união da <strong>Sabedoria (Sophia)</strong> com a <strong>Estratégia (Metis)</strong>. Ela é a padroeira daqueles que lutam com a mente.
+                                  </p>
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
+                                      <h4 className="font-bold text-emerald-300 mb-2 flex items-center gap-2 text-sm">
+                                          <Sword size={14} /> Guerra Justa e Estratégica
+                                      </h4>
+                                      <p className="text-xs text-slate-400">
+                                          Diferente de Ares (fúria sanguinária), Atena rege a guerra disciplinada. Passar no concurso é uma guerra contra a banca e contra si mesmo, vencida com planejamento tático, não com desespero.
+                                      </p>
+                                  </div>
+                                  <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
+                                      <h4 className="font-bold text-amber-300 mb-2 flex items-center gap-2 text-sm">
+                                          <Eye size={14} /> A Visão da Coruja
+                                      </h4>
+                                      <p className="text-xs text-slate-400">
+                                          Seu símbolo, a coruja, enxerga na escuridão. O Projeto Atena visa iluminar os pontos cegos do seu edital (Matriz de Riscos) que outros candidatos ignoram.
+                                      </p>
+                                  </div>
+                              </div>
+
+                              <div className="border-l-2 border-emerald-500/30 pl-4 py-2 italic text-slate-400 text-sm">
+                                  "A vitória pertence àquele que calcula os riscos e domina o terreno antes da batalha."
+                              </div>
+                          </div>
                       </div>
-                      <ul className="space-y-3 opacity-70">
-                          <ChangelogItem type="feat" desc="Integração completa com Google Gemini 2.0 (Flash/Pro)." />
-                          <ChangelogItem type="ui" desc="Refatoração completa do Dashboard (Matriz Heatmap + Gráficos Recharts)." />
-                          <ChangelogItem type="core" desc="Suporte a múltiplos ciclos de estudo (Multitenancy local)." />
-                      </ul>
                   </div>
               </div>
            </section>

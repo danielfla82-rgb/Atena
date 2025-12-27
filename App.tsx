@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { StoreProvider } from './store';
 import { Dashboard } from './components/Dashboard';
@@ -14,14 +13,16 @@ import { News } from './components/News';
 import { Protocol } from './components/Protocol';
 import { Framework } from './components/Framework';
 import { Documentation } from './components/Documentation';
+import { VerticalizedEdital } from './components/VerticalizedEdital';
+import { About } from './components/About';
 import { 
   LayoutDashboard, Settings, Layers, Menu, X, Library as LibraryIcon, 
-  Activity, Lightbulb, Flame, Brain, Newspaper, Pill, Pyramid, Book
+  Activity, Lightbulb, Flame, Brain, Newspaper, Pill, Pyramid, Book, ListChecks, Shield
 } from 'lucide-react';
 import { Logo } from './components/Logo';
 
 const AppContent: React.FC = () => {
-  const [view, setView] = useState<'login' | 'selection' | 'dashboard' | 'setup' | 'library' | 'diagnostics' | 'tips' | 'nietzsche' | 'psycho' | 'news' | 'protocol' | 'framework' | 'docs'>('login');
+  const [view, setView] = useState<'login' | 'selection' | 'dashboard' | 'setup' | 'library' | 'diagnostics' | 'tips' | 'nietzsche' | 'psycho' | 'news' | 'protocol' | 'framework' | 'docs' | 'verticalized' | 'about'>('login');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // If in login or selection, show full screen components
@@ -58,7 +59,7 @@ const AppContent: React.FC = () => {
              <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent tracking-tight">ATENA</h1>
           </div>
           <div className="flex justify-between items-center mt-2 pl-1">
-             <span className="text-[10px] bg-emerald-900/30 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-900/50 font-bold">v2.1.0</span>
+             <span className="text-[10px] bg-emerald-900/30 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-900/50 font-bold">v3.0.0</span>
           </div>
         </div>
 
@@ -78,6 +79,14 @@ const AppContent: React.FC = () => {
           >
             <Layers size={18} />
             <span className="font-medium text-sm">Planejamento</span>
+          </button>
+
+           <button 
+            onClick={() => { setView('verticalized'); setSidebarOpen(false); }}
+            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${view === 'verticalized' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/50' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+          >
+            <ListChecks size={18} />
+            <span className="font-medium text-sm">Edital Verticalizado</span>
           </button>
 
           <button 
@@ -155,6 +164,13 @@ const AppContent: React.FC = () => {
               <Book size={18} />
               <span className="font-medium text-sm">Documentação</span>
           </button>
+          <button 
+              onClick={() => { setView('about'); setSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${view === 'about' ? 'bg-slate-800 text-white border border-slate-700' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+            >
+              <Shield size={18} />
+              <span className="font-medium text-sm">Sobre</span>
+          </button>
         </div>
 
         <div className="mt-6 pt-6 border-t border-slate-800">
@@ -177,6 +193,7 @@ const AppContent: React.FC = () => {
          
          {view === 'dashboard' ? <Dashboard /> : 
           view === 'setup' ? <Setup /> : 
+          view === 'verticalized' ? <VerticalizedEdital /> :
           view === 'library' ? <Library /> :
           view === 'tips' ? <Tips /> :
           view === 'nietzsche' ? <Nietzsche /> :
@@ -185,6 +202,7 @@ const AppContent: React.FC = () => {
           view === 'protocol' ? <Protocol /> :
           view === 'framework' ? <Framework /> :
           view === 'docs' ? <Documentation /> :
+          view === 'about' ? <About /> :
           <Diagnostics />
          }
       </main>
