@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Loader2, Mail, Lock, UserPlus, LogIn, KeyRound, WifiOff, User, AlertTriangle, ExternalLink, Copy } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Loader2, Mail, Lock, UserPlus, LogIn, KeyRound, WifiOff, User, AlertTriangle, ExternalLink, Copy, Settings } from 'lucide-react';
 import { Logo } from './Logo';
-import { supabase } from '../lib/supabase';
+import { supabase, isUsingFallback } from '../lib/supabase';
 import { useStore } from '../store';
 
 interface Props {
@@ -27,6 +27,10 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState<{text: string, type: 'error' | 'success' | 'info'} | null>(null);
+  
+  // Detectar problema de configuração
+  const isProduction = typeof window !== 'undefined' && window.location.hostname !== 'localhost';
+  const showConfigWarning = isProduction && isUsingFallback;
 
   const isLoading = globalLoading || localLoading;
 
@@ -57,6 +61,15 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
     setMessage(null);
     const origin = window.location.origin;
     
+    if (showConfigWarning) {
+        setMessage({ 
+            text: "ERRO DE CONFIGURAÇÃO: Você não configurou as chaves do Supabase na Vercel.", 
+            type: 'error' 
+        });
+        setLocalLoading(false);
+        return;
+    }
+
     try {
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
@@ -71,9 +84,8 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
 
     } catch (error: any) {
         console.error("Google Auth Error:", error);
-        // Generic error message, details handled in render
         setMessage({ 
-            text: `Falha na conexão (OAuth).`, 
+            text: `Falha na conexão: ${error.message}`, 
             type: 'error' 
         });
         setLocalLoading(false);
@@ -109,6 +121,28 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
 
         <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm relative">
            
+           {/* Critical Config Warning */}
+           {showConfigWarning && (
+               <div className="bg-red-500/10 border border-red-500/50 rounded-lg p-4 mb-6 text-left relative overflow-hidden">
+                   <div className="absolute top-0 left-0 w-1 h-full bg-red-500"></div>
+                   <h3 className="text-red-400 font-bold text-xs uppercase flex items-center gap-2 mb-2">
+                       <Settings size={14} /> Configuração Pendente
+                   </h3>
+                   <p className="text-[10px] text-slate-300 leading-relaxed mb-2">
+                       O login Google não funciona porque você está usando as chaves de demonstração em um domínio de produção.
+                   </p>
+                   <p className="text-[10px] text-slate-300 leading-relaxed font-bold">
+                       Ação Necessária (Vercel):
+                   </p>
+                   <ul className="text-[10px] text-slate-400 list-disc ml-4 mt-1 space-y-1">
+                       <li>Crie um projeto no Supabase.</li>
+                       <li>Vá em <strong>Settings &gt; Environment Variables</strong> na Vercel.</li>
+                       <li>Adicione <code>VITE_SUPABASE_URL</code> e <code>VITE_SUPABASE_ANON_KEY</code>.</li>
+                       <li>Faça Redeploy.</li>
+                   </ul>
+               </div>
+           )}
+
            {/* Loader Overlay */}
            {isLoading && (
                <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-2xl border border-emerald-500/20">
@@ -198,8 +232,8 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
             <button 
                 type="button"
                 onClick={handleGoogleLogin}
-                disabled={isLoading}
-                className="w-full bg-slate-800 hover:bg-slate-700 text-white font-medium py-3 rounded-xl flex items-center justify-center gap-3 transition-colors border border-slate-700 mb-4 disabled:opacity-50"
+                disabled={isLoading || showConfigWarning}
+                className={`w-full bg-slate-800 hover:bg-slate-700 text-white font-medium py-3 rounded-xl flex items-center justify-center gap-3 transition-colors border border-slate-700 mb-4 disabled:opacity-50 ${showConfigWarning ? 'cursor-not-allowed opacity-50' : ''}`}
             >
                 <GoogleIcon />
                 <span>Google</span>
