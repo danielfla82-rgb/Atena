@@ -1,8 +1,104 @@
 
 import React from 'react';
-import { Book, Code, Database, Cpu, Layers, Shield, Server, FileJson, GitCommit, GraduationCap, Sword, Eye } from 'lucide-react';
+import { Book, Code, Database, Cpu, Layers, Shield, Server, FileJson, GitCommit, GraduationCap, Sword, Eye, Terminal, CheckCircle2 } from 'lucide-react';
 
 export const Documentation: React.FC = () => {
+  const sqlScript = `
+-- 1. Habilitar UUIDs
+create extension if not exists "uuid-ossp";
+
+-- 2. Tabela de Cadernos (Notebooks)
+create table if not exists notebooks (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null,
+  discipline text not null,
+  name text not null,
+  subtitle text,
+  tec_link text,
+  obsidian_link text,
+  accuracy numeric default 0,
+  target_accuracy numeric default 90,
+  weight text default 'Médio',
+  relevance text default 'Média',
+  trend text default 'Estável',
+  status text default 'Não Iniciado',
+  notes text,
+  image text, -- Legacy (single)
+  images jsonb default '[]', -- New (gallery)
+  last_practice timestamptz,
+  next_review timestamptz,
+  created_at timestamptz default now()
+);
+
+-- 3. Tabela de Ciclos (Planejamento Tático)
+create table if not exists cycles (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null,
+  name text not null,
+  config jsonb default '{}', -- AthensConfig
+  planning jsonb default '{}', -- Map<NotebookId, WeekId>
+  weekly_completion jsonb default '{}', -- Map<NotebookId, Boolean>
+  last_access timestamptz default now(),
+  created_at timestamptz default now()
+);
+
+-- 4. Tabela de Protocolo (Rotina)
+create table if not exists protocol_items (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null,
+  name text not null,
+  dosage text,
+  time text,
+  type text,
+  checked boolean default false,
+  created_at timestamptz default now()
+);
+
+-- 5. Tabela de Framework (Identidade)
+create table if not exists frameworks (
+  user_id uuid primary key, -- One per user
+  values text,
+  dream text,
+  motivation text,
+  action text,
+  habit text,
+  updated_at timestamptz default now()
+);
+
+-- 6. Tabela de Relatórios (Histórico IA)
+create table if not exists reports (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null,
+  date timestamptz default now(),
+  type text,
+  summary text,
+  data jsonb,
+  created_at timestamptz default now()
+);
+
+-- 7. Tabela de Notas Rápidas (Post-its)
+create table if not exists notes (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null,
+  content text default '',
+  color text default 'yellow',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+-- 8. Políticas de Segurança (RLS) - Simples
+alter table notebooks enable row level security;
+alter table cycles enable row level security;
+alter table protocol_items enable row level security;
+alter table frameworks enable row level security;
+alter table reports enable row level security;
+alter table notes enable row level security;
+
+-- Política Genérica (Rodar para cada tabela se necessário, ou usar GUI do Supabase)
+-- create policy "User Access" on notebooks for all using (auth.uid() = user_id);
+-- Repetir para outras tabelas...
+  `;
+
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8 pb-20 animate-in fade-in duration-500">
       
@@ -16,7 +112,7 @@ export const Documentation: React.FC = () => {
         </div>
         <div className="text-right hidden md:block">
             <p className="text-xs text-slate-500 uppercase font-bold tracking-widest">Última Atualização</p>
-            <p className="text-slate-300 font-mono">Titan Edition</p>
+            <p className="text-slate-300 font-mono">Titan Edition v3.6.4</p>
         </div>
       </div>
 
@@ -41,6 +137,12 @@ export const Documentation: React.FC = () => {
                    </a>
                    <a href="#changelog" className="flex items-center gap-2 text-sm text-slate-300 hover:text-emerald-400 transition-colors group">
                        <span className="w-1.5 h-1.5 rounded-full bg-slate-600 group-hover:bg-emerald-500"></span> 5. Changelog
+                   </a>
+                   <a href="#instalacao" className="flex items-center gap-2 text-sm text-slate-300 hover:text-emerald-400 transition-colors group">
+                       <Terminal size={14} /> 6. Instalação (SQL)
+                   </a>
+                   <a href="#checklist" className="flex items-center gap-2 text-sm text-emerald-400 hover:text-emerald-300 transition-colors group font-bold">
+                       <CheckCircle2 size={14} /> 7. Checklist Final
                    </a>
                    <div className="border-t border-slate-700 my-2 pt-2"></div>
                    <a href="#sobre" className="flex items-center gap-2 text-sm font-bold text-amber-400 hover:text-amber-300 transition-colors group">
@@ -187,11 +289,11 @@ Ajuste Fino (Multiplicadores):
               </div>
 
               <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-                   {/* v3.5.0 */}
+                   {/* v3.6.4 */}
                    <div className="p-6 border-b border-slate-800 bg-slate-950/50">
                       <div className="flex justify-between items-start mb-4">
                           <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                              <span className="bg-emerald-600 text-white px-2 py-0.5 rounded text-xs shadow-lg shadow-emerald-900/50">v3.5.0</span> 
+                              <span className="bg-emerald-600 text-white px-2 py-0.5 rounded text-xs shadow-lg shadow-emerald-900/50">v3.6.4</span> 
                               Titan Edition (Stable)
                           </h3>
                           <span className="text-xs text-slate-500 font-mono">Current Build</span>
@@ -199,8 +301,24 @@ Ajuste Fino (Multiplicadores):
                       <ul className="space-y-3">
                           <ChangelogItem 
                             type="core" 
-                            desc="[Macro Calendar 2.0] Refinamento da lógica de datas (Timezone-safe) para evitar deslocamento de dias." 
+                            desc="[Otimização] Edital Verticalizado agora usa algoritmo O(1) com Maps, eliminando lentidão com centenas de tópicos." 
                           />
+                          <ChangelogItem 
+                            type="fix" 
+                            desc="[Segurança] Blindagem da lógica de Ciclos para garantir que cadernos criados não fiquem órfãos (Vínculo imediato)." 
+                          />
+                      </ul>
+                  </div>
+
+                   {/* v3.5.0 */}
+                   <div className="p-6 border-b border-slate-800">
+                      <div className="flex justify-between items-start mb-4">
+                          <h3 className="text-lg font-bold text-slate-300 flex items-center gap-2">
+                              <span className="bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-xs border border-slate-600">v3.5.0</span> 
+                              Calendar Update
+                          </h3>
+                      </div>
+                      <ul className="space-y-3">
                           <ChangelogItem 
                             type="feat" 
                             desc="[UX] Identificação visual de Feriados Nacionais e Alerta de Prova (Pulsação) no calendário anual." 
@@ -211,30 +329,76 @@ Ajuste Fino (Multiplicadores):
                           />
                       </ul>
                   </div>
+              </div>
+           </section>
 
-                   {/* v3.3.0 */}
-                   <div className="p-6 border-b border-slate-800">
-                      <div className="flex justify-between items-start mb-4">
-                          <h3 className="text-lg font-bold text-slate-300 flex items-center gap-2">
-                              <span className="bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-xs border border-slate-600">v3.3.0</span> 
-                              Elite OS Update
-                          </h3>
-                      </div>
-                      <ul className="space-y-3">
-                          <ChangelogItem 
-                            type="ui" 
-                            desc="[UI/UX] Redesign completo do bloco de navegação lateral para estética 'Command Center' mais profissional." 
-                          />
-                          <ChangelogItem 
-                            type="feat" 
-                            desc="[Anotações] Módulo de Post-its (Anotações Rápidas) agora persistente e integrado." 
-                          />
-                      </ul>
+           {/* Section 6: Installation */}
+           <section id="instalacao" className="space-y-6 scroll-mt-24">
+              <div className="flex items-center gap-3 border-b border-slate-800 pb-2">
+                 <Terminal size={24} className="text-emerald-500" />
+                 <h2 className="text-2xl font-bold text-white">6. Instalação (SQL)</h2>
+              </div>
+              <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                  <p className="text-slate-300 mb-4 text-sm">
+                      Para garantir o funcionamento completo do sistema em produção, execute o script abaixo no 
+                      <strong> SQL Editor</strong> do seu projeto Supabase. Isso criará todas as tabelas e políticas de segurança necessárias.
+                  </p>
+                  <div className="bg-black/50 border border-slate-700 rounded-lg p-4 overflow-x-auto relative group">
+                      <pre className="text-xs font-mono text-emerald-400 whitespace-pre">
+                          {sqlScript}
+                      </pre>
+                      <button 
+                        onClick={() => {navigator.clipboard.writeText(sqlScript); alert("SQL Copiado!");}}
+                        className="absolute top-2 right-2 bg-slate-800 hover:bg-slate-700 text-white px-3 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                          Copiar SQL
+                      </button>
                   </div>
               </div>
            </section>
 
-           {/* SECTION 6: SOBRE ATENA */}
+           {/* Section 7: Checklist */}
+           <section id="checklist" className="space-y-6 scroll-mt-24">
+              <div className="flex items-center gap-3 border-b border-slate-800 pb-2">
+                 <CheckCircle2 size={24} className="text-emerald-500" />
+                 <h2 className="text-2xl font-bold text-white">7. Checklist Final</h2>
+              </div>
+              <div className="bg-emerald-900/10 border border-emerald-500/20 rounded-xl p-6">
+                  <p className="text-slate-300 mb-4 text-sm font-medium">
+                      Se você já rodou o SQL acima, siga estes passos para garantir que o app se conecte ao seu projeto:
+                  </p>
+                  <ul className="space-y-4">
+                      <li className="flex items-start gap-3">
+                          <span className="w-6 h-6 rounded-full bg-slate-800 border border-slate-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">1</span>
+                          <div>
+                              <strong className="text-white text-sm">Obtenha as Credenciais</strong>
+                              <p className="text-xs text-slate-400 mt-1">No Supabase, vá em <code>Project Settings &gt; API</code>. Copie a <strong>Project URL</strong> e a chave <strong>anon public</strong>.</p>
+                          </div>
+                      </li>
+                      <li className="flex items-start gap-3">
+                          <span className="w-6 h-6 rounded-full bg-slate-800 border border-slate-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">2</span>
+                          <div>
+                              <strong className="text-white text-sm">Configure o Ambiente</strong>
+                              <p className="text-xs text-slate-400 mt-1">Crie um arquivo <code>.env</code> na raiz (ou configure no Vercel/Netlify) com:</p>
+                              <code className="block bg-black/30 p-2 rounded mt-2 text-emerald-400 text-xs font-mono">
+                                  VITE_SUPABASE_URL=sua_url_aqui<br/>
+                                  VITE_SUPABASE_ANON_KEY=sua_chave_anon_aqui<br/>
+                                  VITE_API_KEY=sua_chave_google_ai_aqui
+                              </code>
+                          </div>
+                      </li>
+                      <li className="flex items-start gap-3">
+                          <span className="w-6 h-6 rounded-full bg-slate-800 border border-slate-600 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">3</span>
+                          <div>
+                              <strong className="text-white text-sm">Auth Callback (Opcional)</strong>
+                              <p className="text-xs text-slate-400 mt-1">Para login social (Google), adicione a URL do seu site em <code>Authentication &gt; URL Configuration</code> no painel Supabase.</p>
+                          </div>
+                      </li>
+                  </ul>
+              </div>
+           </section>
+
+           {/* SECTION 8: SOBRE ATENA */}
            <section id="sobre" className="space-y-8 scroll-mt-24 pt-8">
               <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 shadow-2xl">
                   {/* Decorative Elements */}

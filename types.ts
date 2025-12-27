@@ -7,16 +7,32 @@
  * STATUS: STABLE / ELITE OS
  * DATA: 2024-05-23
  * 
- * CHANGELOG V3.3.0:
- * - [UI] Novo design do bloco de identidade (Sidebar).
- * - [CORE] Estabilização do módulo de Anotações.
- * - [FIX] Ajustes de tipografia e espaçamento.
+ * --- SQL SCHEMA FOR SUPABASE (NOTES) ---
+ * Execute este SQL no Supabase SQL Editor para ativar a persistência de notas:
  * 
- * PRINCIPAIS ENTIDADES:
- * 1. Notebook (Caderno): A unidade atômica de estudo. Contém performance, metadados e conteúdo.
- * 2. Cycle (Ciclo): Um contêiner para um projeto de estudo específico (ex: "PF 2025"). Permite multitenancy local.
- * 3. FrameworkData: Estrutura piramidal de 5 camadas para alinhamento estratégico/mental.
- * 4. AthensConfig: Configurações do contexto de estudo atual (IA context).
+ * create table if not exists notes (
+ *   id uuid primary key default gen_random_uuid(),
+ *   user_id uuid not null,
+ *   content text default '',
+ *   color text default 'yellow',
+ *   created_at timestamptz default now(),
+ *   updated_at timestamptz default now()
+ * );
+ * 
+ * alter table notes enable row level security;
+ * 
+ * create policy "Users can only see their own notes"
+ *   on notes for select using (auth.uid() = user_id);
+ * 
+ * create policy "Users can insert their own notes"
+ *   on notes for insert with check (auth.uid() = user_id);
+ * 
+ * create policy "Users can update their own notes"
+ *   on notes for update using (auth.uid() = user_id);
+ * 
+ * create policy "Users can delete their own notes"
+ *   on notes for delete using (auth.uid() = user_id);
+ * -----------------------------------------
  */
 
 /** Níveis de Peso no Edital (Eixo Y da Matriz Estratégica) */

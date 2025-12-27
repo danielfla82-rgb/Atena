@@ -936,6 +936,120 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
 
+      {/* CONFIG MODAL */}
+      {isConfigOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+                <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900">
+                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                        <Settings size={20} className="text-emerald-500"/> Configuração do Concurso
+                    </h3>
+                    <button onClick={() => setIsConfigOpen(false)} className="text-slate-400 hover:text-white"><X size={24} /></button>
+                </div>
+                
+                <form onSubmit={handleSaveConfig} className="overflow-y-auto p-6 space-y-6 custom-scrollbar">
+                    {/* Basic Info */}
+                    <div className="space-y-4">
+                        <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">1. Dados do Concurso</h4>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Cargo Alvo</label>
+                            <input 
+                                type="text" 
+                                value={localConfig.targetRole} 
+                                onChange={e => setLocalConfig({...localConfig, targetRole: e.target.value})} 
+                                className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500"
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                             <div>
+                                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Data de Início</label>
+                                <input 
+                                    type="date" 
+                                    value={localConfig.startDate || ''} 
+                                    onChange={e => setLocalConfig({...localConfig, startDate: e.target.value})} 
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500"
+                                />
+                             </div>
+                             <div>
+                                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Data da Prova</label>
+                                <input 
+                                    type="date" 
+                                    value={localConfig.examDate || ''} 
+                                    onChange={e => setLocalConfig({...localConfig, examDate: e.target.value})} 
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500"
+                                />
+                             </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                             <div>
+                                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Semanas de Estudo</label>
+                                <input 
+                                    type="number" 
+                                    value={localConfig.weeksUntilExam} 
+                                    onChange={e => setLocalConfig({...localConfig, weeksUntilExam: parseInt(e.target.value)})} 
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500"
+                                />
+                             </div>
+                             <div>
+                                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Ritmo (Pace)</label>
+                                <select 
+                                    value={localConfig.studyPace} 
+                                    onChange={e => setLocalConfig({...localConfig, studyPace: e.target.value as any})} 
+                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500"
+                                >
+                                    <option value="Iniciante">Iniciante</option>
+                                    <option value="Básico">Básico</option>
+                                    <option value="Intermediário">Intermediário</option>
+                                    <option value="Avançado">Avançado</option>
+                                </select>
+                             </div>
+                        </div>
+                    </div>
+
+                    {/* Edital Text */}
+                    <div className="space-y-4">
+                        <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">2. Inteligência (Edital)</h4>
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Conteúdo Programático (Texto)</label>
+                            <textarea 
+                                value={localConfig.editalText || ''} 
+                                onChange={e => setLocalConfig({...localConfig, editalText: e.target.value})} 
+                                className="w-full h-32 bg-slate-800 border border-slate-700 rounded-lg p-3 text-white text-xs font-mono outline-none focus:border-emerald-500 resize-none custom-scrollbar"
+                                placeholder="Cole aqui o texto do edital para a IA processar..."
+                            />
+                        </div>
+                    </div>
+
+                    {/* Algorithm Tuning */}
+                    <div className="space-y-4">
+                        <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2 flex justify-between items-center">
+                            <span>3. Algoritmo SRS (Avançado)</span>
+                            <button type="button" onClick={runTests} className="text-[10px] bg-slate-800 px-2 py-1 rounded border border-slate-700 hover:text-white">Run Tests</button>
+                        </h4>
+                        <div className="grid grid-cols-4 gap-2">
+                            {Object.entries(localConfig.algorithm?.baseIntervals || {}).map(([k, v]) => (
+                                <div key={k}>
+                                    <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">{k}</label>
+                                    <input 
+                                        type="number" 
+                                        value={v} 
+                                        onChange={e => handleAlgoChange('baseIntervals', k, e.target.value)} 
+                                        className="w-full bg-slate-800 border border-slate-700 rounded p-2 text-white text-center text-xs"
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </form>
+
+                <div className="p-6 border-t border-slate-800 bg-slate-900 flex gap-4">
+                    <button type="button" onClick={() => setIsConfigOpen(false)} className="flex-1 bg-slate-800 text-slate-300 py-3 rounded-xl hover:bg-slate-700 font-medium transition-colors">Cancelar</button>
+                    <button type="button" onClick={handleSaveConfig} className="flex-1 bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-500 font-bold shadow-lg shadow-emerald-900/20 transition-all">Salvar Configurações</button>
+                </div>
+            </div>
+        </div>
+      )}
+
     </div>
   );
 };

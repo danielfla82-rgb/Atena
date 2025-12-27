@@ -1,6 +1,6 @@
 {
-  "name": "Projeto Atena v3.6.3 (Olympus Edition)",
-  "description": "Plataforma SaaS de alta performance. v3.6.3: [FIX] Correção crítica de tela preta (ImportMap Conflict Removal).",
+  "name": "Projeto Atena v3.6.4 (Titan Stable)",
+  "description": "Plataforma SaaS de alta performance. v3.6.4: [OPTIMIZATION] Refatoração do motor de cruzamento de edital e blindagem de persistência de ciclos.",
   "requestFramePermissions": [
     "microphone"
   ]

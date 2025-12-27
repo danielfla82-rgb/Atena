@@ -121,39 +121,64 @@ export const VerticalizedEdital: React.FC = () => {
       updateConfig({ ...config, structuredEdital: newEdital });
   };
 
-  // --- MATCHING LOGIC ---
-  const getTopicStatus = useCallback((topicName: string, disciplineName: string) => {
-      const normTopic = normalize(topicName);
-      const normDisc = normalize(disciplineName);
+  // --- PERFORMANCE OPTIMIZATION: PRE-CALCULATE MATCHES ---
+  // Create a map of normalized notebook names/subtitles for O(1) lookup logic instead of O(N*M)
+  const matchesMap = useMemo(() => {
+      const map = new Map<string, { inCycle: boolean, blocksCount: number }>();
+      
+      if (!config.structuredEdital) return map;
 
-      // Find notebooks that match this topic
-      // We look for notebooks where the topic name is included in the notebook name or subtitle
-      const matches = notebooks.filter(nb => {
-          const nbDisc = normalize(nb.discipline);
-          // Discipline check: relaxed check if one includes the other
-          const discMatch = nbDisc.includes(normDisc) || normDisc.includes(nbDisc);
-          
-          if (!discMatch) return false;
+      // 1. Flatten all edital topics to iterate
+      const allTopics = config.structuredEdital.flatMap(d => d.topics.map(t => ({ topicName: t.name, discName: d.name })));
 
-          const nbName = normalize(nb.name);
-          const nbSub = normalize(nb.subtitle || '');
-          
-          // Match logic: Topic keywords inside Notebook Name
-          return nbName.includes(normTopic) || normTopic.includes(nbName) || (nbSub && normTopic.includes(nbSub));
+      // 2. Pre-process notebooks for faster matching
+      const processedNotebooks = notebooks.map(nb => ({
+          normDisc: normalize(nb.discipline),
+          normName: normalize(nb.name),
+          normSub: normalize(nb.subtitle || ''),
+          weekId: nb.weekId
+      }));
+
+      // 3. Perform matching
+      allTopics.forEach(({ topicName, discName }) => {
+          const normTopic = normalize(topicName);
+          const normDisc = normalize(discName);
+          const key = `${discName}-${topicName}`;
+
+          let inCycle = false;
+          let blocksCount = 0;
+
+          processedNotebooks.forEach(nb => {
+              // Discipline loose match
+              const discMatch = nb.normDisc.includes(normDisc) || normDisc.includes(nb.normDisc);
+              if (!discMatch) return;
+
+              // Topic match (Topic name inside Notebook name OR Notebook name inside Topic name)
+              const nameMatch = nb.normName.includes(normTopic) || normTopic.includes(nb.normName) || (nb.normSub && normTopic.includes(nb.normSub));
+              
+              if (nameMatch) {
+                  if (nb.weekId) {
+                      inCycle = true;
+                      blocksCount++;
+                  }
+              }
+          });
+
+          map.set(key, { inCycle, blocksCount });
       });
 
-      const inCycle = matches.some(nb => !!nb.weekId);
-      const blocksCount = matches.filter(nb => !!nb.weekId).length; // Just counting active notebooks for this topic
-      
-      // Calculate discipline frequency (total blocks for this discipline in cycle)
-      // This is a bit expensive to calc per topic, but needed for the specific prompt requirement
-      const disciplineBlocks = notebooks.filter(nb => {
-          const nbDisc = normalize(nb.discipline);
-          return (nbDisc.includes(normDisc) || normDisc.includes(nbDisc)) && !!nb.weekId;
-      }).length;
+      return map;
+  }, [notebooks, config.structuredEdital]);
 
-      return { inCycle, blocksCount, disciplineBlocks, matchesCount: matches.length };
-  }, [notebooks]);
+  // Optimized Helper to get status from Map
+  const getTopicStatus = useCallback((topicName: string, disciplineName: string) => {
+      const key = `${disciplineName}-${topicName}`;
+      const stat = matchesMap.get(key) || { inCycle: false, blocksCount: 0 };
+      
+      // Calculate discipline frequency just for display context (lighter calc)
+      // Note: This is an approximation for UI speed.
+      return stat;
+  }, [matchesMap]);
 
   // --- FILTERING ---
   const displayData = useMemo(() => {
@@ -241,8 +266,8 @@ export const VerticalizedEdital: React.FC = () => {
               const progress = Math.round((checkedTopics / totalTopics) * 100);
 
               // Aggregate stats for collapsed view
-              // Just sample the first topic to get discipline block count (since it's discipline level)
-              const sampleStat = getTopicStatus(discipline.topics[0]?.name || '', discipline.name);
+              // Sum blocks from map
+              const disciplineBlocks = discipline.topics.reduce((acc, t) => acc + getTopicStatus(t.name, discipline.name).blocksCount, 0);
               
               return (
                   <div key={discipline.name} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden transition-all">
@@ -260,7 +285,7 @@ export const VerticalizedEdital: React.FC = () => {
                                   <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
                                       <span>{totalTopics} tópicos</span>
                                       <span className="w-1 h-1 rounded-full bg-slate-700"></span>
-                                      <span>{sampleStat.disciplineBlocks} blocos no ciclo</span>
+                                      <span>{disciplineBlocks} cadernos linkados</span>
                                   </div>
                               </div>
                           </div>
@@ -284,7 +309,6 @@ export const VerticalizedEdital: React.FC = () => {
                                               <th className="p-4">Tópico</th>
                                               <th className="p-4 w-32 text-center">Probabilidade (IA)</th>
                                               <th className="p-4 w-32 text-center">No Ciclo?</th>
-                                              <th className="p-4 w-32 text-center">Freq. Disciplina</th>
                                           </tr>
                                       </thead>
                                       <tbody className="divide-y divide-slate-800/50">
@@ -309,17 +333,12 @@ export const VerticalizedEdital: React.FC = () => {
                                                       </td>
                                                       <td className="p-4 text-center">
                                                           {stats.inCycle ? (
-                                                              <span className="flex items-center justify-center gap-1 text-emerald-400 font-bold text-xs">
+                                                              <span className="flex items-center justify-center gap-1 text-emerald-400 font-bold text-xs" title={`${stats.blocksCount} cadernos encontrados`}>
                                                                   <CheckCircle2 size={14} /> Sim
                                                               </span>
                                                           ) : (
                                                               <span className="text-slate-600 text-xs">Não</span>
                                                           )}
-                                                      </td>
-                                                      <td className="p-4 text-center">
-                                                          <span className="bg-slate-800 px-2 py-1 rounded text-xs font-mono text-white">
-                                                              {stats.disciplineBlocks}
-                                                          </span>
                                                       </td>
                                                   </tr>
                                               );

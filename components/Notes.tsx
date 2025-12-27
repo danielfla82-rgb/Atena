@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store';
 import { Note } from '../types';
-import { Plus, Trash2, StickyNote, Palette } from 'lucide-react';
+import { Plus, Trash2, StickyNote, Palette, Cloud, CloudOff, Loader2 } from 'lucide-react';
 
 const COLORS = {
     yellow: 'bg-yellow-200 text-yellow-900 border-yellow-300 placeholder-yellow-900/50',
@@ -15,6 +15,7 @@ const COLORS = {
 const StickyNoteItem: React.FC<{ note: Note }> = ({ note }) => {
     const { updateNote, deleteNote } = useStore();
     const [content, setContent] = useState(note.content);
+    const [status, setStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
     
     // Track the latest content for unmount save
     const contentRef = useRef(content);
@@ -22,12 +23,15 @@ const StickyNoteItem: React.FC<{ note: Note }> = ({ note }) => {
 
     // Auto-save logic (Debounce)
     useEffect(() => {
-        const timer = setTimeout(() => {
-            if (content !== note.content) {
-                updateNote(note.id, content);
-            }
-        }, 800);
-        return () => clearTimeout(timer);
+        if (content !== note.content) {
+            setStatus('unsaved');
+            const timer = setTimeout(async () => {
+                setStatus('saving');
+                await updateNote(note.id, content);
+                setStatus('saved');
+            }, 800);
+            return () => clearTimeout(timer);
+        }
     }, [content, note.id, note.content, updateNote]);
 
     // Force save on unmount (important for quick disconnects)
@@ -37,15 +41,19 @@ const StickyNoteItem: React.FC<{ note: Note }> = ({ note }) => {
                 updateNote(note.id, contentRef.current);
             }
         };
-    }, []); // Empty dependency array ensures this cleanup runs only on unmount
+    }, []); 
 
-    const handleColorChange = (color: Note['color']) => {
-        updateNote(note.id, content, color);
+    const handleColorChange = async (color: Note['color']) => {
+        setStatus('saving');
+        await updateNote(note.id, content, color);
+        setStatus('saved');
     };
 
-    const handleBlur = () => {
+    const handleBlur = async () => {
         if (content !== note.content) {
-            updateNote(note.id, content);
+            setStatus('saving');
+            await updateNote(note.id, content);
+            setStatus('saved');
         }
     };
 
@@ -59,7 +67,7 @@ const StickyNoteItem: React.FC<{ note: Note }> = ({ note }) => {
                 className="w-full h-full bg-transparent border-none resize-none outline-none text-sm font-medium leading-relaxed custom-scrollbar"
             />
             
-            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 items-center">
                 <div className="group/palette relative">
                     <button className="p-1.5 bg-black/10 rounded-full hover:bg-black/20 text-current transition-colors">
                         <Palette size={14} />
@@ -82,8 +90,12 @@ const StickyNoteItem: React.FC<{ note: Note }> = ({ note }) => {
                 </button>
             </div>
             
-            <div className="text-[9px] opacity-50 font-bold uppercase tracking-wider text-right mt-2 select-none">
-                {new Date(note.updatedAt).toLocaleDateString()}
+            <div className="flex justify-between items-center mt-2 opacity-50 text-[9px] font-bold uppercase tracking-wider select-none">
+                <span>
+                    {status === 'saving' ? <Loader2 size={10} className="animate-spin" /> : 
+                     status === 'saved' ? <Cloud size={10} /> : <CloudOff size={10} />}
+                </span>
+                <span>{new Date(note.updatedAt).toLocaleDateString()}</span>
             </div>
         </div>
     );

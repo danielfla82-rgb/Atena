@@ -57,7 +57,7 @@ interface StoreContextType {
   
   // Notes Actions
   addNote: () => void;
-  updateNote: (id: string, content: string, color?: Note['color']) => void;
+  updateNote: (id: string, content: string, color?: Note['color']) => Promise<void>;
   deleteNote: (id: string) => void;
 }
 
@@ -385,6 +385,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               }
           }
 
+          // IMPORTANT: Sync with Active Cycle Planning immediately if allocated
           if (newNotebook.weekId && activeCycleId) {
              const activeCycle = cycles.find(c => c.id === activeCycleId);
              if(activeCycle) {
@@ -586,13 +587,24 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const updateNote = async (id: string, content: string, color?: Note['color']) => {
       const updatedAt = new Date().toISOString();
+      
+      // Update local state immediately
       setNotes(prev => prev.map(n => n.id === id ? { ...n, content, color: color || n.color, updatedAt } : n));
       
       if(user && !isGuest) {
-          const payload: any = { id, user_id: user.id, content, updated_at: updatedAt };
-          if(color) payload.color = color;
+          // Find the current note to ensure we have all fields for upsert/update
+          const currentNote = notes.find(n => n.id === id);
+          const finalColor = color || currentNote?.color || 'yellow';
+
+          const payload: any = { 
+              id, 
+              user_id: user.id, 
+              content, 
+              color: finalColor,
+              updated_at: updatedAt 
+          };
           
-          // Use upsert instead of update to guarantee save even if the initial insert was slow
+          // Use upsert to be robust against creation race conditions
           const { error } = await supabase.from('notes').upsert(payload);
           if (error) console.error("Erro ao atualizar nota (Upsert):", error);
       }
