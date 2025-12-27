@@ -21,16 +21,18 @@ const GoogleIcon = () => (
 );
 
 export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
-  const { enterGuestMode } = useStore();
-  const [loading, setLoading] = useState(false);
+  const { enterGuestMode, loading: globalLoading } = useStore();
+  const [localLoading, setLocalLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState<{text: string, type: 'error' | 'success' | 'info'} | null>(null);
 
+  const isLoading = globalLoading || localLoading;
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setLocalLoading(true);
     setMessage(null);
 
     try {
@@ -46,12 +48,12 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
     } catch (error: any) {
         setMessage({ text: error.message, type: 'error' });
     } finally {
-        setLoading(false);
+        setLocalLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
-    setLoading(true);
+    setLocalLoading(true);
     setMessage(null);
     const origin = window.location.origin;
     
@@ -74,7 +76,7 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
             text: `Falha na conexão (OAuth).`, 
             type: 'error' 
         });
-        setLoading(false);
+        setLocalLoading(false);
     }
   };
 
@@ -105,8 +107,18 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
           Plataforma de planejamento para concurseiros de elite.
         </p>
 
-        <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm">
+        <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm relative">
            
+           {/* Loader Overlay */}
+           {isLoading && (
+               <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-2xl border border-emerald-500/20">
+                   <Loader2 size={32} className="text-emerald-500 animate-spin mb-2" />
+                   <p className="text-xs text-emerald-400 font-bold uppercase tracking-wider animate-pulse">
+                       {globalLoading ? 'Verificando Sessão...' : 'Autenticando...'}
+                   </p>
+               </div>
+           )}
+
            <form onSubmit={handleAuth} className="space-y-4">
                <div>
                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1 text-left">Email</label>
@@ -119,6 +131,7 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
                            className="w-full bg-slate-950 border border-slate-700 rounded-lg py-2.5 pl-10 text-white outline-none focus:border-emerald-500"
                            placeholder="seu@email.com"
                            required
+                           disabled={isLoading}
                        />
                    </div>
                </div>
@@ -135,6 +148,7 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
                            placeholder="••••••••"
                            required
                            minLength={6}
+                           disabled={isLoading}
                        />
                    </div>
                </div>
@@ -164,10 +178,10 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
 
                <button 
                  type="submit"
-                 disabled={loading}
-                 className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-900/20 mt-4"
+                 disabled={isLoading}
+                 className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-900/20 mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
                >
-                 {loading && !message?.text.includes("Google") ? <Loader2 className="animate-spin" /> : isSignUp ? <UserPlus size={18} /> : <LogIn size={18} />}
+                 {isSignUp ? <UserPlus size={18} /> : <LogIn size={18} />}
                  {isSignUp ? "Criar Conta" : "Acessar Sistema"}
                </button>
            </form>
@@ -184,8 +198,8 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
             <button 
                 type="button"
                 onClick={handleGoogleLogin}
-                disabled={loading}
-                className="w-full bg-slate-800 hover:bg-slate-700 text-white font-medium py-3 rounded-xl flex items-center justify-center gap-3 transition-colors border border-slate-700 mb-4"
+                disabled={isLoading}
+                className="w-full bg-slate-800 hover:bg-slate-700 text-white font-medium py-3 rounded-xl flex items-center justify-center gap-3 transition-colors border border-slate-700 mb-4 disabled:opacity-50"
             >
                 <GoogleIcon />
                 <span>Google</span>
@@ -194,8 +208,8 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
             <button 
                 type="button"
                 onClick={handleGuestAccess}
-                disabled={loading}
-                className="w-full bg-transparent border border-slate-700 hover:border-slate-500 text-slate-400 hover:text-white font-medium py-3 rounded-xl flex items-center justify-center gap-2 transition-all group"
+                disabled={isLoading}
+                className="w-full bg-transparent border border-slate-700 hover:border-slate-500 text-slate-400 hover:text-white font-medium py-3 rounded-xl flex items-center justify-center gap-2 transition-all group disabled:opacity-50"
             >
                 <WifiOff size={18} className="group-hover:text-emerald-400 transition-colors" />
                 <span>Modo Visitante (Offline)</span>
@@ -206,6 +220,7 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
                <button 
                   onClick={() => { setIsSignUp(!isSignUp); setMessage(null); }}
                   className="text-sm text-slate-500 hover:text-emerald-400 transition-colors flex items-center justify-center gap-2 w-full"
+                  disabled={isLoading}
                >
                    <KeyRound size={14} />
                    {isSignUp ? "Já tenho conta" : "Criar nova conta"}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StoreProvider, useStore } from './store';
 import { Dashboard } from './components/Dashboard';
 import { Setup } from './components/Setup';
@@ -20,7 +20,7 @@ import { About } from './components/About';
 import { 
   LayoutDashboard, Layers, Menu, X, Library as LibraryIcon, 
   Activity, Lightbulb, Flame, Brain, Newspaper, Pill, Pyramid, Book, ListChecks, Shield, StickyNote, Command, LogOut,
-  ChevronDown, ChevronRight, Target
+  ChevronDown, ChevronRight, Target, Loader2
 } from 'lucide-react';
 import { Logo } from './components/Logo';
 
@@ -48,7 +48,31 @@ const NavGroup = ({ title, children, defaultOpen = false }: { title: string, chi
 const AppContent: React.FC = () => {
   const [view, setView] = useState<'login' | 'onboarding' | 'selection' | 'dashboard' | 'setup' | 'library' | 'diagnostics' | 'tips' | 'nietzsche' | 'psycho' | 'news' | 'protocol' | 'framework' | 'docs' | 'verticalized' | 'notes' | 'about'>('login');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user } = useStore();
+  const { user, loading } = useStore();
+
+  // --- AUTO-REDIRECT LOGIC ---
+  // Detects if user is authenticated (e.g. returning from Google OAuth) and moves past login
+  useEffect(() => {
+      if (!loading && user && view === 'login') {
+          setView('selection');
+      }
+  }, [user, loading, view]);
+
+  // Loading Screen (Initial Boot)
+  if (loading && view === 'login') {
+      return (
+          <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center">
+              <div className="relative">
+                  <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full"></div>
+                  <Logo size="xl" className="relative z-10 animate-pulse" />
+              </div>
+              <div className="mt-8 flex items-center gap-3 text-emerald-500 font-bold uppercase tracking-widest text-sm">
+                  <Loader2 className="animate-spin" size={18} />
+                  Inicializando Sistema...
+              </div>
+          </div>
+      );
+  }
 
   // If in login or selection, show full screen components
   if (view === 'login') {
