@@ -133,7 +133,7 @@ export interface EditalDiscipline {
 }
 
 // Tipos para o Calendário Macro
-export type PaceType = 'Basico' | 'Intermediario' | 'Avancado' | 'Revisao' | 'Off';
+export type PaceType = 'Iniciante' | 'Basico' | 'Intermediario' | 'Avancado' | 'Revisao' | 'Off';
 
 /** Configuração Global do Concurso (Contexto para IA) */
 export interface AthensConfig {

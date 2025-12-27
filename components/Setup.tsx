@@ -1,7 +1,8 @@
+
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, Relevance, Trend, NotebookStatus, PaceType } from '../types';
-import { Plus, Search, Copy, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2, CalendarDays } from 'lucide-react';
+import { Plus, Search, Copy, Pencil, X, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2, CalendarDays, Sun, Save } from 'lucide-react';
 import { calculateNextReview, getStatusColor } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 
@@ -11,6 +12,21 @@ const PACE_SETTINGS: Record<string, { hours: number, blocks: number }> = {
     'Intermediário': { hours: 30, blocks: 45 },
     'Avançado': { hours: 44, blocks: 66 }
 };
+
+// --- CONSTANTS ---
+const BRAZIL_HOLIDAYS = [
+    { d: 1, m: 0, name: 'Confraternização Universal' },
+    { d: 12, m: 1, name: 'Carnaval (Est.)' }, // Aproximado
+    { d: 29, m: 2, name: 'Paixão de Cristo (Est.)' }, // Aproximado
+    { d: 21, m: 3, name: 'Tiradentes' },
+    { d: 1, m: 4, name: 'Dia do Trabalho' },
+    { d: 30, m: 4, name: 'Corpus Christi (Est.)' },
+    { d: 7, m: 8, name: 'Independência' },
+    { d: 12, m: 9, name: 'Nossa Sra. Aparecida' },
+    { d: 2, m: 10, name: 'Finados' },
+    { d: 15, m: 10, name: 'Proclamação da República' },
+    { d: 25, m: 11, name: 'Natal' }
+];
 
 // MEMOIZED COMPONENT TO PREVENT RE-RENDERS ON DRAG/SEARCH
 const DraggableCard = React.memo(({ 
@@ -105,25 +121,25 @@ const DraggableCard = React.memo(({
     );
 });
 
-// --- COMPONENT: MACRO CALENDAR (New) ---
+// --- COMPONENT: MACRO CALENDAR (Revised v3.5) ---
 const MacroCalendar = () => {
     const { config, updateConfig } = useStore();
     const [year, setYear] = useState(new Date().getFullYear());
     
-    // Cycle through pace types on click
     const cyclePace = (current: PaceType): PaceType => {
-        const order: PaceType[] = ['Off', 'Basico', 'Intermediario', 'Avancado', 'Revisao'];
+        const order: PaceType[] = ['Off', 'Iniciante', 'Basico', 'Intermediario', 'Avancado', 'Revisao'];
         const idx = order.indexOf(current || 'Off');
         return order[(idx + 1) % order.length];
     };
 
     const getPaceColor = (pace: PaceType) => {
         switch(pace) {
-            case 'Basico': return 'bg-emerald-600/30 text-emerald-400 border-emerald-500/50';
-            case 'Intermediario': return 'bg-blue-600/30 text-blue-400 border-blue-500/50';
-            case 'Avancado': return 'bg-purple-600/30 text-purple-400 border-purple-500/50';
-            case 'Revisao': return 'bg-amber-600/30 text-amber-400 border-amber-500/50';
-            default: return 'bg-slate-800/30 text-slate-600 border-slate-700/50';
+            case 'Iniciante': return 'bg-cyan-900/30 text-cyan-400 border-cyan-500/50 hover:bg-cyan-900/50';
+            case 'Basico': return 'bg-emerald-900/30 text-emerald-400 border-emerald-500/50 hover:bg-emerald-900/50';
+            case 'Intermediario': return 'bg-blue-900/30 text-blue-400 border-blue-500/50 hover:bg-blue-900/50';
+            case 'Avancado': return 'bg-purple-900/30 text-purple-400 border-purple-500/50 hover:bg-purple-900/50';
+            case 'Revisao': return 'bg-amber-900/30 text-amber-400 border-amber-500/50 hover:bg-amber-900/50';
+            default: return 'bg-slate-900 text-slate-600 border-slate-800 hover:border-slate-700';
         }
     };
 
@@ -139,34 +155,52 @@ const MacroCalendar = () => {
         });
     };
 
+    // Robust Date Check (Timezone Agnostic)
+    const checkHoliday = (monthIndex: number, dayStart: number, dayEnd: number) => {
+        return BRAZIL_HOLIDAYS.find(h => h.m === monthIndex && h.d >= dayStart && h.d <= dayEnd);
+    };
+
+    const checkExamDate = (examDateStr: string | undefined, currentYear: number, monthIndex: number, dayStart: number, dayEnd: number) => {
+        if (!examDateStr) return false;
+        // Parse "YYYY-MM-DD" strictly to numbers to avoid Timezone offset of Date()
+        const parts = examDateStr.split('-');
+        if (parts.length !== 3) return false;
+        
+        const eYear = parseInt(parts[0]);
+        const eMonth = parseInt(parts[1]) - 1; // Month is 0-indexed
+        const eDay = parseInt(parts[2]);
+
+        return eYear === currentYear && eMonth === monthIndex && eDay >= dayStart && eDay <= dayEnd;
+    };
+
     const getMonths = (y: number) => {
         const months = [];
         for (let m = 0; m < 12; m++) {
             const date = new Date(y, m, 1);
             const monthName = date.toLocaleString('pt-BR', { month: 'long' });
-            
-            // Generate weeks for this month
+            const lastDay = new Date(y, m + 1, 0).getDate();
+
             const weeks = [];
-            // Simple logic: First day of month to Last day
-            const startDay = new Date(y, m, 1);
-            const endDay = new Date(y, m + 1, 0);
             
-            // Find the ISO week numbers or just index them by week start date
-            let current = new Date(startDay);
-            // Adjust to start on Monday or Sunday? Let's use simple logic: chunks of 7 days roughly
-            // Better: Iterate by week start
-            
-            // Align to Monday
-            const day = current.getDay();
-            const diff = current.getDate() - day + (day === 0 ? -6 : 1); 
-            // This aligns strictly to Monday. 
-            // For visualization, let's list 4-5 blocks per month
-            
-            // Simplified for Planning: 4 weeks per month fixed slots for UX simplicity
-            for(let w=1; w<=4; w++) {
+            // Logic: W1 (1-7), W2 (8-14), W3 (15-21), W4 (22-End)
+            const ranges = [
+                { start: 1, end: 7 },
+                { start: 8, end: 14 },
+                { start: 15, end: 21 },
+                { start: 22, end: lastDay }
+            ];
+
+            for(let w=0; w<4; w++) {
+                const range = ranges[w];
+                const holiday = checkHoliday(m, range.start, range.end);
+                const hasExam = checkExamDate(config.examDate, y, m, range.start, range.end);
+
                 weeks.push({
-                    id: `${y}-${m+1}-W${w}`,
-                    label: `S${w}`
+                    id: `${y}-${m+1}-W${w+1}`,
+                    label: `S${w+1}`,
+                    dateRange: `${String(range.start).padStart(2, '0')}-${String(range.end).padStart(2, '0')}`,
+                    holiday,
+                    hasExam
                 });
             }
             
@@ -175,7 +209,7 @@ const MacroCalendar = () => {
         return months;
     };
 
-    const months = useMemo(() => getMonths(year), [year]);
+    const months = useMemo(() => getMonths(year), [year, config.examDate]);
 
     return (
         <div className="flex-1 flex flex-col p-4 md:p-8 animate-in fade-in zoom-in duration-500 max-w-7xl mx-auto w-full overflow-y-auto custom-scrollbar">
@@ -184,17 +218,28 @@ const MacroCalendar = () => {
                     <h2 className="text-2xl font-bold text-white flex items-center gap-3">
                         <CalendarDays className="text-emerald-500" /> Calendário Macro
                     </h2>
-                    <p className="text-slate-400 text-sm">Defina o ritmo estratégico para 2025 e 2026.</p>
+                    <p className="text-slate-400 text-sm">Defina o ritmo estratégico anual. <span className="text-emerald-500 font-bold">v2.0</span></p>
                 </div>
-                <div className="flex bg-slate-900 border border-slate-800 rounded-xl p-1">
-                    <button onClick={() => setYear(2025)} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${year === 2025 ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}>2025</button>
-                    <button onClick={() => setYear(2026)} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${year === 2026 ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}>2026</button>
+                <div className="flex items-center gap-3 bg-slate-900 border border-slate-800 rounded-xl p-1">
+                    <button 
+                        onClick={() => setYear(year - 1)} 
+                        className="p-2 rounded-lg text-slate-500 hover:text-white hover:bg-slate-700 transition-colors"
+                    >
+                        <ChevronLeft size={16} />
+                    </button>
+                    <span className="text-lg font-bold text-white min-w-[60px] text-center">{year}</span>
+                    <button 
+                        onClick={() => setYear(year + 1)} 
+                        className="p-2 rounded-lg text-slate-500 hover:text-white hover:bg-slate-700 transition-colors"
+                    >
+                        <ChevronRight size={16} />
+                    </button>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {months.map((month) => (
-                    <div key={month.name} className="bg-slate-900 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition-colors">
+                    <div key={month.name} className="bg-slate-950 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition-colors">
                         <h3 className="text-emerald-400 font-bold uppercase text-xs tracking-widest mb-4 border-b border-slate-800 pb-2">{month.name}</h3>
                         <div className="grid grid-cols-4 gap-2">
                             {month.weeks.map(week => {
@@ -204,14 +249,34 @@ const MacroCalendar = () => {
                                         key={week.id}
                                         onClick={() => toggleWeekPace(week.id)}
                                         className={`
-                                            aspect-square rounded-lg border flex flex-col items-center justify-center transition-all hover:scale-105 active:scale-95
+                                            aspect-square rounded-lg border flex flex-col items-center justify-center transition-all hover:scale-[1.03] active:scale-95 relative group
                                             ${getPaceColor(pace)}
+                                            ${week.hasExam ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-slate-950 z-10 shadow-lg shadow-red-900/50' : ''}
                                         `}
-                                        title={`Semana ${week.label} - ${pace}`}
                                     >
-                                        <span className="text-xs font-bold">{week.label}</span>
-                                        <span className="text-[9px] uppercase opacity-70 truncate w-full text-center px-1">
-                                            {pace === 'Intermediario' ? 'Inter' : pace}
+                                        {/* Exam Flag - Pulsing */}
+                                        {week.hasExam && (
+                                            <div className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-1 z-20 shadow-md border border-slate-900 animate-pulse">
+                                                <Flag size={12} fill="currentColor" />
+                                            </div>
+                                        )}
+
+                                        {/* Holiday Indicator */}
+                                        {week.holiday && !week.hasExam && (
+                                            <div className="absolute top-1 right-1 text-yellow-400 z-10" title={`Feriado: ${week.holiday.name}`}>
+                                                <Sun size={10} fill="currentColor" />
+                                            </div>
+                                        )}
+
+                                        <span className="text-xs font-bold mb-0.5">{week.label}</span>
+                                        
+                                        <span className="text-[8px] uppercase font-bold opacity-80 truncate w-full text-center px-0.5 leading-tight">
+                                            {pace === 'Intermediario' ? 'INTER' : pace === 'Iniciante' ? 'INIC' : pace}
+                                        </span>
+                                        
+                                        {/* Micro-date range */}
+                                        <span className={`text-[8px] font-mono mt-1 tracking-tighter ${pace === 'Off' ? 'text-slate-600' : 'text-white/60'}`}>
+                                            {week.dateRange}
                                         </span>
                                     </button>
                                 );
@@ -222,6 +287,7 @@ const MacroCalendar = () => {
             </div>
 
             <div className="mt-8 flex flex-wrap gap-4 justify-center bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+                <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-cyan-600/50 border border-cyan-500"></div><span className="text-xs text-slate-400">Iniciante</span></div>
                 <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-emerald-600/50 border border-emerald-500"></div><span className="text-xs text-slate-400">Básico (Fundação)</span></div>
                 <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-blue-600/50 border border-blue-500"></div><span className="text-xs text-slate-400">Intermediário</span></div>
                 <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-purple-600/50 border border-purple-500"></div><span className="text-xs text-slate-400">Avançado (Elite)</span></div>
@@ -562,7 +628,10 @@ export const Setup: React.FC = () => {
   const daysRemaining = useMemo(() => {
       if (!config.examDate) return null;
       const today = new Date();
-      const exam = new Date(config.examDate);
+      // Ensure we parse correctly without timezone shift for simple day diff
+      const parts = config.examDate.split('-');
+      const exam = new Date(parseInt(parts[0]), parseInt(parts[1])-1, parseInt(parts[2]));
+      
       const diffTime = exam.getTime() - today.getTime();
       return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   }, [config.examDate]);
@@ -570,8 +639,12 @@ export const Setup: React.FC = () => {
   // --- DYNAMIC WEEKS GENERATION ---
   const weeksCount = useMemo(() => {
       if (config.startDate && config.examDate) {
-          const start = new Date(config.startDate);
-          const end = new Date(config.examDate);
+          const sParts = config.startDate.split('-');
+          const start = new Date(parseInt(sParts[0]), parseInt(sParts[1])-1, parseInt(sParts[2]));
+          
+          const eParts = config.examDate.split('-');
+          const end = new Date(parseInt(eParts[0]), parseInt(eParts[1])-1, parseInt(eParts[2]));
+          
           const diffWeeks = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 7));
           return Math.max(1, diffWeeks);
       }
@@ -580,7 +653,11 @@ export const Setup: React.FC = () => {
 
   const getWeekDateRange = (weekIndex: number, startDateStr?: string) => {
     if (!startDateStr) return { label: '', isPast: false, fullDate: '' };
-    const start = new Date(startDateStr);
+    
+    // Robust parsing
+    const sParts = startDateStr.split('-');
+    const start = new Date(parseInt(sParts[0]), parseInt(sParts[1])-1, parseInt(sParts[2]));
+    
     start.setDate(start.getDate() + (weekIndex * 7));
     const end = new Date(start);
     end.setDate(end.getDate() + 6);
@@ -782,6 +859,14 @@ export const Setup: React.FC = () => {
             <div className="relative">
                 <Search className="absolute left-3 top-2.5 text-slate-500" size={14} />
                 <input type="text" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg py-2 pl-9 pr-3 text-xs text-white focus:border-emerald-500 outline-none" />
+                {searchTerm && (
+                    <button 
+                        onClick={() => setSearchTerm('')} 
+                        className="absolute right-3 top-2.5 text-slate-600 hover:text-white"
+                    >
+                        <X size={14} />
+                    </button>
+                )}
             </div>
             
             <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold">
@@ -822,7 +907,7 @@ export const Setup: React.FC = () => {
                     <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Data da Prova</span>
                     <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5">
                         <CalendarClock size={14} className="text-red-500" />
-                        <span className="text-xs text-white font-medium">{config.examDate ? new Date(config.examDate).toLocaleDateString() : '--/--/----'}</span>
+                        <span className="text-xs text-white font-medium">{config.examDate ? new Date(config.examDate + 'T00:00:00').toLocaleDateString() : '--/--/----'}</span>
                     </div>
                  </div>
                  {daysRemaining !== null && (

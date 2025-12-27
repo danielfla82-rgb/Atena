@@ -8,7 +8,7 @@ import {
   FileText, Save, X, ExternalLink, TrendingUp, Link as LinkIcon,
   PieChart as PieChartIcon, Activity, Layers, Siren, Sparkles, ArrowRight, CheckCircle2,
   MoreHorizontal, Calculator, Clock, Check, XCircle, HelpCircle, Quote, ChevronDown, ChevronUp, BarChart2,
-  Pencil, ZoomIn, Trash2, FileCode, Flag, Loader2, Plus
+  Pencil, ZoomIn, Trash2, FileCode, Flag, Loader2, Plus, AlertTriangle, AlertCircle
 } from 'lucide-react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -143,10 +143,38 @@ export const Dashboard: React.FC = () => {
 
   const today = new Date().toISOString().split('T')[0];
   
+  // --- UPDATED: Intelligent Due Logic (Prioritize Gaps & Challenges) ---
   const dueNotebooks = useMemo(() => {
-    return notebooks.filter(nb => 
+    // 1. Filter: Must be scheduled (weekId) and Due (nextReview <= today)
+    const candidates = notebooks.filter(nb => 
       nb.weekId && nb.nextReview && nb.nextReview.split('T')[0] <= today
-    ).sort((a, b) => (a.nextReview! > b.nextReview! ? 1 : -1));
+    );
+
+    // 2. Sort by Priority Score
+    return candidates.sort((a, b) => {
+        const getScore = (n: Notebook) => {
+            let score = 0;
+            const isOverdue = n.nextReview!.split('T')[0] < today;
+            
+            // Critical Factor 1: Overdue (Atraso)
+            if (isOverdue) score += 1000;
+            
+            // Critical Factor 2: Gap (Low Accuracy or Not Started)
+            if (n.accuracy < 60) score += 500;
+            else if (n.accuracy < 80) score += 200;
+
+            // Critical Factor 3: Strategic Weight (Challenge)
+            if (n.weight === Weight.MUITO_ALTO) score += 300;
+            else if (n.weight === Weight.ALTO) score += 150;
+
+            // Penalize Generic Review slightly to prioritize specific topics
+            if (n.discipline === 'Revisão Geral') score -= 50;
+
+            return score;
+        };
+
+        return getScore(b) - getScore(a); // Descending Score
+    });
   }, [notebooks, today]);
 
   const randomQuote = useMemo(() => {
@@ -631,11 +659,11 @@ export const Dashboard: React.FC = () => {
             </div>
           )}
 
-          {/* Daily Tasks */}
+          {/* Daily Tasks - Enhanced Priority Logic */}
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 flex flex-col h-full">
              <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
                 <BookOpen size={20} className="text-emerald-500"/>
-                Metas do Dia
+                Metas do Dia (Prioridade)
              </h3>
              <div className="space-y-3 flex-1 overflow-y-auto max-h-[300px] custom-scrollbar">
                {dueNotebooks.length === 0 ? (
@@ -647,6 +675,9 @@ export const Dashboard: React.FC = () => {
                ) : (
                  dueNotebooks.slice(0, 4).map(nb => {
                    const isGeneric = nb.discipline === 'Revisão Geral';
+                   const isCriticalGap = nb.accuracy < 60;
+                   const isHighWeight = nb.weight === Weight.MUITO_ALTO || nb.weight === Weight.ALTO;
+                   
                    return (
                      <div key={nb.id} className={`flex items-center justify-between p-3 rounded-lg border transition-colors group ${isGeneric ? 'bg-purple-900/20 border-purple-500/30' : 'bg-slate-800/50 border-slate-700/50 hover:border-emerald-500/50'}`}>
                        <div>
@@ -654,9 +685,11 @@ export const Dashboard: React.FC = () => {
                             {isGeneric && <BrainCircuit size={16} />}
                             {nb.name}
                          </h4>
-                         <p className="text-[10px] text-slate-500 mt-0.5">
-                            {nb.discipline} 
-                         </p>
+                         <div className="flex items-center gap-2 mt-1">
+                             <p className="text-[10px] text-slate-500">{nb.discipline}</p>
+                             {isCriticalGap && <span className="text-[9px] bg-red-500/10 text-red-400 border border-red-500/20 px-1.5 rounded flex items-center gap-1"><AlertTriangle size={8} /> Gap Detectado</span>}
+                             {isHighWeight && !isCriticalGap && <span className="text-[9px] bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 rounded flex items-center gap-1"><AlertCircle size={8} /> Alta Prioridade</span>}
+                         </div>
                        </div>
                        <button 
                         onClick={() => handleReviewClick(nb)}

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Book, Code, Database, Cpu, Layers, Shield, Server, FileJson, GitCommit, GraduationCap, Sword, Eye } from 'lucide-react';
 
@@ -11,11 +12,11 @@ export const Documentation: React.FC = () => {
           <h1 className="text-3xl font-bold text-white flex items-center gap-3">
             <Book className="text-emerald-500" /> Documentação Técnica
           </h1>
-          <p className="text-slate-400 mt-2 text-lg">Projeto Atena (GurujaApp) <span className="text-xs bg-emerald-900/30 text-emerald-400 px-2 py-0.5 rounded border border-emerald-900/50 font-bold ml-2">v3.3.0</span></p>
+          <p className="text-slate-400 mt-2 text-lg">Projeto Atena (GurujaApp) <span className="text-xs bg-emerald-900/30 text-emerald-400 px-2 py-0.5 rounded border border-emerald-900/50 font-bold ml-2">v3.5.0</span></p>
         </div>
         <div className="text-right hidden md:block">
             <p className="text-xs text-slate-500 uppercase font-bold tracking-widest">Última Atualização</p>
-            <p className="text-slate-300 font-mono">Elite OS Edition</p>
+            <p className="text-slate-300 font-mono">Titan Edition</p>
         </div>
       </div>
 
@@ -186,14 +187,38 @@ Ajuste Fino (Multiplicadores):
               </div>
 
               <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+                   {/* v3.5.0 */}
+                   <div className="p-6 border-b border-slate-800 bg-slate-950/50">
+                      <div className="flex justify-between items-start mb-4">
+                          <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                              <span className="bg-emerald-600 text-white px-2 py-0.5 rounded text-xs shadow-lg shadow-emerald-900/50">v3.5.0</span> 
+                              Titan Edition (Stable)
+                          </h3>
+                          <span className="text-xs text-slate-500 font-mono">Current Build</span>
+                      </div>
+                      <ul className="space-y-3">
+                          <ChangelogItem 
+                            type="core" 
+                            desc="[Macro Calendar 2.0] Refinamento da lógica de datas (Timezone-safe) para evitar deslocamento de dias." 
+                          />
+                          <ChangelogItem 
+                            type="feat" 
+                            desc="[UX] Identificação visual de Feriados Nacionais e Alerta de Prova (Pulsação) no calendário anual." 
+                          />
+                          <ChangelogItem 
+                            type="feat" 
+                            desc="[Estratégia] Adicionado ritmo 'Iniciante' (Teal) e 'Micro-Datas' nas semanas para precisão de planejamento." 
+                          />
+                      </ul>
+                  </div>
+
                    {/* v3.3.0 */}
                    <div className="p-6 border-b border-slate-800">
                       <div className="flex justify-between items-start mb-4">
-                          <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                              <span className="bg-emerald-600 text-white px-2 py-0.5 rounded text-xs shadow-lg shadow-emerald-900/50">v3.3.0</span> 
+                          <h3 className="text-lg font-bold text-slate-300 flex items-center gap-2">
+                              <span className="bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-xs border border-slate-600">v3.3.0</span> 
                               Elite OS Update
                           </h3>
-                          <span className="text-xs text-slate-500 font-mono">Current Stable</span>
                       </div>
                       <ul className="space-y-3">
                           <ChangelogItem 
@@ -204,36 +229,12 @@ Ajuste Fino (Multiplicadores):
                             type="feat" 
                             desc="[Anotações] Módulo de Post-its (Anotações Rápidas) agora persistente e integrado." 
                           />
-                          <ChangelogItem 
-                            type="core" 
-                            desc="[Otimização] Refatoração de tipos no Store e correções de tipagem no componente de Notas." 
-                          />
-                      </ul>
-                  </div>
-
-                   {/* v3.2.1 */}
-                   <div className="p-6 border-b border-slate-800 bg-slate-950/30">
-                      <div className="flex justify-between items-start mb-4">
-                          <h3 className="text-lg font-bold text-slate-300 flex items-center gap-2">
-                              <span className="bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-xs border border-slate-600">v3.2.1</span> 
-                              Olympus Performance + Fixes
-                          </h3>
-                      </div>
-                      <ul className="space-y-3">
-                          <ChangelogItem 
-                            type="fix" 
-                            desc="[Auth] Tratamento de erro detalhado para login social (Google). Adicionado helper visual para erro de configuração de URL no Supabase." 
-                          />
-                          <ChangelogItem 
-                            type="core" 
-                            desc="[Library] Implementação de 'LibraryItem' com React.memo para virtualização e performance extrema em listas longas." 
-                          />
                       </ul>
                   </div>
               </div>
            </section>
 
-           {/* SECTION 6: SOBRE ATENA (NEW) */}
+           {/* SECTION 6: SOBRE ATENA */}
            <section id="sobre" className="space-y-8 scroll-mt-24 pt-8">
               <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 shadow-2xl">
                   {/* Decorative Elements */}
