@@ -25,11 +25,20 @@ export const About: React.FC = () => {
                   </p>
               </div>
               <div className="md:w-1/2 flex justify-center">
-                  <div className="relative w-64 h-64 md:w-80 md:h-80">
-                      <div className="absolute inset-0 border-2 border-emerald-500/20 rounded-full animate-[spin_10s_linear_infinite]"></div>
-                      <div className="absolute inset-4 border border-slate-700 rounded-full animate-[spin_15s_linear_infinite_reverse]"></div>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                          <Shield size={120} className="text-emerald-500 drop-shadow-[0_0_30px_rgba(16,185,129,0.5)]" strokeWidth={1} />
+                  <div className="relative w-full max-w-sm aspect-square rounded-2xl overflow-hidden border-2 border-slate-800 shadow-2xl group">
+                      {/* Image Overlay */}
+                      <div className="absolute inset-0 bg-emerald-500/10 mix-blend-overlay z-10"></div>
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent z-10"></div>
+                      
+                      <img 
+                        src="https://i.postimg.cc/2y9X2pYQ/Gemini-Generated-Image-j8kwpaj8kwpaj8kw.png" 
+                        alt="Pallas Athena" 
+                        className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" 
+                      />
+                      
+                      {/* Floating Shield Icon overlay for branding */}
+                      <div className="absolute bottom-4 right-4 z-20 text-emerald-400 opacity-80">
+                          <Shield size={32} />
                       </div>
                   </div>
               </div>

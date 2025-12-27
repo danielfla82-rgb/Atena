@@ -187,11 +187,11 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
             {/* Header / Summary */}
             <div className="text-center mb-8">
                 <div className="w-16 h-16 bg-slate-800/50 rounded-full flex items-center justify-center mb-4 shadow-xl shadow-emerald-900/10 mx-auto border border-slate-700">
-                    <Calculator size={32} className="text-emerald-500" />
+                    <Scale size={32} className="text-emerald-500" />
                 </div>
-                <h2 className="text-2xl font-bold text-white mb-2">Calculadora de Ciclo Tático</h2>
+                <h2 className="text-2xl font-bold text-white mb-2">Planejamento de Ciclo</h2>
                 <p className="text-slate-400 text-sm max-w-xl mx-auto">
-                    Defina os pesos conforme o edital. O sistema distribuirá automaticamente sua carga horária de <strong className="text-white">{paceTarget.blocks} blocos/semana</strong>.
+                    Defina os pesos estratégicos de cada disciplina. O algoritmo Atena distribuirá sua carga de <strong className="text-white">{paceTarget.blocks} blocos/semana</strong> para maximizar a cobertura.
                 </p>
             </div>
             
@@ -274,7 +274,7 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
                                                     value={weights[d] || 1}
                                                     disabled={!isSelected}
                                                     onChange={(e) => updateWeight(d, parseFloat(e.target.value))}
-                                                    className="w-16 bg-slate-800 border border-slate-700 rounded-lg p-1.5 text-center text-white font-bold focus:border-emerald-500 outline-none disabled:opacity-50"
+                                                    className="w-16 bg-slate-800 border border-slate-700 rounded-lg p-1.5 text-center text-white font-bold focus:border-emerald-500 outline-none disabled:opacity-50 transition-all focus:bg-slate-700"
                                                 />
                                             </div>
                                         </td>
@@ -313,7 +313,7 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
             <div className="mt-6 p-4 bg-emerald-900/10 border border-emerald-500/20 rounded-xl text-xs text-slate-400 flex items-start gap-3">
                 <Settings2 size={16} className="text-emerald-500 mt-0.5 flex-shrink-0" />
                 <p>
-                    <strong>Como usar:</strong> Esta calculadora serve como guia para montar seu quadro horário. Anote a quantidade de blocos sugerida para cada disciplina e distribua-os manualmente na aba "Visão Tática" arrastando os cadernos para as semanas correspondentes.
+                    <strong>Como usar:</strong> Esta ferramenta serve como guia para montar seu quadro horário. Anote a quantidade de blocos sugerida para cada disciplina e distribua-os manualmente na aba "Visão Tática" arrastando os cadernos para as semanas correspondentes.
                 </p>
             </div>
 
@@ -700,7 +700,7 @@ export const Setup: React.FC = () => {
             <div className="w-full lg:w-auto flex justify-center order-3 lg:order-2">
                 <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 shadow-xl">
                     <button onClick={() => setViewMode('timeline')} className={`px-4 md:px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${viewMode === 'timeline' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}><GanttChartSquare size={16} /> Visão Tática</button>
-                    <button onClick={() => setViewMode('calculator')} className={`px-4 md:px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${viewMode === 'calculator' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}><Calculator size={16} /> Ciclo</button>
+                    <button onClick={() => setViewMode('calculator')} className={`px-4 md:px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${viewMode === 'calculator' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}><Calculator size={16} /> Planejamento</button>
                 </div>
             </div>
 
@@ -858,7 +858,9 @@ export const Setup: React.FC = () => {
             </form>
             <div className="p-6 border-t border-slate-800 bg-slate-900 flex gap-4">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 bg-slate-800 text-slate-300 py-3 rounded-xl hover:bg-slate-700 font-medium transition-colors">Cancelar</button>
-                <button type="button" onClick={handleSave} className="flex-1 bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-500 font-bold shadow-lg shadow-emerald-900/20 transition-all">Salvar Alterações</button>
+                <button type="button" onClick={handleSave} className="flex-1 bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-500 font-bold shadow-lg shadow-emerald-900/20 transition-all flex items-center justify-center gap-2">
+                    <Save size={18} /> Salvar Alterações
+                </button>
             </div>
           </div>
         </div>
