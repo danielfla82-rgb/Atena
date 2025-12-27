@@ -36,10 +36,6 @@ export const Login: React.FC<Props> = ({ onLoginSuccess, initialError }) => {
       }
   }, [initialError]);
   
-  // Detectar problema de configuração
-  const isProduction = typeof window !== 'undefined' && window.location.hostname !== 'localhost';
-  const showConfigWarning = isProduction && isUsingFallback;
-
   const isLoading = globalLoading || localLoading;
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -69,11 +65,6 @@ export const Login: React.FC<Props> = ({ onLoginSuccess, initialError }) => {
     setMessage(null);
     const origin = window.location.origin;
     
-    // Aviso no console se estiver usando fallback em produção
-    if (showConfigWarning) {
-        console.warn("Tentando login Google com chaves de Fallback. Isso provavelmente falhará se não for localhost.");
-    }
-
     try {
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
@@ -125,22 +116,6 @@ export const Login: React.FC<Props> = ({ onLoginSuccess, initialError }) => {
 
         <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm relative">
            
-           {/* Debug Info / Config Warning */}
-           <div className={`mb-6 p-3 rounded-lg text-left text-[10px] flex flex-col gap-1 border ${showConfigWarning ? 'bg-amber-500/10 border-amber-500/30 text-amber-200' : 'bg-slate-800/50 border-slate-700 text-slate-400'}`}>
-               <div className="flex items-center gap-2 font-bold uppercase tracking-wider">
-                   <Database size={12} />
-                   {showConfigWarning ? "Ambiente de Demonstração" : "Conectado ao Supabase"}
-               </div>
-               <div className="font-mono truncate opacity-70" title={projectUrl}>
-                   URL: {projectUrl.replace('https://', '').split('.')[0]}...
-               </div>
-               {showConfigWarning && (
-                   <div className="mt-1 pt-1 border-t border-amber-500/20">
-                       Aviso: Se você configurou as variáveis no Vercel, certifique-se de ter feito <strong>Redeploy</strong>.
-                   </div>
-               )}
-           </div>
-
            {/* Loader Overlay */}
            {isLoading && (
                <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-2xl border border-emerald-500/20">
@@ -196,7 +171,7 @@ export const Login: React.FC<Props> = ({ onLoginSuccess, initialError }) => {
                        </span>
                        
                        {/* Enhanced Google Error Help */}
-                       {message.type === 'error' && (message.text.includes("OAuth") || message.text.includes("Google") || message.text.includes("URL")) && !showConfigWarning && (
+                       {message.type === 'error' && (message.text.includes("OAuth") || message.text.includes("Google") || message.text.includes("URL")) && (
                            <div className="mt-2 pt-2 border-t border-red-500/20 text-[10px] opacity-90">
                                <p className="font-bold mb-1 text-red-300 flex items-center gap-1"><ShieldAlert size={12}/> Configuração Supabase:</p>
                                <p className="mb-1">Certifique-se de adicionar esta URL exata em <em>Authentication &gt; URL Configuration &gt; Redirect URLs</em>:</p>
@@ -227,7 +202,6 @@ export const Login: React.FC<Props> = ({ onLoginSuccess, initialError }) => {
                 </div>
             </div>
 
-            {/* UNBLOCKED GOOGLE BUTTON FOR TESTING CONFIG */}
             <button 
                 type="button"
                 onClick={handleGoogleLogin}
