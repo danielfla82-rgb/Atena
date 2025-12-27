@@ -1,6 +1,6 @@
 {
-  "name": "Projeto Atena v3.6.0 (Olympus Edition)",
-  "description": "Plataforma SaaS de alta performance. v3.6.0: [CORE] Correção de fluxo OAuth e validação de ambiente. [UX] Feedback aprimorado de login.",
+  "name": "Projeto Atena v3.6.3 (Olympus Edition)",
+  "description": "Plataforma SaaS de alta performance. v3.6.3: [FIX] Correção crítica de tela preta (ImportMap Conflict Removal).",
   "requestFramePermissions": [
     "microphone"
   ]
