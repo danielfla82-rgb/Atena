@@ -12,7 +12,7 @@ export const Documentation: React.FC = () => {
           <h1 className="text-3xl font-bold text-white flex items-center gap-3">
             <Book className="text-emerald-500" /> Documentação Técnica
           </h1>
-          <p className="text-slate-400 mt-2 text-lg">Projeto Atena (GurujaApp) <span className="text-xs bg-emerald-900/30 text-emerald-400 px-2 py-0.5 rounded border border-emerald-900/50 font-bold ml-2">v3.5.0</span></p>
+          <p className="text-slate-400 mt-2 text-lg">Projeto Atena (GurujaApp)</p>
         </div>
         <div className="text-right hidden md:block">
             <p className="text-xs text-slate-500 uppercase font-bold tracking-widest">Última Atualização</p>

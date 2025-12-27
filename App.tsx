@@ -1,10 +1,10 @@
-
 import React, { useState } from 'react';
 import { StoreProvider, useStore } from './store';
 import { Dashboard } from './components/Dashboard';
 import { Setup } from './components/Setup';
 import { Login } from './components/Login';
 import { ProjectSelection } from './components/ProjectSelection';
+import { Onboarding } from './components/Onboarding';
 import { Library } from './components/Library';
 import { Diagnostics } from './components/Diagnostics';
 import { Tips } from './components/Tips';
@@ -18,24 +18,60 @@ import { VerticalizedEdital } from './components/VerticalizedEdital';
 import { Notes } from './components/Notes';
 import { About } from './components/About';
 import { 
-  LayoutDashboard, Settings, Layers, Menu, X, Library as LibraryIcon, 
-  Activity, Lightbulb, Flame, Brain, Newspaper, Pill, Pyramid, Book, ListChecks, Shield, StickyNote, Command, LogOut
+  LayoutDashboard, Layers, Menu, X, Library as LibraryIcon, 
+  Activity, Lightbulb, Flame, Brain, Newspaper, Pill, Pyramid, Book, ListChecks, Shield, StickyNote, Command, LogOut,
+  ChevronDown, ChevronRight, Target
 } from 'lucide-react';
 import { Logo } from './components/Logo';
 
+// --- SUBCOMPONENT: Nav Group (Collapsible) ---
+const NavGroup = ({ title, children, defaultOpen = false }: { title: string, children?: React.ReactNode, defaultOpen?: boolean }) => {
+    const [isOpen, setIsOpen] = useState(defaultOpen);
+    return (
+        <div className="mb-2">
+            <button 
+                onClick={() => setIsOpen(!isOpen)}
+                className="w-full flex items-center justify-between px-2 py-1.5 text-[10px] text-slate-500 uppercase font-bold tracking-wider hover:text-emerald-400 transition-colors group"
+            >
+                <span>{title}</span>
+                {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            </button>
+            <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                <div className="space-y-1 mt-1 pl-1">
+                    {children}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 const AppContent: React.FC = () => {
-  const [view, setView] = useState<'login' | 'selection' | 'dashboard' | 'setup' | 'library' | 'diagnostics' | 'tips' | 'nietzsche' | 'psycho' | 'news' | 'protocol' | 'framework' | 'docs' | 'verticalized' | 'notes' | 'about'>('login');
+  const [view, setView] = useState<'login' | 'onboarding' | 'selection' | 'dashboard' | 'setup' | 'library' | 'diagnostics' | 'tips' | 'nietzsche' | 'psycho' | 'news' | 'protocol' | 'framework' | 'docs' | 'verticalized' | 'notes' | 'about'>('login');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user } = useStore();
 
   // If in login or selection, show full screen components
   if (view === 'login') {
-    return <Login onLoginSuccess={() => setView('selection')} />;
+    return <Login onLoginSuccess={() => setView('onboarding')} />;
+  }
+
+  if (view === 'onboarding') {
+    return <Onboarding onComplete={() => setView('selection')} />;
   }
 
   if (view === 'selection') {
     return <ProjectSelection onNavigate={(v) => setView(v as any)} />;
   }
+
+  const NavItem = ({ id, label, icon: Icon }: { id: typeof view, label: string, icon: any }) => (
+      <button 
+        onClick={() => { setView(id); setSidebarOpen(false); }}
+        className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${view === id ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/50 font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
+      >
+        <Icon size={18} />
+        <span className="text-sm">{label}</span>
+      </button>
+  );
 
   // Main App Layout
   return (
@@ -44,7 +80,7 @@ const AppContent: React.FC = () => {
       <div className="md:hidden bg-slate-900 p-4 border-b border-slate-800 flex justify-between items-center sticky top-0 z-40">
         <div className="flex items-center gap-2">
             <div className="bg-slate-800 p-1.5 rounded-lg"><Logo size="sm" /></div>
-            <h1 className="text-lg font-black tracking-wider text-white">ATENA <span className="text-[10px] text-emerald-500 bg-emerald-950/50 px-1.5 py-0.5 rounded ml-2 align-middle">v3.5</span></h1>
+            <h1 className="text-lg font-black tracking-wider text-white">ATENA</h1>
         </div>
         <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-slate-300">
           {sidebarOpen ? <X /> : <Menu />}
@@ -70,133 +106,40 @@ const AppContent: React.FC = () => {
                     </div>
                     <div>
                         <h1 className="text-lg font-black tracking-[0.15em] text-white leading-none group-hover:text-emerald-400 transition-colors">ATENA</h1>
-                        <div className="flex items-center gap-2 mt-1.5">
-                            <span className="text-[9px] font-mono text-emerald-400 bg-emerald-950/50 px-1.5 py-0.5 rounded border border-emerald-900/50 font-bold shadow-[0_0_10px_rgba(16,185,129,0.1)]">
-                                v3.5.0
-                            </span>
-                            <span className="text-[9px] text-slate-500 uppercase font-bold tracking-wider">Titan</span>
-                        </div>
+                        <span className="text-[9px] text-slate-500 uppercase font-bold tracking-wider mt-1 block">
+                            System OS
+                        </span>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div className="space-y-1 flex-1">
-          <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-2 mt-2 ml-2">Estratégia</p>
-          <button 
-            onClick={() => { setView('dashboard'); setSidebarOpen(false); }}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${view === 'dashboard' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/50 font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
-          >
-            <LayoutDashboard size={18} />
-            <span className="text-sm">Dashboard</span>
-          </button>
-          
-          <button 
-            onClick={() => { setView('setup'); setSidebarOpen(false); }}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${view === 'setup' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/50 font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
-          >
-            <Layers size={18} />
-            <span className="text-sm">Planejamento</span>
-          </button>
+        <div className="flex-1 space-y-1">
+            <NavGroup title="Estratégia" defaultOpen={true}>
+                <NavItem id="dashboard" label="Dashboard" icon={LayoutDashboard} />
+                <NavItem id="setup" label="Planejamento" icon={Layers} />
+                <NavItem id="verticalized" label="Edital Verticalizado" icon={ListChecks} />
+                <NavItem id="library" label="Banco de Dados" icon={LibraryIcon} />
+                <NavItem id="notes" label="Anotações" icon={StickyNote} />
+            </NavGroup>
 
-           <button 
-            onClick={() => { setView('verticalized'); setSidebarOpen(false); }}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${view === 'verticalized' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/50 font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
-          >
-            <ListChecks size={18} />
-            <span className="text-sm">Edital Verticalizado</span>
-          </button>
+            <NavGroup title="Inteligência">
+                <NavItem id="diagnostics" label="Diagnóstico IA" icon={Activity} />
+                <NavItem id="news" label="Notícias" icon={Newspaper} />
+            </NavGroup>
 
-          <button 
-            onClick={() => { setView('library'); setSidebarOpen(false); }}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${view === 'library' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/50 font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
-          >
-            <LibraryIcon size={18} />
-            <span className="text-sm">Banco de Dados</span>
-          </button>
+            <NavGroup title="Mental & Físico">
+                <NavItem id="framework" label="Framework" icon={Pyramid} />
+                <NavItem id="nietzsche" label="Incentivador" icon={Flame} />
+                <NavItem id="psycho" label="Psicanalista" icon={Brain} />
+                <NavItem id="protocol" label="Protocolo" icon={Pill} />
+                <NavItem id="tips" label="Dicas de Elite" icon={Lightbulb} />
+            </NavGroup>
 
-          <button 
-            onClick={() => { setView('notes'); setSidebarOpen(false); }}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${view === 'notes' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/50 font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
-          >
-            <StickyNote size={18} />
-            <span className="text-sm">Anotações</span>
-          </button>
-
-          <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-2 mt-6 ml-2">Inteligência</p>
-          <button 
-            onClick={() => { setView('diagnostics'); setSidebarOpen(false); }}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${view === 'diagnostics' ? 'bg-purple-600 text-white shadow-lg shadow-purple-900/50 font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
-          >
-            <Activity size={18} />
-            <span className="text-sm">Diagnóstico IA</span>
-          </button>
-
-          <button 
-              onClick={() => { setView('news'); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${view === 'news' ? 'bg-cyan-600 text-white shadow-lg shadow-cyan-900/50 font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
-            >
-              <Newspaper size={18} />
-              <span className="text-sm">Notícias</span>
-          </button>
-
-          <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-2 mt-6 ml-2">Mental & Físico</p>
-          
-          <button 
-              onClick={() => { setView('framework'); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${view === 'framework' ? 'bg-slate-700 text-white border border-slate-600 shadow-lg font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
-            >
-              <Pyramid size={18} className={view === 'framework' ? 'text-emerald-400' : ''}/>
-              <span className="text-sm">Framework</span>
-          </button>
-
-          <button 
-              onClick={() => { setView('nietzsche'); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${view === 'nietzsche' ? 'bg-slate-800 text-white border border-slate-600 font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
-            >
-              <Flame size={18} className={view === 'nietzsche' ? 'text-orange-500' : ''} />
-              <span className="text-sm">Incentivador</span>
-          </button>
-
-          <button 
-              onClick={() => { setView('psycho'); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${view === 'psycho' ? 'bg-indigo-600 text-white shadow-lg font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
-            >
-              <Brain size={18} />
-              <span className="text-sm">Psicanalista</span>
-          </button>
-
-          <button 
-              onClick={() => { setView('protocol'); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${view === 'protocol' ? 'bg-blue-600 text-white shadow-lg font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
-            >
-              <Pill size={18} />
-              <span className="text-sm">Protocolo</span>
-          </button>
-          
-          <button 
-              onClick={() => { setView('tips'); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${view === 'tips' ? 'bg-yellow-600/80 text-white shadow-lg shadow-yellow-900/50 font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
-            >
-              <Lightbulb size={18} />
-              <span className="text-sm">Dicas de Elite</span>
-          </button>
-
-          <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-2 mt-6 ml-2">Sistema</p>
-          <button 
-              onClick={() => { setView('docs'); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${view === 'docs' ? 'bg-slate-800 text-white border border-slate-700 font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
-            >
-              <Book size={18} />
-              <span className="text-sm">Documentação</span>
-          </button>
-          <button 
-              onClick={() => { setView('about'); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${view === 'about' ? 'bg-slate-800 text-white border border-slate-700 font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
-            >
-              <Shield size={18} />
-              <span className="text-sm">Sobre</span>
-          </button>
+            <NavGroup title="Sistema">
+                <NavItem id="docs" label="Documentação" icon={Book} />
+                <NavItem id="about" label="Sobre" icon={Shield} />
+            </NavGroup>
         </div>
 
         {/* --- USER FOOTER (Refined) --- */}

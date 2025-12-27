@@ -218,7 +218,7 @@ const MacroCalendar = () => {
                     <h2 className="text-2xl font-bold text-white flex items-center gap-3">
                         <CalendarDays className="text-emerald-500" /> Calendário Macro
                     </h2>
-                    <p className="text-slate-400 text-sm">Defina o ritmo estratégico anual. <span className="text-emerald-500 font-bold">v2.0</span></p>
+                    <p className="text-slate-400 text-sm">Defina o ritmo estratégico anual.</p>
                 </div>
                 <div className="flex items-center gap-3 bg-slate-900 border border-slate-800 rounded-xl p-1">
                     <button 
