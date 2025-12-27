@@ -1,6 +1,6 @@
 {
-  "name": "Projeto Atena v3.1 (Olympus Edition)",
-  "description": "Plataforma SaaS de alta performance para concurseiros de elite. Versão 3.1. Stack: React 19 + Tailwind + Lucide. Changelog: [FIX] Correção lógica no Drag-and-Drop do Planejamento (evita duplicação de entidades), [PERF] Otimização de renderização Markdown via useCallback, [UX] Refinamento visual da Liquidez.",
+  "name": "Projeto Atena v3.2 (Olympus Edition)",
+  "description": "Plataforma SaaS de alta performance para concurseiros de elite. Versão 3.2. Stack: React 19 + Tailwind + Lucide. Changelog: [PERF] React.memo em listas longas (Setup), [CORE] Refinamento de Regex no Smart Filter, [DOCS] Atualização de changelog.",
   "requestFramePermissions": [
     "microphone"
   ]

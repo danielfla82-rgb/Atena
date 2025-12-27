@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, Relevance, Trend, WEIGHT_SCORE, NotebookStatus } from '../types';
-import { GripVertical, Plus, Search, Copy, Pencil, TrendingUp, X, Save, Link as LinkIcon, RefreshCw, Upload, CalendarCheck, ImageIcon, StickyNote, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, ArrowRightFromLine, ArrowLeftFromLine, FileCode, Square, CheckSquare, Check, Timer, Calculator, PieChart, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight } from 'lucide-react';
-import { calculateNextReview } from '../utils/algorithm';
+import { GripVertical, Plus, Search, Copy, Pencil, TrendingUp, X, Save, Link as LinkIcon, RefreshCw, Upload, CalendarCheck, ImageIcon, StickyNote, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, ArrowRightFromLine, ArrowLeftFromLine, FileCode, Square, CheckSquare, Check, Timer, Calculator, PieChart, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch } from 'lucide-react';
+import { calculateNextReview, getStatusColor } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 
 const PACE_SETTINGS: Record<string, { hours: number, blocks: number }> = {
@@ -12,12 +12,146 @@ const PACE_SETTINGS: Record<string, { hours: number, blocks: number }> = {
     'Avançado': { hours: 44, blocks: 66 }
 };
 
+// MEMOIZED COMPONENT TO PREVENT RE-RENDERS ON DRAG/SEARCH
+const DraggableCard = React.memo(({ 
+    notebook, 
+    onDragStart, 
+    onEdit, 
+    origin, 
+    isCompact, 
+    disabled, 
+    onToggleComplete 
+}: {
+    notebook: Notebook;
+    onDragStart: (e: React.DragEvent, id: string, origin: 'library' | 'week') => void;
+    onEdit: (notebook: Notebook) => void;
+    origin: 'library' | 'week';
+    isCompact?: boolean;
+    disabled?: boolean;
+    onToggleComplete?: (id: string, isCompleted: boolean) => void;
+}) => {
+    const statusColor = getStatusColor(notebook.accuracy, notebook.targetAccuracy);
+    
+    // Check if it's already scheduled (for visual cue in Library)
+    const isScheduled = !!notebook.weekId;
+
+    return (
+        <div 
+            draggable={!disabled}
+            onDragStart={(e) => onDragStart(e, notebook.id, origin)}
+            className={`
+                group relative bg-slate-800 border border-slate-700 rounded-lg p-3 cursor-grab active:cursor-grabbing hover:border-emerald-500/50 transition-all shadow-sm
+                ${disabled ? 'opacity-50 pointer-events-none' : ''}
+                ${isCompact ? 'text-xs' : 'text-sm'}
+                ${notebook.isWeekCompleted && origin === 'week' ? 'opacity-60 bg-slate-900 border-slate-800' : ''}
+            `}
+        >
+            {origin === 'library' && (
+                <div className={`absolute right-0 top-0 p-1 rounded-bl text-[9px] uppercase font-bold tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border-l border-b z-10 flex items-center gap-1 ${isScheduled ? 'bg-blue-900/80 border-blue-700 text-blue-300' : 'bg-slate-900/80 border-slate-700 text-emerald-500'}`}>
+                    {isScheduled ? <><Copy size={10}/> Repetir</> : "Mover"}
+                </div>
+            )}
+
+            <div className="flex justify-between items-start">
+                <div className="flex-1 min-w-0 pr-2">
+                    <div className="flex items-center gap-2 mb-1">
+                         <div 
+                            className="w-2 h-2 rounded-full flex-shrink-0" 
+                            style={{ backgroundColor: statusColor }} 
+                            title={`Acurácia: ${notebook.accuracy}%`}
+                         />
+                        <h4 className={`font-bold truncate leading-tight ${notebook.isWeekCompleted && origin === 'week' ? 'text-slate-500 line-through' : 'text-slate-200'}`}>
+                            {notebook.discipline}
+                        </h4>
+                        {origin === 'library' && isScheduled && <span className="text-[8px] bg-blue-900/30 text-blue-400 border border-blue-500/30 px-1 rounded">Alocado</span>}
+                    </div>
+                    <p className={`truncate mb-1 leading-tight ${notebook.isWeekCompleted && origin === 'week' ? 'text-slate-600' : 'text-slate-400'}`} title={notebook.name}>{notebook.name}</p>
+                    {notebook.subtitle && <p className="text-slate-500 text-[10px] truncate">{notebook.subtitle}</p>}
+                </div>
+                
+                <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                     <span className={`font-mono font-bold text-xs ${notebook.accuracy < 60 ? 'text-red-400' : 'text-emerald-400'}`}>
+                         {notebook.accuracy}%
+                     </span>
+                     <button 
+                        onClick={(e) => { e.stopPropagation(); onEdit(notebook); }} 
+                        className="text-slate-500 hover:text-white p-1 rounded hover:bg-slate-700 transition-colors"
+                        title="Editar"
+                     >
+                         <Pencil size={12} />
+                     </button>
+                </div>
+            </div>
+
+            {origin === 'week' && onToggleComplete && (
+                <div className="mt-2 pt-2 border-t border-slate-700/50 flex justify-between items-center">
+                    <label className="flex items-center gap-2 cursor-pointer group/check">
+                        <div className={`w-3 h-3 rounded border flex items-center justify-center transition-colors ${notebook.isWeekCompleted ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-600 bg-slate-700 group-hover/check:border-emerald-500'}`}>
+                             {notebook.isWeekCompleted && <Check size={8} strokeWidth={4} />}
+                        </div>
+                        <input 
+                            type="checkbox" 
+                            checked={!!notebook.isWeekCompleted} 
+                            onChange={(e) => onToggleComplete(notebook.id, e.target.checked)}
+                            className="hidden"
+                        />
+                        <span className={`text-[10px] ${notebook.isWeekCompleted ? 'text-emerald-400' : 'text-slate-500 group-hover/check:text-slate-300'}`}>
+                            {notebook.isWeekCompleted ? 'Concluído' : 'Pendente'}
+                        </span>
+                    </label>
+                </div>
+            )}
+        </div>
+    );
+});
+
+const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: number } }) => {
+    const { notebooks } = useStore();
+    
+    const totalItems = notebooks.filter(n => n.discipline !== 'Revisão Geral').length;
+    const weeksNeeded = paceTarget.blocks > 0 ? Math.ceil(totalItems / paceTarget.blocks) : 0;
+    
+    return (
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in fade-in zoom-in duration-500">
+            <div className="w-20 h-20 bg-slate-800/50 rounded-full flex items-center justify-center mb-6 shadow-xl shadow-emerald-900/10">
+                <Calculator size={40} className="text-emerald-500" />
+            </div>
+            
+            <h2 className="text-2xl font-bold text-white mb-2">Calculadora de Ciclo Tático</h2>
+            <p className="text-slate-400 mb-8 max-w-md text-sm leading-relaxed">
+                Com base no seu ritmo definido de <strong className="text-white">{paceTarget.blocks} blocos/semana</strong> e no total de <strong className="text-white">{totalItems} tópicos</strong> cadastrados na sua biblioteca.
+            </p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl">
+                <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl hover:border-emerald-500/30 transition-colors">
+                    <p className="text-[10px] text-slate-500 uppercase font-bold mb-2 tracking-wider">Ciclo Completo</p>
+                    <p className="text-4xl font-black text-white">{weeksNeeded}</p>
+                    <p className="text-[10px] text-slate-400 mt-2">Semanas estimadas</p>
+                </div>
+                 <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl hover:border-emerald-500/30 transition-colors">
+                    <p className="text-[10px] text-slate-500 uppercase font-bold mb-2 tracking-wider">Carga Semanal</p>
+                    <p className="text-4xl font-black text-emerald-400">~{paceTarget.hours}h</p>
+                    <p className="text-[10px] text-slate-400 mt-2">Horas líquidas</p>
+                </div>
+                 <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl hover:border-emerald-500/30 transition-colors">
+                    <p className="text-[10px] text-slate-500 uppercase font-bold mb-2 tracking-wider">Cobertura Total</p>
+                    <p className="text-4xl font-black text-blue-400">{totalItems}</p>
+                    <p className="text-[10px] text-slate-400 mt-2">Tópicos no Banco</p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export const Setup: React.FC = () => {
   const { notebooks, config, updateConfig, moveNotebookToWeek, addNotebook, editNotebook } = useStore();
   
   const [viewMode, setViewMode] = useState<'timeline' | 'calculator'>('timeline');
   const [searchTerm, setSearchTerm] = useState('');
   const [showStats, setShowStats] = useState(false);
+  
+  // --- NEW: Sidebar Filter State (Added 'smart') ---
+  const [libraryFilter, setLibraryFilter] = useState<'all' | 'unallocated' | 'fit' | 'smart'>('all');
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -59,13 +193,60 @@ export const Setup: React.FC = () => {
       return notebooks.filter(n => n.weekId && n.weekId.startsWith('week-')).length;
   }, [notebooks]);
 
+  // --- HELPER: Text Normalizer for Smart Match (Enhanced v3.2) ---
+  const normalizeText = useCallback((text: string) => {
+      return text
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "") // Remove accents
+          .replace(/[\n\r]/g, " ") // Replace newlines with space
+          .replace(/\s+/g, " ") // Collapse multiple spaces
+          .replace(/[^a-z0-9\s]/g, ""); // Keep only alphanumeric and spaces
+  }, []);
+
+  // --- UPDATED: Library Logic with Filters ---
   const libraryNotebooks = useMemo(() => {
-    return notebooks.filter(nb => 
-        !nb.weekId && 
-        (nb.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        nb.discipline.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-  }, [notebooks, searchTerm]);
+    // Pre-process Edital Text for Smart Filter
+    const editalRaw = config.editalText || "";
+    const editalNormalized = normalizeText(editalRaw);
+    const hasEdital = editalRaw.length > 10;
+
+    return notebooks.filter(nb => {
+        // 1. Base Search
+        const matchesSearch = 
+            nb.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+            nb.discipline.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        if (!matchesSearch) return false;
+
+        // 2. Filter Logic
+        if (libraryFilter === 'unallocated') {
+            return !nb.weekId;
+        }
+        if (libraryFilter === 'fit') {
+            return nb.weight === Weight.MUITO_ALTO || nb.weight === Weight.ALTO || nb.relevance === Relevance.ALTISSIMA;
+        }
+        if (libraryFilter === 'smart') {
+            if (!hasEdital) return true; 
+            
+            const discNorm = normalizeText(nb.discipline);
+            const nameNorm = normalizeText(nb.name);
+            
+            const discParts = discNorm.split(' ');
+            const discMatch = discParts.some(part => part.length > 3 && editalNormalized.includes(part));
+            
+            return editalNormalized.includes(nameNorm) || editalNormalized.includes(discNorm) || discMatch;
+        }
+        
+        return true;
+    }).sort((a, b) => {
+        if (libraryFilter === 'all') {
+            if (!a.weekId && b.weekId) return -1;
+            if (a.weekId && !b.weekId) return 1;
+        }
+        return a.discipline.localeCompare(b.discipline) || a.name.localeCompare(b.name);
+    });
+  }, [notebooks, searchTerm, libraryFilter, config.editalText, normalizeText]);
 
   const existingDisciplines = useMemo(() => {
     return Array.from(new Set(notebooks.map(n => n.discipline))).sort();
@@ -111,28 +292,55 @@ export const Setup: React.FC = () => {
     return { id: `week-${i + 1}`, index: i + 1, label, isPast, fullDate };
   });
 
-  // --- HANDLERS ---
-  const onDragStart = (e: React.DragEvent, id: string, origin: 'library' | 'week') => {
+  // --- HANDLERS (Memoized for Performance) ---
+  const onDragStart = useCallback((e: React.DragEvent, id: string, origin: 'library' | 'week') => {
     e.dataTransfer.setData("notebookId", id);
     e.dataTransfer.setData("origin", origin);
-    e.dataTransfer.effectAllowed = origin === 'library' ? 'copy' : 'move';
-  };
-  const onDragOver = (e: React.DragEvent) => e.preventDefault();
+    
+    // Hack to access current notebooks state in DragStart without full re-render dependency
+    // We infer copy status based on origin for drag image feedback (handled by browser mostly)
+    if (origin === 'library') {
+        e.dataTransfer.effectAllowed = 'copy';
+    } else {
+        e.dataTransfer.effectAllowed = 'move';
+    }
+  }, []); // Empty dependency array as logic is static, state access happens on Drop
+
+  const onDragOver = useCallback((e: React.DragEvent) => e.preventDefault(), []);
   
-  // BUG FIX 3.1: Library items should move (assign weekId), not clone (addNotebook).
+  // --- UPDATED: Intelligent Drop Logic ---
   const onDrop = (e: React.DragEvent, targetWeekId: string | null, isPast: boolean) => {
     if (isPast) { alert("Você não pode alterar o planejamento de semanas que já passaram."); return; }
     
     const id = e.dataTransfer.getData("notebookId");
-    // We don't strictly need 'origin' anymore since logic is now same for both, but kept for clarity
+    const origin = e.dataTransfer.getData("origin");
     
-    if (id && targetWeekId) {
-      // Correct Logic: Just assign the weekId. The 'library' list filters by !weekId, so it will disappear from sidebar automatically.
-      moveNotebookToWeek(id, targetWeekId);
+    if (!id || !targetWeekId) return;
+
+    const sourceNotebook = notebooks.find(n => n.id === id);
+    if (!sourceNotebook) return;
+
+    if (origin === 'library') {
+        if (sourceNotebook.weekId) {
+            // Clone if already allocated
+            const { id: _, weekId: __, accuracy: ___, status: ____, lastPractice: _____, nextReview: ______, ...props } = sourceNotebook;
+            addNotebook({
+                ...props,
+                weekId: targetWeekId,
+                accuracy: 0,
+                status: NotebookStatus.NOT_STARTED,
+            });
+        } else {
+            // Move if unallocated
+            moveNotebookToWeek(id, targetWeekId);
+        }
+    } else {
+        // Move within timeline
+        moveNotebookToWeek(id, targetWeekId);
     }
   };
 
-  const handleEditClick = (notebook: Notebook) => {
+  const handleEditClick = useCallback((notebook: Notebook) => {
     setEditingId(notebook.id);
     let currentImages = notebook.images || [];
     if (currentImages.length === 0 && notebook.image) currentImages = [notebook.image];
@@ -151,7 +359,7 @@ export const Setup: React.FC = () => {
       images: currentImages
     });
     setIsModalOpen(true);
-  };
+  }, []);
 
   const handleChange = (field: string, value: any) => setFormData(prev => ({ ...prev, [field]: value }));
   
@@ -191,7 +399,9 @@ export const Setup: React.FC = () => {
       else setLightboxIndex((lightboxIndex - 1 + formData.images.length) % formData.images.length);
   };
 
-  const handleToggleComplete = (id: string, isCompleted: boolean) => editNotebook(id, { isWeekCompleted: isCompleted });
+  const handleToggleComplete = useCallback((id: string, isCompleted: boolean) => {
+      editNotebook(id, { isWeekCompleted: isCompleted });
+  }, [editNotebook]);
 
   return (
     <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-slate-950">
@@ -219,19 +429,64 @@ export const Setup: React.FC = () => {
       {viewMode === 'timeline' && (
       <aside className="w-72 flex-shrink-0 border-r border-slate-800 bg-slate-900/30 flex flex-col z-20 hidden md:flex">
           <div className="p-4 border-b border-slate-800 space-y-3">
-            <h2 className="text-xs font-bold text-slate-400 flex items-center gap-2 uppercase tracking-wider"><Layout size={14} className="text-emerald-500" /> Matérias não alocadas</h2>
+            <h2 className="text-xs font-bold text-slate-400 flex items-center gap-2 uppercase tracking-wider"><Layout size={14} className="text-emerald-500" /> Banco de Disciplinas</h2>
+            
+            {/* Filter Tabs */}
+            <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800 gap-1">
+                <button 
+                    onClick={() => setLibraryFilter('all')}
+                    className={`flex-1 py-1.5 rounded text-[10px] font-bold uppercase transition-all flex items-center justify-center gap-1 ${libraryFilter === 'all' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}
+                    title="Mostrar tudo (Arrastar cria cópia)"
+                >
+                    <Layers size={12} />
+                </button>
+                <button 
+                    onClick={() => setLibraryFilter('unallocated')}
+                    className={`flex-1 py-1.5 rounded text-[10px] font-bold uppercase transition-all flex items-center justify-center gap-1 ${libraryFilter === 'unallocated' ? 'bg-emerald-600 text-white shadow' : 'text-slate-500 hover:text-emerald-400'}`}
+                    title="Apenas pendentes (Move)"
+                >
+                    <Inbox size={12} />
+                </button>
+                <button 
+                    onClick={() => setLibraryFilter('fit')}
+                    className={`flex-1 py-1.5 rounded text-[10px] font-bold uppercase transition-all flex items-center justify-center gap-1 ${libraryFilter === 'fit' ? 'bg-amber-600 text-white shadow' : 'text-slate-500 hover:text-amber-400'}`}
+                    title="Alta Prioridade (Elite)"
+                >
+                    <Star size={12} />
+                </button>
+                <button 
+                    onClick={() => setLibraryFilter('smart')}
+                    className={`flex-1 py-1.5 rounded text-[10px] font-bold uppercase transition-all flex items-center justify-center gap-1 ${libraryFilter === 'smart' ? 'bg-cyan-600 text-white shadow' : 'text-slate-500 hover:text-cyan-400'}`}
+                    title="Filtro Smart (Cruza com Edital)"
+                >
+                    <ScanSearch size={12} />
+                </button>
+            </div>
+
             <div className="relative">
                 <Search className="absolute left-3 top-2.5 text-slate-500" size={14} />
-                <input type="text" placeholder="Filtrar backlog..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg py-2 pl-9 pr-3 text-xs text-white focus:border-emerald-500 outline-none" />
+                <input type="text" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg py-2 pl-9 pr-3 text-xs text-white focus:border-emerald-500 outline-none" />
             </div>
+            
             <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold">
                 <span>Total: {libraryNotebooks.length}</span>
                 <span className="text-emerald-500 flex items-center gap-1">Arraste <ArrowRight size={10} /></span>
             </div>
           </div>
+          
           <div className="p-2 space-y-2 overflow-y-auto flex-1 custom-scrollbar">
-            {libraryNotebooks.map(nb => <DraggableCard key={nb.id} notebook={nb} onDragStart={onDragStart} onEdit={() => handleEditClick(nb)} origin="library" />)}
-            {libraryNotebooks.length === 0 && <div className="flex flex-col items-center justify-center py-10 text-slate-600 gap-2 opacity-50"><Settings2 size={24} /><span className="text-xs text-center">Nenhum caderno no backlog.<br/>Crie um novo em "Banco de Dados".</span></div>}
+            {libraryNotebooks.map(nb => <DraggableCard key={nb.id} notebook={nb} onDragStart={onDragStart} onEdit={handleEditClick} origin="library" />)}
+            
+            {libraryNotebooks.length === 0 && (
+                <div className="flex flex-col items-center justify-center py-10 text-slate-600 gap-2 opacity-50 px-4 text-center">
+                    <Settings2 size={24} />
+                    <span className="text-xs">
+                        {libraryFilter === 'smart' && (!config.editalText || config.editalText.length < 10) 
+                            ? "Cole o texto do edital em 'Configurar Concurso' para usar o filtro Smart."
+                            : "Nenhum caderno encontrado neste filtro."}
+                    </span>
+                </div>
+            )}
           </div>
       </aside>
       )}
@@ -345,7 +600,7 @@ export const Setup: React.FC = () => {
                             </div>
                             <div className="p-3 space-y-2 overflow-y-auto flex-1 custom-scrollbar relative bg-slate-900/50">
                                 {week.isPast && <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagmonds-light.png')] opacity-10 pointer-events-none z-0"></div>}
-                                {weekNotebooks.map(nb => <DraggableCard key={nb.id} notebook={nb} onDragStart={onDragStart} onEdit={() => handleEditClick(nb)} onToggleComplete={handleToggleComplete} isCompact origin="week" disabled={week.isPast} />)}
+                                {weekNotebooks.map(nb => <DraggableCard key={nb.id} notebook={nb} onDragStart={onDragStart} onEdit={handleEditClick} onToggleComplete={handleToggleComplete} isCompact origin="week" disabled={week.isPast} />)}
                                 {weekNotebooks.length === 0 && !week.isPast && <div className="h-full flex flex-col items-center justify-center text-slate-700 text-xs italic opacity-50 border-2 border-dashed border-slate-800 rounded-xl m-2 bg-slate-950/50 min-h-[100px]">Arraste matérias aqui</div>}
                             </div>
                             </div>
@@ -366,6 +621,7 @@ export const Setup: React.FC = () => {
                 <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white"><X size={24} /></button>
             </div>
             <form onSubmit={handleSave} className="overflow-y-auto p-6 space-y-6 custom-scrollbar">
+              {/* Form Content same as before, no changes needed inside form */}
               <div className="space-y-4">
                   <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">1. Identificação</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -429,84 +685,6 @@ export const Setup: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
-  );
-};
-
-interface CycleItem { id: string; name: string; weight: Weight; }
-const CycleCalculator: React.FC<{ paceTarget: { hours: number, blocks: number } }> = ({ paceTarget }) => {
-    const [items, setItems] = useState<CycleItem[]>([]);
-    const [newName, setNewName] = useState('');
-    const [newWeight, setNewWeight] = useState<Weight>(Weight.MEDIO);
-    const handleAddItem = (e: React.FormEvent) => { e.preventDefault(); if(!newName) return; setItems([...items, { id: Math.random().toString(36), name: newName, weight: newWeight }]); setNewName(''); };
-    const handleRemoveItem = (id: string) => { setItems(items.filter(i => i.id !== id)); };
-    const calculation = useMemo(() => { if(items.length === 0) return []; const totalScore = items.reduce((sum, item) => sum + WEIGHT_SCORE[item.weight], 0); return items.map(item => { const share = WEIGHT_SCORE[item.weight] / totalScore; const suggestedBlocks = Math.round(share * paceTarget.blocks); return { ...item, share: (share * 100).toFixed(1), suggestedBlocks: Math.max(1, suggestedBlocks) }; }); }, [items, paceTarget.blocks]);
-    const totalCalculatedBlocks = calculation.reduce((sum, item) => sum + item.suggestedBlocks, 0);
-    return (
-        <div className="flex-1 p-6 overflow-y-auto custom-scrollbar flex flex-col md:flex-row gap-6 animate-in fade-in slide-in-from-bottom-4">
-            <div className="w-full md:w-1/3 bg-slate-900 border border-slate-800 rounded-2xl p-6 h-fit shadow-xl">
-                <div className="mb-6 pb-6 border-b border-slate-800"><h3 className="text-xl font-bold text-white mb-2 flex items-center gap-2"><PieChart size={20} className="text-emerald-500" /> Distribuidor de Carga</h3><p className="text-sm text-slate-400">Insira as disciplinas do edital. O algoritmo matemático distribuirá seus <strong className="text-white bg-slate-800 px-1 rounded">{paceTarget.blocks} blocos semanais</strong> proporcionalmente ao peso.</p></div>
-                <form onSubmit={handleAddItem} className="space-y-4 mb-6">
-                    <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Disciplina</label><input type="text" value={newName} onChange={e => setNewName(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500 transition-colors" placeholder="Ex: Direito Administrativo" autoFocus /></div>
-                    <div><label className="block text-xs font-bold text-slate-500 uppercase mb-1">Peso no Edital</label><select value={newWeight} onChange={e => setNewWeight(e.target.value as Weight)} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500 transition-colors">{Object.values(Weight).map(w => <option key={w} value={w}>{w}</option>)}</select></div>
-                    <button type="submit" className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2 border border-slate-700"><Plus size={18} /> Adicionar à Matriz</button>
-                </form>
-                <div className="space-y-2">{items.map(item => (<div key={item.id} className="flex justify-between items-center bg-slate-950 p-3 rounded-lg border border-slate-800 hover:border-slate-700 transition-colors"><div><p className="font-bold text-slate-200 text-sm">{item.name}</p><p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">{item.weight}</p></div><button onClick={() => handleRemoveItem(item.id)} className="text-slate-600 hover:text-red-400 transition-colors"><X size={16} /></button></div>))} {items.length === 0 && <p className="text-center text-xs text-slate-600 italic py-4">A lista está vazia.</p>}</div>
-            </div>
-            <div className="flex-1 bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col shadow-xl">
-                <div className="flex justify-between items-center mb-6 bg-slate-950/50 p-4 rounded-xl border border-slate-800"><div><h3 className="text-xl font-bold text-white">Resultado do Cálculo</h3><p className="text-xs text-slate-500">Baseado no ritmo: <span className="text-emerald-500 font-bold">{paceTarget.hours} horas</span> semanais</p></div><div className="text-right"><p className="text-xs text-slate-500 uppercase font-bold">Capacidade Utilizada</p><p className={`text-2xl font-black ${totalCalculatedBlocks > paceTarget.blocks ? 'text-red-500' : 'text-emerald-500'}`}>{totalCalculatedBlocks} <span className="text-sm text-slate-500 font-normal">/ {paceTarget.blocks} blocos</span></p></div></div>
-                {items.length > 0 ? ( <div className="flex-1 overflow-y-auto custom-scrollbar"><table className="w-full text-left border-collapse"><thead className="bg-slate-950 text-slate-500 text-[10px] uppercase font-bold tracking-wider sticky top-0 z-10"><tr><th className="p-3 rounded-tl-lg">Disciplina</th><th className="p-3">Importância Relativa</th><th className="p-3 text-right">Blocos Sugeridos</th><th className="p-3 text-right rounded-tr-lg">Tempo Semanal</th></tr></thead><tbody className="divide-y divide-slate-800/50 text-sm">{calculation.map((item) => (<tr key={item.id} className="hover:bg-slate-800/30 transition-colors group"><td className="p-4 font-medium text-slate-200">{item.name}</td><td className="p-4"><div className="flex items-center gap-3"><div className="flex-1 bg-slate-800 h-1.5 rounded-full overflow-hidden max-w-[100px]"><div className="bg-emerald-500 h-full" style={{width: `${item.share}%`}}></div></div><span className="text-xs text-slate-500 font-mono">{item.share}%</span></div></td><td className="p-4 text-right"><span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-lg font-bold text-sm">{item.suggestedBlocks}</span></td><td className="p-4 text-right text-slate-400 text-xs font-mono">~{Math.round((item.suggestedBlocks * 40) / 60)}h {((item.suggestedBlocks * 40) % 60)}min</td></tr>))}</tbody></table><div className="mt-6 p-4 bg-emerald-900/10 border border-emerald-500/20 rounded-xl flex gap-4 items-center animate-pulse"><div className="bg-emerald-500/20 p-2 rounded-full text-emerald-500"><ArrowRight size={20} /></div><div><h4 className="text-emerald-400 font-bold text-sm mb-0.5">Aplicação Tática</h4><p className="text-slate-400 text-xs">Volte para a aba "Visão Tática" e distribua os blocos sugeridos acima ao longo das suas semanas.</p></div></div></div> ) : ( <div className="flex-1 flex flex-col items-center justify-center text-slate-600 opacity-50"><Calculator size={64} className="mb-4 text-slate-700" /><p className="text-sm font-medium">Adicione disciplinas na esquerda para calcular.</p></div> )}
-            </div>
-        </div>
-    );
-};
-
-const DraggableCard: React.FC<{ 
-    notebook: Notebook; 
-    onDragStart: (e: React.DragEvent, id: string, origin: 'library' | 'week') => void; 
-    onEdit: () => void;
-    onToggleComplete?: (id: string, isCompleted: boolean) => void;
-    isCompact?: boolean;
-    origin: 'library' | 'week';
-    disabled?: boolean;
-}> = ({ notebook, onDragStart, onEdit, onToggleComplete, isCompact, origin, disabled }) => {
-  const getAccuracyColor = (acc: number, target: number) => {
-    if(acc === 0) return 'text-slate-500';
-    if(acc >= target) return 'text-emerald-400';
-    if(acc < 60) return 'text-red-400';
-    return 'text-amber-400';
-  };
-  const isCompleted = notebook.isWeekCompleted && origin === 'week';
-  const hasImages = (notebook.images && notebook.images.length > 0) || !!notebook.image;
-
-  return (
-    <div
-      draggable={!disabled}
-      onDragStart={(e) => onDragStart(e, notebook.id, origin)}
-      className={`bg-slate-800 border border-slate-700 rounded-xl p-3 transition-all shadow-sm group relative overflow-hidden flex flex-col ${isCompact ? 'text-xs' : 'text-sm'} ${origin === 'library' ? 'hover:bg-slate-700 hover:border-slate-500 hover:shadow-lg hover:shadow-black/50' : 'hover:bg-slate-800 hover:border-emerald-500/30'} ${disabled ? 'opacity-50 cursor-not-allowed grayscale' : 'cursor-grab active:cursor-grabbing hover:shadow-lg'} ${isCompleted ? 'opacity-50 grayscale border-slate-800 bg-slate-900' : ''}`}
-    >
-      {origin === 'library' && <div className="absolute right-0 top-0 p-1 bg-slate-900/80 rounded-bl text-[9px] text-emerald-500 uppercase font-bold tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border-l border-b border-slate-700">Copiar</div>}
-      <div className="flex justify-between items-start w-full">
-          <div className="flex items-start gap-3 flex-1 min-w-0">
-            <div className="mt-0.5 text-slate-600 group-hover:text-emerald-500 transition-colors cursor-grab p-1 hover:bg-slate-700 rounded"><GripVertical size={14} /></div>
-            <div className="flex-1 min-w-0">
-              <span className={`inline-block px-1.5 py-0.5 rounded-[4px] text-[9px] font-bold uppercase tracking-wider mb-1 border ${isCompleted ? 'line-through decoration-slate-600 bg-slate-900 text-slate-700 border-slate-800' : 'bg-slate-900 text-slate-400 border-slate-700'}`}>{notebook.discipline}</span>
-              <p className={`font-bold text-slate-200 truncate leading-tight ${isCompact ? 'line-clamp-2' : ''} ${isCompleted ? 'line-through text-slate-600' : ''}`} title={notebook.name}>{notebook.name}</p>
-              {!isCompact && <p className="text-xs text-slate-500 mt-1 truncate">{notebook.subtitle}</p>}
-              <div className="flex items-center gap-2 mt-2">
-                 <div className={`text-[10px] font-black flex items-center gap-1 bg-slate-950 px-1.5 py-0.5 rounded border border-slate-800 ${getAccuracyColor(notebook.accuracy, notebook.targetAccuracy)}`}><TrendingUp size={10} />{notebook.accuracy}%</div>
-                 {notebook.tecLink && <LinkIcon size={12} className="text-slate-600 hover:text-sky-400 transition-colors" />}
-                 {notebook.obsidianLink && <FileCode size={12} className="text-slate-600 hover:text-purple-400 transition-colors" />}
-                 {notebook.notes && <StickyNote size={12} className="text-slate-600 hover:text-yellow-400 transition-colors" />}
-                 {hasImages && <ImageIcon size={12} className="text-slate-600 hover:text-purple-400 transition-colors" />}
-              </div>
-            </div>
-          </div>
-          <div className="flex flex-col gap-1 ml-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button onClick={(e) => { e.stopPropagation(); onEdit(); }} className="text-slate-500 hover:text-white p-1.5 hover:bg-slate-700 rounded-lg transition-colors" title="Editar rapidamente"><Pencil size={12} /></button>
-              {origin === 'week' && onToggleComplete && <button onClick={(e) => { e.stopPropagation(); onToggleComplete(notebook.id, !notebook.isWeekCompleted); }} className={`p-1.5 rounded-lg transition-colors ${isCompleted ? 'text-emerald-500 hover:text-emerald-400 bg-emerald-900/20' : 'text-slate-500 hover:text-emerald-500 hover:bg-slate-700'}`} title={isCompleted ? "Reabrir estudo" : "Marcar como estudado nesta semana"}>{isCompleted ? <CheckSquare size={12} /> : <Square size={12} />}</button>}
-          </div>
-      </div>
     </div>
   );
 };

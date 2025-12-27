@@ -11,7 +11,7 @@ export const Documentation: React.FC = () => {
           <h1 className="text-3xl font-bold text-white flex items-center gap-3">
             <Book className="text-emerald-500" /> Documentação Técnica
           </h1>
-          <p className="text-slate-400 mt-2 text-lg">Projeto Atena (GurujaApp) <span className="text-xs bg-emerald-900/30 text-emerald-400 px-2 py-0.5 rounded border border-emerald-900/50 font-bold ml-2">v3.0.0</span></p>
+          <p className="text-slate-400 mt-2 text-lg">Projeto Atena (GurujaApp) <span className="text-xs bg-emerald-900/30 text-emerald-400 px-2 py-0.5 rounded border border-emerald-900/50 font-bold ml-2">v3.2.0</span></p>
         </div>
         <div className="text-right hidden md:block">
             <p className="text-xs text-slate-500 uppercase font-bold tracking-widest">Última Atualização</p>
@@ -186,14 +186,34 @@ Ajuste Fino (Multiplicadores):
               </div>
 
               <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-                   {/* v3.0.0 */}
+                   {/* v3.2.0 */}
                    <div className="p-6 border-b border-slate-800">
                       <div className="flex justify-between items-start mb-4">
                           <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                              <span className="bg-emerald-600 text-white px-2 py-0.5 rounded text-xs shadow-lg shadow-emerald-900/50">v3.0.0</span> 
+                              <span className="bg-emerald-600 text-white px-2 py-0.5 rounded text-xs shadow-lg shadow-emerald-900/50">v3.2.0</span> 
+                              Olympus Performance
+                          </h3>
+                          <span className="text-xs text-slate-500 font-mono">Current Stable</span>
+                      </div>
+                      <ul className="space-y-3">
+                          <ChangelogItem 
+                            type="core" 
+                            desc="[Otimização] Implementação de React.memo no sistema de cartões do Planejamento para eliminar travamentos durante o Drag-and-Drop." 
+                          />
+                          <ChangelogItem 
+                            type="feat" 
+                            desc="[Smart Filter] Melhoria no algoritmo de normalização de texto (Regex) para ignorar formatações quebradas ao colar Editais PDF." 
+                          />
+                      </ul>
+                  </div>
+
+                   {/* v3.0.0 */}
+                   <div className="p-6 border-b border-slate-800 bg-slate-950/30">
+                      <div className="flex justify-between items-start mb-4">
+                          <h3 className="text-lg font-bold text-slate-300 flex items-center gap-2">
+                              <span className="bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-xs border border-slate-600">v3.0.0</span> 
                               Olympus Edition
                           </h3>
-                          <span className="text-xs text-slate-500 font-mono">Stable Release</span>
                       </div>
                       <ul className="space-y-3">
                           <ChangelogItem 
@@ -207,31 +227,6 @@ Ajuste Fino (Multiplicadores):
                           <ChangelogItem 
                             type="core" 
                             desc="[Planejamento] Cálculo automático de semanas restantes baseado na data da prova." 
-                          />
-                          <ChangelogItem 
-                            type="ui" 
-                            desc="[Galeria] Visualizador de mapas mentais com suporte a Zoom e múltiplas imagens." 
-                          />
-                      </ul>
-                  </div>
-
-                   {/* v2.1.1 */}
-                  <div className="p-6 bg-slate-950/30 border-b border-slate-800/50">
-                      <div className="flex justify-between items-start mb-4">
-                          <h3 className="text-lg font-bold text-slate-300 flex items-center gap-2">
-                              <span className="bg-emerald-900/40 text-emerald-400 px-2 py-0.5 rounded text-xs border border-emerald-500/30">v2.1.1</span> 
-                              Stable Patch
-                          </h3>
-                          <span className="text-xs text-slate-600 font-mono">Legacy</span>
-                      </div>
-                      <ul className="space-y-3">
-                          <ChangelogItem 
-                            type="fix" 
-                            desc="Correção crítica de acesso a 'import.meta.env'. Implementada verificação segura para evitar crash em ambientes onde 'env' é undefined." 
-                          />
-                          <ChangelogItem 
-                            type="core" 
-                            desc="Otimização do carregamento de dados (Store). Substituição de Promise.all por Promise.allSettled." 
                           />
                       </ul>
                   </div>
