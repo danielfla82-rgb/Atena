@@ -106,8 +106,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             }
         } catch (err) {
             console.error("Erro crítico na inicialização (Verifique sua chave Supabase):", err);
-            // IMPORTANTE: Se der erro (ex: chave inválida), paramos o loading 
-            // para permitir que o usuário use o Modo Visitante.
             setLoading(false);
         }
     };
@@ -180,7 +178,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const fetchAllData = async (userId: string) => {
       setLoading(true);
       try {
-          // OPTIMIZATION: Use allSettled to prevent one failure from blocking everything
           const results = await Promise.allSettled([
               supabase.from('notebooks').select('*').eq('user_id', userId),
               supabase.from('cycles').select('*').eq('user_id', userId),
@@ -199,6 +196,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   targetAccuracy: n.target_accuracy,
                   lastPractice: n.last_practice,
                   nextReview: n.next_review,
+                  // Tenta carregar images (array), fallback para image (string única), ou array vazio
                   images: n.images || (n.image ? [n.image] : []) 
               }));
               setNotebooks(formattedNotebooks);
@@ -285,8 +283,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // --- ACTIONS ---
 
-  // ... (previous actions)
-
   const updateFramework = async (data: FrameworkData) => {
       setFramework(data);
       if(user && !isGuest) {
@@ -294,7 +290,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
   };
 
-  // ... (createCycle, selectCycle, deleteCycle, syncCycleData, updateConfig)
   const createCycle = async (name: string, targetRole: string) => {
       const newCycle: Cycle = {
           id: crypto.randomUUID(),
@@ -355,7 +350,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setNotebooks(prev => [...prev, newNotebook]);
 
       if(user && !isGuest) {
-          const { error } = await supabase.from('notebooks').insert({
+          const payload = {
               id: newNotebook.id,
               user_id: user.id,
               discipline: newNotebook.discipline,
@@ -374,8 +369,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               images: newNotebook.images || [],
               last_practice: newNotebook.lastPractice,
               next_review: newNotebook.nextReview
-          });
-          if(error) console.error("Error adding notebook:", error);
+          };
+
+          // Tenta inserir com todos os campos
+          let { error } = await supabase.from('notebooks').insert(payload);
+          
+          // Se falhar (provavelmente devido à coluna 'images' nova), tenta fallback sem 'images'
+          if(error) {
+              console.warn("Falha ao salvar caderno completo. Tentando modo de compatibilidade...", error);
+              const { images, ...legacyPayload } = payload;
+              const { error: retryError } = await supabase.from('notebooks').insert(legacyPayload);
+              if (retryError) {
+                  console.error("Erro fatal ao salvar caderno:", retryError);
+              }
+          }
 
           if (newNotebook.weekId && activeCycleId) {
              const activeCycle = cycles.find(c => c.id === activeCycleId);
@@ -397,6 +404,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const editNotebook = async (id: string, updates: Partial<Notebook>) => {
       setNotebooks(prev => prev.map(nb => nb.id === id ? { ...nb, ...updates } : nb));
 
+      // Handle Cycle Logic (No Changes needed here)
       if (activeCycleId) {
           const activeCycle = cycles.find(c => c.id === activeCycleId);
           if (activeCycle) {
@@ -427,6 +435,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
       }
 
+      // Handle DB Update with Fallback Strategy
       if(user && !isGuest) {
           const dbUpdates: any = {};
           if(updates.name !== undefined) dbUpdates.name = updates.name;
@@ -454,7 +463,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
           
           if(Object.keys(dbUpdates).length > 0) {
-              await supabase.from('notebooks').update(dbUpdates).eq('id', id);
+              const { error } = await supabase.from('notebooks').update(dbUpdates).eq('id', id);
+              
+              // Se falhar (possível erro na coluna images ou payload size), tenta atualizar sem 'images' array
+              if (error && dbUpdates.images) {
+                  console.warn("Erro ao atualizar imagens. Tentando fallback legado...", error);
+                  const { images, ...legacyUpdates } = dbUpdates;
+                  const { error: retryError } = await supabase.from('notebooks').update(legacyUpdates).eq('id', id);
+                  if (retryError) console.error("Falha fatal na atualização do caderno:", retryError);
+              } else if (error) {
+                  console.error("Erro ao atualizar caderno:", error);
+              }
           }
       }
   };
@@ -552,12 +571,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setNotes(prev => [newNote, ...prev]);
       
       if(user && !isGuest) {
-          await supabase.from('notes').insert({ 
+          const { error } = await supabase.from('notes').insert({ 
               id: newNote.id, 
               user_id: user.id, 
               content: '', 
               color: 'yellow' 
           });
+          if (error) console.error("Erro ao criar nota:", error);
       }
   };
 
@@ -568,7 +588,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if(user && !isGuest) {
           const payload: any = { content, updated_at: updatedAt };
           if(color) payload.color = color;
-          await supabase.from('notes').update(payload).eq('id', id);
+          const { error } = await supabase.from('notes').update(payload).eq('id', id);
+          if (error) console.error("Erro ao atualizar nota:", error);
       }
   };
 

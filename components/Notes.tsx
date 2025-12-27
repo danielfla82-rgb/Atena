@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store';
 import { Note } from '../types';
 import { Plus, Trash2, StickyNote, Palette } from 'lucide-react';
@@ -16,6 +16,10 @@ const StickyNoteItem: React.FC<{ note: Note }> = ({ note }) => {
     const { updateNote, deleteNote } = useStore();
     const [content, setContent] = useState(note.content);
     
+    // Track the latest content for unmount save
+    const contentRef = useRef(content);
+    useEffect(() => { contentRef.current = content; }, [content]);
+
     // Auto-save logic (Debounce)
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -26,8 +30,23 @@ const StickyNoteItem: React.FC<{ note: Note }> = ({ note }) => {
         return () => clearTimeout(timer);
     }, [content, note.id, note.content, updateNote]);
 
+    // Force save on unmount (important for quick disconnects)
+    useEffect(() => {
+        return () => {
+            if (contentRef.current !== note.content) {
+                updateNote(note.id, contentRef.current);
+            }
+        };
+    }, []); // Empty dependency array ensures this cleanup runs only on unmount
+
     const handleColorChange = (color: Note['color']) => {
         updateNote(note.id, content, color);
+    };
+
+    const handleBlur = () => {
+        if (content !== note.content) {
+            updateNote(note.id, content);
+        }
     };
 
     return (
@@ -35,6 +54,7 @@ const StickyNoteItem: React.FC<{ note: Note }> = ({ note }) => {
             <textarea 
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
+                onBlur={handleBlur}
                 placeholder="Digite sua anotação..."
                 className="w-full h-full bg-transparent border-none resize-none outline-none text-sm font-medium leading-relaxed custom-scrollbar"
             />
