@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Loader2, Mail, Lock, UserPlus, LogIn, KeyRound, WifiOff, User, AlertTriangle, ExternalLink } from 'lucide-react';
+import { Loader2, Mail, Lock, UserPlus, LogIn, KeyRound, WifiOff, User, AlertTriangle, ExternalLink, Copy } from 'lucide-react';
 import { Logo } from './Logo';
 import { supabase } from '../lib/supabase';
 import { useStore } from '../store';
@@ -65,20 +65,13 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
         
         if (error) throw error;
         
-        // Se não houver erro imediato, o redirecionamento acontecerá.
-        // Se o usuário ver a mensagem abaixo, algo bloqueou o popup ou redirect
         setMessage({ text: "Redirecionando para Google...", type: 'info' });
 
     } catch (error: any) {
         console.error("Google Auth Error:", error);
-        
-        let hint = "";
-        if (error.message?.includes("configuration")) {
-            hint = "Verifique se o Google Provider está habilitado no painel do Supabase.";
-        }
-        
+        // Generic error message, details handled in render
         setMessage({ 
-            text: `Erro ao conectar: ${error.message}. ${hint}`, 
+            text: `Falha na conexão (OAuth).`, 
             type: 'error' 
         });
         setLoading(false);
@@ -155,11 +148,15 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
                            {message.type === 'error' && <AlertTriangle size={12}/>}
                            {message.text}
                        </span>
-                       {message.type === 'error' && message.text.includes("Google") && (
-                           <div className="mt-1 pt-1 border-t border-red-500/20 text-[10px] opacity-80">
-                               <strong>Dica Técnica:</strong> No painel do Supabase, vá em <em>Authentication &gt; URL Configuration</em> e adicione: <br/>
-                               <code className="bg-black/30 px-1 rounded">{window.location.origin}</code> <br/>
-                               na lista de "Redirect URLs".
+                       
+                       {/* Enhanced Google Error Help */}
+                       {message.type === 'error' && (message.text.includes("OAuth") || message.text.includes("Google")) && (
+                           <div className="mt-2 pt-2 border-t border-red-500/20 text-[10px] opacity-90">
+                               <p className="font-bold mb-1 text-red-300">Ação Necessária (Supabase):</p>
+                               <p className="mb-1">Adicione esta URL exata em <em>Authentication &gt; URL Configuration &gt; Redirect URLs</em>:</p>
+                               <code className="block bg-black/40 p-2 rounded mt-1 font-mono text-emerald-400 select-all cursor-text break-all border border-red-500/30">
+                                   {window.location.origin}
+                               </code>
                            </div>
                        )}
                    </div>

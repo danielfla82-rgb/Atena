@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, PlusCircle, ArrowRight, FolderOpen, Calendar, Trash2, X, AlertTriangle } from 'lucide-react';
+import { LayoutDashboard, PlusCircle, ArrowRight, FolderOpen, Calendar, Trash2, X, AlertTriangle, HelpCircle } from 'lucide-react';
 import { useStore } from '../store';
 import { LOGO_URL } from '../constants';
 
 interface Props {
-  onNavigate: (view: 'dashboard' | 'setup' | 'library') => void;
+  onNavigate: (view: 'dashboard' | 'setup' | 'library' | 'onboarding') => void;
 }
 
 export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
@@ -89,10 +89,18 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
         {/* === CYCLES GRID === */}
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-300">
             
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col md:flex-row justify-between items-end border-b border-slate-800/50 pb-4 gap-4">
                 <h3 className="text-xl font-bold text-white flex items-center gap-2">
                     <FolderOpen size={24} className="text-emerald-500"/> Meus Projetos Ativos
                 </h3>
+                
+                <button 
+                    onClick={() => onNavigate('onboarding')}
+                    className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-emerald-400 hover:text-emerald-300 bg-emerald-900/10 hover:bg-emerald-900/20 px-4 py-2 rounded-full border border-emerald-500/20 transition-all"
+                >
+                    <HelpCircle size={14} />
+                    Conhecendo a Plataforma
+                </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

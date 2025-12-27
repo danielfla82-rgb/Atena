@@ -52,7 +52,7 @@ const AppContent: React.FC = () => {
 
   // If in login or selection, show full screen components
   if (view === 'login') {
-    return <Login onLoginSuccess={() => setView('onboarding')} />;
+    return <Login onLoginSuccess={() => setView('selection')} />;
   }
 
   if (view === 'onboarding') {
