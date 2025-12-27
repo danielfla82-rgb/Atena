@@ -52,11 +52,12 @@ const AppContent: React.FC = () => {
   
   // Detecta se estamos voltando de um login social (OAuth)
   const [isProcessingOAuth, setIsProcessingOAuth] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
       // Se a URL contém access_token, significa que o usuário acabou de voltar do Google
       // Precisamos forçar o loading até o Supabase processar isso
-      if (typeof window !== 'undefined' && (window.location.hash.includes('access_token') || window.location.hash.includes('type=recovery'))) {
+      if (typeof window !== 'undefined' && (window.location.hash.includes('access_token') || window.location.hash.includes('type=recovery') || window.location.hash.includes('error='))) {
           setIsProcessingOAuth(true);
       }
   }, []);
@@ -69,8 +70,11 @@ const AppContent: React.FC = () => {
           if (view === 'login') setView('selection');
       } else if (!loading && !user && isProcessingOAuth) {
           // Se parou de carregar, não tem usuário, mas estavamos esperando OAuth...
-          // Damos um tempo extra de segurança ou liberamos o login se falhou
-          const timer = setTimeout(() => setIsProcessingOAuth(false), 5000); // 5s timeout
+          // Pode ter ocorrido um erro na validação do token ou mismatch de URL
+          const timer = setTimeout(() => {
+              setIsProcessingOAuth(false);
+              setAuthError("Tempo limite excedido na autenticação. Verifique se a URL do site está adicionada no Supabase > Authentication > URL Configuration.");
+          }, 4000); 
           return () => clearTimeout(timer);
       }
   }, [user, loading, view, isProcessingOAuth]);
@@ -93,7 +97,7 @@ const AppContent: React.FC = () => {
 
   // If in login or selection, show full screen components
   if (view === 'login') {
-    return <Login onLoginSuccess={() => setView('selection')} />;
+    return <Login onLoginSuccess={() => setView('selection')} initialError={authError} />;
   }
 
   if (view === 'onboarding') {

@@ -1,6 +1,6 @@
 {
-  "name": "Projeto Atena v3.5.0 (Titan Edition)",
-  "description": "Plataforma SaaS de alta performance. v3.5.0: [CORE] Calendário Macro 2.0 com lógica de datas robusta (Timezone-safe). [UX] Indicadores de feriados nacionais e Alerta de Prova. [FEAT] Modo Iniciante e Micro-datas nas semanas.",
+  "name": "Projeto Atena v3.6.0 (Olympus Edition)",
+  "description": "Plataforma SaaS de alta performance. v3.6.0: [CORE] Correção de fluxo OAuth e validação de ambiente. [UX] Feedback aprimorado de login.",
   "requestFramePermissions": [
     "microphone"
   ]
