@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store';
-import { Notebook, Weight, Relevance, Trend, WEIGHT_SCORE, NotebookStatus } from '../types';
-import { GripVertical, Plus, Search, Copy, Pencil, TrendingUp, X, Save, Link as LinkIcon, RefreshCw, Upload, CalendarCheck, ImageIcon, StickyNote, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, ArrowRightFromLine, ArrowLeftFromLine, FileCode, Square, CheckSquare, Check, Timer, Calculator, PieChart, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Hash, PlayCircle } from 'lucide-react';
+import { Notebook, Weight, Relevance, Trend, NotebookStatus } from '../types';
+import { Plus, Search, Copy, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale } from 'lucide-react';
 import { calculateNextReview, getStatusColor } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 

@@ -1,12 +1,10 @@
 import React, { useState, useRef, useMemo, useCallback } from 'react';
 import { useStore } from '../store';
 import { 
-    Trash2, Plus, Search, X, Link as LinkIcon, StickyNote, Pencil, 
-    Image as ImageIcon, CalendarCheck, RefreshCw, Upload, Filter, 
+    Trash2, Plus, Search, X, Link as LinkIcon, Pencil, RefreshCw, 
     ChevronRight, ChevronLeft, Layers, Square, CheckSquare, 
     Circle, BookOpen, CheckCircle2, Siren, Star, Clock, Sparkles,
-    Calculator, Maximize2, FileCode, FileText, CalendarClock, ArrowDownUp,
-    ZoomIn, Flag, Save
+    Maximize2, FileCode, CalendarClock, ZoomIn, Flag, Save, Inbox, ScanSearch
 } from 'lucide-react';
 import { Weight, Relevance, Trend, Notebook, NotebookStatus } from '../types';
 import { calculateNextReview } from '../utils/algorithm';

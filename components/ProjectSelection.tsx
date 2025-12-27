@@ -1,8 +1,6 @@
-
 import React, { useState } from 'react';
 import { LayoutDashboard, PlusCircle, ArrowRight, FolderOpen, Calendar, Trash2, X, AlertTriangle } from 'lucide-react';
 import { useStore } from '../store';
-import { Cycle } from '../types';
 import { LOGO_URL } from '../constants';
 
 interface Props {

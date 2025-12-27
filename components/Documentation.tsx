@@ -1,5 +1,5 @@
 import React from 'react';
-import { Book, Code, Database, Cpu, Layers, Shield, Server, FileJson, GitCommit, CheckCircle, GraduationCap, Sword, Eye } from 'lucide-react';
+import { Book, Code, Database, Cpu, Layers, Shield, Server, FileJson, GitCommit, GraduationCap, Sword, Eye } from 'lucide-react';
 
 export const Documentation: React.FC = () => {
   return (

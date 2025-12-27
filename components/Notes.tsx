@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useStore } from '../store';
 import { Note } from '../types';
-import { Plus, Trash2, StickyNote, Palette, Save } from 'lucide-react';
+import { Plus, Trash2, StickyNote, Palette } from 'lucide-react';
 
 const COLORS = {
     yellow: 'bg-yellow-200 text-yellow-900 border-yellow-300 placeholder-yellow-900/50',
