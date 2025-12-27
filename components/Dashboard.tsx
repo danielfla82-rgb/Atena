@@ -1,14 +1,15 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useStore } from '../store';
 import { QuadrantChart } from './QuadrantChart';
 import { StudySession } from './StudySession';
 import { LiquidityGauge } from './LiquidityGauge';
-import { Notebook, WEIGHT_SCORE, RELEVANCE_SCORE, Weight } from '../types';
+import { Notebook, WEIGHT_SCORE, RELEVANCE_SCORE, Weight, Trend, NotebookStatus, Relevance } from '../types';
 import { 
   BookOpen, Target, Calendar, Award, Zap, BrainCircuit, Settings, 
   FileText, Save, X, ExternalLink, TrendingUp, Link as LinkIcon,
   PieChart as PieChartIcon, Activity, Layers, Siren, Sparkles, ArrowRight, CheckCircle2,
-  MoreHorizontal, Calculator, Clock, Check, XCircle, HelpCircle, Quote, ChevronDown, ChevronUp, BarChart2
+  MoreHorizontal, Calculator, Clock, Check, XCircle, HelpCircle, Quote, ChevronDown, ChevronUp, BarChart2,
+  Pencil, ZoomIn, Trash2, FileCode, Flag, Loader2
 } from 'lucide-react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
@@ -16,7 +17,7 @@ import {
   ComposedChart, Bar, Legend, ReferenceLine,
   Treemap
 } from 'recharts';
-import { runAlgorithmUnitTests } from '../utils/algorithm';
+import { runAlgorithmUnitTests, calculateNextReview } from '../utils/algorithm';
 
 // Custom Content for Treemap to make it look "Elite"
 const CustomTreemapContent = (props: any) => {
@@ -119,12 +120,27 @@ const DashboardSection = ({
 };
 
 export const Dashboard: React.FC = () => {
-  const { notebooks, config, updateConfig, getWildcardNotebook } = useStore();
-  const [selectedSession, setSelectedSession] = useState<Notebook | null>(null);
+  const { notebooks, config, updateConfig, getWildcardNotebook, editNotebook } = useStore();
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   
-  // Local state for the form
+  // Dashboard states for Notebook interaction
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingNotebookId, setEditingNotebookId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  
+  // Local state for the config form
   const [localConfig, setLocalConfig] = useState(config);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const initialFormState = {
+    discipline: '', name: '', subtitle: '', tecLink: '', obsidianLink: '', accuracy: 0, targetAccuracy: 90, 
+    weight: Weight.MEDIO, relevance: Relevance.MEDIA, trend: Trend.ESTAVEL, 
+    status: NotebookStatus.NOT_STARTED, notes: '', images: [] as string[],
+    lastPractice: new Date().toISOString().split('T')[0] 
+  };
+  const [formData, setFormData] = useState(initialFormState);
 
   const today = new Date().toISOString().split('T')[0];
   
@@ -343,10 +359,11 @@ export const Dashboard: React.FC = () => {
     return notebooks.filter(n => n.discipline !== 'Revisão Geral');
   }, [notebooks]);
 
+  // --- HANDLERS FOR NOTEBOOK EDITING (Borrowed logic from Setup/Library) ---
   const startWildcard = () => {
     const wildcard = getWildcardNotebook();
     if (wildcard) {
-      setSelectedSession(wildcard);
+      openEditModal(wildcard); // CHANGED: Open edit modal instead of timer
     } else {
       alert("Nenhum caderno pendente para revisão inteligente hoje! Você está em dia.");
     }
@@ -356,8 +373,87 @@ export const Dashboard: React.FC = () => {
     if (nb.discipline === 'Revisão Geral') {
       startWildcard();
     } else {
-      setSelectedSession(nb);
+      openEditModal(nb); // CHANGED: Open edit modal
     }
+  };
+
+  const openEditModal = (nb: Notebook) => {
+      setEditingNotebookId(nb.id);
+      let safeDate = new Date().toISOString().split('T')[0];
+      if (nb.lastPractice) {
+          const check = new Date(nb.lastPractice);
+          if (!isNaN(check.getTime())) safeDate = nb.lastPractice.split('T')[0];
+      }
+      
+      let currentImages = nb.images || [];
+      if (currentImages.length === 0 && nb.image) currentImages = [nb.image];
+
+      setFormData({
+          discipline: nb.discipline,
+          name: nb.name,
+          subtitle: nb.subtitle,
+          tecLink: nb.tecLink || '',
+          obsidianLink: nb.obsidianLink || '',
+          accuracy: nb.accuracy,
+          targetAccuracy: nb.targetAccuracy,
+          weight: nb.weight,
+          relevance: nb.relevance,
+          trend: nb.trend,
+          status: nb.status || NotebookStatus.NOT_STARTED,
+          notes: nb.notes || '',
+          images: currentImages,
+          lastPractice: safeDate
+      });
+      setIsEditModalOpen(true);
+  };
+
+  const handleFormChange = (field: string, value: any) => setFormData(prev => ({ ...prev, [field]: value }));
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      (Array.from(files) as File[]).forEach(file => {
+          if (file.size > 2 * 1024 * 1024) { alert("Imagem muito grande (>2MB)."); return; }
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            if(reader.result) setFormData(prev => ({ ...prev, images: [...prev.images, reader.result as string] }));
+          };
+          reader.readAsDataURL(file);
+      });
+    }
+  };
+
+  const removeImage = (index: number) => {
+      setFormData(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== index) }));
+  };
+
+  const handleNotebookSave = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setIsSaving(true);
+      try {
+          const nextDate = calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm);
+          const payload: any = { 
+              ...formData, 
+              accuracy: Number(formData.accuracy), 
+              targetAccuracy: Number(formData.targetAccuracy),
+              lastPractice: new Date(formData.lastPractice).toISOString(),
+              nextReview: nextDate.toISOString()
+          };
+
+          if (editingNotebookId) {
+              await editNotebook(editingNotebookId, payload);
+          }
+          setIsEditModalOpen(false);
+      } catch (err) {
+          console.error(err);
+          alert("Erro ao salvar caderno.");
+      } finally {
+          setIsSaving(false);
+      }
+  };
+
+  const handleNotStudied = () => {
+     setFormData(prev => ({ ...prev, accuracy: 0, status: NotebookStatus.NOT_STARTED }));
   };
 
   const handleOpenConfig = () => {
@@ -394,6 +490,14 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8 pb-20 relative">
       
+      {/* Lightbox for Edit Modal */}
+      {lightboxIndex !== null && (
+          <div className="fixed inset-0 z-[60] bg-slate-950/95 flex items-center justify-center p-4 backdrop-blur-sm">
+             <button onClick={() => setLightboxIndex(null)} className="absolute top-4 right-4 text-white hover:text-emerald-500 z-50"><X size={32} /></button>
+             <img src={formData.images[lightboxIndex]} className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" />
+          </div>
+      )}
+
       <div className="flex justify-between items-center">
           <h2 className="text-xl font-bold text-white">Dashboard Estratégico</h2>
           <button 
@@ -519,10 +623,10 @@ export const Dashboard: React.FC = () => {
                     <button 
                         onClick={() => handleReviewClick(athenaRecommendation.notebook)}
                         className="w-full py-4 bg-white text-slate-950 font-bold rounded-xl hover:bg-slate-200 transition-all flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] active:scale-95 z-10"
-                        aria-label="Iniciar Sessão Recomendada"
+                        aria-label="Abrir Sessão de Estudo"
                     >
                         <ArrowRight size={20} />
-                        Iniciar Sessão
+                        Estudar Tópico
                     </button>
                 </div>
             </div>
@@ -724,198 +828,20 @@ export const Dashboard: React.FC = () => {
           </DashboardSection>
       </div>
 
-      {selectedSession && (
-        <StudySession notebook={selectedSession} onClose={() => setSelectedSession(null)} />
-      )}
-
-      {/* Configuration Modal */}
-      {isConfigOpen && (
+      {/* FULL EDIT MODAL (Reused from Setup/Library logic for seamless editing) */}
+      {isEditModalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh]">
-                <div className="p-6 border-b border-slate-800 flex justify-between items-center">
-                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                        <Settings size={20} className="text-emerald-500"/> Configuração do Concurso
-                    </h3>
-                    <button onClick={() => setIsConfigOpen(false)} className="text-slate-400 hover:text-white">
-                        <X size={24} />
-                    </button>
-                </div>
-
-                <form onSubmit={handleSaveConfig} className="overflow-y-auto p-6 space-y-6 custom-scrollbar">
-                    {/* ... Existing Form Content ... */}
-                    <div className="space-y-4">
-                        <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">1. Dados do Concurso</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Nome do Concurso</label>
-                                <input 
-                                    type="text"
-                                    value={localConfig.examName || ''}
-                                    onChange={e => setLocalConfig({...localConfig, examName: e.target.value})}
-                                    placeholder="Ex: Receita Federal 2025"
-                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 placeholder-slate-600"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Banca Examinadora</label>
-                                <input 
-                                    type="text"
-                                    value={localConfig.banca || ''}
-                                    onChange={e => setLocalConfig({...localConfig, banca: e.target.value})}
-                                    placeholder="Ex: FGV, Cebraspe..."
-                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 placeholder-slate-600"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Cargo Alvo</label>
-                                <input 
-                                    type="text"
-                                    value={localConfig.targetRole}
-                                    onChange={e => setLocalConfig({...localConfig, targetRole: e.target.value})}
-                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 placeholder-slate-600"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Data da Prova</label>
-                                <input 
-                                    type="date"
-                                    value={localConfig.examDate || ''}
-                                    onChange={e => setLocalConfig({...localConfig, examDate: e.target.value})}
-                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500"
-                                />
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="space-y-4 pt-2">
-                        <div className="flex justify-between items-end border-b border-emerald-500/20 pb-2">
-                            <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest">2. Edital Verticalizado</h4>
-                            <span className="text-[10px] text-slate-500">Contexto para a IA</span>
-                        </div>
-                        
-                        <div>
-                             <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Link do Edital / Site da Banca</label>
-                             <div className="relative">
-                                <LinkIcon className="absolute left-3 top-3 text-slate-500" size={14}/>
-                                <input 
-                                    type="url"
-                                    value={localConfig.editalLink || ''}
-                                    onChange={e => setLocalConfig({...localConfig, editalLink: e.target.value})}
-                                    placeholder="https://..."
-                                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 pl-9 text-white outline-none focus:border-emerald-500 placeholder-slate-600 mb-2"
-                                />
-                             </div>
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Texto do Conteúdo Programático</label>
-                            <textarea 
-                                value={localConfig.editalText || ''}
-                                onChange={e => setLocalConfig({...localConfig, editalText: e.target.value})}
-                                placeholder="Cole aqui a lista de disciplinas e tópicos do edital..."
-                                className="w-full h-40 bg-slate-800 border border-slate-700 rounded-lg p-3 text-white text-sm font-mono outline-none focus:border-emerald-500 resize-none placeholder-slate-600"
-                            />
-                        </div>
-                         <p className="text-xs text-slate-500">
-                            * Estes dados serão enviados para a inteligência artificial (Gemini) para ajudar a personalizar suas sugestões de revisão e prioridades.
-                        </p>
-                    </div>
-
-                     {/* SECTION 3: ADVANCED ALGORITHM CONFIG */}
-                     <div className="space-y-4 pt-2">
-                        <div className="flex justify-between items-end border-b border-emerald-500/20 pb-2">
-                             <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest flex items-center gap-2">
-                                <Calculator size={16} /> 3. Ajuste Fino do Algoritmo
-                             </h4>
-                             <button type="button" onClick={runTests} className="text-[10px] text-emerald-400 hover:text-white underline">
-                                 Executar Testes Unitários
-                             </button>
-                        </div>
-                        
-                        <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800">
-                            <p className="text-xs text-slate-400 mb-4">
-                                Personalize os intervalos (em dias) e multiplicadores de retenção. Cuidado: alterações aqui afetam todo o cronograma.
-                            </p>
-                            
-                            {localConfig.algorithm && (
-                                <>
-                                    <div className="mb-4">
-                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Intervalos Base (Dias)</label>
-                                        <div className="grid grid-cols-4 gap-2">
-                                            <div>
-                                                <span className="block text-[9px] text-red-400 mb-1">Learning (&lt;60%)</span>
-                                                <input type="number" className="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white text-center text-xs"
-                                                    value={localConfig.algorithm.baseIntervals.learning}
-                                                    onChange={(e) => handleAlgoChange('baseIntervals', 'learning', e.target.value)}
-                                                />
-                                            </div>
-                                            <div>
-                                                <span className="block text-[9px] text-amber-400 mb-1">Reviewing (60-79%)</span>
-                                                <input type="number" className="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white text-center text-xs"
-                                                    value={localConfig.algorithm.baseIntervals.reviewing}
-                                                    onChange={(e) => handleAlgoChange('baseIntervals', 'reviewing', e.target.value)}
-                                                />
-                                            </div>
-                                            <div>
-                                                <span className="block text-[9px] text-blue-400 mb-1">Mastering (80-89%)</span>
-                                                <input type="number" className="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white text-center text-xs"
-                                                    value={localConfig.algorithm.baseIntervals.mastering}
-                                                    onChange={(e) => handleAlgoChange('baseIntervals', 'mastering', e.target.value)}
-                                                />
-                                            </div>
-                                            <div>
-                                                <span className="block text-[9px] text-emerald-400 mb-1">Maintaining (90%+)</span>
-                                                <input type="number" className="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white text-center text-xs"
-                                                    value={localConfig.algorithm.baseIntervals.maintaining}
-                                                    onChange={(e) => handleAlgoChange('baseIntervals', 'maintaining', e.target.value)}
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Aceleradores (Multiplicadores)</label>
-                                        <div className="grid grid-cols-3 gap-2">
-                                            <div>
-                                                <span className="block text-[9px] text-slate-400 mb-1">Relev. Extrema</span>
-                                                <input type="number" step="0.1" className="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white text-center text-xs"
-                                                    value={localConfig.algorithm.multipliers.relevanceExtreme}
-                                                    onChange={(e) => handleAlgoChange('multipliers', 'relevanceExtreme', e.target.value)}
-                                                />
-                                            </div>
-                                            <div>
-                                                <span className="block text-[9px] text-slate-400 mb-1">Relev. Alta</span>
-                                                <input type="number" step="0.1" className="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white text-center text-xs"
-                                                    value={localConfig.algorithm.multipliers.relevanceHigh}
-                                                    onChange={(e) => handleAlgoChange('multipliers', 'relevanceHigh', e.target.value)}
-                                                />
-                                            </div>
-                                            <div>
-                                                <span className="block text-[9px] text-slate-400 mb-1">Tendência Alta</span>
-                                                <input type="number" step="0.1" className="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-white text-center text-xs"
-                                                    value={localConfig.algorithm.multipliers.trendHigh}
-                                                    onChange={(e) => handleAlgoChange('multipliers', 'trendHigh', e.target.value)}
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                     </div>
-
-                </form>
-
-                <div className="p-6 border-t border-slate-800 bg-slate-900 flex justify-end gap-4">
-                    <button onClick={() => setIsConfigOpen(false)} className="px-6 py-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors">Cancelar</button>
-                    <button onClick={handleSaveConfig} className="px-6 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-900/20 flex items-center gap-2">
-                        <Save size={18} /> Salvar Contexto
-                    </button>
-                </div>
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2"><Pencil size={20} className="text-emerald-500"/> Editar Caderno (Sessão de Estudo)</h3>
+                <button onClick={() => !isSaving && setIsEditModalOpen(false)} disabled={isSaving} className="text-slate-400 hover:text-white"><X size={24} /></button>
             </div>
-        </div>
-      )}
-
-    </div>
-  );
-};
+            <form onSubmit={handleNotebookSave} className="overflow-y-auto p-6 space-y-6 custom-scrollbar">
+              <div className="space-y-4">
+                  <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">1. Identificação</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Disciplina</label><input required value={formData.discipline} onChange={e => handleFormChange('discipline', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /></div>
+                    <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Nome do Tópico</label><input required value={formData.name} onChange={e => handleFormChange('name', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /></div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div><label className="block text-xs font-bold text-slate-4

@@ -132,6 +132,9 @@ export interface EditalDiscipline {
   topics: EditalTopic[];
 }
 
+// Tipos para o Calendário Macro
+export type PaceType = 'Basico' | 'Intermediario' | 'Avancado' | 'Revisao' | 'Off';
+
 /** Configuração Global do Concurso (Contexto para IA) */
 export interface AthensConfig {
   targetRole: string;
@@ -148,6 +151,8 @@ export interface AthensConfig {
   structuredEdital?: EditalDiscipline[];
   // Algoritmo Customizável
   algorithm?: AlgorithmConfig;
+  // Planejamento Macro (Calendário) - Key: "YYYY-Www" -> Value: PaceType
+  longTermPlanning?: Record<string, PaceType>;
 }
 
 /** 

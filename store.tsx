@@ -13,7 +13,8 @@ const DEFAULT_CONFIG: AthensConfig = {
     algorithm: {
         baseIntervals: { learning: 1, reviewing: 3, mastering: 7, maintaining: 15 },
         multipliers: { relevanceExtreme: 0.7, relevanceHigh: 0.9, trendHigh: 0.9 }
-    }
+    },
+    longTermPlanning: {}
 };
 
 const DEFAULT_FRAMEWORK: FrameworkData = {
@@ -43,9 +44,9 @@ interface StoreContextType {
   updateNotebookAccuracy: (id: string, newAccuracy: number) => void;
   moveNotebookToWeek: (id: string, weekId: string | null) => void;
   getWildcardNotebook: () => Notebook | null;
-  addNotebook: (notebook: Omit<Notebook, 'id'>) => Promise<void>; // Updated to Promise
-  editNotebook: (id: string, updates: Partial<Notebook>) => Promise<void>; // Updated to Promise
-  deleteNotebook: (id: string) => Promise<void>; // Updated to Promise
+  addNotebook: (notebook: Omit<Notebook, 'id'>) => Promise<void>;
+  editNotebook: (id: string, updates: Partial<Notebook>) => Promise<void>;
+  deleteNotebook: (id: string) => Promise<void>;
   bulkUpdateNotebooks: (ids: string[], updates: Partial<Notebook> | 'DELETE') => void;
   saveReport: (report: Omit<SavedReport, 'id' | 'date'>) => void;
   deleteReport: (id: string) => void;
@@ -588,10 +589,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setNotes(prev => prev.map(n => n.id === id ? { ...n, content, color: color || n.color, updatedAt } : n));
       
       if(user && !isGuest) {
-          const payload: any = { content, updated_at: updatedAt };
+          const payload: any = { id, user_id: user.id, content, updated_at: updatedAt };
           if(color) payload.color = color;
-          const { error } = await supabase.from('notes').update(payload).eq('id', id);
-          if (error) console.error("Erro ao atualizar nota:", error);
+          
+          // Use upsert instead of update to guarantee save even if the initial insert was slow
+          const { error } = await supabase.from('notes').upsert(payload);
+          if (error) console.error("Erro ao atualizar nota (Upsert):", error);
       }
   };
 

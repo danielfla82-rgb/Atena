@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store';
-import { Notebook, Weight, Relevance, Trend, NotebookStatus } from '../types';
-import { Plus, Search, Copy, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2 } from 'lucide-react';
+import { Notebook, Weight, Relevance, Trend, NotebookStatus, PaceType } from '../types';
+import { Plus, Search, Copy, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2, CalendarDays } from 'lucide-react';
 import { calculateNextReview, getStatusColor } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 
@@ -104,6 +104,132 @@ const DraggableCard = React.memo(({
         </div>
     );
 });
+
+// --- COMPONENT: MACRO CALENDAR (New) ---
+const MacroCalendar = () => {
+    const { config, updateConfig } = useStore();
+    const [year, setYear] = useState(new Date().getFullYear());
+    
+    // Cycle through pace types on click
+    const cyclePace = (current: PaceType): PaceType => {
+        const order: PaceType[] = ['Off', 'Basico', 'Intermediario', 'Avancado', 'Revisao'];
+        const idx = order.indexOf(current || 'Off');
+        return order[(idx + 1) % order.length];
+    };
+
+    const getPaceColor = (pace: PaceType) => {
+        switch(pace) {
+            case 'Basico': return 'bg-emerald-600/30 text-emerald-400 border-emerald-500/50';
+            case 'Intermediario': return 'bg-blue-600/30 text-blue-400 border-blue-500/50';
+            case 'Avancado': return 'bg-purple-600/30 text-purple-400 border-purple-500/50';
+            case 'Revisao': return 'bg-amber-600/30 text-amber-400 border-amber-500/50';
+            default: return 'bg-slate-800/30 text-slate-600 border-slate-700/50';
+        }
+    };
+
+    const toggleWeekPace = (weekKey: string) => {
+        const currentPace = config.longTermPlanning?.[weekKey] || 'Off';
+        const newPace = cyclePace(currentPace);
+        updateConfig({
+            ...config,
+            longTermPlanning: {
+                ...config.longTermPlanning,
+                [weekKey]: newPace
+            }
+        });
+    };
+
+    const getMonths = (y: number) => {
+        const months = [];
+        for (let m = 0; m < 12; m++) {
+            const date = new Date(y, m, 1);
+            const monthName = date.toLocaleString('pt-BR', { month: 'long' });
+            
+            // Generate weeks for this month
+            const weeks = [];
+            // Simple logic: First day of month to Last day
+            const startDay = new Date(y, m, 1);
+            const endDay = new Date(y, m + 1, 0);
+            
+            // Find the ISO week numbers or just index them by week start date
+            let current = new Date(startDay);
+            // Adjust to start on Monday or Sunday? Let's use simple logic: chunks of 7 days roughly
+            // Better: Iterate by week start
+            
+            // Align to Monday
+            const day = current.getDay();
+            const diff = current.getDate() - day + (day === 0 ? -6 : 1); 
+            // This aligns strictly to Monday. 
+            // For visualization, let's list 4-5 blocks per month
+            
+            // Simplified for Planning: 4 weeks per month fixed slots for UX simplicity
+            for(let w=1; w<=4; w++) {
+                weeks.push({
+                    id: `${y}-${m+1}-W${w}`,
+                    label: `S${w}`
+                });
+            }
+            
+            months.push({ name: monthName, weeks });
+        }
+        return months;
+    };
+
+    const months = useMemo(() => getMonths(year), [year]);
+
+    return (
+        <div className="flex-1 flex flex-col p-4 md:p-8 animate-in fade-in zoom-in duration-500 max-w-7xl mx-auto w-full overflow-y-auto custom-scrollbar">
+            <div className="flex justify-between items-center mb-8">
+                <div>
+                    <h2 className="text-2xl font-bold text-white flex items-center gap-3">
+                        <CalendarDays className="text-emerald-500" /> Calendário Macro
+                    </h2>
+                    <p className="text-slate-400 text-sm">Defina o ritmo estratégico para 2025 e 2026.</p>
+                </div>
+                <div className="flex bg-slate-900 border border-slate-800 rounded-xl p-1">
+                    <button onClick={() => setYear(2025)} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${year === 2025 ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}>2025</button>
+                    <button onClick={() => setYear(2026)} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${year === 2026 ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}>2026</button>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {months.map((month) => (
+                    <div key={month.name} className="bg-slate-900 border border-slate-800 rounded-xl p-4 hover:border-slate-700 transition-colors">
+                        <h3 className="text-emerald-400 font-bold uppercase text-xs tracking-widest mb-4 border-b border-slate-800 pb-2">{month.name}</h3>
+                        <div className="grid grid-cols-4 gap-2">
+                            {month.weeks.map(week => {
+                                const pace = config.longTermPlanning?.[week.id] || 'Off';
+                                return (
+                                    <button 
+                                        key={week.id}
+                                        onClick={() => toggleWeekPace(week.id)}
+                                        className={`
+                                            aspect-square rounded-lg border flex flex-col items-center justify-center transition-all hover:scale-105 active:scale-95
+                                            ${getPaceColor(pace)}
+                                        `}
+                                        title={`Semana ${week.label} - ${pace}`}
+                                    >
+                                        <span className="text-xs font-bold">{week.label}</span>
+                                        <span className="text-[9px] uppercase opacity-70 truncate w-full text-center px-1">
+                                            {pace === 'Intermediario' ? 'Inter' : pace}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            <div className="mt-8 flex flex-wrap gap-4 justify-center bg-slate-900/50 p-4 rounded-xl border border-slate-800">
+                <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-emerald-600/50 border border-emerald-500"></div><span className="text-xs text-slate-400">Básico (Fundação)</span></div>
+                <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-blue-600/50 border border-blue-500"></div><span className="text-xs text-slate-400">Intermediário</span></div>
+                <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-purple-600/50 border border-purple-500"></div><span className="text-xs text-slate-400">Avançado (Elite)</span></div>
+                <div className="flex items-center gap-2"><div className="w-3 h-3 rounded bg-amber-600/50 border border-amber-500"></div><span className="text-xs text-slate-400">Revisão Final</span></div>
+            </div>
+        </div>
+    );
+};
 
 const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: number } }) => {
     const { notebooks } = useStore();
@@ -324,7 +450,7 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
 export const Setup: React.FC = () => {
   const { notebooks, config, updateConfig, moveNotebookToWeek, addNotebook, editNotebook } = useStore();
   
-  const [viewMode, setViewMode] = useState<'timeline' | 'calculator'>('timeline');
+  const [viewMode, setViewMode] = useState<'timeline' | 'calculator' | 'calendar'>('timeline');
   const [searchTerm, setSearchTerm] = useState('');
   const [showStats, setShowStats] = useState(false);
   
@@ -713,6 +839,7 @@ export const Setup: React.FC = () => {
                 <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 shadow-xl">
                     <button onClick={() => setViewMode('timeline')} className={`px-4 md:px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${viewMode === 'timeline' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}><GanttChartSquare size={16} /> Visão Tática</button>
                     <button onClick={() => setViewMode('calculator')} className={`px-4 md:px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${viewMode === 'calculator' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}><Calculator size={16} /> Planejamento</button>
+                    <button onClick={() => setViewMode('calendar')} className={`px-4 md:px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${viewMode === 'calendar' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}><CalendarDays size={16} /> Calendário</button>
                 </div>
             </div>
 
@@ -736,7 +863,7 @@ export const Setup: React.FC = () => {
             </div>
          </header>
 
-         {viewMode === 'timeline' ? (
+         {viewMode === 'timeline' && (
              <div className="flex flex-col h-full overflow-hidden">
                  <div className={`overflow-hidden transition-all duration-300 ease-in-out bg-slate-900 border-b border-slate-800 flex-shrink-0 ${showStats ? 'max-h-64 opacity-100' : 'max-h-0 opacity-0 border-none'}`}>
                     <div className="p-4 h-64 flex gap-6">
@@ -799,7 +926,10 @@ export const Setup: React.FC = () => {
                     </div>
                  </div>
              </div>
-         ) : (<CycleCalculator paceTarget={paceTarget} />)}
+         )}
+         
+         {viewMode === 'calculator' && <CycleCalculator paceTarget={paceTarget} />}
+         {viewMode === 'calendar' && <MacroCalendar />}
       </main>
 
        {/* === EDIT MODAL === */}
