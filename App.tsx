@@ -49,17 +49,34 @@ const AppContent: React.FC = () => {
   const [view, setView] = useState<'login' | 'onboarding' | 'selection' | 'dashboard' | 'setup' | 'library' | 'diagnostics' | 'tips' | 'nietzsche' | 'psycho' | 'news' | 'protocol' | 'framework' | 'docs' | 'verticalized' | 'notes' | 'about'>('login');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, loading } = useStore();
+  
+  // Detecta se estamos voltando de um login social (OAuth)
+  const [isProcessingOAuth, setIsProcessingOAuth] = useState(false);
+
+  useEffect(() => {
+      // Se a URL contém access_token, significa que o usuário acabou de voltar do Google
+      // Precisamos forçar o loading até o Supabase processar isso
+      if (typeof window !== 'undefined' && (window.location.hash.includes('access_token') || window.location.hash.includes('type=recovery'))) {
+          setIsProcessingOAuth(true);
+      }
+  }, []);
 
   // --- AUTO-REDIRECT LOGIC ---
-  // Detects if user is authenticated (e.g. returning from Google OAuth) and moves past login
   useEffect(() => {
-      if (!loading && user && view === 'login') {
-          setView('selection');
+      if (user) {
+          // Se detectou usuário, para o loading de OAuth e entra
+          setIsProcessingOAuth(false);
+          if (view === 'login') setView('selection');
+      } else if (!loading && !user && isProcessingOAuth) {
+          // Se parou de carregar, não tem usuário, mas estavamos esperando OAuth...
+          // Damos um tempo extra de segurança ou liberamos o login se falhou
+          const timer = setTimeout(() => setIsProcessingOAuth(false), 5000); // 5s timeout
+          return () => clearTimeout(timer);
       }
-  }, [user, loading, view]);
+  }, [user, loading, view, isProcessingOAuth]);
 
-  // Loading Screen (Initial Boot)
-  if (loading && view === 'login') {
+  // Loading Screen (Initial Boot or OAuth Processing)
+  if ((loading || isProcessingOAuth) && view === 'login') {
       return (
           <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center">
               <div className="relative">
@@ -68,7 +85,7 @@ const AppContent: React.FC = () => {
               </div>
               <div className="mt-8 flex items-center gap-3 text-emerald-500 font-bold uppercase tracking-widest text-sm">
                   <Loader2 className="animate-spin" size={18} />
-                  Inicializando Sistema...
+                  {isProcessingOAuth ? "Finalizando Autenticação..." : "Inicializando Sistema..."}
               </div>
           </div>
       );
