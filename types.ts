@@ -1,17 +1,16 @@
 
 /**
- * DOCUMENTAÇÃO TÉCNICA - PROJETO ATENA V2.1.0
+ * DOCUMENTAÇÃO TÉCNICA - PROJETO ATENA V3.3.0
  * ============================================
  * Data Model e Tipagem do Sistema.
  * 
- * STATUS: STABLE / ELITE EDITION
- * DATA: 2024-05-22
+ * STATUS: STABLE / ELITE OS
+ * DATA: 2024-05-23
  * 
- * CHANGELOG V2.1.0:
- * - [FIX] Implementação de sanitização de JSON para respostas da IA (Markdown stripping).
- * - [FIX] Validação robusta de datas no módulo Library.
- * - [DOCS] Atualização da tipagem do NotebookStatus.
- * - [CORE] Refinamento da Matriz Estratégica.
+ * CHANGELOG V3.3.0:
+ * - [UI] Novo design do bloco de identidade (Sidebar).
+ * - [CORE] Estabilização do módulo de Anotações.
+ * - [FIX] Ajustes de tipografia e espaçamento.
  * 
  * PRINCIPAIS ENTIDADES:
  * 1. Notebook (Caderno): A unidade atômica de estudo. Contém performance, metadados e conteúdo.
@@ -121,6 +120,18 @@ export interface AlgorithmConfig {
   };
 }
 
+/** Estrutura do Edital Verticalizado (Parsed by IA) */
+export interface EditalTopic {
+  name: string;
+  probability: 'Alta' | 'Média' | 'Baixa';
+  checked: boolean;
+}
+
+export interface EditalDiscipline {
+  name: string;
+  topics: EditalTopic[];
+}
+
 /** Configuração Global do Concurso (Contexto para IA) */
 export interface AthensConfig {
   targetRole: string;
@@ -133,6 +144,8 @@ export interface AthensConfig {
   banca?: string;
   editalText?: string; // Texto raw
   editalLink?: string;
+  // Edital Estruturado (Salvo após processamento da IA)
+  structuredEdital?: EditalDiscipline[];
   // Algoritmo Customizável
   algorithm?: AlgorithmConfig;
 }
@@ -188,6 +201,15 @@ export interface SavedReport {
   type: ReportType;
   summary: string;
   data: string | EditalAnalysisResult;
+}
+
+/** Entidade de Anotação Rápida (Post-it) */
+export interface Note {
+  id: string;
+  content: string;
+  color: 'yellow' | 'blue' | 'green' | 'pink' | 'purple' | 'slate';
+  createdAt: string;
+  updatedAt: string;
 }
 
 // --- CONSTANTES DE SCORE ---

@@ -106,11 +106,6 @@ export const Dashboard: React.FC = () => {
       const totalAcc = activeNotebooks.reduce((sum, n) => sum + n.accuracy, 0);
       const avgAccuracy = activeNotebooks.length > 0 ? Math.round(totalAcc / activeNotebooks.length) : 0;
       
-      // Mocking "Correct/Wrong" based on avg percentage for visual representation
-      const baseQuestions = activeNotebooks.length * 10; 
-      const estimatedCorrect = Math.round(baseQuestions * (avgAccuracy / 100));
-      const estimatedWrong = baseQuestions - estimatedCorrect;
-
       // 3. Progress
       const totalTopics = notebooks.filter(n => n.discipline !== 'Revisão Geral').length;
       const completedTopics = notebooks.filter(n => (n.status === 'Dominado' || n.accuracy >= n.targetAccuracy) && n.discipline !== 'Revisão Geral').length;
@@ -148,8 +143,6 @@ export const Dashboard: React.FC = () => {
       return {
           time: `${hours}h${mins > 0 ? mins + 'min' : ''}`,
           avgAccuracy,
-          estimatedCorrect,
-          estimatedWrong,
           completedTopics,
           pendingTopics: totalTopics - completedTopics,
           progressPercent,
@@ -385,9 +378,13 @@ export const Dashboard: React.FC = () => {
                   <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Desempenho</span>
               </div>
               <div className="flex justify-between items-end">
-                  <div className="flex flex-col">
-                      <span className="text-xs font-semibold text-emerald-600">~{metrics.estimatedCorrect} Acertos Est.</span>
-                      <span className="text-xs font-semibold text-red-500">~{metrics.estimatedWrong} Erros Est.</span>
+                  <div className="flex flex-col gap-0.5">
+                      <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
+                        {metrics.avgAccuracy}% Acertos (Média)
+                      </span>
+                      <span className="text-xs font-bold text-red-500 flex items-center gap-1">
+                        {metrics.avgAccuracy > 0 ? 100 - metrics.avgAccuracy : 0}% Erros (Média)
+                      </span>
                   </div>
                   <span className="text-4xl font-black text-slate-900">{metrics.avgAccuracy}%</span>
               </div>

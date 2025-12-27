@@ -4,7 +4,7 @@ import { Type } from "@google/genai";
 import { createAIClient } from '../utils/ai';
 import { EditalAnalysisResult, SavedReport } from '../types';
 import { 
-  Activity, BrainCircuit, Loader2, Sparkles, History, Save, TrendingUp, FileText, CheckSquare, Target, ListX, Trash2, PieChart as PieChartIcon, AlertTriangle, ExternalLink, RefreshCw
+  Activity, BrainCircuit, Loader2, Sparkles, History, Save, TrendingUp, FileText, CheckSquare, Target, ListX, Trash2, PieChart as PieChartIcon, AlertTriangle, ExternalLink, RefreshCw, Quote
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer 
@@ -80,9 +80,22 @@ export const Diagnostics: React.FC = () => {
 
       const ai = createAIClient();
       const prompt = `
-        Analise os dados deste aluno do "Projeto Atena" (Concurso: ${config.targetRole}).
-        DADOS: ${JSON.stringify(context, null, 2)}
-        Gere um relatório tático em Markdown (Pareto 80/20, Pontos Fortes, Zona de Perigo, Plano).
+        Atue como um Consultor de Elite para Concursos Públicos.
+        Analise os dados deste aluno (Concurso Alvo: ${config.targetRole}).
+        DADOS DO ALUNO: ${JSON.stringify(context, null, 2)}
+        
+        Gere um RELATÓRIO OFICIAL DE INTELIGÊNCIA em Markdown rico.
+        Estrutura Obrigatória:
+        1. **Sumário Executivo**: Visão geral em 1 parágrafo.
+        2. **Análise 80/20 (Pareto)**: Quais 20% das matérias vão gerar 80% do resultado agora.
+        3. **Zona de Perigo**: Onde o aluno vai reprovar se não ajustar (Baixa acurácia + Peso Alto).
+        4. **Plano de Ação Imediata**: 3 passos concretos para a próxima semana.
+        
+        Use formatação avançada:
+        - Use ## para títulos de seção (ex: "## 1. Sumário Executivo").
+        - Use > para insights ou frases de impacto.
+        - Use tabelas se necessário para comparar disciplinas.
+        - Use **negrito** para termos chave.
       `;
 
       const response = await ai.models.generateContent({
@@ -168,38 +181,89 @@ export const Diagnostics: React.FC = () => {
     }
   };
 
-  // Helper function for consistent Markdown rendering
+  // --- ENHANCED DIAGRAMAÇÃO (MARKDOWN RENDERER) ---
   const renderMarkdown = (text: string) => {
     return text.split('\n').map((line, i) => {
-        // Parse Bold (**text**)
-        const parseInline = (lineText: string) => {
-            return lineText.split(/\*\*(.*?)\*\*/g).map((part, index) => 
-                index % 2 === 1 ? <strong key={index} className="text-emerald-400 font-bold">{part}</strong> : part
-            );
-        };
-
         const trimmed = line.trim();
 
-        if (trimmed.startsWith('###')) {
-            return <h4 key={i} className="text-lg font-bold text-white mt-4 mb-2">{parseInline(trimmed.replace(/^###\s*/, ''))}</h4>;
-        }
-        if (trimmed.startsWith('##')) {
-            return <h3 key={i} className="text-xl font-bold text-emerald-400 mt-6 mb-3 border-b border-emerald-500/20 pb-2">{parseInline(trimmed.replace(/^##\s*/, ''))}</h3>;
-        }
-        if (trimmed.startsWith('# ')) {
-             return <h2 key={i} className="text-2xl font-black text-white mt-6 mb-4">{parseInline(trimmed.replace(/^#\s*/, ''))}</h2>;
-        }
-        if (trimmed.startsWith('-') || trimmed.startsWith('*')) {
+        // 1. Headers (H2 - Seções Principais)
+        if (trimmed.startsWith('## ')) {
             return (
-                <li key={i} className="flex gap-2 text-slate-300 ml-4 mb-2">
-                    <span className="text-emerald-500 mt-1.5 min-w-[6px] h-[6px] rounded-full bg-emerald-500 block"></span>
-                    <span className="flex-1">{parseInline(trimmed.replace(/^[-*]\s*/, ''))}</span>
-                </li>
+                <div key={i} className="mt-8 mb-4 border-l-4 border-emerald-500 pl-4 py-1 bg-gradient-to-r from-emerald-900/20 to-transparent rounded-r-lg">
+                    <h2 className="text-xl font-bold text-white tracking-wide uppercase">
+                        {trimmed.replace(/^##\s*/, '')}
+                    </h2>
+                </div>
             );
         }
-        if (!trimmed) return <div key={i} className="h-2" />;
-        
-        return <p key={i} className="text-slate-300 mb-2 leading-relaxed">{parseInline(line)}</p>;
+
+        // 2. Sub-headers (H3)
+        if (trimmed.startsWith('### ')) {
+            return (
+                <h3 key={i} className="text-lg font-semibold text-emerald-400 mt-6 mb-2 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+                    {trimmed.replace(/^###\s*/, '')}
+                </h3>
+            );
+        }
+
+        // 3. Lists (Bullet Points)
+        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+            const content = trimmed.replace(/^[-*]\s*/, '');
+            // Highlight strong text inside lists
+            const parts = content.split(/\*\*(.*?)\*\*/g);
+            return (
+                <div key={i} className="flex gap-3 ml-2 mb-2 group">
+                    <div className="mt-2 w-1.5 h-1.5 rounded-full bg-slate-600 group-hover:bg-emerald-400 transition-colors flex-shrink-0"></div>
+                    <p className="text-slate-300 leading-relaxed text-base flex-1">
+                        {parts.map((part, idx) => 
+                            idx % 2 === 1 ? <strong key={idx} className="text-white font-bold">{part}</strong> : part
+                        )}
+                    </p>
+                </div>
+            );
+        }
+
+        // 4. Blockquotes (Insights)
+        if (trimmed.startsWith('> ')) {
+            return (
+                <div key={i} className="my-6 relative pl-8 pr-4 py-4 bg-slate-800/50 rounded-r-xl border-l-2 border-emerald-500/50 italic text-slate-200">
+                    <Quote size={20} className="absolute left-2 top-2 text-emerald-500/20" />
+                    {trimmed.replace(/^>\s*/, '')}
+                </div>
+            );
+        }
+
+        // 5. Table Rows (Basic parsing)
+        if (trimmed.startsWith('|')) {
+            const cols = trimmed.split('|').filter(c => c.trim() !== '');
+            // Simple check to render table header vs row styled differently
+            const isHeader = line.includes('---');
+            if (isHeader) return null; // Skip separator line for now (simple renderer)
+            
+            // Very basic table row simulation
+            return (
+                <div key={i} className="grid grid-flow-col auto-cols-fr gap-4 border-b border-slate-700/50 py-2 text-sm text-slate-300 hover:bg-slate-800/30 px-2 rounded">
+                    {cols.map((col, idx) => (
+                        <div key={idx} className="truncate">{col.trim()}</div>
+                    ))}
+                </div>
+            );
+        }
+
+        // 6. Normal Paragraphs with Bold parsing
+        if (trimmed.length > 0) {
+            const parts = trimmed.split(/\*\*(.*?)\*\*/g);
+            return (
+                <p key={i} className="text-slate-300 mb-3 leading-7 text-base font-light">
+                    {parts.map((part, idx) => 
+                        idx % 2 === 1 ? <strong key={idx} className="text-emerald-300 font-bold bg-emerald-900/20 px-1 rounded">{part}</strong> : part
+                    )}
+                </p>
+            );
+        }
+
+        return <div key={i} className="h-2"></div>;
     });
   };
 
@@ -265,18 +329,26 @@ export const Diagnostics: React.FC = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-               <div className="lg:col-span-2 bg-slate-900 border border-slate-700 rounded-2xl p-8 shadow-2xl relative overflow-hidden">
+               <div className="lg:col-span-2 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl relative overflow-hidden">
+                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-cyan-500"></div>
                  <button onClick={handleSaveCurrentReport} className="absolute top-6 right-6 p-2 bg-slate-800 hover:bg-emerald-600 text-slate-400 hover:text-white rounded-lg transition-colors z-20"><Save size={20} /></button>
-                 <div className="prose prose-invert prose-emerald max-w-none">
+                 
+                 <div className="p-10 max-w-none">
+                    {/* Rendered Markdown Output */}
                     {renderMarkdown(tacticalAnalysis)}
                  </div>
                </div>
+               
                <div className="space-y-4">
-                 <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
-                    <h3 className="font-bold text-white mb-4">Resumo</h3>
-                    <p className="text-sm text-slate-400">Análise baseada em {notebooks.length} cadernos ativos.</p>
+                 <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 sticky top-6">
+                    <h3 className="font-bold text-white mb-4 text-lg">Resumo da Análise</h3>
+                    <div className="space-y-3 text-sm text-slate-400 mb-6">
+                        <div className="flex justify-between border-b border-slate-800 pb-2"><span>Disciplinas</span> <span className="text-white">{notebooks.length}</span></div>
+                        <div className="flex justify-between border-b border-slate-800 pb-2"><span>Perfil</span> <span className="text-white">{config.targetRole}</span></div>
+                        <div className="flex justify-between border-b border-slate-800 pb-2"><span>Data</span> <span className="text-white">{new Date().toLocaleDateString()}</span></div>
+                    </div>
+                    <button onClick={() => setTacticalAnalysis(null)} className="w-full py-3 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 font-medium border border-slate-700 transition-all hover:text-white">Nova Simulação</button>
                  </div>
-                 <button onClick={() => setTacticalAnalysis(null)} className="w-full py-3 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 font-medium">Nova Análise</button>
                </div>
             </div>
           )}

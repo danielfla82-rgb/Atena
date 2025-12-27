@@ -1,14 +1,104 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useCallback } from 'react';
 import { useStore } from '../store';
 import { 
     Trash2, Plus, Search, X, Link as LinkIcon, StickyNote, Pencil, 
     Image as ImageIcon, CalendarCheck, RefreshCw, Upload, Filter, 
-    ChevronRight, Layers, Square, CheckSquare, 
+    ChevronRight, ChevronLeft, Layers, Square, CheckSquare, 
     Circle, BookOpen, CheckCircle2, Siren, Star, Clock, Sparkles,
-    Calculator, Maximize2, FileCode, FileText, CalendarClock, ArrowDownUp
+    Calculator, Maximize2, FileCode, FileText, CalendarClock, ArrowDownUp,
+    ZoomIn, Flag, Save
 } from 'lucide-react';
 import { Weight, Relevance, Trend, Notebook, NotebookStatus } from '../types';
 import { calculateNextReview } from '../utils/algorithm';
+
+// --- SUB-COMPONENT: Status Badge ---
+const StatusBadge = ({ status }: { status: NotebookStatus }) => {
+    switch(status) {
+        case NotebookStatus.NOT_STARTED: 
+          return <span className="flex items-center gap-1 text-[10px] text-slate-500 bg-slate-800 px-2 py-0.5 rounded border border-slate-700"><Circle size={8} className="border border-slate-500 rounded-full" /> Não Iniciado</span>;
+        case NotebookStatus.THEORY_DONE: 
+          return <span className="flex items-center gap-1 text-[10px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20"><BookOpen size={10} /> Teoria OK</span>;
+        case NotebookStatus.REVIEWING: 
+          return <span className="flex items-center gap-1 text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20"><RefreshCw size={10} /> Revisando</span>;
+        case NotebookStatus.MASTERED: 
+          return <span className="flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20"><CheckCircle2 size={10} /> Dominado</span>;
+        default: return null;
+    }
+};
+
+// --- OPTIMIZATION: Memoized List Item ---
+const LibraryItem = React.memo(({ 
+    nb, 
+    isSelected, 
+    isExpanded, 
+    onToggleSelection, 
+    onToggleDetails, 
+    onEdit, 
+    showDate 
+}: { 
+    nb: Notebook; 
+    isSelected: boolean; 
+    isExpanded: boolean; 
+    onToggleSelection: (id: string) => void; 
+    onToggleDetails: (id: string) => void; 
+    onEdit: (nb: Notebook) => void;
+    showDate: boolean;
+}) => {
+    return (
+        <div 
+          className={`
+              p-3 pl-12 border-b border-slate-800/50 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors hover:bg-slate-800/20
+              ${isSelected ? 'bg-emerald-900/10' : ''}
+          `}
+        >
+            <div className="flex items-center gap-3 flex-1">
+                <button 
+                  onClick={() => onToggleSelection(nb.id)}
+                  className="text-slate-600 hover:text-emerald-500 transition-colors"
+                >
+                    {isSelected ? <CheckSquare size={16} className="text-emerald-500"/> : <Square size={16}/>}
+                </button>
+                <div>
+                    <div className="flex items-center gap-2">
+                        <h4 className="text-sm font-medium text-slate-300">{nb.name}</h4>
+                        {nb.subtitle && <span className="text-xs text-slate-500 hidden lg:inline-block">• {nb.subtitle}</span>}
+                        {nb.weekId && <span className="text-[9px] bg-slate-800 text-slate-400 px-1.5 rounded border border-slate-700">Planejado</span>}
+                    </div>
+                    
+                    {isExpanded && (
+                        <div className="mt-2 text-xs text-slate-500 flex gap-4 animate-in slide-in-from-top-1">
+                            <span>Peso: <strong className="text-slate-300">{nb.weight}</strong></span>
+                            <span>Relevância: <strong className="text-slate-300">{nb.relevance}</strong></span>
+                            <span>Última: <strong className="text-slate-300">{nb.lastPractice ? new Date(nb.lastPractice).toLocaleDateString() : '-'}</strong></span>
+                            {nb.nextReview && <span>Próx: <strong className="text-emerald-400">{new Date(nb.nextReview).toLocaleDateString()}</strong></span>}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <div className="flex items-center gap-3 pl-8 md:pl-0">
+                {showDate && nb.nextReview && (
+                    <span className="text-xs font-mono text-emerald-500 bg-emerald-900/10 px-2 py-0.5 rounded">
+                        {new Date(nb.nextReview).toLocaleDateString()}
+                    </span>
+                )}
+                <StatusBadge status={nb.status} />
+                <div className={`text-xs font-bold px-2 py-0.5 rounded border ${nb.accuracy < 60 ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
+                    {nb.accuracy}%
+                </div>
+                
+                <div className="flex items-center gap-1 border-l border-slate-800 pl-3 ml-2">
+                    <button onClick={() => onToggleDetails(nb.id)} className="p-1.5 text-slate-500 hover:text-white rounded hover:bg-slate-800" title="Ver Detalhes">
+                        <Maximize2 size={14} />
+                    </button>
+                    <button onClick={() => onEdit(nb)} className="p-1.5 text-slate-500 hover:text-emerald-400 rounded hover:bg-slate-800" title="Editar">
+                        <Pencil size={14} />
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+});
 
 export const Library: React.FC = () => {
   const { notebooks, deleteNotebook, addNotebook, editNotebook, bulkUpdateNotebooks, config } = useStore();
@@ -24,8 +114,9 @@ export const Library: React.FC = () => {
 
   // Bulk Selection State
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [bulkActionOpen, setBulkActionOpen] = useState(false);
-  const [bulkActionType, setBulkActionType] = useState<'WEIGHT' | 'STATUS' | 'DELETE' | null>(null);
+  
+  // Gallery State (Lightbox)
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   // Create/Edit Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -34,7 +125,7 @@ export const Library: React.FC = () => {
   const initialFormState = {
     discipline: '', name: '', subtitle: '', tecLink: '', obsidianLink: '', accuracy: 0, targetAccuracy: 90, 
     weight: Weight.MEDIO, relevance: Relevance.MEDIA, trend: Trend.ESTAVEL, 
-    status: NotebookStatus.NOT_STARTED, notes: '', image: '',
+    status: NotebookStatus.NOT_STARTED, notes: '', images: [] as string[],
     lastPractice: new Date().toISOString().split('T')[0] 
   };
 
@@ -86,11 +177,12 @@ export const Library: React.FC = () => {
     return result;
   }, [notebooks, searchTerm, activeFilter, sortByReview]);
 
+  const existingDisciplines = useMemo(() => {
+    return Array.from(new Set(notebooks.map(n => n.discipline))).sort();
+  }, [notebooks]);
+
   // --- GROUPING LOGIC (HIERARCHY) ---
   const groupedData = useMemo(() => {
-      // If sorting by date, we might want to disable grouping or handle it differently.
-      // For now, we keep grouping but the items inside are sorted if sortByReview is true.
-      
       const groups: Record<string, Notebook[]> = {};
       const stats: Record<string, { total: number, done: number, avgAcc: number }> = {};
 
@@ -112,56 +204,91 @@ export const Library: React.FC = () => {
           stats[d].avgAcc = Math.round(stats[d].avgAcc / stats[d].total);
       });
 
-      // Sort keys alphabetically unless specific sort
       const sortedKeys = Object.keys(groups).sort();
       return { groups, stats, sortedKeys };
   }, [filteredNotebooks]);
   
-  const existingDisciplines = useMemo(() => {
-    return Array.from(new Set(notebooks.map(n => n.discipline))).sort();
-  }, [notebooks]);
-
   // --- HANDLERS ---
-  const toggleDiscipline = (discipline: string) => {
-      const newSet = new Set(expandedDisciplines);
-      if (newSet.has(discipline)) newSet.delete(discipline);
-      else newSet.add(discipline);
-      setExpandedDisciplines(newSet);
-  };
+  const toggleDiscipline = useCallback((discipline: string) => {
+      setExpandedDisciplines(prev => {
+          const newSet = new Set(prev);
+          if (newSet.has(discipline)) newSet.delete(discipline);
+          else newSet.add(discipline);
+          return newSet;
+      });
+  }, []);
 
-  const toggleDetails = (id: string) => {
+  const toggleDetails = useCallback((id: string) => {
       setExpandedDetailsId(prev => prev === id ? null : id);
-  };
+  }, []);
 
-  const toggleSelection = (id: string) => {
-      const newSet = new Set(selectedIds);
-      if (newSet.has(id)) newSet.delete(id);
-      else newSet.add(id);
-      setSelectedIds(newSet);
-  };
+  const toggleSelection = useCallback((id: string) => {
+      setSelectedIds(prev => {
+          const newSet = new Set(prev);
+          if (newSet.has(id)) newSet.delete(id);
+          else newSet.add(id);
+          return newSet;
+      });
+  }, []);
 
-  const toggleGroupSelection = (discipline: string) => {
-      const groupIds = groupedData.groups[discipline].map(n => n.id);
-      const allSelected = groupIds.every(id => selectedIds.has(id));
-      
-      const newSet = new Set(selectedIds);
-      if (allSelected) {
-          groupIds.forEach(id => newSet.delete(id));
-      } else {
-          groupIds.forEach(id => newSet.add(id));
-      }
-      setSelectedIds(newSet);
-  };
+  const toggleGroupSelection = useCallback((discipline: string) => {
+      const groupIds = groupedData.groups[discipline]?.map(n => n.id) || [];
+      setSelectedIds(prev => {
+          const allSelected = groupIds.every(id => prev.has(id));
+          const newSet = new Set(prev);
+          if (allSelected) {
+              groupIds.forEach(id => newSet.delete(id));
+          } else {
+              groupIds.forEach(id => newSet.add(id));
+          }
+          return newSet;
+      });
+  }, [groupedData]);
 
   // --- MODAL HANDLERS ---
+  const handleChange = (field: string, value: any) => setFormData(prev => ({ ...prev, [field]: value }));
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      (Array.from(files) as File[]).forEach(file => {
+          if (file.size > 2 * 1024 * 1024) { alert("Imagem muito grande (>2MB)."); return; }
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            if(reader.result) setFormData(prev => ({ ...prev, images: [...prev.images, reader.result as string] }));
+          };
+          reader.readAsDataURL(file);
+      });
+    }
+  };
+
+  const removeImage = (index: number) => {
+      setFormData(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== index) }));
+  };
+
+  const handleNotStudied = () => {
+     setFormData(prev => ({ ...prev, accuracy: 0, status: NotebookStatus.NOT_STARTED }));
+  };
+
+  const navigateLightbox = (direction: 'next' | 'prev') => {
+      if (lightboxIndex === null) return;
+      if (direction === 'next') setLightboxIndex((lightboxIndex + 1) % formData.images.length);
+      else setLightboxIndex((lightboxIndex - 1 + formData.images.length) % formData.images.length);
+  };
+
   const openCreateModal = () => { setEditingId(null); setFormData(initialFormState); setIsModalOpen(true); };
-  const openEditModal = (nb: Notebook) => {
+  
+  const openEditModal = useCallback((nb: Notebook) => {
       setEditingId(nb.id);
       let safeDate = new Date().toISOString().split('T')[0];
       if (nb.lastPractice) {
           const check = new Date(nb.lastPractice);
           if (!isNaN(check.getTime())) safeDate = nb.lastPractice.split('T')[0];
       }
+      
+      let currentImages = nb.images || [];
+      if (currentImages.length === 0 && nb.image) currentImages = [nb.image];
+
       setFormData({
           discipline: nb.discipline,
           name: nb.name,
@@ -175,11 +302,11 @@ export const Library: React.FC = () => {
           trend: nb.trend,
           status: nb.status || NotebookStatus.NOT_STARTED,
           notes: nb.notes || '',
-          image: nb.image || '', // Legacy
+          images: currentImages,
           lastPractice: safeDate
       });
       setIsModalOpen(true);
-  };
+  }, []);
   
   const handleSave = (e: React.FormEvent) => {
       e.preventDefault();
@@ -198,24 +325,28 @@ export const Library: React.FC = () => {
       setIsModalOpen(false);
   };
 
-  // --- COMPONENTS ---
-  const StatusBadge = ({ status }: { status: NotebookStatus }) => {
-      switch(status) {
-          case NotebookStatus.NOT_STARTED: 
-            return <span className="flex items-center gap-1 text-[10px] text-slate-500 bg-slate-800 px-2 py-0.5 rounded border border-slate-700"><Circle size={8} className="border border-slate-500 rounded-full" /> Não Iniciado</span>;
-          case NotebookStatus.THEORY_DONE: 
-            return <span className="flex items-center gap-1 text-[10px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20"><BookOpen size={10} /> Teoria OK</span>;
-          case NotebookStatus.REVIEWING: 
-            return <span className="flex items-center gap-1 text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20"><RefreshCw size={10} /> Revisando</span>;
-          case NotebookStatus.MASTERED: 
-            return <span className="flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20"><CheckCircle2 size={10} /> Dominado</span>;
-          default: return null;
-      }
-  };
-
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 h-[calc(100vh-80px)] flex flex-col relative">
       
+      {/* LIGHTBOX */}
+      {lightboxIndex !== null && (
+          <div className="fixed inset-0 z-[60] bg-slate-950/95 flex items-center justify-center p-4 backdrop-blur-sm">
+             <button onClick={() => setLightboxIndex(null)} className="absolute top-4 right-4 text-white hover:text-emerald-500 z-50"><X size={32} /></button>
+             
+             {formData.images.length > 1 && (
+                 <>
+                    <button onClick={() => navigateLightbox('prev')} className="absolute left-4 p-2 bg-slate-800/50 rounded-full hover:bg-emerald-600 text-white"><ChevronLeft size={32}/></button>
+                    <button onClick={() => navigateLightbox('next')} className="absolute right-4 p-2 bg-slate-800/50 rounded-full hover:bg-emerald-600 text-white"><ChevronRight size={32}/></button>
+                 </>
+             )}
+
+             <img src={formData.images[lightboxIndex]} className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" />
+             <div className="absolute bottom-4 bg-black/50 px-4 py-1 rounded-full text-white text-sm">
+                 {lightboxIndex + 1} / {formData.images.length}
+             </div>
+          </div>
+      )}
+
       {/* HEADER */}
       <div className="flex justify-between items-center">
         <div>
@@ -265,10 +396,7 @@ export const Library: React.FC = () => {
           {groupedData.sortedKeys.map(discipline => {
               const stats = groupedData.stats[discipline];
               const progress = Math.round((stats.done / stats.total) * 100);
-              const isExpanded = expandedDisciplines.has(discipline) || sortByReview; // Auto-expand if sorting flat
-
-              // Se estiver ordenando por data, talvez não queira mostrar o header da disciplina se estiver misturado
-              // Mas aqui mantemos a estrutura hierárquica, apenas a ordem interna muda.
+              const isExpanded = expandedDisciplines.has(discipline) || sortByReview; 
               
               return (
                   <div key={discipline} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden transition-all">
@@ -307,63 +435,20 @@ export const Library: React.FC = () => {
                           </div>
                       </div>
 
-                      {/* Items List */}
+                      {/* Items List (Memoized via LibraryItem) */}
                       {isExpanded && (
                           <div className="border-t border-slate-800">
                               {groupedData.groups[discipline].map(nb => (
-                                  <div 
+                                  <LibraryItem 
                                     key={nb.id} 
-                                    className={`
-                                        p-3 pl-12 border-b border-slate-800/50 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors hover:bg-slate-800/20
-                                        ${selectedIds.has(nb.id) ? 'bg-emerald-900/10' : ''}
-                                    `}
-                                  >
-                                      <div className="flex items-center gap-3 flex-1">
-                                          <button 
-                                            onClick={() => toggleSelection(nb.id)}
-                                            className="text-slate-600 hover:text-emerald-500 transition-colors"
-                                          >
-                                              {selectedIds.has(nb.id) ? <CheckSquare size={16} className="text-emerald-500"/> : <Square size={16}/>}
-                                          </button>
-                                          <div>
-                                              <div className="flex items-center gap-2">
-                                                  <h4 className="text-sm font-medium text-slate-300">{nb.name}</h4>
-                                                  {nb.subtitle && <span className="text-xs text-slate-500 hidden lg:inline-block">• {nb.subtitle}</span>}
-                                                  {nb.weekId && <span className="text-[9px] bg-slate-800 text-slate-400 px-1.5 rounded border border-slate-700">Planejado</span>}
-                                              </div>
-                                              
-                                              {expandedDetailsId === nb.id && (
-                                                  <div className="mt-2 text-xs text-slate-500 flex gap-4 animate-in slide-in-from-top-1">
-                                                      <span>Peso: <strong className="text-slate-300">{nb.weight}</strong></span>
-                                                      <span>Relevância: <strong className="text-slate-300">{nb.relevance}</strong></span>
-                                                      <span>Última: <strong className="text-slate-300">{nb.lastPractice ? new Date(nb.lastPractice).toLocaleDateString() : '-'}</strong></span>
-                                                      {nb.nextReview && <span>Próx: <strong className="text-emerald-400">{new Date(nb.nextReview).toLocaleDateString()}</strong></span>}
-                                                  </div>
-                                              )}
-                                          </div>
-                                      </div>
-
-                                      <div className="flex items-center gap-3 pl-8 md:pl-0">
-                                          {sortByReview && nb.nextReview && (
-                                              <span className="text-xs font-mono text-emerald-500 bg-emerald-900/10 px-2 py-0.5 rounded">
-                                                  {new Date(nb.nextReview).toLocaleDateString()}
-                                              </span>
-                                          )}
-                                          <StatusBadge status={nb.status} />
-                                          <div className={`text-xs font-bold px-2 py-0.5 rounded border ${nb.accuracy < 60 ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
-                                              {nb.accuracy}%
-                                          </div>
-                                          
-                                          <div className="flex items-center gap-1 border-l border-slate-800 pl-3 ml-2">
-                                              <button onClick={() => toggleDetails(nb.id)} className="p-1.5 text-slate-500 hover:text-white rounded hover:bg-slate-800" title="Ver Detalhes">
-                                                  <Maximize2 size={14} />
-                                              </button>
-                                              <button onClick={() => openEditModal(nb)} className="p-1.5 text-slate-500 hover:text-emerald-400 rounded hover:bg-slate-800" title="Editar">
-                                                  <Pencil size={14} />
-                                              </button>
-                                          </div>
-                                      </div>
-                                  </div>
+                                    nb={nb}
+                                    isSelected={selectedIds.has(nb.id)}
+                                    isExpanded={expandedDetailsId === nb.id}
+                                    onToggleSelection={toggleSelection}
+                                    onToggleDetails={toggleDetails}
+                                    onEdit={openEditModal}
+                                    showDate={sortByReview}
+                                  />
                               ))}
                           </div>
                       )}
@@ -379,22 +464,78 @@ export const Library: React.FC = () => {
           )}
       </div>
 
-      {/* Modal is essentially same logic as Setup.tsx Modal but simplified here for brevity. 
-          Assuming Setup.tsx modal will handle the main "new features" request.
-      */}
+      {/* FULL EDIT MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
-                <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900">
-                    <h3 className="text-xl font-bold text-white">Editar Caderno</h3>
-                    <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white"><X size={24} /></button>
-                </div>
-                {/* Simplified form for Library view - functionality mirrors Setup.tsx */}
-                <form onSubmit={handleSave} className="p-6 space-y-4">
-                     <div><label className="text-xs text-slate-500">Nome</label><input className="w-full bg-slate-800 p-2 rounded text-white" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} /></div>
-                     <button type="submit" className="bg-emerald-600 text-white px-4 py-2 rounded">Salvar</button>
-                </form>
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2"><Pencil size={20} className="text-emerald-500"/> {editingId ? 'Editar Caderno' : 'Novo Caderno'}</h3>
+                <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white"><X size={24} /></button>
             </div>
+            <form onSubmit={handleSave} className="overflow-y-auto p-6 space-y-6 custom-scrollbar">
+              <div className="space-y-4">
+                  <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">1. Identificação</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Disciplina</label><input required list="disciplines" value={formData.discipline} onChange={e => handleChange('discipline', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /><datalist id="disciplines">{existingDisciplines.map(d => <option key={d} value={d} />)}</datalist></div>
+                    <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Nome do Tópico</label><input required value={formData.name} onChange={e => handleChange('name', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /></div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Subtópico / Foco</label><input value={formData.subtitle} onChange={e => handleChange('subtitle', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /></div>
+                    <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Link do Caderno</label><div className="relative"><LinkIcon className="absolute left-3 top-3.5 text-slate-500" size={16} /><input type="url" value={formData.tecLink} onChange={e => handleChange('tecLink', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 pl-10 text-white outline-none focus:border-emerald-500" /></div></div>
+                  </div>
+              </div>
+              <div className="space-y-4 pt-2">
+                  <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">2. Estratégia & Performance</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div><label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Peso</label><select value={formData.weight} onChange={(e) => handleChange('weight', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm">{Object.values(Weight).map(w => <option key={w} value={w}>{w}</option>)}</select></div>
+                      <div><label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Relevância</label><select value={formData.relevance} onChange={(e) => handleChange('relevance', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm">{Object.values(Relevance).map(r => <option key={r} value={r}>{r}</option>)}</select></div>
+                      <div><label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Tendência</label><select value={formData.trend} onChange={(e) => handleChange('trend', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm">{Object.values(Trend).map(t => <option key={t} value={t}>{t}</option>)}</select></div>
+                      <div><label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Meta (%)</label><input type="number" min="0" max="100" value={formData.targetAccuracy} onChange={e => handleChange('targetAccuracy', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm text-center font-bold" /></div>
+                  </div>
+                  <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex flex-col md:flex-row items-center gap-4">
+                      <div className="flex-1 w-full">
+                         <label className="block text-[10px] font-bold text-emerald-400 mb-1 uppercase">Taxa de Acerto Atual (%)</label>
+                         <input type="number" min="0" max="100" value={formData.accuracy} onChange={e => handleChange('accuracy', e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-lg p-2 text-white font-mono text-center font-bold text-lg focus:border-emerald-500 outline-none" />
+                      </div>
+                      <div className="flex-1 w-full flex gap-2">
+                         <button type="button" onClick={handleNotStudied} className="flex-1 py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 font-bold text-sm bg-slate-700 hover:bg-slate-600 text-slate-200 transition-all border border-slate-600">
+                            <Flag size={16} /> Não estudei
+                         </button>
+                      </div>
+                  </div>
+              </div>
+              <div className="space-y-4 pt-2">
+                <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">3. Rascunhos & Anotações</h4>
+                <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Obsidian / Notion</label><div className="relative"><FileCode className="absolute left-3 top-3.5 text-slate-500" size={16} /><input type="url" value={formData.obsidianLink} onChange={e => handleChange('obsidianLink', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 pl-10 text-white outline-none focus:border-emerald-500" placeholder="obsidian://open?vault=..." /></div></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Anotações / Resumo</label><textarea value={formData.notes} onChange={e => handleChange('notes', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500 transition-all min-h-[200px] resize-none text-sm" placeholder="Mnemônicos..." /></div>
+                    <div className="flex flex-col h-full">
+                        <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Galeria de Mapas Mentais</label>
+                        <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 min-h-[200px] flex flex-col">
+                            <div className="grid grid-cols-3 gap-2 mb-3">
+                                {formData.images.map((img, idx) => (
+                                    <div key={idx} className="relative group aspect-square bg-slate-900 rounded-lg overflow-hidden border border-slate-700 hover:border-emerald-500 transition-colors cursor-pointer">
+                                        <img src={img} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" onClick={() => setLightboxIndex(idx)} />
+                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 pointer-events-none"><ZoomIn size={16} className="text-white" /></div>
+                                        <button type="button" onClick={(e) => { e.stopPropagation(); removeImage(idx); }} className="absolute top-1 right-1 bg-red-600 hover:bg-red-500 text-white rounded p-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto"><Trash2 size={12} /></button>
+                                    </div>
+                                ))}
+                                <div onClick={() => fileInputRef.current?.click()} className="aspect-square border-2 border-dashed border-slate-700 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-emerald-500 hover:bg-slate-700/50 transition-colors text-slate-500 hover:text-emerald-500"><Plus size={24} /><span className="text-[10px] uppercase font-bold mt-1">Add Imagem</span></div>
+                            </div>
+                            <input type="file" ref={fileInputRef} className="hidden" accept="image/*" multiple onChange={handleImageUpload} />
+                            <p className="text-[10px] text-slate-500 mt-auto text-center italic">Suporta múltiplas imagens. Clique em uma imagem para ampliar.</p>
+                        </div>
+                    </div>
+                </div>
+              </div>
+            </form>
+            <div className="p-6 border-t border-slate-800 bg-slate-900 flex gap-4">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 bg-slate-800 text-slate-300 py-3 rounded-xl hover:bg-slate-700 font-medium transition-colors">Cancelar</button>
+                <button type="button" onClick={handleSave} className="flex-1 bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-500 font-bold shadow-lg shadow-emerald-900/20 transition-all flex items-center justify-center gap-2">
+                    <Save size={18} /> Salvar Alterações
+                </button>
+            </div>
+          </div>
         </div>
       )}
 

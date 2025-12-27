@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { Loader2, Mail, Lock, UserPlus, LogIn, KeyRound, WifiOff, User } from 'lucide-react';
+import { Loader2, Mail, Lock, UserPlus, LogIn, KeyRound, WifiOff, User, AlertTriangle, ExternalLink } from 'lucide-react';
 import { Logo } from './Logo';
 import { supabase } from '../lib/supabase';
 import { useStore } from '../store';
@@ -27,7 +26,7 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [message, setMessage] = useState<{text: string, type: 'error' | 'success'} | null>(null);
+  const [message, setMessage] = useState<{text: string, type: 'error' | 'success' | 'info'} | null>(null);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,16 +53,34 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
   const handleGoogleLogin = async () => {
     setLoading(true);
     setMessage(null);
+    const origin = window.location.origin;
+    
     try {
         const { error } = await supabase.auth.signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: window.location.origin
+                redirectTo: origin
             }
         });
+        
         if (error) throw error;
+        
+        // Se não houver erro imediato, o redirecionamento acontecerá.
+        // Se o usuário ver a mensagem abaixo, algo bloqueou o popup ou redirect
+        setMessage({ text: "Redirecionando para Google...", type: 'info' });
+
     } catch (error: any) {
-        setMessage({ text: "Erro ao conectar com Google: " + error.message, type: 'error' });
+        console.error("Google Auth Error:", error);
+        
+        let hint = "";
+        if (error.message?.includes("configuration")) {
+            hint = "Verifique se o Google Provider está habilitado no painel do Supabase.";
+        }
+        
+        setMessage({ 
+            text: `Erro ao conectar: ${error.message}. ${hint}`, 
+            type: 'error' 
+        });
         setLoading(false);
     }
   };
@@ -92,7 +109,7 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
         </h1>
         
         <p className="text-slate-400 mb-8 text-lg font-light tracking-wide">
-          Plataforma de planejamento para concurso
+          Plataforma de planejamento para concurseiros de elite. <span className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full border border-slate-700 ml-2 align-middle font-mono">v3.3.0</span>
         </p>
 
         <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm">
@@ -130,8 +147,21 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
                </div>
 
                {message && (
-                   <div className={`text-xs p-3 rounded-lg text-left ${message.type === 'error' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}`}>
-                       {message.text}
+                   <div className={`text-xs p-3 rounded-lg text-left flex flex-col gap-1 
+                       ${message.type === 'error' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 
+                         message.type === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
+                         'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
+                       <span className="font-bold flex items-center gap-1">
+                           {message.type === 'error' && <AlertTriangle size={12}/>}
+                           {message.text}
+                       </span>
+                       {message.type === 'error' && message.text.includes("Google") && (
+                           <div className="mt-1 pt-1 border-t border-red-500/20 text-[10px] opacity-80">
+                               <strong>Dica Técnica:</strong> No painel do Supabase, vá em <em>Authentication &gt; URL Configuration</em> e adicione: <br/>
+                               <code className="bg-black/30 px-1 rounded">{window.location.origin}</code> <br/>
+                               na lista de "Redirect URLs".
+                           </div>
+                       )}
                    </div>
                )}
 
@@ -140,7 +170,7 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
                  disabled={loading}
                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-900/20 mt-4"
                >
-                 {loading ? <Loader2 className="animate-spin" /> : isSignUp ? <UserPlus size={18} /> : <LogIn size={18} />}
+                 {loading && !message?.text.includes("Google") ? <Loader2 className="animate-spin" /> : isSignUp ? <UserPlus size={18} /> : <LogIn size={18} />}
                  {isSignUp ? "Criar Conta" : "Acessar Sistema"}
                </button>
            </form>

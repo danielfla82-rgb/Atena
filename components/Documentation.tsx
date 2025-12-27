@@ -11,11 +11,11 @@ export const Documentation: React.FC = () => {
           <h1 className="text-3xl font-bold text-white flex items-center gap-3">
             <Book className="text-emerald-500" /> Documentação Técnica
           </h1>
-          <p className="text-slate-400 mt-2 text-lg">Projeto Atena (GurujaApp) <span className="text-xs bg-emerald-900/30 text-emerald-400 px-2 py-0.5 rounded border border-emerald-900/50 font-bold ml-2">v3.2.0</span></p>
+          <p className="text-slate-400 mt-2 text-lg">Projeto Atena (GurujaApp) <span className="text-xs bg-emerald-900/30 text-emerald-400 px-2 py-0.5 rounded border border-emerald-900/50 font-bold ml-2">v3.3.0</span></p>
         </div>
         <div className="text-right hidden md:block">
             <p className="text-xs text-slate-500 uppercase font-bold tracking-widest">Última Atualização</p>
-            <p className="text-slate-300 font-mono">Olympus Edition</p>
+            <p className="text-slate-300 font-mono">Elite OS Edition</p>
         </div>
       </div>
 
@@ -186,47 +186,47 @@ Ajuste Fino (Multiplicadores):
               </div>
 
               <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-                   {/* v3.2.0 */}
+                   {/* v3.3.0 */}
                    <div className="p-6 border-b border-slate-800">
                       <div className="flex justify-between items-start mb-4">
                           <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                              <span className="bg-emerald-600 text-white px-2 py-0.5 rounded text-xs shadow-lg shadow-emerald-900/50">v3.2.0</span> 
-                              Olympus Performance
+                              <span className="bg-emerald-600 text-white px-2 py-0.5 rounded text-xs shadow-lg shadow-emerald-900/50">v3.3.0</span> 
+                              Elite OS Update
                           </h3>
                           <span className="text-xs text-slate-500 font-mono">Current Stable</span>
                       </div>
                       <ul className="space-y-3">
                           <ChangelogItem 
-                            type="core" 
-                            desc="[Otimização] Implementação de React.memo no sistema de cartões do Planejamento para eliminar travamentos durante o Drag-and-Drop." 
+                            type="ui" 
+                            desc="[UI/UX] Redesign completo do bloco de navegação lateral para estética 'Command Center' mais profissional." 
                           />
                           <ChangelogItem 
                             type="feat" 
-                            desc="[Smart Filter] Melhoria no algoritmo de normalização de texto (Regex) para ignorar formatações quebradas ao colar Editais PDF." 
+                            desc="[Anotações] Módulo de Post-its (Anotações Rápidas) agora persistente e integrado." 
+                          />
+                          <ChangelogItem 
+                            type="core" 
+                            desc="[Otimização] Refatoração de tipos no Store e correções de tipagem no componente de Notas." 
                           />
                       </ul>
                   </div>
 
-                   {/* v3.0.0 */}
+                   {/* v3.2.1 */}
                    <div className="p-6 border-b border-slate-800 bg-slate-950/30">
                       <div className="flex justify-between items-start mb-4">
                           <h3 className="text-lg font-bold text-slate-300 flex items-center gap-2">
-                              <span className="bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-xs border border-slate-600">v3.0.0</span> 
-                              Olympus Edition
+                              <span className="bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-xs border border-slate-600">v3.2.1</span> 
+                              Olympus Performance + Fixes
                           </h3>
                       </div>
                       <ul className="space-y-3">
                           <ChangelogItem 
-                            type="feat" 
-                            desc="[Edital Verticalizado] Módulo completo de auditoria de tópicos com sugestões inteligentes baseadas em Peso/Relevância." 
-                          />
-                          <ChangelogItem 
-                            type="ui" 
-                            desc="[Interface] Melhorias significativas na diagramação de textos (Markdown Parser) em Dicas e Notícias." 
+                            type="fix" 
+                            desc="[Auth] Tratamento de erro detalhado para login social (Google). Adicionado helper visual para erro de configuração de URL no Supabase." 
                           />
                           <ChangelogItem 
                             type="core" 
-                            desc="[Planejamento] Cálculo automático de semanas restantes baseado na data da prova." 
+                            desc="[Library] Implementação de 'LibraryItem' com React.memo para virtualização e performance extrema em listas longas." 
                           />
                       </ul>
                   </div>

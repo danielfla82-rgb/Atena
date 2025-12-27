@@ -1,6 +1,6 @@
 {
-  "name": "Projeto Atena v3.2 (Olympus Edition)",
-  "description": "Plataforma SaaS de alta performance para concurseiros de elite. Versão 3.2. Stack: React 19 + Tailwind + Lucide. Changelog: [PERF] React.memo em listas longas (Setup), [CORE] Refinamento de Regex no Smart Filter, [DOCS] Atualização de changelog.",
+  "name": "Projeto Atena v3.3.0 (Elite OS)",
+  "description": "Plataforma SaaS de alta performance. v3.3.0: [UI] Redesign do header e navegação para estética 'Command Center'. [CORE] Otimização de renderização e estabilidade do sistema. [FIX] Varredura de bugs em transições.",
   "requestFramePermissions": [
     "microphone"
   ]

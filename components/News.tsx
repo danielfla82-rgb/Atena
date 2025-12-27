@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useStore } from '../store';
 import { createAIClient } from '../utils/ai';
-import { Newspaper, ExternalLink, RefreshCw, Globe, AlertTriangle, Radio, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { Newspaper, ExternalLink, RefreshCw, Globe, AlertTriangle, Radio, ShieldAlert, CheckCircle2, SearchX } from 'lucide-react';
 
 interface GroundingSource {
   title: string;
@@ -22,7 +22,7 @@ export const News: React.FC = () => {
   const STATIC_BRIEFING = `
 ### Panorama Estratégico (Modo de Segurança)
 
-**Atenção:** O sistema de Inteligência Artificial está operando em modo restrito (API não ativada ou Chave Inválida). Exibindo dados de referência para ${config.targetRole}.
+**Atenção:** O sistema de Inteligência Artificial está operando em modo restrito (API não ativada, Chave Inválida ou Cota Excedida). Exibindo dados de referência para ${config.targetRole}.
 
 ## 1. Perfil da Banca (Tendência Geral)
 *   **Português:** Foco em interpretação de texto complexa e reescrita de frases. A gramática é cobrada de forma contextual.
@@ -52,6 +52,7 @@ Aumente a carga horária em **resolução de questões** e reduza a leitura pass
         Atue como Analista de Inteligência de Concursos (Alvo: ${config.targetRole}).
         Faça uma varredura nas últimas notícias sobre este concurso ou área.
         Busque: Movimentações de bancas, autorizações, boatos políticos e editais recentes.
+        IMPORTANTE: Se não houver notícias desta semana, forneça um panorama do status atual do concurso.
         Formato: Briefing Tático em Markdown.
       `;
 
@@ -93,17 +94,29 @@ Aumente a carga horária em **resolução de questões** e reduza a leitura pass
       console.warn("Falha no Google Search (Live Mode).", error);
       const errStr = JSON.stringify(error);
       
-      if (errStr.includes("SERVICE_DISABLED") || errStr.includes("Generative Language API has not been used") || errStr.includes("API_KEY") || error.status === 403) {
+      // Categorização robusta de erros de API
+      const isQuotaError = error.status === 429 || errStr.includes("429") || errStr.includes("quota");
+      const isKeyError = errStr.includes("API_KEY") || error.status === 403;
+      const isServiceError = errStr.includes("SERVICE_DISABLED") || errStr.includes("Generative Language API");
+
+      if (isQuotaError || isKeyError || isServiceError) {
           setMode('demo');
           setBriefing(STATIC_BRIEFING);
           setLastUpdate(new Date().toLocaleTimeString());
-          setErrorDetail("⚠️ API Google Cloud não ativada ou Chave Incorreta.");
+          
+          let msg = "Erro de configuração da API.";
+          if (isQuotaError) msg = "Cota da API excedida (429). Tente novamente mais tarde.";
+          if (isKeyError) msg = "Chave de API inválida ou sem permissão.";
+          if (isServiceError) msg = "API Google Search Grounding não ativada no GCP.";
+          
+          setErrorDetail(msg);
       } else {
+          // Erros genéricos (Timeout, Network, Model Confusion) caem para Offline Mode (Base de Conhecimento do Modelo)
           setMode('offline');
           try {
               const promptFallback = `
                 Atue como Mentor de Concursos para o cargo: ${config.targetRole}.
-                Como não conseguimos acessar as notícias em tempo real agora, forneça um:
+                Como não conseguimos acessar as notícias em tempo real agora (Erro de Busca), forneça um:
                 "Panorama Estratégico Atemporal"
                 1. O que geralmente é cobrado para este cargo?
                 2. Qual o perfil das bancas mais prováveis?
@@ -118,6 +131,7 @@ Aumente a carga horária em **resolução de questões** e reduza a leitura pass
 
               setBriefing(fallbackResponse.text || "Sem dados disponíveis.");
               setLastUpdate(new Date().toLocaleTimeString());
+              setErrorDetail("Falha na busca web. Exibindo conhecimento da base de dados do modelo.");
               
           } catch (fallbackError: any) {
               setMode('demo');
@@ -195,13 +209,27 @@ Aumente a carga horária em **resolução de questões** e reduza a leitura pass
           <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl relative flex flex-col">
               <div className="absolute top-0 right-0 p-4 opacity-10"><Globe size={120} /></div>
               
-              <div className="flex items-center justify-between mb-6 z-10 relative">
+              <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 z-10 relative gap-2">
                   <h3 className="text-cyan-500 font-bold uppercase tracking-widest text-xs flex items-center gap-2">
                       <span className={`w-2 h-2 rounded-full ${loading ? 'bg-slate-500' : mode === 'live' ? 'bg-green-500 animate-pulse' : mode === 'offline' ? 'bg-amber-500' : 'bg-red-500'}`}></span> 
                       {loading ? 'Sincronizando Satélite...' : mode === 'live' ? 'Conexão Viva (Live Web)' : mode === 'offline' ? 'Modo Offline (Base Interna)' : 'Modo Demonstração (Estático)'}
                   </h3>
-                  <span className="text-[10px] text-slate-500 font-mono">{lastUpdate}</span>
+                  {lastUpdate && <span className="text-[10px] text-slate-500 font-mono">Atualizado: {lastUpdate}</span>}
               </div>
+
+              {errorDetail && mode !== 'live' && (
+                  <div className={`mb-6 p-4 rounded-xl text-xs flex flex-col gap-2 z-10 relative
+                      ${mode === 'demo' ? 'bg-red-900/20 border border-red-500/20 text-red-200' : 'bg-amber-900/20 border border-amber-500/20 text-amber-200'}
+                  `}>
+                      <div className="flex items-center gap-2 font-bold"><AlertTriangle size={16} /> Status do Sistema</div>
+                      <p>{errorDetail}</p>
+                      {mode === 'demo' && (
+                          <div className="flex items-center gap-3 mt-2">
+                              <a href="https://console.developers.google.com/apis/api/generativelanguage.googleapis.com/overview" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">Verificar Console Google</a>
+                          </div>
+                      )}
+                  </div>
+              )}
 
               <div className="flex-1 overflow-y-auto custom-scrollbar z-10 pr-2">
                   {loading ? (
@@ -212,32 +240,6 @@ Aumente a carga horária em **resolução de questões** e reduza a leitura pass
                       </div>
                   ) : briefing ? (
                       <div className="text-sm md:text-base">
-                          {mode === 'offline' && (
-                              <div className="mb-4 p-3 bg-amber-900/20 border border-amber-500/20 rounded-lg text-amber-200 text-xs flex items-center gap-2">
-                                  <Radio size={14} />
-                                  <span>O acesso em tempo real à web foi interrompido. Exibindo análise estratégica baseada em dados históricos.</span>
-                              </div>
-                          )}
-                          {mode === 'demo' && (
-                              <div className="mb-4 p-4 bg-red-900/20 border border-red-500/20 rounded-xl text-red-200 text-xs flex flex-col gap-3">
-                                  <div>
-                                    <div className="flex items-center gap-2 font-bold text-sm mb-1"><ShieldAlert size={16} /> Conexão IA Interrompida</div>
-                                    <p className="text-slate-300">
-                                      Possíveis causas:
-                                      <br/>1. API "Generative Language" desativada no Google Cloud.
-                                      <br/>2. Nome da variável incorreto no Vercel (Deve ser <strong>VITE_API_KEY</strong>).
-                                    </p>
-                                  </div>
-                                  <div className="flex items-center gap-3 mt-1 flex-wrap">
-                                      <a href="https://console.developers.google.com/apis/api/generativelanguage.googleapis.com/overview" target="_blank" rel="noopener noreferrer" className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-bold transition-colors">
-                                          1. Conferir Console Google
-                                      </a>
-                                      <button onClick={fetchNews} className="px-4 py-1.5 bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold transition-colors flex items-center gap-2 shadow-lg shadow-red-900/20">
-                                          <CheckCircle2 size={14} /> 2. Tentar Novamente
-                                      </button>
-                                  </div>
-                              </div>
-                          )}
                           {renderNewsText(briefing)}
                       </div>
                   ) : (
@@ -257,8 +259,10 @@ Aumente a carga horária em **resolução de questões** e reduza a leitura pass
                       </a>
                   )) : (
                       <div className="flex flex-col items-center justify-center h-full text-slate-600 opacity-60">
-                          <Globe size={32} className="mb-2 text-slate-700"/>
-                          <p className="text-xs text-center italic">Nenhuma fonte externa indexada nesta varredura.</p>
+                          {mode === 'offline' ? <SearchX size={32} className="mb-2 text-slate-700" /> : <Globe size={32} className="mb-2 text-slate-700"/>}
+                          <p className="text-xs text-center italic max-w-[200px]">
+                              {mode === 'offline' ? "Busca web indisponível. Exibindo análise interna." : "Nenhuma fonte externa indexada."}
+                          </p>
                       </div>
                   )}
               </div>

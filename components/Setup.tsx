@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, Relevance, Trend, WEIGHT_SCORE, NotebookStatus } from '../types';
-import { GripVertical, Plus, Search, Copy, Pencil, TrendingUp, X, Save, Link as LinkIcon, RefreshCw, Upload, CalendarCheck, ImageIcon, StickyNote, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, ArrowRightFromLine, ArrowLeftFromLine, FileCode, Square, CheckSquare, Check, Timer, Calculator, PieChart, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch } from 'lucide-react';
+import { GripVertical, Plus, Search, Copy, Pencil, TrendingUp, X, Save, Link as LinkIcon, RefreshCw, Upload, CalendarCheck, ImageIcon, StickyNote, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, ArrowRightFromLine, ArrowLeftFromLine, FileCode, Square, CheckSquare, Check, Timer, Calculator, PieChart, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Hash, PlayCircle } from 'lucide-react';
 import { calculateNextReview, getStatusColor } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 
@@ -108,37 +108,215 @@ const DraggableCard = React.memo(({
 const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: number } }) => {
     const { notebooks } = useStore();
     
+    // --- STATE FOR CALCULATOR ---
+    // Extract unique disciplines
+    const disciplines = useMemo(() => {
+        const unique = Array.from(new Set(notebooks.filter(n => n.discipline !== 'Revisão Geral').map(n => n.discipline))).sort();
+        return unique;
+    }, [notebooks]);
+
+    const [weights, setWeights] = useState<Record<string, number>>({});
+    const [selectedDiscs, setSelectedDiscs] = useState<Set<string>>(new Set());
+
+    // Initialize state when disciplines change
+    useEffect(() => {
+        const initialWeights: Record<string, number> = {};
+        const initialSelected = new Set<string>();
+        
+        disciplines.forEach(d => {
+            initialWeights[d] = 1; // Default weight 1
+            initialSelected.add(d); // All selected by default
+        });
+        
+        setWeights(prev => ({...initialWeights, ...prev})); // Preserve user changes if possible
+        if (selectedDiscs.size === 0) setSelectedDiscs(initialSelected);
+    }, [disciplines]);
+
+    const toggleDisc = (d: string) => {
+        const newSet = new Set(selectedDiscs);
+        if (newSet.has(d)) newSet.delete(d);
+        else newSet.add(d);
+        setSelectedDiscs(newSet);
+    };
+
+    const updateWeight = (d: string, w: number) => {
+        setWeights(prev => ({ ...prev, [d]: Math.max(0.5, w) }));
+    };
+
+    // --- CALCULATIONS ---
+    const totalWeight = useMemo(() => {
+        let sum = 0;
+        selectedDiscs.forEach(d => {
+            sum += (weights[d] || 1);
+        });
+        return sum;
+    }, [selectedDiscs, weights]);
+
+    const distribution = useMemo(() => {
+        if (totalWeight === 0) return [];
+        
+        return disciplines.map(d => {
+            if (!selectedDiscs.has(d)) return null;
+            
+            const weight = weights[d] || 1;
+            const percentage = weight / totalWeight;
+            const blocks = Math.round(percentage * paceTarget.blocks);
+            // Count actual topics in DB for info
+            const topicCount = notebooks.filter(n => n.discipline === d).length;
+
+            return {
+                name: d,
+                weight,
+                percentage,
+                blocks,
+                topicCount
+            };
+        }).filter(Boolean) as {name: string, weight: number, percentage: number, blocks: number, topicCount: number}[];
+    }, [disciplines, selectedDiscs, weights, totalWeight, paceTarget.blocks, notebooks]);
+
+    const totalAllocated = distribution.reduce((sum, item) => sum + item.blocks, 0);
+    const diff = paceTarget.blocks - totalAllocated;
+
+    // Info Stats
     const totalItems = notebooks.filter(n => n.discipline !== 'Revisão Geral').length;
     const weeksNeeded = paceTarget.blocks > 0 ? Math.ceil(totalItems / paceTarget.blocks) : 0;
-    
+
     return (
-        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center animate-in fade-in zoom-in duration-500">
-            <div className="w-20 h-20 bg-slate-800/50 rounded-full flex items-center justify-center mb-6 shadow-xl shadow-emerald-900/10">
-                <Calculator size={40} className="text-emerald-500" />
+        <div className="flex-1 flex flex-col p-4 md:p-8 animate-in fade-in zoom-in duration-500 max-w-6xl mx-auto w-full overflow-y-auto custom-scrollbar">
+            
+            {/* Header / Summary */}
+            <div className="text-center mb-8">
+                <div className="w-16 h-16 bg-slate-800/50 rounded-full flex items-center justify-center mb-4 shadow-xl shadow-emerald-900/10 mx-auto border border-slate-700">
+                    <Calculator size={32} className="text-emerald-500" />
+                </div>
+                <h2 className="text-2xl font-bold text-white mb-2">Calculadora de Ciclo Tático</h2>
+                <p className="text-slate-400 text-sm max-w-xl mx-auto">
+                    Defina os pesos conforme o edital. O sistema distribuirá automaticamente sua carga horária de <strong className="text-white">{paceTarget.blocks} blocos/semana</strong>.
+                </p>
             </div>
             
-            <h2 className="text-2xl font-bold text-white mb-2">Calculadora de Ciclo Tático</h2>
-            <p className="text-slate-400 mb-8 max-w-md text-sm leading-relaxed">
-                Com base no seu ritmo definido de <strong className="text-white">{paceTarget.blocks} blocos/semana</strong> e no total de <strong className="text-white">{totalItems} tópicos</strong> cadastrados na sua biblioteca.
-            </p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl">
-                <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl hover:border-emerald-500/30 transition-colors">
-                    <p className="text-[10px] text-slate-500 uppercase font-bold mb-2 tracking-wider">Ciclo Completo</p>
-                    <p className="text-4xl font-black text-white">{weeksNeeded}</p>
-                    <p className="text-[10px] text-slate-400 mt-2">Semanas estimadas</p>
+            {/* Quick Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
+                    <div>
+                        <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Estimativa</p>
+                        <p className="text-2xl font-black text-white">{weeksNeeded} <span className="text-sm font-medium text-slate-500">Semanas</span></p>
+                    </div>
+                    <CalendarClock className="text-slate-700" size={24} />
                 </div>
-                 <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl hover:border-emerald-500/30 transition-colors">
-                    <p className="text-[10px] text-slate-500 uppercase font-bold mb-2 tracking-wider">Carga Semanal</p>
-                    <p className="text-4xl font-black text-emerald-400">~{paceTarget.hours}h</p>
-                    <p className="text-[10px] text-slate-400 mt-2">Horas líquidas</p>
+                 <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
+                    <div>
+                        <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Carga Líquida</p>
+                        <p className="text-2xl font-black text-emerald-400">~{paceTarget.hours}h <span className="text-sm font-medium text-slate-500">/ sem</span></p>
+                    </div>
+                    <Timer className="text-emerald-900" size={24} />
                 </div>
-                 <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl hover:border-emerald-500/30 transition-colors">
-                    <p className="text-[10px] text-slate-500 uppercase font-bold mb-2 tracking-wider">Cobertura Total</p>
-                    <p className="text-4xl font-black text-blue-400">{totalItems}</p>
-                    <p className="text-[10px] text-slate-400 mt-2">Tópicos no Banco</p>
+                 <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
+                    <div>
+                        <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Base de Dados</p>
+                        <p className="text-2xl font-black text-blue-400">{totalItems} <span className="text-sm font-medium text-slate-500">Tópicos</span></p>
+                    </div>
+                    <Layers className="text-blue-900" size={24} />
                 </div>
             </div>
+
+            {/* Main Calculator Table */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl flex flex-col">
+                <div className="p-4 border-b border-slate-800 bg-slate-950/50 flex justify-between items-center">
+                    <h3 className="font-bold text-white flex items-center gap-2"><Scale size={18} className="text-emerald-500"/> Distribuição Ponderada</h3>
+                    <div className="text-xs font-mono text-slate-500">
+                        Alocado: <span className={diff !== 0 ? 'text-amber-400' : 'text-emerald-400'}>{totalAllocated}</span> / {paceTarget.blocks} blocos
+                    </div>
+                </div>
+                
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="border-b border-slate-800 text-[10px] uppercase font-bold text-slate-500 tracking-wider">
+                                <th className="p-4 w-12 text-center">
+                                    <CheckSquare size={14} />
+                                </th>
+                                <th className="p-4">Disciplina</th>
+                                <th className="p-4 text-center">Tópicos DB</th>
+                                <th className="p-4 w-32 text-center">Peso Edital</th>
+                                <th className="p-4 w-48">Blocos Sugeridos</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800 text-sm">
+                            {disciplines.map(d => {
+                                const isSelected = selectedDiscs.has(d);
+                                const dist = distribution.find(x => x.name === d);
+                                const blocks = dist?.blocks || 0;
+                                const percent = dist ? Math.round(dist.percentage * 100) : 0;
+
+                                return (
+                                    <tr key={d} className={`transition-colors ${isSelected ? 'hover:bg-slate-800/30' : 'bg-slate-950 opacity-50'}`}>
+                                        <td className="p-4 text-center">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={isSelected} 
+                                                onChange={() => toggleDisc(d)}
+                                                className="rounded border-slate-600 bg-slate-800 text-emerald-500 focus:ring-0 cursor-pointer w-4 h-4 accent-emerald-500"
+                                            />
+                                        </td>
+                                        <td className="p-4 font-medium text-slate-200">
+                                            {d}
+                                        </td>
+                                        <td className="p-4 text-center text-slate-500">
+                                            {notebooks.filter(n => n.discipline === d).length}
+                                        </td>
+                                        <td className="p-4">
+                                            <div className="flex items-center justify-center">
+                                                <input 
+                                                    type="number" 
+                                                    step="0.5"
+                                                    min="0.5"
+                                                    value={weights[d] || 1}
+                                                    disabled={!isSelected}
+                                                    onChange={(e) => updateWeight(d, parseFloat(e.target.value))}
+                                                    className="w-16 bg-slate-800 border border-slate-700 rounded-lg p-1.5 text-center text-white font-bold focus:border-emerald-500 outline-none disabled:opacity-50"
+                                                />
+                                            </div>
+                                        </td>
+                                        <td className="p-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                                                    <div 
+                                                        className="h-full bg-emerald-500 transition-all duration-500" 
+                                                        style={{ width: isSelected ? `${percent}%` : '0%' }}
+                                                    ></div>
+                                                </div>
+                                                <div className="flex flex-col items-end w-12 flex-shrink-0">
+                                                    <span className={`font-bold ${blocks > 0 ? 'text-emerald-400' : 'text-slate-600'}`}>{blocks}</span>
+                                                    <span className="text-[9px] text-slate-500 uppercase">bl</span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                        <tfoot>
+                            <tr className="bg-slate-950/80 border-t border-slate-800 font-bold text-white">
+                                <td colSpan={3} className="p-4 text-right text-xs uppercase text-slate-500">Totais</td>
+                                <td className="p-4 text-center text-amber-400">{totalWeight.toFixed(1)} pts</td>
+                                <td className="p-4 flex justify-end items-center gap-2">
+                                    <span className="text-lg">{totalAllocated}</span> 
+                                    <span className="text-xs font-normal text-slate-500">/ {paceTarget.blocks} blocos</span>
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+            
+            <div className="mt-6 p-4 bg-emerald-900/10 border border-emerald-500/20 rounded-xl text-xs text-slate-400 flex items-start gap-3">
+                <Settings2 size={16} className="text-emerald-500 mt-0.5 flex-shrink-0" />
+                <p>
+                    <strong>Como usar:</strong> Esta calculadora serve como guia para montar seu quadro horário. Anote a quantidade de blocos sugerida para cada disciplina e distribua-os manualmente na aba "Visão Tática" arrastando os cadernos para as semanas correspondentes.
+                </p>
+            </div>
+
         </div>
     );
 };

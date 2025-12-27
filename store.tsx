@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Notebook, AthensConfig, Weight, Relevance, Trend, SavedReport, ProtocolItem, NotebookStatus, Cycle, FrameworkData } from './types';
+import { Notebook, AthensConfig, Weight, Relevance, Trend, SavedReport, ProtocolItem, NotebookStatus, Cycle, FrameworkData, Note } from './types';
 import { calculateNextReview } from './utils/algorithm';
 import { supabase } from './lib/supabase';
 
@@ -9,6 +9,7 @@ const DEFAULT_CONFIG: AthensConfig = {
     weeksUntilExam: 12,
     studyPace: 'Intermediário',
     startDate: new Date().toISOString().split('T')[0],
+    structuredEdital: [],
     algorithm: {
         baseIntervals: { learning: 1, reviewing: 3, mastering: 7, maintaining: 15 },
         multipliers: { relevanceExtreme: 0.7, relevanceHigh: 0.9, trendHigh: 0.9 }
@@ -27,6 +28,7 @@ interface StoreContextType {
   cycles: Cycle[];
   activeCycleId: string | null;
   framework: FrameworkData;
+  notes: Note[];
   loading: boolean;
   user: any;
   isGuest: boolean;
@@ -51,6 +53,11 @@ interface StoreContextType {
   toggleProtocolItem: (id: string) => void;
   deleteProtocolItem: (id: string) => void;
   updateFramework: (data: FrameworkData) => void;
+  
+  // Notes Actions
+  addNote: () => void;
+  updateNote: (id: string, content: string, color?: Note['color']) => void;
+  deleteNote: (id: string) => void;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -73,6 +80,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [reports, setReports] = useState<SavedReport[]>([]);
   const [protocol, setProtocol] = useState<ProtocolItem[]>([]);
   const [framework, setFramework] = useState<FrameworkData>(DEFAULT_FRAMEWORK);
+  const [notes, setNotes] = useState<Note[]>([]);
   
   // Cycle Management
   const [cycles, setCycles] = useState<Cycle[]>([]);
@@ -133,11 +141,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               framework,
               cycles,
               activeCycleId,
-              config
+              config,
+              notes
           };
           localStorage.setItem('athena_guest_db', JSON.stringify(guestData));
       }
-  }, [notebooks, reports, protocol, framework, cycles, activeCycleId, config, isGuest]);
+  }, [notebooks, reports, protocol, framework, cycles, activeCycleId, config, notes, isGuest]);
 
   const enterGuestMode = () => {
       setLoading(true);
@@ -155,9 +164,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setCycles(parsed.cycles || []);
             setActiveCycleId(parsed.activeCycleId || null);
             setConfig(parsed.config || DEFAULT_CONFIG);
+            setNotes(parsed.notes || []);
         } else {
             setNotebooks([]);
             setCycles([]);
+            setNotes([]);
         }
       } catch (e) {
           console.error("Erro ao carregar dados locais", e);
@@ -175,7 +186,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               supabase.from('cycles').select('*').eq('user_id', userId),
               supabase.from('frameworks').select('*').eq('user_id', userId).single(),
               supabase.from('protocol_items').select('*').eq('user_id', userId),
-              supabase.from('reports').select('*').eq('user_id', userId)
+              supabase.from('reports').select('*').eq('user_id', userId),
+              supabase.from('notes').select('*').eq('user_id', userId).order('updated_at', { ascending: false })
           ]);
 
           // Extract Notebooks
@@ -190,8 +202,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   images: n.images || (n.image ? [n.image] : []) 
               }));
               setNotebooks(formattedNotebooks);
-          } else {
-              console.error("Failed to load notebooks", results[0]);
           }
 
           // Extract Cycles
@@ -206,8 +216,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               const lastActive = localStorage.getItem('athena_active_cycle');
               const target = formattedCycles.find((c: any) => c.id === lastActive) || formattedCycles[0];
               setActiveCycleId(target.id);
-          } else {
-              setCycles([]);
           }
 
           // Extract Framework
@@ -230,6 +238,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           // Extract Reports
           if (results[4].status === 'fulfilled' && results[4].value.data) {
               setReports(results[4].value.data);
+          }
+
+          // Extract Notes
+          if (results[5].status === 'fulfilled' && results[5].value.data) {
+              const fmtNotes = results[5].value.data.map((n: any) => ({
+                  ...n,
+                  createdAt: n.created_at,
+                  updatedAt: n.updated_at
+              }));
+              setNotes(fmtNotes);
           }
 
       } catch (error) {
@@ -267,6 +285,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // --- ACTIONS ---
 
+  // ... (previous actions)
+
   const updateFramework = async (data: FrameworkData) => {
       setFramework(data);
       if(user && !isGuest) {
@@ -274,6 +294,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
   };
 
+  // ... (createCycle, selectCycle, deleteCycle, syncCycleData, updateConfig)
   const createCycle = async (name: string, targetRole: string) => {
       const newCycle: Cycle = {
           id: crypto.randomUUID(),
@@ -519,9 +540,46 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if(user && !isGuest) await supabase.from('reports').delete().eq('id', id);
   };
 
+  // --- NOTES ACTIONS ---
+  const addNote = async () => {
+      const newNote: Note = {
+          id: crypto.randomUUID(),
+          content: '',
+          color: 'yellow',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+      };
+      setNotes(prev => [newNote, ...prev]);
+      
+      if(user && !isGuest) {
+          await supabase.from('notes').insert({ 
+              id: newNote.id, 
+              user_id: user.id, 
+              content: '', 
+              color: 'yellow' 
+          });
+      }
+  };
+
+  const updateNote = async (id: string, content: string, color?: Note['color']) => {
+      const updatedAt = new Date().toISOString();
+      setNotes(prev => prev.map(n => n.id === id ? { ...n, content, color: color || n.color, updatedAt } : n));
+      
+      if(user && !isGuest) {
+          const payload: any = { content, updated_at: updatedAt };
+          if(color) payload.color = color;
+          await supabase.from('notes').update(payload).eq('id', id);
+      }
+  };
+
+  const deleteNote = async (id: string) => {
+      setNotes(prev => prev.filter(n => n.id !== id));
+      if(user && !isGuest) await supabase.from('notes').delete().eq('id', id);
+  };
+
   return (
     <StoreContext.Provider value={{ 
-      notebooks, config, reports, protocol, cycles, activeCycleId, framework,
+      notebooks, config, reports, protocol, cycles, activeCycleId, framework, notes,
       loading, user, isGuest,
       enterGuestMode,
       createCycle, selectCycle, deleteCycle,
@@ -529,7 +587,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       addNotebook, editNotebook, deleteNotebook, bulkUpdateNotebooks,
       saveReport, deleteReport,
       addProtocolItem, toggleProtocolItem, deleteProtocolItem,
-      updateFramework
+      updateFramework,
+      addNote, updateNote, deleteNote
     }}>
       {children}
     </StoreContext.Provider>
