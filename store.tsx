@@ -43,9 +43,9 @@ interface StoreContextType {
   updateNotebookAccuracy: (id: string, newAccuracy: number) => void;
   moveNotebookToWeek: (id: string, weekId: string | null) => void;
   getWildcardNotebook: () => Notebook | null;
-  addNotebook: (notebook: Omit<Notebook, 'id'>) => void;
-  editNotebook: (id: string, updates: Partial<Notebook>) => void;
-  deleteNotebook: (id: string) => void;
+  addNotebook: (notebook: Omit<Notebook, 'id'>) => Promise<void>; // Updated to Promise
+  editNotebook: (id: string, updates: Partial<Notebook>) => Promise<void>; // Updated to Promise
+  deleteNotebook: (id: string) => Promise<void>; // Updated to Promise
   bulkUpdateNotebooks: (ids: string[], updates: Partial<Notebook> | 'DELETE') => void;
   saveReport: (report: Omit<SavedReport, 'id' | 'date'>) => void;
   deleteReport: (id: string) => void;
@@ -345,7 +345,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
   };
 
-  const addNotebook = async (notebook: Omit<Notebook, 'id'>) => {
+  const addNotebook = async (notebook: Omit<Notebook, 'id'>): Promise<void> => {
       const newNotebook = { ...notebook, id: crypto.randomUUID() };
       setNotebooks(prev => [...prev, newNotebook]);
 
@@ -401,7 +401,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
   };
 
-  const editNotebook = async (id: string, updates: Partial<Notebook>) => {
+  const editNotebook = async (id: string, updates: Partial<Notebook>): Promise<void> => {
       setNotebooks(prev => prev.map(nb => nb.id === id ? { ...nb, ...updates } : nb));
 
       // Handle Cycle Logic (No Changes needed here)
@@ -453,8 +453,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if(updates.notes !== undefined) dbUpdates.notes = updates.notes;
           
           if(updates.images !== undefined) {
-              dbUpdates.images = updates.images;
-              // Legacy fallback
+              // Ensure we send a valid array or null, avoiding undefined issues
+              dbUpdates.images = updates.images || [];
+              
+              // Legacy fallback: take first image if available
               if (updates.images && updates.images.length > 0) {
                   dbUpdates.image = updates.images[0];
               } else {
@@ -491,7 +493,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     });
   };
 
-  const deleteNotebook = async (id: string) => {
+  const deleteNotebook = async (id: string): Promise<void> => {
       setNotebooks(prev => prev.filter(n => n.id !== id));
       if(user && !isGuest) await supabase.from('notebooks').delete().eq('id', id);
   };

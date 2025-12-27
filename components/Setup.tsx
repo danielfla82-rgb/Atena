@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, Relevance, Trend, NotebookStatus } from '../types';
-import { Plus, Search, Copy, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale } from 'lucide-react';
+import { Plus, Search, Copy, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2 } from 'lucide-react';
 import { calculateNextReview, getStatusColor } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 
@@ -328,11 +328,13 @@ export const Setup: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showStats, setShowStats] = useState(false);
   
-  // --- NEW: Sidebar Filter State (Added 'smart') ---
   const [libraryFilter, setLibraryFilter] = useState<'all' | 'unallocated' | 'fit' | 'smart'>('all');
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  
+  // Save loading state
+  const [isSaving, setIsSaving] = useState(false);
   
   // Gallery State
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -563,11 +565,21 @@ export const Setup: React.FC = () => {
      setFormData(prev => ({ ...prev, accuracy: 0, status: NotebookStatus.NOT_STARTED }));
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingId) {
-      editNotebook(editingId, { ...formData, accuracy: Number(formData.accuracy), targetAccuracy: Number(formData.targetAccuracy) });
-      setIsModalOpen(false);
+    setIsSaving(true);
+    
+    try {
+        if (editingId) {
+          // Await the promise to ensure data persistence before closing
+          await editNotebook(editingId, { ...formData, accuracy: Number(formData.accuracy), targetAccuracy: Number(formData.targetAccuracy) });
+        }
+        setIsModalOpen(false);
+    } catch (error) {
+        console.error("Failed to save:", error);
+        alert("Erro ao salvar. Tente novamente.");
+    } finally {
+        setIsSaving(false);
     }
   };
 
@@ -796,7 +808,7 @@ export const Setup: React.FC = () => {
           <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
             <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900">
                 <h3 className="text-xl font-bold text-white flex items-center gap-2"><Pencil size={20} className="text-emerald-500"/> Editar Caderno (Rápido)</h3>
-                <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white"><X size={24} /></button>
+                <button onClick={() => !isSaving && setIsModalOpen(false)} className="text-slate-400 hover:text-white" disabled={isSaving}><X size={24} /></button>
             </div>
             <form onSubmit={handleSave} className="overflow-y-auto p-6 space-y-6 custom-scrollbar">
               {/* Form Content same as before, no changes needed inside form */}
@@ -857,9 +869,10 @@ export const Setup: React.FC = () => {
               </div>
             </form>
             <div className="p-6 border-t border-slate-800 bg-slate-900 flex gap-4">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 bg-slate-800 text-slate-300 py-3 rounded-xl hover:bg-slate-700 font-medium transition-colors">Cancelar</button>
-                <button type="button" onClick={handleSave} className="flex-1 bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-500 font-bold shadow-lg shadow-emerald-900/20 transition-all flex items-center justify-center gap-2">
-                    <Save size={18} /> Salvar Alterações
+                <button type="button" onClick={() => !isSaving && setIsModalOpen(false)} disabled={isSaving} className="flex-1 bg-slate-800 text-slate-300 py-3 rounded-xl hover:bg-slate-700 font-medium transition-colors disabled:opacity-50">Cancelar</button>
+                <button type="button" onClick={handleSave} disabled={isSaving} className="flex-1 bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-500 font-bold shadow-lg shadow-emerald-900/20 transition-all flex items-center justify-center gap-2 disabled:bg-emerald-800 disabled:text-emerald-400 disabled:cursor-wait">
+                    {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                    {isSaving ? "Salvando..." : "Salvar Alterações"}
                 </button>
             </div>
           </div>

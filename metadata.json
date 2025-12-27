@@ -1,6 +1,6 @@
 {
-  "name": "Projeto Atena v3.3.0 (Elite OS)",
-  "description": "Plataforma SaaS de alta performance. v3.3.0: [UI] Redesign do header e navegação para estética 'Command Center'. [CORE] Otimização de renderização e estabilidade do sistema. [FIX] Varredura de bugs em transições.",
+  "name": "Projeto Atena v3.3.1 (Elite OS)",
+  "description": "Plataforma SaaS de alta performance. v3.3.1: [FIX] Correção crítica de persistência de imagens (Async Wait). [CORE] Otimização de I/O no banco de dados. [UX] Feedback visual durante salvamento de cadernos.",
   "requestFramePermissions": [
     "microphone"
   ]
