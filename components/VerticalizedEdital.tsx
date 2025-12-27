@@ -188,7 +188,7 @@ export const VerticalizedEdital: React.FC = () => {
                   {!config.editalText ? (
                       <div className="bg-amber-900/20 border border-amber-500/20 p-4 rounded-lg text-amber-200 text-xs mb-4 flex items-center gap-2 text-left">
                           <FileWarning size={24} className="flex-shrink-0" />
-                          <span>Você precisa colar o texto do edital em "Planejamento > Configurar Concurso" primeiro.</span>
+                          <span>Você precisa colar o texto do edital em "Planejamento &gt; Configurar Concurso" primeiro.</span>
                       </div>
                   ) : (
                       <button 
