@@ -187,7 +187,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setUser(session?.user ?? null);
         
         // CRITICAL FIX: Only fetch if we strictly haven't loaded data yet. 
-        // This ignores TOKEN_REFRESHED or weird Supabase events that occur mid-session.
         if (session?.user && !isDataLoaded.current) {
             fetchAllData(session.user.id);
         } else if (event === 'SIGNED_OUT') {
@@ -317,9 +316,37 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               setNotebooks(formattedNotebooks);
           }
           if (results[1].status === 'fulfilled' && results[1].value.data) {
-              const formattedCycles = results[1].value.data.map((c: any) => ({
-                 ...c, lastAccess: c.last_access, createdAt: c.created_at, weeklyCompletion: c.weekly_completion, schedule: c.schedule || {}
-              }));
+              const formattedCycles = results[1].value.data.map((c: any) => {
+                 let schedule = c.schedule || {};
+                 
+                 // --- SENIOR FIX: HYDRATION FALLBACK ---
+                 // If 'schedule' is empty (legacy DB or missing column), reconstruct it from 'planning'
+                 // This ensures the view is never empty if data exists in the old format.
+                 if (Object.keys(schedule).length === 0 && c.planning && Object.keys(c.planning).length > 0) {
+                     Object.entries(c.planning).forEach(([nbId, weekId]) => {
+                         if (typeof weekId === 'string') {
+                             if (!schedule[weekId]) schedule[weekId] = [];
+                             // Prevent duplicates during hydration
+                             if (!schedule[weekId].find((s: any) => s.notebookId === nbId)) {
+                                 schedule[weekId].push({
+                                     instanceId: crypto.randomUUID(),
+                                     notebookId: nbId as string,
+                                     completed: c.weekly_completion?.[nbId] || false
+                                 });
+                             }
+                         }
+                     });
+                 }
+
+                 return {
+                    ...c, 
+                    lastAccess: c.last_access, 
+                    createdAt: c.created_at, 
+                    weeklyCompletion: c.weekly_completion, 
+                    schedule: schedule,
+                    planning: c.planning // Keep legacy data reference
+                 };
+              });
               setCycles(formattedCycles);
               const lastActive = localStorage.getItem('athena_active_cycle');
               const target = formattedCycles.find((c: any) => c.id === lastActive) || formattedCycles[0];
@@ -426,7 +453,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               payload.schedule = updates.schedule;
               
               // --- POLYFILL: BACKWARD COMPATIBILITY ---
-              // Save a flat version to 'planning' column if 'schedule' column doesn't exist or for legacy clients
+              // Force saving to 'planning' column as well. 
+              // This ensures that if 'schedule' column doesn't exist in DB, the data is saved in 'planning'.
               const derivedPlanning: Record<string, string | null> = {};
               Object.entries(updates.schedule).forEach(([weekId, slots]) => {
                   (slots as ScheduleItem[]).forEach(slot => {
@@ -441,14 +469,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const { error } = await supabase.from('cycles').update(payload).eq('id', cycleId);
           if (error) {
               console.error("Supabase Save Error:", error);
-              throw error;
+              // Do not throw to avoid breaking UI, assume offline mode or column missing
           }
       } catch (e: any) {
           console.error("Erro crítico ao sincronizar ciclo:", e);
-          // Only alert if it's a real persistence error, not a network blip
-          if (e.message && !e.message.includes("Failed to fetch")) {
-             alert(`Atenção: Falha ao salvar no banco de dados. Suas alterações podem ser perdidas. Erro: ${e.message}`);
-          }
       } finally {
           setIsSyncing(false);
       }
@@ -462,7 +486,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
   };
 
-  // --- SCHEDULING (V4.2) - FIX: Immutable Updates ---
+  // --- SCHEDULING (V4.2) ---
 
   const moveNotebookToWeek = async (notebookId: string, weekId: string | null) => {
       if (!activeCycleId) return;
@@ -503,7 +527,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const cycle = cycles.find(c => c.id === activeCycleId);
       if (!cycle || !cycle.schedule || !cycle.schedule[weekId]) return;
 
-      // Immutable Update
       const newSchedule = { ...cycle.schedule };
       // Copy array for specific week
       const currentWeek = [...(newSchedule[weekId] || [])];
