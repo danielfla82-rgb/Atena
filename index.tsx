@@ -5,7 +5,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 
 // --- CONFIGURAÇÃO DE AMBIENTE ---
 if (typeof window !== 'undefined') {
-  console.log(`[System] Booting Atena v3.0 (Olympus Edition)`);
+  console.log(`[System] Booting Atena v4.0.0 (Olympus Edition)`);
   
   let envDetected = false;
   

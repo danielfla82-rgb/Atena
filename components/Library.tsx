@@ -1,10 +1,10 @@
-import React, { useState, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { useStore } from '../store';
 import { 
     Trash2, Plus, Search, X, Link as LinkIcon, Pencil, RefreshCw, 
     ChevronRight, ChevronLeft, Layers, Square, CheckSquare, 
     Circle, BookOpen, CheckCircle2, Siren, Star, Clock, Sparkles,
-    Maximize2, FileCode, CalendarClock, ZoomIn, Flag, Save, Inbox, ScanSearch, Scale, Loader2
+    Maximize2, FileCode, CalendarClock, ZoomIn, Flag, Save, Inbox, ScanSearch, Scale, Loader2, ArrowRight
 } from 'lucide-react';
 import { Weight, Relevance, Trend, Notebook, NotebookStatus } from '../types';
 import { calculateNextReview } from '../utils/algorithm';
@@ -22,6 +22,62 @@ const StatusBadge = ({ status }: { status: NotebookStatus }) => {
           return <span className="flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20"><CheckCircle2 size={10} /> Dominado</span>;
         default: return null;
     }
+};
+
+const AlgorithmProjection = ({ accuracy, relevance, trend, config }: any) => {
+    const nextDate = calculateNextReview(accuracy, relevance, trend, config.algorithm);
+    const today = new Date();
+    const diffTime = nextDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    return (
+        <div className="bg-slate-950 border border-slate-800 rounded-lg p-3 flex flex-col gap-2 mt-4 relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-2 opacity-10 pointer-events-none"><Clock size={40} /></div>
+            <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1"><RefreshCw size={10} /> Próxima Revisão (Algoritmo)</h5>
+            <div className="flex items-center gap-3">
+                <span className="text-2xl font-bold text-emerald-400">+{diffDays} dias</span>
+                <ArrowRight size={14} className="text-slate-600" />
+                <span className="text-sm font-mono text-slate-300">{nextDate.toLocaleDateString()}</span>
+            </div>
+            <div className="flex gap-2 text-[9px] text-slate-500 mt-1">
+                <span className="bg-slate-900 px-1.5 py-0.5 rounded">Acc: {accuracy}%</span>
+                <span className="bg-slate-900 px-1.5 py-0.5 rounded">Rel: {relevance}</span>
+                <span className="bg-slate-900 px-1.5 py-0.5 rounded">Trend: {trend}</span>
+            </div>
+        </div>
+    );
+};
+
+const FilterButton = ({ 
+    active, 
+    onClick, 
+    icon, 
+    label, 
+    color = 'emerald' 
+}: { 
+    active: boolean; 
+    onClick: () => void; 
+    icon: React.ReactNode; 
+    label: string; 
+    color?: string; 
+}) => {
+    let activeStyle = '';
+    switch (color) {
+        case 'red': activeStyle = 'bg-red-600 text-white border-red-500/50 shadow-lg shadow-red-900/20'; break;
+        case 'blue': activeStyle = 'bg-blue-600 text-white border-blue-500/50 shadow-lg shadow-blue-900/20'; break;
+        case 'amber': activeStyle = 'bg-amber-600 text-white border-amber-500/50 shadow-lg shadow-amber-900/20'; break;
+        case 'purple': activeStyle = 'bg-purple-600 text-white border-purple-500/50 shadow-lg shadow-purple-900/20'; break;
+        default: activeStyle = 'bg-emerald-600 text-white border-emerald-500/50 shadow-lg shadow-emerald-900/20'; break;
+    }
+
+    return (
+        <button 
+            onClick={onClick}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all border ${active ? activeStyle : 'bg-slate-900 text-slate-500 border-slate-800 hover:text-white hover:bg-slate-800/80'}`}
+        >
+            {icon} {label}
+        </button>
+    );
 };
 
 // --- OPTIMIZATION: Memoized List Item ---
@@ -99,7 +155,7 @@ const LibraryItem = React.memo(({
 });
 
 export const Library: React.FC = () => {
-  const { notebooks, deleteNotebook, addNotebook, editNotebook, bulkUpdateNotebooks, config } = useStore();
+  const { notebooks, deleteNotebook, addNotebook, editNotebook, bulkUpdateNotebooks, config, focusedNotebookId, setFocusedNotebookId, pendingCreateData, setPendingCreateData, loading } = useStore();
   
   // UI State
   const [searchTerm, setSearchTerm] = useState('');
@@ -124,11 +180,78 @@ export const Library: React.FC = () => {
     discipline: '', name: '', subtitle: '', tecLink: '', lawLink: '', obsidianLink: '', accuracy: 0, targetAccuracy: 90, 
     weight: Weight.MEDIO, relevance: Relevance.MEDIA, trend: Trend.ESTAVEL, 
     status: NotebookStatus.NOT_STARTED, notes: '', images: [] as string[],
-    lastPractice: new Date().toISOString().split('T')[0] 
+    lastPractice: new Date().toISOString().split('T')[0],
+    accuracyHistory: [] as { date: string, accuracy: number }[]
   };
 
   const [formData, setFormData] = useState(initialFormState);
+  const [newHistoryDate, setNewHistoryDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newHistoryAccuracy, setNewHistoryAccuracy] = useState(0);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // --- AUTO-FOCUS LOGIC (Robust Implementation) ---
+  useEffect(() => {
+      // Only proceed if not loading and we have a focused ID
+      if (!loading && focusedNotebookId) {
+          const target = notebooks.find(n => n.id === focusedNotebookId);
+          if (target) {
+              setSearchTerm(target.name);
+              setExpandedDisciplines(new Set([target.discipline]));
+              setActiveFilter('ALL');
+              
+              // Open modal
+              setEditingId(target.id);
+              let safeDate = new Date().toISOString().split('T')[0];
+              if (target.lastPractice) {
+                  const check = new Date(target.lastPractice);
+                  if (!isNaN(check.getTime())) safeDate = target.lastPractice.split('T')[0];
+              }
+              let currentImages = target.images || [];
+              if (currentImages.length === 0 && target.image) currentImages = [target.image];
+
+              setFormData({
+                  discipline: target.discipline,
+                  name: target.name,
+                  subtitle: target.subtitle,
+                  tecLink: target.tecLink || '',
+                  lawLink: target.lawLink || '',
+                  obsidianLink: target.obsidianLink || '',
+                  accuracy: target.accuracy,
+                  targetAccuracy: target.targetAccuracy,
+                  weight: target.weight,
+                  relevance: target.relevance,
+                  trend: target.trend,
+                  status: target.status || NotebookStatus.NOT_STARTED,
+                  notes: target.notes || '',
+                  images: currentImages,
+                  lastPractice: safeDate,
+                  accuracyHistory: target.accuracyHistory || []
+              });
+              
+              setIsModalOpen(true);
+              // Clear focus AFTER successfully opening
+              setFocusedNotebookId(null);
+          } else if (notebooks.length > 0) {
+              // If notebooks are loaded but ID not found, clear it
+              setFocusedNotebookId(null);
+          }
+      }
+  }, [focusedNotebookId, notebooks, loading, setFocusedNotebookId]);
+
+  // --- PENDING CREATE LOGIC (From Verticalized Edital) ---
+  useEffect(() => {
+      if (pendingCreateData && !loading) {
+          setEditingId(null);
+          setFormData({
+              ...initialFormState,
+              name: pendingCreateData.name || '',
+              discipline: pendingCreateData.discipline || '',
+          });
+          setIsModalOpen(true);
+          setPendingCreateData(null);
+      }
+  }, [pendingCreateData, loading, setPendingCreateData]);
 
   // --- FILTER LOGIC ---
   const filteredNotebooks = useMemo(() => {
@@ -268,6 +391,41 @@ export const Library: React.FC = () => {
      setFormData(prev => ({ ...prev, accuracy: 0, status: NotebookStatus.NOT_STARTED }));
   };
 
+  const addHistoryItem = () => {
+      if (!newHistoryDate) return;
+      
+      const newEntry = { date: newHistoryDate, accuracy: Number(newHistoryAccuracy) };
+      // Sort immediately by date
+      const sortedHistory = [...formData.accuracyHistory, newEntry].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      
+      // Update form state with new history
+      const latest = sortedHistory[sortedHistory.length - 1];
+      
+      setFormData(prev => ({
+          ...prev,
+          accuracyHistory: sortedHistory,
+          accuracy: latest.accuracy, // Latest overwrites current
+          lastPractice: latest.date
+      }));
+      
+      setNewHistoryAccuracy(0);
+  };
+
+  const removeHistoryItem = (index: number) => {
+      const newHistory = formData.accuracyHistory.filter((_, i) => i !== index);
+      const sortedHistory = newHistory.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      
+      // Recalculate current accuracy if we deleted the latest
+      let updates: any = { accuracyHistory: sortedHistory };
+      if (sortedHistory.length > 0) {
+          const latest = sortedHistory[sortedHistory.length - 1];
+          updates.accuracy = latest.accuracy;
+          updates.lastPractice = latest.date;
+      }
+
+      setFormData(prev => ({ ...prev, ...updates }));
+  };
+
   const navigateLightbox = (direction: 'next' | 'prev') => {
       if (lightboxIndex === null) return;
       if (direction === 'next') setLightboxIndex((lightboxIndex + 1) % formData.images.length);
@@ -302,13 +460,15 @@ export const Library: React.FC = () => {
           status: nb.status || NotebookStatus.NOT_STARTED,
           notes: nb.notes || '',
           images: currentImages,
-          lastPractice: safeDate
+          lastPractice: safeDate,
+          accuracyHistory: nb.accuracyHistory || []
       });
       setIsModalOpen(true);
   }, []);
   
   const handleSave = (e: React.FormEvent) => {
       e.preventDefault();
+      // Ensure calculation uses the latest date/accuracy
       const nextDate = calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm);
       
       const payload: any = { 
@@ -457,22 +617,14 @@ export const Library: React.FC = () => {
                   </div>
               );
           })}
-          
-          {filteredNotebooks.length === 0 && (
-              <div className="text-center py-20 opacity-50">
-                  <BookOpen size={48} className="mx-auto text-slate-600 mb-4" />
-                  <p className="text-slate-400">Nenhum caderno encontrado com os filtros atuais.</p>
-              </div>
-          )}
       </div>
 
-      {/* FULL EDIT MODAL */}
-      {isModalOpen && (
+       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] animate-in zoom-in-95 duration-200">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
             <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900">
-                <h3 className="text-xl font-bold text-white flex items-center gap-2"><Pencil size={20} className="text-emerald-500"/> {editingId ? 'Editar Caderno' : 'Novo Caderno'}</h3>
-                <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white"><X size={24} /></button>
+                <h3 className="text-xl font-bold text-white flex items-center gap-2"><Pencil size={20} className="text-emerald-500"/> {editingId ? "Editar Caderno" : "Novo Caderno"}</h3>
+                <button onClick={() => !isSaving && setIsModalOpen(false)} className="text-slate-400 hover:text-white" disabled={isSaving}><X size={24} /></button>
             </div>
             <form onSubmit={handleSave} className="overflow-y-auto p-6 space-y-6 custom-scrollbar">
               <div className="space-y-4">
@@ -494,15 +646,36 @@ export const Library: React.FC = () => {
                       <div><label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Tendência</label><select value={formData.trend} onChange={(e) => handleChange('trend', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm">{Object.values(Trend).map(t => <option key={t} value={t}>{t}</option>)}</select></div>
                       <div><label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Meta (%)</label><input type="number" min="0" max="100" value={formData.targetAccuracy} onChange={e => handleChange('targetAccuracy', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm text-center font-bold" /></div>
                   </div>
-                  <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex flex-col md:flex-row items-center gap-4">
-                      <div className="flex-1 w-full">
-                         <label className="block text-[10px] font-bold text-emerald-400 mb-1 uppercase">Taxa de Acerto Atual (%)</label>
-                         <input type="number" min="0" max="100" value={formData.accuracy} onChange={e => handleChange('accuracy', e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-lg p-2 text-white font-mono text-center font-bold text-lg focus:border-emerald-500 outline-none" />
+                  <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex flex-col items-stretch gap-4">
+                      {/* --- ALGORITHM PREVIEW --- */}
+                      <AlgorithmProjection accuracy={formData.accuracy} relevance={formData.relevance} trend={formData.trend} config={config} />
+                      
+                      <div className="flex flex-col md:flex-row gap-4 items-end mt-4 pt-4 border-t border-slate-700/50">
+                          <div className="flex-1 w-full">
+                              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Registrar Sessão de Estudo</label>
+                              <div className="flex gap-2 items-center">
+                                  <input type="date" value={newHistoryDate} onChange={e => setNewHistoryDate(e.target.value)} className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-white" />
+                                  <input type="number" min="0" max="100" placeholder="%" value={newHistoryAccuracy} onChange={e => setNewHistoryAccuracy(Number(e.target.value))} className="w-20 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-white text-center font-bold" />
+                                  <button type="button" onClick={addHistoryItem} className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 rounded text-xs font-bold uppercase tracking-wider">Adicionar</button>
+                              </div>
+                          </div>
                       </div>
-                      <div className="flex-1 w-full flex gap-2">
-                         <button type="button" onClick={handleNotStudied} className="flex-1 py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 font-bold text-sm bg-slate-700 hover:bg-slate-600 text-slate-200 transition-all border border-slate-600">
-                            <Flag size={16} /> Não estudei
-                         </button>
+
+                      {/* HISTORY LIST */}
+                      <div className="border-t border-slate-700/50 pt-2 flex flex-col gap-2 max-h-32 overflow-y-auto custom-scrollbar">
+                          {formData.accuracyHistory && formData.accuracyHistory.length > 0 ? (
+                              formData.accuracyHistory.slice().reverse().map((h, i) => (
+                                  <div key={i} className="flex justify-between items-center bg-slate-900 px-3 py-2 rounded border border-slate-800">
+                                      <span className="text-xs text-slate-400 font-mono">{new Date(h.date).toLocaleDateString()}</span>
+                                      <div className="flex items-center gap-3">
+                                        <span className={`text-sm font-bold ${h.accuracy >= formData.targetAccuracy ? 'text-emerald-400' : h.accuracy < 60 ? 'text-red-400' : 'text-amber-400'}`}>{h.accuracy}%</span>
+                                        <button type="button" onClick={() => removeHistoryItem(formData.accuracyHistory.length - 1 - i)} className="text-slate-600 hover:text-red-500"><Trash2 size={12} /></button>
+                                      </div>
+                                  </div>
+                              ))
+                          ) : (
+                              <p className="text-xs text-slate-600 text-center italic py-2">Sem histórico de acertos.</p>
+                          )}
                       </div>
                   </div>
               </div>
@@ -511,17 +684,11 @@ export const Library: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Texto de Lei</label>
-                        <div className="relative">
-                            <Scale className="absolute left-3 top-3.5 text-slate-500" size={16} />
-                            <input type="url" value={formData.lawLink} onChange={e => handleChange('lawLink', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 pl-10 text-white outline-none focus:border-emerald-500" placeholder="https://planalto.gov.br..." />
-                        </div>
+                        <div className="relative"><Scale className="absolute left-3 top-3.5 text-slate-500" size={16} /><input type="url" value={formData.lawLink} onChange={e => handleChange('lawLink', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 pl-10 text-white outline-none focus:border-emerald-500" placeholder="https://planalto.gov.br..." /></div>
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Obsidian / Notion</label>
-                        <div className="relative">
-                            <FileCode className="absolute left-3 top-3.5 text-slate-500" size={16} />
-                            <input type="url" value={formData.obsidianLink} onChange={e => handleChange('obsidianLink', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 pl-10 text-white outline-none focus:border-emerald-500" placeholder="obsidian://open?vault=..." />
-                        </div>
+                        <div className="relative"><FileCode className="absolute left-3 top-3.5 text-slate-500" size={16} /><input type="url" value={formData.obsidianLink} onChange={e => handleChange('obsidianLink', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 pl-10 text-white outline-none focus:border-emerald-500" placeholder="obsidian://open?vault=..." /></div>
                     </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -547,9 +714,10 @@ export const Library: React.FC = () => {
               </div>
             </form>
             <div className="p-6 border-t border-slate-800 bg-slate-900 flex gap-4">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 bg-slate-800 text-slate-300 py-3 rounded-xl hover:bg-slate-700 font-medium transition-colors">Cancelar</button>
-                <button type="button" onClick={handleSave} className="flex-1 bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-500 font-bold shadow-lg shadow-emerald-900/20 transition-all flex items-center justify-center gap-2">
-                    <Save size={18} /> Salvar Alterações
+                <button type="button" onClick={() => !isSaving && setIsModalOpen(false)} disabled={isSaving} className="flex-1 bg-slate-800 text-slate-300 py-3 rounded-xl hover:bg-slate-700 font-medium transition-colors disabled:opacity-50">Cancelar</button>
+                <button type="button" onClick={handleSave} disabled={isSaving} className="flex-1 bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-500 font-bold shadow-lg shadow-emerald-900/20 transition-all flex items-center justify-center gap-2 disabled:bg-emerald-800 disabled:text-emerald-400 disabled:cursor-wait">
+                    {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                    {isSaving ? "Salvando..." : "Salvar Alterações"}
                 </button>
             </div>
           </div>
@@ -559,17 +727,3 @@ export const Library: React.FC = () => {
     </div>
   );
 };
-
-const FilterButton = ({ active, onClick, icon, label, color = 'emerald' }: any) => (
-    <button 
-        onClick={onClick}
-        className={`
-            flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all border
-            ${active 
-                ? `bg-${color}-500/20 text-${color}-400 border-${color}-500/50 shadow-[0_0_10px_rgba(16,185,129,0.2)]` 
-                : 'bg-slate-900 text-slate-500 border-slate-800 hover:border-slate-600 hover:text-slate-300'}
-        `}
-    >
-        {icon} {label}
-    </button>
-);

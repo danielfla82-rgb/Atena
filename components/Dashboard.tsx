@@ -118,8 +118,12 @@ const DashboardSection = ({
     );
 };
 
-export const Dashboard: React.FC = () => {
-  const { notebooks, config, updateConfig, getWildcardNotebook } = useStore();
+interface Props {
+    onNavigate: (view: string) => void;
+}
+
+export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
+  const { notebooks, config, updateConfig, getWildcardNotebook, setFocusedNotebookId } = useStore();
   const [selectedSession, setSelectedSession] = useState<Notebook | null>(null);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   
@@ -141,13 +145,14 @@ export const Dashboard: React.FC = () => {
 
   // --- NEW METRICS CALCULATIONS ---
   const metrics = useMemo(() => {
-      // 1. Time Calculation: 45 min per block (notebook with accuracy > 0)
-      const activeNotebooks = notebooks.filter(n => n.accuracy > 0);
-      const totalMinutes = activeNotebooks.length * 45;
+      // 1. Time Calculation: 45 min per COMPLETED block in planning
+      const completedBlocks = notebooks.filter(n => n.weekId && n.isWeekCompleted).length;
+      const totalMinutes = completedBlocks * 45;
       const hours = Math.floor(totalMinutes / 60);
       const mins = totalMinutes % 60;
 
       // 2. Performance
+      const activeNotebooks = notebooks.filter(n => n.accuracy > 0);
       const totalAcc = activeNotebooks.reduce((sum, n) => sum + n.accuracy, 0);
       const avgAccuracy = activeNotebooks.length > 0 ? Math.round(totalAcc / activeNotebooks.length) : 0;
       
@@ -356,8 +361,17 @@ export const Dashboard: React.FC = () => {
     if (nb.discipline === 'Revisão Geral') {
       startWildcard();
     } else {
-      setSelectedSession(nb);
+      // Use navigation focus instead of modal
+      setFocusedNotebookId(nb.id);
+      onNavigate('library');
     }
+  };
+
+  const handleRecommendationClick = (nb: Notebook) => {
+      // Set the focused notebook ID in the store
+      setFocusedNotebookId(nb.id);
+      // Navigate to library view
+      onNavigate('library');
   };
 
   const handleOpenConfig = () => {
@@ -517,12 +531,12 @@ export const Dashboard: React.FC = () => {
                         </div>
                     </div>
                     <button 
-                        onClick={() => handleReviewClick(athenaRecommendation.notebook)}
+                        onClick={() => handleRecommendationClick(athenaRecommendation.notebook)}
                         className="w-full py-4 bg-white text-slate-950 font-bold rounded-xl hover:bg-slate-200 transition-all flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] active:scale-95 z-10"
-                        aria-label="Iniciar Sessão Recomendada"
+                        aria-label="Abrir caderno no banco de dados"
                     >
                         <ArrowRight size={20} />
-                        Iniciar Sessão
+                        Abrir no Banco
                     </button>
                 </div>
             </div>
@@ -574,155 +588,152 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* === DETAILED ANALYSIS (COLLAPSIBLE SECTIONS) === */}
-      <div className="space-y-4">
-          <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest mt-8 mb-2">Central de Análise Detalhada</h2>
-          
-          <DashboardSection title="Radiografia Tática" subtitle="Liquidez do Conhecimento & Matriz Estratégica" icon={<Target size={20} />}>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <div className="lg:col-span-2">
-                      <LiquidityGauge notebooks={notebooks} />
-                  </div>
-                  <div className="lg:col-span-1">
-                      <QuadrantChart data={quadrantData} />
-                  </div>
+      {/* ... (Chart sections remain unchanged) ... */}
+      <DashboardSection title="Radiografia Tática" subtitle="Liquidez do Conhecimento & Matriz Estratégica" icon={<Target size={20} />}>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2">
+                  <LiquidityGauge notebooks={notebooks} />
               </div>
-          </DashboardSection>
+              <div className="lg:col-span-1">
+                  <QuadrantChart data={quadrantData} />
+              </div>
+          </div>
+      </DashboardSection>
 
-          <DashboardSection title="Evolução & Competência" subtitle="Histórico de Desempenho e Equilíbrio de Matérias" icon={<Activity size={20} />}>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                   {/* Radar Chart: Competência */}
-                   <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 h-[340px] flex flex-col">
-                      <h3 className="text-white font-bold mb-1 flex items-center gap-2 text-sm">
-                         <Activity size={16} className="text-purple-500"/> Radar de Competência
-                      </h3>
-                      <p className="text-[10px] text-slate-500 mb-2">Busque um polígono uniforme (Generalista).</p>
-                      
-                      <div className="flex-1 min-h-0">
-                          <ResponsiveContainer width="100%" height="100%">
-                              <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
-                                  <PolarGrid stroke="#334155" />
-                                  <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 10 }} />
-                                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
-                                  <Radar
-                                      name="Acurácia"
-                                      dataKey="A"
-                                      stroke="#8b5cf6"
-                                      strokeWidth={2}
-                                      fill="#8b5cf6"
-                                      fillOpacity={0.3}
-                                  />
-                                  <Tooltip 
-                                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#f1f5f9', fontSize: '12px' }}
-                                    itemStyle={{ color: '#a78bfa' }}
-                                  />
-                              </RadarChart>
-                          </ResponsiveContainer>
-                      </div>
-                   </div>
+      <DashboardSection title="Evolução & Competência" subtitle="Histórico de Desempenho e Equilíbrio de Matérias" icon={<Activity size={20} />}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+               {/* Radar Chart: Competência */}
+               <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 h-[340px] flex flex-col">
+                  <h3 className="text-white font-bold mb-1 flex items-center gap-2 text-sm">
+                     <Activity size={16} className="text-purple-500"/> Radar de Competência
+                  </h3>
+                  <p className="text-[10px] text-slate-500 mb-2">Busque um polígono uniforme (Generalista).</p>
+                  
+                  <div className="flex-1 min-h-0">
+                      <ResponsiveContainer width="100%" height="100%">
+                          <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarData}>
+                              <PolarGrid stroke="#334155" />
+                              <PolarAngleAxis dataKey="subject" tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                              <PolarRadiusAxis angle={30} domain={[0, 100]} tick={false} axisLine={false} />
+                              <Radar
+                                  name="Acurácia"
+                                  dataKey="A"
+                                  stroke="#8b5cf6"
+                                  strokeWidth={2}
+                                  fill="#8b5cf6"
+                                  fillOpacity={0.3}
+                              />
+                              <Tooltip 
+                                contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#f1f5f9', fontSize: '12px' }}
+                                itemStyle={{ color: '#a78bfa' }}
+                              />
+                          </RadarChart>
+                      </ResponsiveContainer>
+                  </div>
+               </div>
 
-                   {/* Evolution Chart */}
-                   <div className="w-full h-[340px] bg-slate-950 rounded-xl border border-slate-800 p-4 flex flex-col">
-                     <h3 className="text-slate-100 font-bold text-sm mb-2 flex items-center gap-2">
-                       <TrendingUp size={16} className="text-cyan-400"/>
-                       Evolução Semanal
-                     </h3>
-                     <div className="flex-1 min-h-0">
-                        <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={progressData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                            <XAxis dataKey="name" stroke="#94a3b8" tick={{fontSize: 9}} />
-                            <YAxis stroke="#94a3b8" tick={{fontSize: 9}} domain={[0, 100]} />
+               {/* Evolution Chart */}
+               <div className="w-full h-[340px] bg-slate-950 rounded-xl border border-slate-800 p-4 flex flex-col">
+                 <h3 className="text-slate-100 font-bold text-sm mb-2 flex items-center gap-2">
+                   <TrendingUp size={16} className="text-cyan-400"/>
+                   Evolução Semanal
+                 </h3>
+                 <div className="flex-1 min-h-0">
+                    <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={progressData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+                        <XAxis dataKey="name" stroke="#94a3b8" tick={{fontSize: 9}} />
+                        <YAxis stroke="#94a3b8" tick={{fontSize: 9}} domain={[0, 100]} />
+                        <Tooltip 
+                            contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f1f5f9', fontSize: '11px' }}
+                            itemStyle={{ color: '#22d3ee' }}
+                            formatter={(value: number) => [`${value}%`, 'Média']}
+                        />
+                        <Line 
+                            type="monotone" 
+                            dataKey="acerto" 
+                            stroke="#22d3ee" 
+                            strokeWidth={2} 
+                            dot={{ r: 2, fill: '#06b6d4' }} 
+                        />
+                    </LineChart>
+                    </ResponsiveContainer>
+                 </div>
+              </div>
+          </div>
+      </DashboardSection>
+
+      <DashboardSection title="Análise de Profundidade (Elite)" subtitle="Pareto 80/20 e Hierarquia de Pesos" icon={<Layers size={20} />}>
+         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+             {/* 1. Pareto (ABC) */}
+             <div className="bg-slate-950 border border-slate-800 rounded-xl p-6 h-[400px] flex flex-col">
+                <div className="mb-4">
+                    <h3 className="text-white font-bold flex items-center gap-2">
+                        <PieChartIcon size={18} className="text-amber-500"/> Diagrama de Pareto (80/20)
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-1">
+                        Ataque os tópicos à esquerda da linha vermelha (80% da nota) para garantir aprovação.
+                    </p>
+                </div>
+                
+                <div className="flex-1 min-h-0">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart data={paretoData} margin={{top: 20, right: 20, bottom: 20, left: 20}}>
+                            <CartesianGrid stroke="#334155" vertical={false} strokeDasharray="3 3" />
+                            <XAxis dataKey="name" scale="band" stroke="#94a3b8" tick={{fontSize: 10}} />
+                            <YAxis yAxisId="left" stroke="#94a3b8" tick={{fontSize: 10}} label={{ value: 'Score Impacto', angle: -90, position: 'insideLeft', fill: '#64748b', fontSize: 10 }} />
+                            <YAxis yAxisId="right" orientation="right" stroke="#f59e0b" tick={{fontSize: 10}} unit="%" domain={[0, 100]} />
                             <Tooltip 
-                                contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#f1f5f9', fontSize: '11px' }}
-                                itemStyle={{ color: '#22d3ee' }}
-                                formatter={(value: number) => [`${value}%`, 'Média']}
+                                contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#f1f5f9', fontSize: '12px' }}
                             />
-                            <Line 
-                                type="monotone" 
-                                dataKey="acerto" 
-                                stroke="#22d3ee" 
-                                strokeWidth={2} 
-                                dot={{ r: 2, fill: '#06b6d4' }} 
-                            />
-                        </LineChart>
-                        </ResponsiveContainer>
-                     </div>
-                  </div>
-              </div>
-          </DashboardSection>
-
-          <DashboardSection title="Análise de Profundidade (Elite)" subtitle="Pareto 80/20 e Hierarquia de Pesos" icon={<Layers size={20} />}>
-             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                 {/* 1. Pareto (ABC) */}
-                 <div className="bg-slate-950 border border-slate-800 rounded-xl p-6 h-[400px] flex flex-col">
-                    <div className="mb-4">
-                        <h3 className="text-white font-bold flex items-center gap-2">
-                            <PieChartIcon size={18} className="text-amber-500"/> Diagrama de Pareto (80/20)
-                        </h3>
-                        <p className="text-xs text-slate-400 mt-1">
-                            Ataque os tópicos à esquerda da linha vermelha (80% da nota) para garantir aprovação.
-                        </p>
-                    </div>
-                    
-                    <div className="flex-1 min-h-0">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <ComposedChart data={paretoData} margin={{top: 20, right: 20, bottom: 20, left: 20}}>
-                                <CartesianGrid stroke="#334155" vertical={false} strokeDasharray="3 3" />
-                                <XAxis dataKey="name" scale="band" stroke="#94a3b8" tick={{fontSize: 10}} />
-                                <YAxis yAxisId="left" stroke="#94a3b8" tick={{fontSize: 10}} label={{ value: 'Score Impacto', angle: -90, position: 'insideLeft', fill: '#64748b', fontSize: 10 }} />
-                                <YAxis yAxisId="right" orientation="right" stroke="#f59e0b" tick={{fontSize: 10}} unit="%" domain={[0, 100]} />
-                                <Tooltip 
-                                    contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#f1f5f9', fontSize: '12px' }}
-                                />
-                                <Legend wrapperStyle={{fontSize: '12px', paddingTop: '10px'}}/>
-                                <Bar yAxisId="left" dataKey="score" name="Score Impacto" fill="#3b82f6" barSize={20} radius={[4, 4, 0, 0]} />
-                                <Line yAxisId="right" type="monotone" dataKey="cumulativePercentage" name="% Acumulada" stroke="#f59e0b" strokeWidth={2} dot={false} />
-                                <ReferenceLine yAxisId="right" y={80} stroke="#ef4444" strokeDasharray="3 3" label={{ position: 'insideTopRight',  value: 'Corte Elite (80%)', fill: '#ef4444', fontSize: 10 }} />
-                            </ComposedChart>
-                        </ResponsiveContainer>
-                    </div>
-                 </div>
-
-                 {/* 2. Treemap (Hierarquia) */}
-                 <div className="bg-slate-950 border border-slate-800 rounded-xl p-6 h-[400px] flex flex-col">
-                    <div className="mb-4">
-                        <h3 className="text-white font-bold flex items-center gap-2">
-                            <BarChart2 size={18} className="text-emerald-500"/> Hierarquia de Pesos (Treemap)
-                        </h3>
-                        <p className="text-xs text-slate-400 mt-1">
-                            O tamanho representa a importância real no edital. Não gaste tempo excessivo em retângulos pequenos.
-                        </p>
-                    </div>
-                    
-                    <div className="flex-1 min-h-0">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <Treemap
-                                data={treemapData}
-                                dataKey="size"
-                                stroke="#0f172a"
-                                fill="#10b981"
-                                content={<CustomTreemapContent />}
-                            >
-                                <Tooltip 
-                                    content={({ active, payload }) => {
-                                        if (active && payload && payload.length) {
-                                          return (
-                                            <div className="bg-slate-900 border border-slate-700 p-2 rounded shadow-xl text-xs">
-                                              <p className="font-bold text-white">{payload[0].payload.name}</p>
-                                              <p className="text-emerald-400">Peso Relativo: {Math.round(payload[0].value as number)}</p>
-                                            </div>
-                                          );
-                                        }
-                                        return null;
-                                    }}
-                                />
-                            </Treemap>
-                        </ResponsiveContainer>
-                    </div>
-                 </div>
+                            <Legend wrapperStyle={{fontSize: '12px', paddingTop: '10px'}}/>
+                            <Bar yAxisId="left" dataKey="score" name="Score Impacto" fill="#3b82f6" barSize={20} radius={[4, 4, 0, 0]} />
+                            <Line yAxisId="right" type="monotone" dataKey="cumulativePercentage" name="% Acumulada" stroke="#f59e0b" strokeWidth={2} dot={false} />
+                            <ReferenceLine yAxisId="right" y={80} stroke="#ef4444" strokeDasharray="3 3" label={{ position: 'insideTopRight',  value: 'Corte Elite (80%)', fill: '#ef4444', fontSize: 10 }} />
+                        </ComposedChart>
+                    </ResponsiveContainer>
+                </div>
              </div>
-          </DashboardSection>
-      </div>
+
+             {/* 2. Treemap (Hierarquia) */}
+             <div className="bg-slate-950 border border-slate-800 rounded-xl p-6 h-[400px] flex flex-col">
+                <div className="mb-4">
+                    <h3 className="text-white font-bold flex items-center gap-2">
+                        <BarChart2 size={18} className="text-emerald-500"/> Hierarquia de Pesos (Treemap)
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-1">
+                        O tamanho representa a importância real no edital. Não gaste tempo excessivo em retângulos pequenos.
+                    </p>
+                </div>
+                
+                <div className="flex-1 min-h-0">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <Treemap
+                            data={treemapData}
+                            dataKey="size"
+                            stroke="#0f172a"
+                            fill="#10b981"
+                            content={<CustomTreemapContent />}
+                        >
+                            <Tooltip 
+                                content={({ active, payload }) => {
+                                    if (active && payload && payload.length) {
+                                      return (
+                                        <div className="bg-slate-900 border border-slate-700 p-2 rounded shadow-xl text-xs">
+                                          <p className="font-bold text-white">{payload[0].payload.name}</p>
+                                          <p className="text-emerald-400">Peso Relativo: {Math.round(payload[0].value as number)}</p>
+                                        </div>
+                                      );
+                                    }
+                                    return null;
+                                }}
+                            />
+                        </Treemap>
+                    </ResponsiveContainer>
+                </div>
+             </div>
+         </div>
+      </DashboardSection>
 
       {selectedSession && (
         <StudySession notebook={selectedSession} onClose={() => setSelectedSession(null)} />

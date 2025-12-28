@@ -20,7 +20,7 @@ import {
   LayoutDashboard, Settings, Layers, Menu, X, Library as LibraryIcon, 
   Activity, Lightbulb, Flame, Brain, Newspaper, Pill, Pyramid, Book, ListChecks, Shield, StickyNote, Command, LogOut
 } from 'lucide-react';
-import { Logo } from './Logo';
+import { Logo } from './components/Logo';
 
 const AppContent: React.FC = () => {
   const [view, setView] = useState<'login' | 'selection' | 'dashboard' | 'setup' | 'library' | 'diagnostics' | 'tips' | 'nietzsche' | 'psycho' | 'news' | 'protocol' | 'framework' | 'docs' | 'verticalized' | 'notes' | 'about'>('login');
@@ -43,7 +43,7 @@ const AppContent: React.FC = () => {
       <div className="md:hidden bg-slate-900 p-4 border-b border-slate-800 flex justify-between items-center sticky top-0 z-40">
         <div className="flex items-center gap-2">
             <div className="bg-slate-800 p-1.5 rounded-lg"><Logo size="sm" /></div>
-            <h1 className="text-lg font-black tracking-wider text-white">ATENA</h1>
+            <h1 className="text-lg font-black tracking-wider text-white">ATENA <span className="text-[10px] text-emerald-500 bg-emerald-950/50 px-1.5 py-0.5 rounded ml-2 align-middle">v4.0</span></h1>
         </div>
         <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-slate-300">
           {sidebarOpen ? <X /> : <Menu />}
@@ -70,7 +70,10 @@ const AppContent: React.FC = () => {
                     <div>
                         <h1 className="text-lg font-black tracking-[0.15em] text-white leading-none group-hover:text-emerald-400 transition-colors">ATENA</h1>
                         <div className="flex items-center gap-2 mt-1.5">
-                            <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Sistema de Estudos</span>
+                            <span className="text-[9px] font-mono text-emerald-400 bg-emerald-950/50 px-1.5 py-0.5 rounded border border-emerald-900/50 font-bold shadow-[0_0_10px_rgba(16,185,129,0.1)]">
+                                v4.0.0
+                            </span>
+                            <span className="text-[9px] text-slate-500 uppercase font-bold tracking-wider">Olympus</span>
                         </div>
                     </div>
                 </div>
@@ -219,9 +222,9 @@ const AppContent: React.FC = () => {
          {/* Background Glow */}
          <div className="fixed top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-900/10 via-slate-950 to-slate-950 pointer-events-none -z-10"></div>
          
-         {view === 'dashboard' ? <Dashboard /> : 
+         {view === 'dashboard' ? <Dashboard onNavigate={(v) => setView(v as any)} /> : 
           view === 'setup' ? <Setup /> : 
-          view === 'verticalized' ? <VerticalizedEdital /> :
+          view === 'verticalized' ? <VerticalizedEdital onNavigate={(v) => setView(v as any)} /> :
           view === 'library' ? <Library /> :
           view === 'notes' ? <Notes /> :
           view === 'tips' ? <Tips /> :

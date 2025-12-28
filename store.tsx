@@ -33,6 +33,33 @@ const GUEST_MOCK_DB = {
         banca: 'FGV',
         examDate: new Date(new Date().setDate(new Date().getDate() + 90)).toISOString().split('T')[0], // +90 dias
         editalLink: 'https://conhecimento.fgv.br/concursos/rfb21',
+        structuredEdital: [
+            {
+                name: "Direito Tributário",
+                topics: [
+                    { name: "Sistema Tributário Nacional", probability: "Alta", checked: true },
+                    { name: "Limitações ao Poder de Tributar", probability: "Alta", checked: true },
+                    { name: "Impostos da União", probability: "Média", checked: false },
+                    { name: "Obrigação Tributária", probability: "Alta", checked: false }
+                ]
+            },
+            {
+                name: "Contabilidade Geral",
+                topics: [
+                    { name: "CPC 00 - Estrutura Conceitual", probability: "Alta", checked: true },
+                    { name: "CPC 26 - Apresentação das Demonstrações", probability: "Média", checked: true },
+                    { name: "CPC 16 - Estoques", probability: "Baixa", checked: false }
+                ]
+            },
+            {
+                name: "Direito Administrativo",
+                topics: [
+                    { name: "Atos Administrativos", probability: "Alta", checked: false },
+                    { name: "Licitações (Lei 14.133)", probability: "Alta", checked: false },
+                    { name: "Improbidade Administrativa", probability: "Média", checked: false }
+                ]
+            }
+        ]
     } as AthensConfig,
     framework: {
         values: 'Liberdade, Excelência, Segurança, Impacto',
@@ -97,6 +124,12 @@ interface StoreContextType {
   user: any;
   isGuest: boolean;
   
+  // Navigation State
+  focusedNotebookId: string | null;
+  setFocusedNotebookId: (id: string | null) => void;
+  pendingCreateData: Partial<Notebook> | null;
+  setPendingCreateData: (data: Partial<Notebook> | null) => void;
+  
   enterGuestMode: () => void;
 
   createCycle: (name: string, targetRole: string) => void;
@@ -144,6 +177,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [protocol, setProtocol] = useState<ProtocolItem[]>([]);
   const [framework, setFramework] = useState<FrameworkData>(DEFAULT_FRAMEWORK);
   const [notes, setNotes] = useState<Note[]>([]);
+  
+  // Navigation State
+  const [focusedNotebookId, setFocusedNotebookId] = useState<string | null>(null);
+  const [pendingCreateData, setPendingCreateData] = useState<Partial<Notebook> | null>(null);
   
   // Cycle Management
   const [cycles, setCycles] = useState<Cycle[]>([]);
@@ -383,8 +420,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   image: newNotebook.images?.[0] || null,
                   images: newNotebook.images || [],
                   last_practice: newNotebook.lastPractice || null,
-                  next_review: newNotebook.nextReview || null
-                  // REMOVED: accuracy_history due to DB schema conflict
+                  next_review: newNotebook.nextReview || null,
+                  accuracy_history: newNotebook.accuracyHistory || []
               };
 
               const { error } = await supabase.from('notebooks').insert(payload);
@@ -451,7 +488,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               if(updates.relevance !== undefined) dbUpdates.relevance = updates.relevance;
               if(updates.trend !== undefined) dbUpdates.trend = updates.trend;
               if(updates.notes !== undefined) dbUpdates.notes = updates.notes || null;
-              // REMOVED: accuracy_history
+              if(updates.accuracyHistory !== undefined) dbUpdates.accuracy_history = updates.accuracyHistory;
+              
               if(updates.images !== undefined) {
                   dbUpdates.images = updates.images || [];
                   dbUpdates.image = updates.images?.[0] || null;
@@ -480,7 +518,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const nb = notebooks.find(n => n.id === id);
     if (!nb) return;
     const nextDate = calculateNextReview(newAccuracy, nb.relevance, nb.trend, config.algorithm);
-    editNotebook(id, { accuracy: newAccuracy, lastPractice: new Date().toISOString(), nextReview: nextDate.toISOString() });
+    const today = new Date().toISOString();
+    
+    // Add to history
+    const newHistory = [...(nb.accuracyHistory || []), { date: today, accuracy: newAccuracy }];
+    
+    editNotebook(id, { 
+        accuracy: newAccuracy, 
+        lastPractice: today, 
+        nextReview: nextDate.toISOString(),
+        accuracyHistory: newHistory
+    });
   };
 
   const deleteNotebook = async (id: string): Promise<void> => {
@@ -575,6 +623,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <StoreContext.Provider value={{ 
       notebooks, config, reports, protocol, cycles, activeCycleId, framework, notes, loading, user, isGuest,
+      focusedNotebookId, setFocusedNotebookId, pendingCreateData, setPendingCreateData,
       enterGuestMode, createCycle, selectCycle, deleteCycle, updateConfig, updateNotebookAccuracy, moveNotebookToWeek, 
       getWildcardNotebook, addNotebook, editNotebook, deleteNotebook, bulkUpdateNotebooks, saveReport, deleteReport,
       addProtocolItem, toggleProtocolItem, deleteProtocolItem, updateFramework, addNote, updateNote, deleteNote

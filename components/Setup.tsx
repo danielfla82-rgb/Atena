@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, Relevance, Trend, NotebookStatus } from '../types';
-import { Plus, Search, Copy, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2, TrendingUp, History, ListPlus, Minus, AlertTriangle, CheckCircle2, RotateCw, Zap, Activity, Info } from 'lucide-react';
+import { Plus, Search, Copy, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2, TrendingUp, History, ListPlus, Minus, AlertTriangle, CheckCircle2, RotateCw, Zap, Activity, Info, Clock, Archive } from 'lucide-react';
 import { calculateNextReview, getStatusColor } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 
@@ -48,12 +48,26 @@ const DraggableCard = React.memo(({
                 group relative bg-slate-800 border border-slate-700 rounded-lg p-3 cursor-grab active:cursor-grabbing hover:border-emerald-500/50 transition-all shadow-sm
                 ${disabled ? 'opacity-50 pointer-events-none' : ''}
                 ${isCompact ? 'text-xs' : 'text-sm'}
-                ${notebook.isWeekCompleted && isWeek ? 'opacity-60 bg-slate-900 border-slate-800' : ''}
+                ${notebook.isWeekCompleted && isWeek ? 'bg-slate-900 border-slate-800' : ''}
             `}
         >
             {isLibrary && (
                 <div className={`absolute right-0 top-0 p-1 rounded-bl text-[9px] uppercase font-bold tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border-l border-b z-10 flex items-center gap-1 bg-slate-900/80 border-slate-700 text-emerald-500`}>
                     <Copy size={10}/> + Clonar
+                </div>
+            )}
+
+            {/* IMPROVED REMOVE BUTTON FOR WEEK VIEW */}
+            {isWeek && onRemove && !disabled && (
+                <div 
+                    onClick={(e) => { 
+                        e.stopPropagation(); 
+                        onRemove(notebook.id); 
+                    }} 
+                    className="absolute -top-2 -right-2 w-7 h-7 flex items-center justify-center bg-slate-900 text-slate-500 hover:text-white hover:bg-amber-600 border border-slate-700 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all z-50 cursor-pointer"
+                    title="Remover do planejamento (voltar para o banco)"
+                >
+                    <Minus size={12} />
                 </div>
             )}
 
@@ -65,7 +79,7 @@ const DraggableCard = React.memo(({
                             style={{ backgroundColor: statusColor }} 
                             title={`Acurácia: ${notebook.accuracy}%`}
                          />
-                        <h4 className={`font-bold truncate leading-tight ${notebook.isWeekCompleted && isWeek ? 'text-slate-500 line-through' : 'text-slate-200'}`}>
+                        <h4 className={`font-bold truncate leading-tight ${notebook.isWeekCompleted && isWeek ? 'text-emerald-400 line-through' : 'text-slate-200'}`}>
                             {notebook.discipline}
                         </h4>
                         {isLibrary && allocationCount && allocationCount > 0 ? (
@@ -90,25 +104,20 @@ const DraggableCard = React.memo(({
                          >
                              <Pencil size={12} />
                          </button>
-                         {/* UNDO / REMOVE BUTTON (Only for Week View) */}
-                         {isWeek && onRemove && !disabled && (
-                             <button 
-                                onClick={(e) => { e.stopPropagation(); onRemove(notebook.id); }} 
-                                className="text-slate-500 hover:text-red-400 p-1 rounded hover:bg-red-900/20 hover:border-red-500/30 border border-transparent transition-colors"
-                                title="Remover desta semana (O original permanece no banco)"
-                             >
-                                 <Trash2 size={12} />
-                             </button>
-                         )}
                      </div>
                 </div>
             </div>
 
             {isWeek && onToggleComplete && (
                 <div className="mt-2 pt-2 border-t border-slate-700/50 flex justify-between items-center">
-                    <label className="flex items-center gap-2 cursor-pointer group/check">
-                        <div className={`w-3 h-3 rounded border flex items-center justify-center transition-colors ${notebook.isWeekCompleted ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-600 bg-slate-700 group-hover/check:border-emerald-500'}`}>
-                             {notebook.isWeekCompleted && <Check size={8} strokeWidth={4} />}
+                    <label className="flex items-center gap-2 cursor-pointer group/check w-full">
+                        <div className={`
+                            w-full py-1.5 px-3 rounded-lg border flex items-center justify-center gap-2 transition-all font-bold text-[10px] uppercase tracking-wider
+                            ${notebook.isWeekCompleted 
+                                ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-900/20' 
+                                : 'border-slate-600 bg-slate-700 text-slate-300 group-hover/check:border-slate-500 hover:bg-slate-600'}
+                        `}>
+                             {notebook.isWeekCompleted ? <><Check size={12} strokeWidth={4} /> Concluído</> : "Em Andamento"}
                         </div>
                         <input 
                             type="checkbox" 
@@ -116,9 +125,6 @@ const DraggableCard = React.memo(({
                             onChange={(e) => onToggleComplete(notebook.id, e.target.checked)}
                             className="hidden"
                         />
-                        <span className={`text-[10px] ${notebook.isWeekCompleted ? 'text-emerald-400' : 'text-slate-500 group-hover/check:text-slate-300'}`}>
-                            {notebook.isWeekCompleted ? 'Concluído' : 'Pendente'}
-                        </span>
                     </label>
                 </div>
             )}
@@ -267,7 +273,7 @@ export const Setup: React.FC = () => {
   const [viewMode, setViewMode] = useState<'timeline' | 'calculator'>('timeline');
   const [searchTerm, setSearchTerm] = useState('');
   const [showStats, setShowStats] = useState(false);
-  const [libraryFilter, setLibraryFilter] = useState<'all' | 'unallocated' | 'fit' | 'smart'>('all');
+  const [libraryFilter, setLibraryFilter] = useState<'all' | 'unallocated' | 'overdue'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -301,16 +307,9 @@ export const Setup: React.FC = () => {
       return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\n\r]/g, " ").replace(/\s+/g, " ").replace(/[^a-z0-9\s]/g, "");
   }, []);
 
-  // --- UPDATED: Library Logic (Pure Templates) ---
+  // --- UPDATED: Library Logic (Pure Templates with Filters) ---
   const libraryNotebooks = useMemo(() => {
-    const editalRaw = config.editalText || "";
-    const editalNormalized = normalizeText(editalRaw);
-    const hasEdital = editalRaw.length > 10;
-
-    // Filter out items that are "Week Instances" (have a weekId)
-    // We only want to show the "Source" items. 
-    // In this architecture, a source item has weekId = null.
-    // However, to support the legacy data where items might be moved, we use the deduplication logic below.
+    const today = new Date().toISOString().split('T')[0];
     
     const uniqueMap = new Map<string, Notebook>();
     const allocationCountMap = new Map<string, number>();
@@ -339,14 +338,11 @@ export const Setup: React.FC = () => {
 
         // Ensure we only show one instance per content key in the library sidebar
         if (!uniqueMap.has(key)) {
-            // We prefer the instance that is NOT in a week (the template)
-            // But if all instances are in weeks, we show the first one found as a drag source
             uniqueMap.set(key, nb);
         }
     });
 
-    return Array.from(uniqueMap.values())
-        .sort((a, b) => a.discipline.localeCompare(b.discipline) || a.name.localeCompare(b.name))
+    let result = Array.from(uniqueMap.values())
         .map(nb => {
             const key = `${normalizeText(nb.discipline)}|${normalizeText(nb.name)}|${normalizeText(nb.subtitle || '')}`;
             return {
@@ -354,7 +350,19 @@ export const Setup: React.FC = () => {
                 _allocationCount: allocationCountMap.get(key) || 0
             };
         });
-  }, [notebooks, searchTerm, libraryFilter, config.editalText, normalizeText]);
+
+    // APPLY FILTERS
+    if (libraryFilter === 'unallocated') {
+        result = result.filter(nb => nb._allocationCount === 0);
+    } else if (libraryFilter === 'overdue') {
+        result = result.filter(nb => nb.nextReview && nb.nextReview.split('T')[0] < today);
+    }
+
+    // Sort: Discipline then Name
+    result.sort((a, b) => a.discipline.localeCompare(b.discipline) || a.name.localeCompare(b.name));
+
+    return result;
+  }, [notebooks, searchTerm, libraryFilter, normalizeText]);
 
   const existingDisciplines = useMemo(() => {
     return Array.from(new Set(notebooks.map(n => n.discipline))).sort();
@@ -528,14 +536,13 @@ export const Setup: React.FC = () => {
       editNotebook(id, updates);
   }, [editNotebook]);
 
-  // --- SENIOR FIX: DELETE INSTANCE ---
+  // --- SENIOR FIX: DELETE INSTANCE CORRECTLY ---
   const handleRemoveFromWeek = useCallback((id: string) => {
-      const confirmRemove = window.confirm("Remover este bloco da semana? (Isso não apaga o caderno da biblioteca)");
-      if(confirmRemove) {
-          // This deletes the INSTANCE row from DB. The Template row (with null weekId) remains.
-          deleteNotebook(id);
-      }
-  }, [deleteNotebook]);
+      // CRITICAL FIX: Instead of deleting the notebook entirely (Data Loss),
+      // we only remove the schedule (set weekId to null).
+      // This moves it back to the "Unscheduled" library backlog.
+      moveNotebookToWeek(id, null);
+  }, [moveNotebookToWeek]);
 
   const handleQuickRecord = async () => {
       setIsSaving(true);
@@ -573,6 +580,12 @@ export const Setup: React.FC = () => {
           <div className="p-4 border-b border-slate-800 space-y-3">
             <h2 className="text-xs font-bold text-slate-400 flex items-center gap-2 uppercase tracking-wider"><Layout size={14} className="text-emerald-500" /> Banco de Disciplinas</h2>
             
+            <div className="flex gap-2">
+                <button onClick={() => setLibraryFilter('all')} className={`flex-1 py-1.5 text-[10px] rounded border font-bold ${libraryFilter === 'all' ? 'bg-slate-800 border-slate-600 text-white' : 'bg-transparent border-slate-800 text-slate-500'}`}>Todos</button>
+                <button onClick={() => setLibraryFilter('unallocated')} className={`flex-1 py-1.5 text-[10px] rounded border font-bold ${libraryFilter === 'unallocated' ? 'bg-blue-900/20 border-blue-500/30 text-blue-400' : 'bg-transparent border-slate-800 text-slate-500'}`}>Pendentes</button>
+                <button onClick={() => setLibraryFilter('overdue')} className={`flex-1 py-1.5 text-[10px] rounded border font-bold ${libraryFilter === 'overdue' ? 'bg-red-900/20 border-red-500/30 text-red-400' : 'bg-transparent border-slate-800 text-slate-500'}`}>Atrasados</button>
+            </div>
+
             <div className="relative">
                 <Search className="absolute left-3 top-2.5 text-slate-500" size={14} />
                 <input type="text" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg py-2 pl-9 pr-3 text-xs text-white focus:border-emerald-500 outline-none" />
@@ -599,7 +612,7 @@ export const Setup: React.FC = () => {
             {libraryNotebooks.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-10 text-slate-600 gap-2 opacity-50 px-4 text-center">
                     <Settings2 size={24} />
-                    <span className="text-xs">Nenhum caderno encontrado na biblioteca. Crie um novo ou limpe a busca.</span>
+                    <span className="text-xs">Nenhum caderno encontrado. Ajuste o filtro ou crie um novo.</span>
                 </div>
             )}
           </div>
@@ -695,19 +708,29 @@ export const Setup: React.FC = () => {
                         {weeks.map(week => {
                         const weekNotebooks = notebooks.filter(nb => nb.weekId === week.id);
                         const blocksCount = weekNotebooks.length;
+                        const blocksCompleted = weekNotebooks.filter(nb => nb.isWeekCompleted).length;
                         const weekPaceName = getWeekPace(week.id);
                         const weekTarget = PACE_SETTINGS[weekPaceName] || paceTarget;
                         const loadPercentage = Math.min((blocksCount / weekTarget.blocks) * 100, 100);
                         const missingBlocks = Math.max(0, weekTarget.blocks - blocksCount);
+                        
+                        // Status Logic
                         const isOverloaded = blocksCount > weekTarget.blocks;
-                        const isComplete = blocksCount >= weekTarget.blocks && !isOverloaded;
+                        const isAllocated = blocksCount >= weekTarget.blocks && !isOverloaded;
+                        const isWeekFullyDone = blocksCount > 0 && blocksCompleted === blocksCount;
+                        const isLate = week.isPast && !isWeekFullyDone;
                         
                         return (
-                            <div key={week.id} className={`w-80 flex-shrink-0 flex flex-col rounded-2xl border transition-all duration-300 relative h-full max-h-full ${week.isPast ? 'bg-slate-900/30 border-slate-800/50 opacity-70' : 'bg-slate-900 border-slate-800 shadow-2xl hover:border-slate-700'}`} onDragOver={week.isPast ? undefined : onDragOver} onDrop={(e) => onDrop(e, week.id, week.isPast)}>
+                            <div key={week.id} className={`w-80 flex-shrink-0 flex flex-col rounded-2xl border transition-all duration-300 relative h-full max-h-full ${week.isPast ? 'bg-slate-900/30 border-slate-800/50 opacity-90' : 'bg-slate-900 border-slate-800 shadow-2xl hover:border-slate-700'}`} onDragOver={week.isPast ? undefined : onDragOver} onDrop={(e) => onDrop(e, week.id, week.isPast)}>
                             <div className={`p-4 rounded-t-2xl border-b flex flex-col gap-3 z-10 relative ${week.isPast ? 'bg-slate-950/30 border-slate-800/50 text-slate-600' : 'bg-slate-900 border-slate-700 text-slate-200'}`}>
                                 <div className="flex justify-between items-start">
                                     <div><span className="font-black block text-base flex items-center gap-2 text-white">SEMANA {week.index} {week.isPast && <Lock size={14} />}</span><span className={`text-[10px] font-bold uppercase tracking-widest ${week.isPast ? 'line-through decoration-slate-600 opacity-50' : 'text-slate-500'}`}>{week.label}</span></div>
-                                    <div className="flex flex-col items-end"><span className={`text-lg font-black ${isOverloaded ? 'text-red-400' : isComplete ? 'text-emerald-400' : 'text-white'}`}>{blocksCount}</span><span className="text-[9px] text-slate-500 uppercase font-bold">blocos</span></div>
+                                    <div className="flex flex-col items-end">
+                                        <span className={`text-lg font-black ${isOverloaded ? 'text-red-400' : isAllocated ? 'text-emerald-400' : 'text-white'}`}>
+                                            {blocksCount}
+                                        </span>
+                                        <span className="text-[9px] text-slate-500 uppercase font-bold">blocos</span>
+                                    </div>
                                 </div>
                                 {!week.isPast && (
                                     <div className="flex items-center gap-2 mt-1">
@@ -722,12 +745,31 @@ export const Setup: React.FC = () => {
                                         </div>
                                     </div>
                                 )}
-                                {!week.isPast && (
-                                    <div className="space-y-2 mt-1">
-                                        <div className="w-full h-2 bg-slate-950 rounded-full overflow-hidden flex relative group border border-slate-800"><div className={`h-full transition-all duration-500 ${isOverloaded ? 'bg-red-500' : 'bg-gradient-to-r from-emerald-600 to-emerald-400'}`} style={{ width: `${loadPercentage}%` }}></div></div>
-                                        <div className="flex justify-between items-center">{missingBlocks > 0 ? (<span className="text-[10px] text-amber-500 font-bold flex items-center gap-1 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20"><AlertCircle size={10} /> Meta: +{missingBlocks}</span>) : (<span className="text-[10px] text-emerald-500 font-bold flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20"><Check size={10} /> Meta Batida</span>)}</div>
+                                <div className="space-y-2 mt-1">
+                                    {/* Barra de Alocação (Planejamento) */}
+                                    <div className="w-full h-1 bg-slate-950 rounded-full overflow-hidden flex relative group border border-slate-800"><div className={`h-full transition-all duration-500 ${isOverloaded ? 'bg-red-500' : 'bg-slate-600'}`} style={{ width: `${loadPercentage}%` }}></div></div>
+                                    
+                                    {/* Status Message */}
+                                    <div className="flex justify-between items-center h-5">
+                                        {isWeekFullyDone ? (
+                                            <span className="text-[10px] text-emerald-500 font-bold flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 w-full justify-center">
+                                                <Check size={10} /> Meta Batida
+                                            </span>
+                                        ) : isLate ? (
+                                            <span className="text-[10px] text-red-400 font-bold flex items-center gap-1 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20 w-full justify-center">
+                                                <AlertCircle size={10} /> Atrasado ({blocksCount - blocksCompleted} pendentes)
+                                            </span>
+                                        ) : missingBlocks > 0 ? (
+                                            <span className="text-[10px] text-slate-500 font-bold flex items-center gap-1">
+                                                Planejar: +{missingBlocks}
+                                            </span>
+                                        ) : (
+                                            <span className="text-[10px] text-blue-400 font-bold flex items-center gap-1">
+                                                <Archive size={10} /> Planejamento OK
+                                            </span>
+                                        )}
                                     </div>
-                                )}
+                                </div>
                             </div>
                             <div className="p-3 space-y-2 overflow-y-auto flex-1 custom-scrollbar relative bg-slate-900/50">
                                 {week.isPast && <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagmonds-light.png')] opacity-10 pointer-events-none z-0"></div>}

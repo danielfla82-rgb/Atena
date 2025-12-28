@@ -2,11 +2,15 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { useStore } from '../store';
 import { createAIClient } from '../utils/ai';
 import { Type } from "@google/genai";
-import { CheckSquare, Square, AlertCircle, ArrowUpCircle, CheckCircle2, ListChecks, Search, BrainCircuit, Loader2, Sparkles, ChevronDown, ChevronUp, FileWarning } from 'lucide-react';
+import { CheckSquare, Square, AlertCircle, ArrowUpCircle, CheckCircle2, ListChecks, Search, BrainCircuit, Loader2, Sparkles, ChevronDown, ChevronUp, FileWarning, ExternalLink, Plus, BookOpen } from 'lucide-react';
 import { EditalDiscipline, EditalTopic, Weight, Relevance, Trend } from '../types';
 
-export const VerticalizedEdital: React.FC = () => {
-  const { notebooks, config, updateConfig } = useStore();
+interface Props {
+    onNavigate: (view: string) => void;
+}
+
+export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
+  const { notebooks, config, updateConfig, setFocusedNotebookId, setPendingCreateData } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [expandedDiscipline, setExpandedDiscipline] = useState<string | null>(null);
@@ -119,6 +123,19 @@ export const VerticalizedEdital: React.FC = () => {
       updateConfig({ ...config, structuredEdital: newEdital });
   };
 
+  const handleTopicClick = (topicName: string, disciplineName: string, existingId?: string) => {
+      if (existingId) {
+          setFocusedNotebookId(existingId);
+          onNavigate('library');
+      } else {
+          setPendingCreateData({
+              name: topicName,
+              discipline: disciplineName
+          });
+          onNavigate('library');
+      }
+  };
+
   // --- PROBABILITY CALCULATION ---
   const calculateProbability = useCallback((topicName: string, disciplineName: string) => {
       const normTopic = normalize(topicName);
@@ -192,7 +209,14 @@ export const VerticalizedEdital: React.FC = () => {
           return (nbDisc.includes(normDisc) || normDisc.includes(nbDisc)) && !!nb.weekId;
       }).length;
 
-      return { inCycle, blocksCount, disciplineBlocks, matchesCount: matches.length };
+      // Return the ID of the first match if any, to allow linking
+      return { 
+          inCycle, 
+          blocksCount, 
+          disciplineBlocks, 
+          matchesCount: matches.length,
+          matchedId: matches.length > 0 ? matches[0].id : undefined 
+      };
   }, [notebooks]);
 
   // --- FILTERING ---
@@ -322,7 +346,7 @@ export const VerticalizedEdital: React.FC = () => {
                                               <th className="p-4">Tópico</th>
                                               <th className="p-4 w-40 text-center">Probabilidade (Score)</th>
                                               <th className="p-4 w-32 text-center">No Ciclo?</th>
-                                              <th className="p-4 w-32 text-center">Freq. Disciplina</th>
+                                              <th className="p-4 w-32 text-center">Ação</th>
                                           </tr>
                                       </thead>
                                       <tbody className="divide-y divide-slate-800/50">
@@ -331,13 +355,16 @@ export const VerticalizedEdital: React.FC = () => {
                                               const prob = calculateProbability(topic.name, discipline.name);
                                               
                                               return (
-                                                  <tr key={idx} className="hover:bg-slate-800/20 transition-colors">
+                                                  <tr key={idx} className="hover:bg-slate-800/20 transition-colors group">
                                                       <td className="p-4 text-center">
                                                           <button onClick={(e) => { e.stopPropagation(); toggleCheck(discipline.name, topic.name); }} className="text-slate-500 hover:text-emerald-500 transition-colors">
                                                               {topic.checked ? <CheckSquare size={18} className="text-emerald-500" /> : <Square size={18} />}
                                                           </button>
                                                       </td>
-                                                      <td className={`p-4 font-medium ${topic.checked ? 'text-slate-500 line-through' : 'text-slate-200'}`}>
+                                                      <td 
+                                                        className={`p-4 font-medium cursor-pointer hover:text-emerald-400 transition-colors ${topic.checked ? 'text-slate-500 line-through' : 'text-slate-200'}`}
+                                                        onClick={() => handleTopicClick(topic.name, discipline.name, stats.matchedId)}
+                                                      >
                                                           {topic.name}
                                                       </td>
                                                       <td className="p-4 text-center">
@@ -358,9 +385,26 @@ export const VerticalizedEdital: React.FC = () => {
                                                           )}
                                                       </td>
                                                       <td className="p-4 text-center">
-                                                          <span className="bg-slate-800 px-2 py-1 rounded text-xs font-mono text-white">
-                                                              {stats.disciplineBlocks}
-                                                          </span>
+                                                          <button 
+                                                            onClick={() => handleTopicClick(topic.name, discipline.name, stats.matchedId)}
+                                                            className={`
+                                                                flex items-center justify-center gap-2 w-full py-1.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-all shadow-lg
+                                                                ${stats.matchedId 
+                                                                    ? 'bg-blue-600/10 text-blue-400 border border-blue-500/30 hover:bg-blue-600 hover:text-white' 
+                                                                    : 'bg-emerald-600/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600 hover:text-white'}
+                                                            `}
+                                                            title={stats.matchedId ? "Ir para o Caderno" : "Criar Caderno"}
+                                                          >
+                                                              {stats.matchedId ? (
+                                                                  <>
+                                                                    <ExternalLink size={12} /> Abrir
+                                                                  </>
+                                                              ) : (
+                                                                  <>
+                                                                    <Plus size={12} /> Criar
+                                                                  </>
+                                                              )}
+                                                          </button>
                                                       </td>
                                                   </tr>
                                               );
