@@ -53,7 +53,7 @@ const DraggableCard = React.memo(({
         >
             {isLibrary && (
                 <div className={`absolute right-0 top-0 p-1 rounded-bl text-[9px] uppercase font-bold tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border-l border-b z-10 flex items-center gap-1 bg-slate-900/80 border-slate-700 text-emerald-500`}>
-                    <Copy size={10}/> + Clonar
+                    <Calendar size={10}/> + Agendar
                 </div>
             )}
 
@@ -83,8 +83,8 @@ const DraggableCard = React.memo(({
                             {notebook.discipline}
                         </h4>
                         {isLibrary && allocationCount && allocationCount > 0 ? (
-                            <span className="text-[8px] bg-blue-900/30 text-blue-400 border border-blue-500/30 px-1.5 rounded flex items-center gap-1" title="Vezes alocado neste ciclo">
-                                <RotateCw size={8} /> {allocationCount}x
+                            <span className="text-[8px] bg-blue-900/30 text-blue-400 border border-blue-500/30 px-1.5 rounded flex items-center gap-1" title="Alocado no planejamento">
+                                <CheckCircle2 size={8} /> No Ciclo
                             </span>
                         ) : null}
                     </div>
@@ -311,49 +311,24 @@ export const Setup: React.FC = () => {
   const libraryNotebooks = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
     
-    const uniqueMap = new Map<string, Notebook>();
-    const allocationCountMap = new Map<string, number>();
-    
     // Sort to prioritize "Library" items (weekId == null)
+    // Actually for unique view, we just want to list items.
     const sorted = [...notebooks].sort((a, b) => {
         if (!a.weekId && b.weekId) return -1;
         if (a.weekId && !b.weekId) return 1;
         return 0;
     });
 
-    sorted.forEach(nb => {
-        if (nb.discipline === 'Revisão Geral') return;
-
-        // Generate Unique Content Key
-        const key = `${normalizeText(nb.discipline)}|${normalizeText(nb.name)}|${normalizeText(nb.subtitle || '')}`;
-        
-        // Count allocations across the board
-        if (nb.weekId) {
-            allocationCountMap.set(key, (allocationCountMap.get(key) || 0) + 1);
-        }
-
-        // Search Filter
+    // Simple list, just filtered by search and criteria
+    let result = sorted.filter(nb => {
+        if (nb.discipline === 'Revisão Geral') return false;
         const matchesSearch = nb.name.toLowerCase().includes(searchTerm.toLowerCase()) || nb.discipline.toLowerCase().includes(searchTerm.toLowerCase());
-        if (!matchesSearch) return;
-
-        // Ensure we only show one instance per content key in the library sidebar
-        if (!uniqueMap.has(key)) {
-            uniqueMap.set(key, nb);
-        }
+        return matchesSearch;
     });
-
-    let result = Array.from(uniqueMap.values())
-        .map(nb => {
-            const key = `${normalizeText(nb.discipline)}|${normalizeText(nb.name)}|${normalizeText(nb.subtitle || '')}`;
-            return {
-                ...nb,
-                _allocationCount: allocationCountMap.get(key) || 0
-            };
-        });
 
     // APPLY FILTERS
     if (libraryFilter === 'unallocated') {
-        result = result.filter(nb => nb._allocationCount === 0);
+        result = result.filter(nb => !nb.weekId);
     } else if (libraryFilter === 'overdue') {
         result = result.filter(nb => nb.nextReview && nb.nextReview.split('T')[0] < today);
     }
@@ -419,63 +394,25 @@ export const Setup: React.FC = () => {
   const onDragStart = useCallback((e: React.DragEvent, id: string, origin: 'library' | 'week') => {
     e.dataTransfer.setData("notebookId", id);
     e.dataTransfer.setData("origin", origin);
-    if (origin === 'library') {
-        e.dataTransfer.effectAllowed = 'copy'; // Visual feedback that we are cloning
-    } else {
-        e.dataTransfer.effectAllowed = 'move';
-    }
+    // Always MOVE (Schedule), never COPY (Clone)
+    e.dataTransfer.effectAllowed = 'move';
   }, []);
 
   const onDragOver = useCallback((e: React.DragEvent) => e.preventDefault(), []);
   
-  // --- SENIOR FIX: STRICT CLONING LOGIC ---
+  // --- SENIOR FIX: STRICT SCHEDULING LOGIC (NO CLONING) ---
   const onDrop = async (e: React.DragEvent, targetWeekId: string | null, isPast: boolean) => {
     if (isPast) { alert("Você não pode alterar o planejamento de semanas que já passaram."); return; }
     
     const id = e.dataTransfer.getData("notebookId");
-    const origin = e.dataTransfer.getData("origin");
     
     if (!id || !targetWeekId) return;
 
-    if (origin === 'week') {
-        // Move Instance: Just update the weekId of the existing instance
-        await moveNotebookToWeek(id, targetWeekId);
-    } else {
-        // Drag from Library: MUST CREATE NEW INSTANCE (Clone)
-        const sourceNb = notebooks.find(n => n.id === id);
-        if (!sourceNb) return;
-
-        // Clean Payload for new instance
-        const payload = {
-            discipline: sourceNb.discipline,
-            name: sourceNb.name,
-            subtitle: sourceNb.subtitle || '',
-            weight: sourceNb.weight,
-            relevance: sourceNb.relevance,
-            trend: sourceNb.trend,
-            targetAccuracy: sourceNb.targetAccuracy,
-            tecLink: sourceNb.tecLink,
-            lawLink: sourceNb.lawLink,
-            obsidianLink: sourceNb.obsidianLink,
-            notes: sourceNb.notes,
-            images: sourceNb.images || [],
-            weekId: targetWeekId,
-            // Reset Execution State
-            accuracy: 0,
-            status: NotebookStatus.NOT_STARTED,
-            accuracyHistory: [],
-            isWeekCompleted: false,
-            lastPractice: undefined, 
-            nextReview: undefined
-        };
-        
-        try {
-            await addNotebook(payload);
-        } catch (err) {
-            console.error("Cloning failed:", err);
-            alert("Erro ao adicionar caderno. Tente novamente.");
-        }
-    }
+    // Simply move the notebook to the new week.
+    // If it was in the library (weekId: null), it gets a week.
+    // If it was in another week, it moves to this one.
+    // Database remains with single unique entry.
+    await moveNotebookToWeek(id, targetWeekId);
   };
 
   const handleEditClick = useCallback((notebook: Notebook) => {
@@ -538,9 +475,7 @@ export const Setup: React.FC = () => {
 
   // --- SENIOR FIX: DELETE INSTANCE CORRECTLY ---
   const handleRemoveFromWeek = useCallback((id: string) => {
-      // CRITICAL FIX: Instead of deleting the notebook entirely (Data Loss),
-      // we only remove the schedule (set weekId to null).
-      // This moves it back to the "Unscheduled" library backlog.
+      // Moves back to "Library" (Unscheduled) by setting weekId to null
       moveNotebookToWeek(id, null);
   }, [moveNotebookToWeek]);
 
@@ -593,7 +528,7 @@ export const Setup: React.FC = () => {
             
             <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold">
                 <span>Total: {libraryNotebooks.length}</span>
-                <span className="text-emerald-500 flex items-center gap-1">Arraste para clonar <ArrowRight size={10} /></span>
+                <span className="text-emerald-500 flex items-center gap-1">Arraste para Agendar <ArrowRight size={10} /></span>
             </div>
           </div>
           
@@ -605,14 +540,14 @@ export const Setup: React.FC = () => {
                     onDragStart={onDragStart} 
                     onEdit={handleEditClick} 
                     origin="library" 
-                    allocationCount={nb._allocationCount}
+                    allocationCount={nb.weekId ? 1 : 0}
                 />
             ))}
             
             {libraryNotebooks.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-10 text-slate-600 gap-2 opacity-50 px-4 text-center">
                     <Settings2 size={24} />
-                    <span className="text-xs">Nenhum caderno encontrado. Ajuste o filtro ou crie um novo.</span>
+                    <span className="text-xs">Nenhum caderno encontrado. {libraryFilter === 'unallocated' ? "Tudo já está agendado!" : "Crie um novo caderno."}</span>
                 </div>
             )}
           </div>
