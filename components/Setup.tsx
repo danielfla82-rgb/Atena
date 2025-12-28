@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, Relevance, Trend, NotebookStatus } from '../types';
-import { Plus, Search, Copy, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2, TrendingUp, History, ListPlus, Minus } from 'lucide-react';
+import { Plus, Search, Copy, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2, TrendingUp, History, ListPlus, Minus, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { calculateNextReview, getStatusColor } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 
@@ -12,7 +12,7 @@ const PACE_SETTINGS: Record<string, { hours: number, blocks: number }> = {
     'Avançado': { hours: 44, blocks: 66 }
 };
 
-// ... DraggableCard (kept as is) ...
+// MEMOIZED COMPONENT TO PREVENT RE-RENDERS ON DRAG/SEARCH
 const DraggableCard = React.memo(({ 
     notebook, 
     onDragStart, 
@@ -131,9 +131,7 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
         // Init if empty
         if (!config.calculatorState) {
             const initialWeights: Record<string, number> = {};
-            // Explicitly type 'd' to avoid 'unknown' index type error
             availableDisciplines.forEach((d: string) => initialWeights[d] = 1);
-            
             updateConfig({
                 ...config,
                 calculatorState: {
@@ -145,10 +143,9 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
         }
     }, [availableDisciplines.length]); 
 
-    // Helper accessors
     const weights: Record<string, number> = config.calculatorState?.weights || {};
-    const selectedDiscs = new Set(config.calculatorState?.selectedDisciplines || []);
-    const customDiscs = config.calculatorState?.customDisciplines || [];
+    const selectedDiscs = new Set<string>(config.calculatorState?.selectedDisciplines || []);
+    const customDiscs: string[] = config.calculatorState?.customDisciplines || [];
 
     // --- ACTIONS ---
 
@@ -275,7 +272,12 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
     }, [availableDisciplines, selectedDiscs, weights, totalWeight, paceTarget.blocks, notebooks]);
 
     const totalAllocated = distribution.reduce((sum, item) => sum + item.blocks, 0);
-    const diff = paceTarget.blocks - totalAllocated;
+    const diff = totalAllocated - paceTarget.blocks;
+    
+    // Status Logic
+    const isBalanced = diff === 0;
+    const isOver = diff > 0;
+    const isUnder = diff < 0;
 
     // Info Stats
     const totalItems = notebooks.filter(n => n.discipline !== 'Revisão Geral').length;
@@ -291,7 +293,7 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
                 </div>
                 <h2 className="text-2xl font-bold text-white mb-2">Planejamento de Ciclo</h2>
                 <p className="text-slate-400 text-sm max-w-xl mx-auto">
-                    Defina os pesos estratégicos. O algoritmo Atena distribuirá sua carga de <strong className="text-white">{paceTarget.blocks} blocos/semana</strong>.
+                    Defina os pesos estratégicos. O algoritmo Atena distribuirá sua carga de <strong className="text-white">{paceTarget.blocks} blocos/semana (Ritmo Padrão)</strong>.
                 </p>
             </div>
             
@@ -299,7 +301,7 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
             <div className="flex flex-wrap justify-center gap-4 mb-8">
                  <div className="bg-slate-900 border border-slate-800 px-6 py-3 rounded-xl flex items-center gap-4">
                     <div className="text-right">
-                        <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Carga Semanal</p>
+                        <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Carga Base</p>
                         <p className="text-lg font-black text-emerald-400">~{paceTarget.hours}h</p>
                     </div>
                     <Timer className="text-emerald-900" size={20} />
@@ -344,115 +346,148 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
             </div>
 
             {/* Main Calculator List (Improved UX) */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl flex flex-col">
-                <div className="p-4 border-b border-slate-800 bg-slate-950/50 flex justify-between items-center sticky top-0 z-10 backdrop-blur-sm">
-                    <h3 className="font-bold text-white text-sm uppercase tracking-wider flex items-center gap-2">
-                        <Scale size={16} className="text-emerald-500"/> Distribuição Ponderada
-                    </h3>
-                    <div className={`text-xs font-mono px-3 py-1 rounded-full border ${diff === 0 ? 'bg-emerald-900/20 text-emerald-400 border-emerald-500/30' : 'bg-amber-900/20 text-amber-400 border-amber-500/30'}`}>
-                        Alocado: <strong>{totalAllocated}</strong> / {paceTarget.blocks} blocos
+            <div className="flex-1 flex flex-col min-h-[400px]">
+                <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl flex flex-col h-full">
+                    <div className={`p-4 border-b transition-colors flex flex-wrap md:flex-nowrap justify-between items-center sticky top-0 z-10 backdrop-blur-sm 
+                        ${isOver ? 'bg-red-950/40 border-red-900/50' : isUnder ? 'bg-amber-950/40 border-amber-900/50' : 'bg-slate-950/50 border-slate-800'}
+                    `}>
+                        <h3 className="font-bold text-white text-sm uppercase tracking-wider flex items-center gap-2">
+                            <Scale size={16} className={isBalanced ? "text-emerald-500" : isOver ? "text-red-500" : "text-amber-500"}/> 
+                            Distribuição Ponderada
+                        </h3>
+                        
+                        <div className="flex items-center gap-4 mt-2 md:mt-0">
+                            {/* Alert Message */}
+                            {!isBalanced && (
+                                <span className={`text-xs font-bold flex items-center gap-2 animate-pulse ${isOver ? 'text-red-400' : 'text-amber-400'}`}>
+                                    <AlertTriangle size={14} />
+                                    {isOver ? `Remova ${Math.abs(diff)} blocos` : `Aloque +${Math.abs(diff)} blocos`}
+                                </span>
+                            )}
+
+                            <div className={`text-xs font-mono px-3 py-1 rounded-full border flex items-center gap-2
+                                ${isBalanced ? 'bg-emerald-900/20 text-emerald-400 border-emerald-500/30' : 
+                                  isOver ? 'bg-red-900/20 text-red-400 border-red-500/30' : 
+                                  'bg-amber-900/20 text-amber-400 border-amber-500/30'}
+                            `}>
+                                {isBalanced && <CheckCircle2 size={12} />}
+                                Alocado: <strong>{totalAllocated}</strong> / {paceTarget.blocks}
+                            </div>
+                        </div>
                     </div>
-                </div>
-                
-                <div className="divide-y divide-slate-800/50">
-                    {/* Header Row */}
-                    <div className="flex items-center p-3 text-[10px] uppercase font-bold text-slate-500 tracking-wider bg-slate-950/30">
-                        <div className="w-12 text-center"><CheckSquare size={14} className="mx-auto" /></div>
-                        <div className="flex-1 px-2">Disciplina</div>
-                        <div className="w-20 text-center hidden md:block">Tópicos</div>
-                        <div className="w-32 text-center">Peso</div>
-                        <div className="w-40 px-4">Sugestão</div>
-                        <div className="w-10"></div>
-                    </div>
+                    
+                    <div className="flex-1 overflow-y-auto custom-scrollbar divide-y divide-slate-800/50 relative">
+                        {/* Header Row */}
+                        <div className="flex items-center p-3 text-[10px] uppercase font-bold text-slate-500 tracking-wider bg-slate-950/30 sticky top-0 z-0">
+                            <div className="w-12 text-center"><CheckSquare size={14} className="mx-auto" /></div>
+                            <div className="flex-1 px-2">Disciplina</div>
+                            <div className="w-20 text-center hidden md:block">Tópicos</div>
+                            <div className="w-36 text-center">Peso Estratégico</div>
+                            <div className="w-40 px-4">Sugestão</div>
+                            <div className="w-10"></div>
+                        </div>
 
-                    {availableDisciplines.map(d => {
-                        const isSelected = selectedDiscs.has(d);
-                        const dist = distribution.find(x => x.name === d);
-                        const blocks = dist?.blocks || 0;
-                        const percent = dist ? Math.round(dist.percentage * 100) : 0;
-                        const currentWeight = weights[d] || 1;
-
-                        return (
-                            <div key={d} className={`flex items-center p-3 transition-colors hover:bg-slate-800/40 group ${isSelected ? '' : 'opacity-60 bg-slate-950/50'}`}>
-                                {/* Checkbox */}
-                                <div className="w-12 flex justify-center">
-                                    <input 
-                                        type="checkbox" 
-                                        checked={isSelected} 
-                                        onChange={() => toggleDisc(d)}
-                                        className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-emerald-600 focus:ring-offset-slate-900 cursor-pointer"
-                                    />
-                                </div>
-
-                                {/* Name */}
-                                <div className="flex-1 px-2 font-medium text-sm text-slate-200 truncate">
-                                    {d}
-                                </div>
-
-                                {/* Topic Count Badge */}
-                                <div className="w-20 text-center hidden md:flex justify-center">
-                                    {notebooks.some(n => n.discipline === d) ? (
-                                        <span className="bg-slate-800 text-slate-400 text-[10px] px-2 py-0.5 rounded-full border border-slate-700">
-                                            {notebooks.filter(n => n.discipline === d).length}
-                                        </span>
-                                    ) : (
-                                        <span className="text-[10px] text-slate-600">-</span>
-                                    )}
-                                </div>
-
-                                {/* Weight Controls */}
-                                <div className="w-32 flex justify-center">
-                                    <div className={`flex items-center bg-slate-950 border border-slate-700 rounded-lg overflow-hidden ${!isSelected ? 'opacity-50 pointer-events-none' : ''}`}>
-                                        <button 
-                                            onClick={() => updateWeight(d, currentWeight - 0.5)}
-                                            className="px-2 py-1 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors border-r border-slate-800"
-                                        >
-                                            <Minus size={12} />
-                                        </button>
-                                        <div className="w-8 text-center text-xs font-bold text-white">{currentWeight}</div>
-                                        <button 
-                                            onClick={() => updateWeight(d, currentWeight + 0.5)}
-                                            className="px-2 py-1 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors border-l border-slate-800"
-                                        >
-                                            <Plus size={12} />
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Result Bar */}
-                                <div className="w-40 px-4">
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <span className={`text-sm font-bold ${blocks > 0 ? 'text-emerald-400' : 'text-slate-600'}`}>{blocks}</span>
-                                        <span className="text-[10px] text-slate-500">blocos</span>
-                                    </div>
-                                    <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
-                                        <div 
-                                            className="h-full bg-emerald-500 transition-all duration-500 ease-out" 
-                                            style={{ width: isSelected ? `${percent}%` : '0%' }}
-                                        ></div>
-                                    </div>
-                                </div>
-
-                                {/* Delete */}
-                                <div className="w-10 flex justify-center">
-                                    <button 
-                                        onClick={() => handleRemoveDiscipline(d)} 
-                                        className="p-1.5 text-slate-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                                        title="Remover ou Ocultar"
-                                    >
-                                        <Trash2 size={14} />
-                                    </button>
+                        {availableDisciplines.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center h-64 text-slate-600 gap-4">
+                                <Scale size={48} className="opacity-20" />
+                                <div className="text-center">
+                                    <p className="text-lg font-bold text-slate-500">Nenhuma disciplina encontrada</p>
+                                    <p className="text-xs">Adicione acima ou importe do banco de dados.</p>
                                 </div>
                             </div>
-                        );
-                    })}
-                </div>
-                
-                {/* Footer Totals */}
-                <div className="bg-slate-950/80 border-t border-slate-800 p-4 flex justify-end items-center gap-6 text-sm">
-                    <div className="text-right">
-                        <span className="text-slate-500 text-xs uppercase font-bold mr-2">Peso Total</span>
-                        <span className="text-amber-400 font-bold">{totalWeight.toFixed(1)} pts</span>
+                        ) : (
+                            availableDisciplines.map(d => {
+                                const isSelected = selectedDiscs.has(d);
+                                const dist = distribution.find(x => x.name === d);
+                                const blocks = dist?.blocks || 0;
+                                const percent = dist ? Math.round(dist.percentage * 100) : 0;
+                                const currentWeight = weights[d] || 1;
+
+                                return (
+                                    <div key={d} className={`flex items-center p-4 transition-colors hover:bg-slate-800/40 group ${isSelected ? '' : 'opacity-60 bg-slate-950/50 grayscale'}`}>
+                                        {/* Checkbox */}
+                                        <div className="w-12 flex justify-center">
+                                            <input 
+                                                type="checkbox" 
+                                                checked={isSelected} 
+                                                onChange={() => toggleDisc(d)}
+                                                className="w-5 h-5 rounded border-slate-600 bg-slate-800 text-emerald-600 focus:ring-offset-slate-900 cursor-pointer"
+                                            />
+                                        </div>
+
+                                        {/* Name */}
+                                        <div className="flex-1 px-2 font-medium text-sm text-slate-200 truncate">
+                                            {d}
+                                        </div>
+
+                                        {/* Topic Count Badge */}
+                                        <div className="w-20 text-center hidden md:flex justify-center">
+                                            {notebooks.some(n => n.discipline === d) ? (
+                                                <span className="bg-slate-800 text-slate-400 text-[10px] px-2 py-0.5 rounded-full border border-slate-700">
+                                                    {notebooks.filter(n => n.discipline === d).length}
+                                                </span>
+                                            ) : (
+                                                <span className="text-[10px] text-slate-600">-</span>
+                                            )}
+                                        </div>
+
+                                        {/* Weight Controls (Enhanced for Touch/Click) */}
+                                        <div className="w-36 flex justify-center">
+                                            <div className={`flex items-center bg-slate-950 border border-slate-700 rounded-lg overflow-hidden ${!isSelected ? 'opacity-50 pointer-events-none' : 'shadow-sm'}`}>
+                                                <button 
+                                                    onClick={() => updateWeight(d, currentWeight - 0.5)}
+                                                    className="w-8 h-8 flex items-center justify-center hover:bg-slate-800 text-slate-400 hover:text-white transition-colors border-r border-slate-800 active:bg-slate-700"
+                                                >
+                                                    <Minus size={14} />
+                                                </button>
+                                                <div className="w-10 text-center text-sm font-bold text-white bg-slate-900 h-8 flex items-center justify-center">
+                                                    {currentWeight}
+                                                </div>
+                                                <button 
+                                                    onClick={() => updateWeight(d, currentWeight + 0.5)}
+                                                    className="w-8 h-8 flex items-center justify-center hover:bg-slate-800 text-slate-400 hover:text-white transition-colors border-l border-slate-800 active:bg-slate-700"
+                                                >
+                                                    <Plus size={14} />
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Result Bar */}
+                                        <div className="w-40 px-4">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className={`text-lg font-black ${blocks > 0 ? 'text-emerald-400' : 'text-slate-600'}`}>{blocks}</span>
+                                                <span className="text-[10px] text-slate-500 uppercase font-bold">blocos</span>
+                                            </div>
+                                            <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden border border-slate-800">
+                                                <div 
+                                                    className={`h-full transition-all duration-500 ease-out ${isOver ? 'bg-red-500' : 'bg-emerald-500'}`}
+                                                    style={{ width: isSelected ? `${percent}%` : '0%' }}
+                                                ></div>
+                                            </div>
+                                        </div>
+
+                                        {/* Delete */}
+                                        <div className="w-10 flex justify-center">
+                                            <button 
+                                                onClick={() => handleRemoveDiscipline(d)} 
+                                                className="p-2 text-slate-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                                                title="Remover ou Ocultar"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                    
+                    {/* Footer Totals */}
+                    <div className="bg-slate-950/80 border-t border-slate-800 p-4 flex justify-end items-center gap-6 text-sm">
+                        <div className="text-right">
+                            <span className="text-slate-500 text-xs uppercase font-bold mr-2">Peso Total Distribuído</span>
+                            <span className="text-amber-400 font-bold">{totalWeight.toFixed(1)} pts</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -541,23 +576,35 @@ export const Setup: React.FC = () => {
     const editalNormalized = normalizeText(editalRaw);
     const hasEdital = editalRaw.length > 10;
 
-    return notebooks.filter(nb => {
-        // 1. Base Search
+    // Use Map to ensure uniqueness by content key
+    const uniqueMap = new Map<string, Notebook>();
+    
+    // Sort so unallocated items come first (preferred as drag source)
+    const sorted = [...notebooks].sort((a, b) => {
+        if (!a.weekId && b.weekId) return -1;
+        if (a.weekId && !b.weekId) return 1;
+        return 0;
+    });
+
+    sorted.forEach(nb => {
+        if (nb.discipline === 'Revisão Geral') return;
+
+        // Apply filters
         const matchesSearch = 
             nb.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
             nb.discipline.toLowerCase().includes(searchTerm.toLowerCase());
         
-        if (!matchesSearch) return false;
+        if (!matchesSearch) return;
 
         // 2. Filter Logic
         if (libraryFilter === 'unallocated') {
-            return !nb.weekId;
+            if (nb.weekId) return;
         }
         if (libraryFilter === 'fit') {
-            return nb.weight === Weight.MUITO_ALTO || nb.weight === Weight.ALTO || nb.relevance === Relevance.ALTISSIMA;
+            if (!(nb.weight === Weight.MUITO_ALTO || nb.weight === Weight.ALTO || nb.relevance === Relevance.ALTISSIMA)) return;
         }
         if (libraryFilter === 'smart') {
-            if (!hasEdital) return true; 
+            if (!hasEdital) return; 
             
             const discNorm = normalizeText(nb.discipline);
             const nameNorm = normalizeText(nb.name);
@@ -565,15 +612,20 @@ export const Setup: React.FC = () => {
             const discParts = discNorm.split(' ');
             const discMatch = discParts.some(part => part.length > 3 && editalNormalized.includes(part));
             
-            return editalNormalized.includes(nameNorm) || editalNormalized.includes(discNorm) || discMatch;
+            if (!(editalNormalized.includes(nameNorm) || editalNormalized.includes(discNorm) || discMatch)) return;
         }
+
+        // Generate Unique Content Key
+        const key = `${normalizeText(nb.discipline)}|${normalizeText(nb.name)}|${normalizeText(nb.subtitle || '')}`;
         
-        return true;
-    }).sort((a, b) => {
-        if (libraryFilter === 'all') {
-            if (!a.weekId && b.weekId) return -1;
-            if (a.weekId && !b.weekId) return 1;
+        // Only add if not exists. Since we sorted unallocated first, 
+        // this guarantees we pick the unallocated instance if available.
+        if (!uniqueMap.has(key)) {
+            uniqueMap.set(key, nb);
         }
+    });
+
+    return Array.from(uniqueMap.values()).sort((a, b) => {
         return a.discipline.localeCompare(b.discipline) || a.name.localeCompare(b.name);
     });
   }, [notebooks, searchTerm, libraryFilter, config.editalText, normalizeText]);
@@ -622,6 +674,21 @@ export const Setup: React.FC = () => {
     return { id: `week-${i + 1}`, index: i + 1, label, isPast, fullDate };
   });
 
+  const getWeekPace = useCallback((weekId: string) => {
+      const specific = config.weeklyPace?.[weekId];
+      return specific || config.studyPace || 'Intermediário';
+  }, [config.weeklyPace, config.studyPace]);
+
+  const updateWeekPace = (weekId: string, newPace: string) => {
+      updateConfig({
+          ...config,
+          weeklyPace: {
+              ...(config.weeklyPace || {}),
+              [weekId]: newPace
+          }
+      });
+  };
+
   // --- HANDLERS (Memoized for Performance) ---
   const onDragStart = useCallback((e: React.DragEvent, id: string, origin: 'library' | 'week') => {
     e.dataTransfer.setData("notebookId", id);
@@ -639,7 +706,7 @@ export const Setup: React.FC = () => {
   const onDragOver = useCallback((e: React.DragEvent) => e.preventDefault(), []);
   
   // --- UPDATED: Intelligent Drop Logic ---
-  const onDrop = (e: React.DragEvent, targetWeekId: string | null, isPast: boolean) => {
+  const onDrop = async (e: React.DragEvent, targetWeekId: string | null, isPast: boolean) => {
     if (isPast) { alert("Você não pode alterar o planejamento de semanas que já passaram."); return; }
     
     const id = e.dataTransfer.getData("notebookId");
@@ -647,27 +714,32 @@ export const Setup: React.FC = () => {
     
     if (!id || !targetWeekId) return;
 
-    const sourceNotebook = notebooks.find(n => n.id === id);
-    if (!sourceNotebook) return;
+    if (origin === 'week') {
+        // Simple move within timeline
+        await moveNotebookToWeek(id, targetWeekId);
+    } else {
+        // Library Logic: Decide between Move or Clone
+        const sourceNb = notebooks.find(n => n.id === id);
+        if (!sourceNb) return;
 
-    if (origin === 'library') {
-        if (sourceNotebook.weekId) {
-            // Clone if already allocated
-            const { id: _, weekId: __, accuracy: ___, status: ____, lastPractice: _____, nextReview: ______, accuracyHistory: _______, ...props } = sourceNotebook;
-            addNotebook({
+        // If the item in the library (which might be the only one visible due to dedup)
+        // is already allocated, it means the user wants to repeat it (Clone).
+        // If it is unallocated, they are moving it from backlog to timeline.
+        if (!sourceNb.weekId) {
+            await moveNotebookToWeek(sourceNb.id, targetWeekId);
+        } else {
+            // Clone Logic
+            const { id: _, weekId: __, accuracy: ___, status: ____, lastPractice: _____, nextReview: ______, accuracyHistory: _______, ...props } = sourceNb;
+            const newNb = {
                 ...props,
                 weekId: targetWeekId,
                 accuracy: 0,
                 status: NotebookStatus.NOT_STARTED,
-                accuracyHistory: []
-            });
-        } else {
-            // Move if unallocated
-            moveNotebookToWeek(id, targetWeekId);
+                accuracyHistory: [],
+                isWeekCompleted: false
+            };
+            await addNotebook(newNb);
         }
-    } else {
-        // Move within timeline
-        moveNotebookToWeek(id, targetWeekId);
     }
   };
 
@@ -923,7 +995,7 @@ export const Setup: React.FC = () => {
                     <div className="relative flex items-center px-4 py-2 gap-3 cursor-pointer">
                         <div className="flex items-center justify-center bg-slate-900 p-1.5 rounded-lg border border-slate-700 text-emerald-500"><Timer size={16} /></div>
                         <div className="flex flex-col flex-1 min-w-0">
-                             <span className="text-[9px] text-slate-500 font-bold uppercase leading-tight">Carga Semanal</span>
+                             <span className="text-[9px] text-slate-500 font-bold uppercase leading-tight">Ritmo Padrão</span>
                              <select value={config.studyPace} onChange={(e) => updateConfig({...config, studyPace: e.target.value as any})} className="bg-transparent text-white text-xs font-bold outline-none cursor-pointer w-full z-10 appearance-none">
                                 <option value="Iniciante">Iniciante (15 bl)</option>
                                 <option value="Básico">Básico (30 bl)</option>
@@ -971,10 +1043,16 @@ export const Setup: React.FC = () => {
                         {weeks.map(week => {
                         const weekNotebooks = notebooks.filter(nb => nb.weekId === week.id);
                         const blocksCount = weekNotebooks.length;
-                        const loadPercentage = Math.min((blocksCount / paceTarget.blocks) * 100, 100);
-                        const missingBlocks = Math.max(0, paceTarget.blocks - blocksCount);
-                        const isOverloaded = blocksCount > paceTarget.blocks;
-                        const isComplete = blocksCount >= paceTarget.blocks && !isOverloaded;
+                        
+                        // Per-week Pace Logic
+                        const weekPaceName = getWeekPace(week.id);
+                        const weekTarget = PACE_SETTINGS[weekPaceName] || paceTarget;
+                        
+                        const loadPercentage = Math.min((blocksCount / weekTarget.blocks) * 100, 100);
+                        const missingBlocks = Math.max(0, weekTarget.blocks - blocksCount);
+                        const isOverloaded = blocksCount > weekTarget.blocks;
+                        const isComplete = blocksCount >= weekTarget.blocks && !isOverloaded;
+                        
                         return (
                             <div key={week.id} className={`w-80 flex-shrink-0 flex flex-col rounded-2xl border transition-all duration-300 relative h-full max-h-full ${week.isPast ? 'bg-slate-900/30 border-slate-800/50 opacity-70' : 'bg-slate-900 border-slate-800 shadow-2xl hover:border-slate-700'}`} onDragOver={week.isPast ? undefined : onDragOver} onDrop={(e) => onDrop(e, week.id, week.isPast)}>
                             <div className={`p-4 rounded-t-2xl border-b flex flex-col gap-3 z-10 relative ${week.isPast ? 'bg-slate-950/30 border-slate-800/50 text-slate-600' : 'bg-slate-900 border-slate-700 text-slate-200'}`}>
@@ -982,10 +1060,32 @@ export const Setup: React.FC = () => {
                                     <div><span className="font-black block text-base flex items-center gap-2 text-white">SEMANA {week.index} {week.isPast && <Lock size={14} />}</span><span className={`text-[10px] font-bold uppercase tracking-widest ${week.isPast ? 'line-through decoration-slate-600 opacity-50' : 'text-slate-500'}`}>{week.label}</span></div>
                                     <div className="flex flex-col items-end"><span className={`text-lg font-black ${isOverloaded ? 'text-red-400' : isComplete ? 'text-emerald-400' : 'text-white'}`}>{blocksCount}</span><span className="text-[9px] text-slate-500 uppercase font-bold">blocos</span></div>
                                 </div>
+                                
+                                {/* Week Specific Pace Selector */}
                                 {!week.isPast && (
-                                    <div className="space-y-2">
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <div className="relative w-full">
+                                            <select 
+                                                value={weekPaceName}
+                                                onChange={(e) => updateWeekPace(week.id, e.target.value)}
+                                                className="w-full bg-slate-950/50 border border-slate-700 rounded px-2 py-1 text-[10px] text-slate-300 outline-none focus:border-emerald-500 appearance-none font-medium cursor-pointer hover:bg-slate-800"
+                                            >
+                                                <option value="Iniciante">Iniciante (15)</option>
+                                                <option value="Básico">Básico (30)</option>
+                                                <option value="Intermediário">Interm. (45)</option>
+                                                <option value="Avançado">Avançado (66)</option>
+                                            </select>
+                                            <div className="absolute right-2 top-1.5 pointer-events-none text-slate-500">
+                                                <ChevronDown size={10} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {!week.isPast && (
+                                    <div className="space-y-2 mt-1">
                                         <div className="w-full h-2 bg-slate-950 rounded-full overflow-hidden flex relative group border border-slate-800"><div className={`h-full transition-all duration-500 ${isOverloaded ? 'bg-red-500' : 'bg-gradient-to-r from-emerald-600 to-emerald-400'}`} style={{ width: `${loadPercentage}%` }}></div></div>
-                                        <div className="flex justify-between items-center">{missingBlocks > 0 ? (<span className="text-[10px] text-amber-500 font-bold flex items-center gap-1 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20"><AlertCircle size={10} /> Meta: +{missingBlocks} blocos</span>) : (<span className="text-[10px] text-emerald-500 font-bold flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20"><Check size={10} /> Meta Batida</span>)}</div>
+                                        <div className="flex justify-between items-center">{missingBlocks > 0 ? (<span className="text-[10px] text-amber-500 font-bold flex items-center gap-1 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20"><AlertCircle size={10} /> Meta: +{missingBlocks}</span>) : (<span className="text-[10px] text-emerald-500 font-bold flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20"><Check size={10} /> Meta Batida</span>)}</div>
                                     </div>
                                 )}
                             </div>

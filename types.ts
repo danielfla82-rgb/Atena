@@ -141,6 +141,8 @@ export interface AthensConfig {
   targetRole: string;
   weeksUntilExam: number;
   studyPace: 'Iniciante' | 'Básico' | 'Intermediário' | 'Avançado';
+  /** Map of weekId -> pace override. E.g. { 'week-1': 'Avançado' } */
+  weeklyPace?: Record<string, string>;
   startDate?: string; // YYYY-MM-DD
   // Contexto rico para IA
   examName?: string;

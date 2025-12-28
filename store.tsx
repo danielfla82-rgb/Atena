@@ -8,6 +8,7 @@ const DEFAULT_CONFIG: AthensConfig = {
     targetRole: 'Auditor Fiscal',
     weeksUntilExam: 12,
     studyPace: 'Intermediário',
+    weeklyPace: {},
     startDate: new Date().toISOString().split('T')[0],
     structuredEdital: [],
     algorithm: {
@@ -41,7 +42,7 @@ interface StoreContextType {
 
   updateConfig: (config: AthensConfig) => void;
   updateNotebookAccuracy: (id: string, newAccuracy: number) => void;
-  moveNotebookToWeek: (id: string, weekId: string | null) => void;
+  moveNotebookToWeek: (id: string, weekId: string | null) => Promise<void>;
   getWildcardNotebook: () => Notebook | null;
   addNotebook: (notebook: Omit<Notebook, 'id'>) => Promise<void>; // Updated to Promise
   editNotebook: (id: string, updates: Partial<Notebook>) => Promise<void>; // Updated to Promise
@@ -262,7 +263,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (activeCycleId && cycles.length > 0) {
           const activeCycle = cycles.find(c => c.id === activeCycleId);
           if (activeCycle) {
-              setConfig(activeCycle.config);
+              // Merge with default to ensure weeklyPace exists if old record
+              setConfig({ ...DEFAULT_CONFIG, ...activeCycle.config });
               
               setNotebooks(prev => prev.map(nb => ({
                   ...nb,
@@ -347,56 +349,59 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
   };
 
+  // --- ROBUST PERSISTENCE ACTIONS ---
+
   const addNotebook = async (notebook: Omit<Notebook, 'id'>): Promise<void> => {
+      // 1. Optimistic Update
       const newNotebook = { ...notebook, id: crypto.randomUUID() };
       setNotebooks(prev => [...prev, newNotebook]);
 
-      if(user && !isGuest) {
-          const payload = {
-              id: newNotebook.id,
-              user_id: user.id,
-              discipline: newNotebook.discipline,
-              name: newNotebook.name,
-              subtitle: newNotebook.subtitle,
-              tec_link: newNotebook.tecLink,
-              law_link: newNotebook.lawLink,
-              obsidian_link: newNotebook.obsidianLink,
-              weight: newNotebook.weight,
-              relevance: newNotebook.relevance,
-              trend: newNotebook.trend,
-              target_accuracy: newNotebook.targetAccuracy,
-              accuracy: newNotebook.accuracy,
-              status: newNotebook.status,
-              notes: newNotebook.notes,
-              image: newNotebook.images?.[0] || null, // Legacy support
-              images: newNotebook.images || [],
-              last_practice: newNotebook.lastPractice,
-              next_review: newNotebook.nextReview,
-              accuracy_history: newNotebook.accuracyHistory || []
-          };
+      if (user && !isGuest) {
+          try {
+              const payload = {
+                  id: newNotebook.id,
+                  user_id: user.id,
+                  discipline: newNotebook.discipline,
+                  name: newNotebook.name,
+                  subtitle: newNotebook.subtitle,
+                  tec_link: newNotebook.tecLink,
+                  law_link: newNotebook.lawLink,
+                  obsidian_link: newNotebook.obsidianLink,
+                  weight: newNotebook.weight,
+                  relevance: newNotebook.relevance,
+                  trend: newNotebook.trend,
+                  target_accuracy: newNotebook.targetAccuracy,
+                  accuracy: newNotebook.accuracy,
+                  status: newNotebook.status,
+                  notes: newNotebook.notes,
+                  image: newNotebook.images?.[0] || null,
+                  images: newNotebook.images || [],
+                  last_practice: newNotebook.lastPractice,
+                  next_review: newNotebook.nextReview,
+                  accuracy_history: newNotebook.accuracyHistory || []
+              };
 
-          // Tenta inserir com todos os campos
-          let { error } = await supabase.from('notebooks').insert(payload);
-          
-          // Se falhar (provavelmente devido à coluna 'images' nova), tenta fallback sem 'images'
-          if(error) {
-              console.warn("Falha ao salvar caderno completo. Tentando modo de compatibilidade...", error);
-              const { images, ...legacyPayload } = payload;
-              const { error: retryError } = await supabase.from('notebooks').insert(legacyPayload);
-              if (retryError) {
-                  console.error("Erro fatal ao salvar caderno:", retryError);
+              const { error } = await supabase.from('notebooks').insert(payload);
+              
+              if (error) throw error;
+
+              // Handle Cycle Allocation Persistence
+              if (newNotebook.weekId && activeCycleId) {
+                 const activeCycle = cycles.find(c => c.id === activeCycleId);
+                 if(activeCycle) {
+                     const newPlanning = { ...activeCycle.planning, [newNotebook.id]: newNotebook.weekId };
+                     setCycles(prev => prev.map(c => c.id === activeCycleId ? { ...c, planning: newPlanning } : c));
+                     await syncCycleData(activeCycleId, { planning: newPlanning });
+                 }
               }
-          }
-
-          if (newNotebook.weekId && activeCycleId) {
-             const activeCycle = cycles.find(c => c.id === activeCycleId);
-             if(activeCycle) {
-                 const newPlanning = { ...activeCycle.planning, [newNotebook.id]: newNotebook.weekId };
-                 setCycles(prev => prev.map(c => c.id === activeCycleId ? { ...c, planning: newPlanning } : c));
-                 syncCycleData(activeCycleId, { planning: newPlanning });
-             }
+          } catch (error) {
+              console.error("Critical: Failed to save notebook", error);
+              // Rollback
+              setNotebooks(prev => prev.filter(n => n.id !== newNotebook.id));
+              alert("Erro ao salvar caderno. Operação desfeita.");
           }
       } else if (isGuest && activeCycleId) {
+          // Guest Logic remains simpler
           const activeCycle = cycles.find(c => c.id === activeCycleId);
           if (activeCycle && newNotebook.weekId) {
               const newPlanning = { ...activeCycle.planning, [newNotebook.id]: newNotebook.weekId };
@@ -406,82 +411,88 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const editNotebook = async (id: string, updates: Partial<Notebook>): Promise<void> => {
+      // 1. Snapshot State for Rollback
+      const prevNotebook = notebooks.find(n => n.id === id);
+      if (!prevNotebook) return;
+      
+      const activeCycle = cycles.find(c => c.id === activeCycleId);
+      const prevPlanning = activeCycle ? { ...activeCycle.planning } : {};
+      const prevCompletion = activeCycle ? { ...activeCycle.weeklyCompletion } : {};
+
+      // 2. Optimistic Update
       setNotebooks(prev => prev.map(nb => nb.id === id ? { ...nb, ...updates } : nb));
 
-      // Handle Cycle Logic (No Changes needed here)
-      if (activeCycleId) {
-          const activeCycle = cycles.find(c => c.id === activeCycleId);
-          if (activeCycle) {
-              let planningUpdate = undefined;
-              let completionUpdate = undefined;
+      if (activeCycleId && activeCycle) {
+          let planningUpdate: any = undefined;
+          let completionUpdate: any = undefined;
 
-              if (updates.weekId !== undefined) {
-                  planningUpdate = { ...activeCycle.planning, [id]: updates.weekId };
-              }
-              if (updates.isWeekCompleted !== undefined) {
-                  completionUpdate = { ...activeCycle.weeklyCompletion, [id]: updates.isWeekCompleted };
-              }
+          if (updates.weekId !== undefined) {
+              planningUpdate = { ...activeCycle.planning, [id]: updates.weekId };
+          }
+          if (updates.isWeekCompleted !== undefined) {
+              completionUpdate = { ...activeCycle.weeklyCompletion, [id]: updates.isWeekCompleted };
+          }
 
-              if(planningUpdate || completionUpdate) {
-                  setCycles(prev => prev.map(c => c.id === activeCycleId ? {
-                      ...c,
-                      planning: planningUpdate || c.planning,
-                      weeklyCompletion: completionUpdate || c.weeklyCompletion
-                  }: c));
-              }
-              
-              if (user && !isGuest && (planningUpdate || completionUpdate)) {
-                 syncCycleData(activeCycleId, { 
-                    planning: planningUpdate, 
-                    weeklyCompletion: completionUpdate 
-                 });
-              }
+          if (planningUpdate || completionUpdate) {
+              setCycles(prev => prev.map(c => c.id === activeCycleId ? {
+                  ...c,
+                  planning: planningUpdate || c.planning,
+                  weeklyCompletion: completionUpdate || c.weeklyCompletion
+              }: c));
           }
       }
 
-      // Handle DB Update with Fallback Strategy
+      // 3. Persistence
       if(user && !isGuest) {
-          const dbUpdates: any = {};
-          if(updates.name !== undefined) dbUpdates.name = updates.name;
-          if(updates.discipline !== undefined) dbUpdates.discipline = updates.discipline;
-          if(updates.tecLink !== undefined) dbUpdates.tec_link = updates.tecLink;
-          if(updates.lawLink !== undefined) dbUpdates.law_link = updates.lawLink;
-          if(updates.obsidianLink !== undefined) dbUpdates.obsidian_link = updates.obsidianLink;
-          if(updates.targetAccuracy !== undefined) dbUpdates.target_accuracy = updates.targetAccuracy;
-          if(updates.accuracy !== undefined) dbUpdates.accuracy = updates.accuracy;
-          if(updates.lastPractice !== undefined) dbUpdates.last_practice = updates.lastPractice;
-          if(updates.nextReview !== undefined) dbUpdates.next_review = updates.nextReview;
-          if(updates.status !== undefined) dbUpdates.status = updates.status;
-          if(updates.weight !== undefined) dbUpdates.weight = updates.weight;
-          if(updates.relevance !== undefined) dbUpdates.relevance = updates.relevance;
-          if(updates.trend !== undefined) dbUpdates.trend = updates.trend;
-          if(updates.notes !== undefined) dbUpdates.notes = updates.notes;
-          if(updates.accuracyHistory !== undefined) dbUpdates.accuracy_history = updates.accuracyHistory;
-          
-          if(updates.images !== undefined) {
-              // Ensure we send a valid array or null, avoiding undefined issues
-              dbUpdates.images = updates.images || [];
-              
-              // Legacy fallback: take first image if available
-              if (updates.images && updates.images.length > 0) {
-                  dbUpdates.image = updates.images[0];
-              } else {
-                  dbUpdates.image = null;
+          try {
+              const dbUpdates: any = {};
+              // Mapping logic ...
+              if(updates.name !== undefined) dbUpdates.name = updates.name;
+              if(updates.discipline !== undefined) dbUpdates.discipline = updates.discipline;
+              if(updates.tecLink !== undefined) dbUpdates.tec_link = updates.tecLink;
+              if(updates.lawLink !== undefined) dbUpdates.law_link = updates.lawLink;
+              if(updates.obsidianLink !== undefined) dbUpdates.obsidian_link = updates.obsidianLink;
+              if(updates.targetAccuracy !== undefined) dbUpdates.target_accuracy = updates.targetAccuracy;
+              if(updates.accuracy !== undefined) dbUpdates.accuracy = updates.accuracy;
+              if(updates.lastPractice !== undefined) dbUpdates.last_practice = updates.lastPractice;
+              if(updates.nextReview !== undefined) dbUpdates.next_review = updates.nextReview;
+              if(updates.status !== undefined) dbUpdates.status = updates.status;
+              if(updates.weight !== undefined) dbUpdates.weight = updates.weight;
+              if(updates.relevance !== undefined) dbUpdates.relevance = updates.relevance;
+              if(updates.trend !== undefined) dbUpdates.trend = updates.trend;
+              if(updates.notes !== undefined) dbUpdates.notes = updates.notes;
+              if(updates.accuracyHistory !== undefined) dbUpdates.accuracy_history = updates.accuracyHistory;
+              if(updates.images !== undefined) {
+                  dbUpdates.images = updates.images || [];
+                  dbUpdates.image = updates.images?.[0] || null;
               }
-          }
-          
-          if(Object.keys(dbUpdates).length > 0) {
-              const { error } = await supabase.from('notebooks').update(dbUpdates).eq('id', id);
               
-              // Se falhar (possível erro na coluna images ou payload size), tenta atualizar sem 'images' array
-              if (error && dbUpdates.images) {
-                  console.warn("Erro ao atualizar imagens. Tentando fallback legado...", error);
-                  const { images, ...legacyUpdates } = dbUpdates;
-                  const { error: retryError } = await supabase.from('notebooks').update(legacyUpdates).eq('id', id);
-                  if (retryError) console.error("Falha fatal na atualização do caderno:", retryError);
-              } else if (error) {
-                  console.error("Erro ao atualizar caderno:", error);
+              if(Object.keys(dbUpdates).length > 0) {
+                  const { error } = await supabase.from('notebooks').update(dbUpdates).eq('id', id);
+                  if (error) throw error;
               }
+
+              // Sync Cycle Data if needed
+              if (activeCycleId && (updates.weekId !== undefined || updates.isWeekCompleted !== undefined)) {
+                  let pUpdate = updates.weekId !== undefined ? { ...activeCycle?.planning, [id]: updates.weekId } : undefined;
+                  let cUpdate = updates.isWeekCompleted !== undefined ? { ...activeCycle?.weeklyCompletion, [id]: updates.isWeekCompleted } : undefined;
+                  
+                  await syncCycleData(activeCycleId, { 
+                      planning: pUpdate, 
+                      weeklyCompletion: cUpdate 
+                  });
+              }
+
+          } catch (err) {
+              console.error("Critical: Failed to update notebook", err);
+              // Rollback
+              setNotebooks(prev => prev.map(n => n.id === id ? prevNotebook : n));
+              if (activeCycleId) {
+                  setCycles(prev => prev.map(c => c.id === activeCycleId ? {
+                      ...c, planning: prevPlanning, weeklyCompletion: prevCompletion
+                  } : c));
+              }
+              alert("Falha de conexão. Alterações não salvas.");
           }
       }
   };
@@ -491,11 +502,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!nb) return;
 
     const nextDate = calculateNextReview(newAccuracy, nb.relevance, nb.trend, config.algorithm);
-    
-    // Add to history
     const history = [...(nb.accuracyHistory || [])];
     history.push({ date: new Date().toISOString(), accuracy: newAccuracy });
-    const trimmedHistory = history.slice(-3); // Keep last 3
+    const trimmedHistory = history.slice(-3);
 
     editNotebook(id, {
         accuracy: newAccuracy,
@@ -506,11 +515,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteNotebook = async (id: string): Promise<void> => {
+      const prevNotebook = notebooks.find(n => n.id === id);
       setNotebooks(prev => prev.filter(n => n.id !== id));
-      if(user && !isGuest) await supabase.from('notebooks').delete().eq('id', id);
+      
+      if(user && !isGuest) {
+          try {
+              const { error } = await supabase.from('notebooks').delete().eq('id', id);
+              if (error) throw error;
+          } catch (err) {
+              console.error("Delete failed", err);
+              if (prevNotebook) setNotebooks(prev => [...prev, prevNotebook]);
+              alert("Erro ao excluir. Tente novamente.");
+          }
+      }
   };
 
   const bulkUpdateNotebooks = async (ids: string[], updates: Partial<Notebook> | 'DELETE') => {
+      // This is less critical for persistence rollback complex logic for now, but should ideally follow similar pattern
       if (updates === 'DELETE') {
           setNotebooks(prev => prev.filter(nb => !ids.includes(nb.id)));
           if(user && !isGuest) await supabase.from('notebooks').delete().in('id', ids);
@@ -522,8 +543,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
   };
 
-  const moveNotebookToWeek = (id: string, weekId: string | null) => {
-      editNotebook(id, { weekId });
+  const moveNotebookToWeek = async (id: string, weekId: string | null) => {
+      await editNotebook(id, { weekId });
   };
 
   const getWildcardNotebook = () => {
