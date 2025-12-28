@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, Relevance, Trend, NotebookStatus } from '../types';
-import { Plus, Search, Copy, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2, TrendingUp, History, ListPlus, Minus, AlertTriangle, CheckCircle2, RotateCw } from 'lucide-react';
+import { Plus, Search, Copy, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2, TrendingUp, History, ListPlus, Minus, AlertTriangle, CheckCircle2, RotateCw, Zap, Activity } from 'lucide-react';
 import { calculateNextReview, getStatusColor } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 
@@ -21,6 +21,7 @@ const DraggableCard = React.memo(({
     isCompact, 
     disabled, 
     onToggleComplete,
+    onRemove, // NEW: Remove action
     allocationCount
 }: {
     notebook: Notebook;
@@ -30,6 +31,7 @@ const DraggableCard = React.memo(({
     isCompact?: boolean;
     disabled?: boolean;
     onToggleComplete?: (id: string, isCompleted: boolean) => void;
+    onRemove?: (id: string) => void;
     allocationCount?: number;
 }) => {
     const statusColor = getStatusColor(notebook.accuracy, notebook.targetAccuracy);
@@ -77,13 +79,25 @@ const DraggableCard = React.memo(({
                      <span className={`font-mono font-bold text-xs ${notebook.accuracy < 60 ? 'text-red-400' : 'text-emerald-400'}`}>
                          {notebook.accuracy}%
                      </span>
-                     <button 
-                        onClick={(e) => { e.stopPropagation(); onEdit(notebook); }} 
-                        className="text-slate-500 hover:text-white p-1 rounded hover:bg-slate-700 transition-colors"
-                        title="Editar"
-                     >
-                         <Pencil size={12} />
-                     </button>
+                     <div className="flex gap-1">
+                         <button 
+                            onClick={(e) => { e.stopPropagation(); onEdit(notebook); }} 
+                            className="text-slate-500 hover:text-white p-1 rounded hover:bg-slate-700 transition-colors"
+                            title="Editar"
+                         >
+                             <Pencil size={12} />
+                         </button>
+                         {/* UNDO / REMOVE BUTTON */}
+                         {origin === 'week' && onRemove && !disabled && (
+                             <button 
+                                onClick={(e) => { e.stopPropagation(); onRemove(notebook.id); }} 
+                                className="text-slate-500 hover:text-red-400 p-1 rounded hover:bg-slate-700 transition-colors"
+                                title="Remover da semana (Desfazer)"
+                             >
+                                 <Trash2 size={12} />
+                             </button>
+                         )}
+                     </div>
                 </div>
             </div>
 
@@ -287,7 +301,8 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
 
     // Info Stats
     const totalItems = notebooks.filter(n => n.discipline !== 'Revisão Geral').length;
-    const weeksNeeded = paceTarget.blocks > 0 ? Math.ceil(totalItems / paceTarget.blocks) : 0;
+    const cycleVelocity = paceTarget.blocks > 0 ? (totalItems / paceTarget.blocks) : 0;
+    const giroDisplay = cycleVelocity === 0 ? "∞" : cycleVelocity < 1 ? `${(1/cycleVelocity).toFixed(1)}x / sem` : `${cycleVelocity.toFixed(1)} sem`;
 
     return (
         <div className="flex-1 flex flex-col p-4 md:p-8 animate-in fade-in zoom-in duration-500 max-w-6xl mx-auto w-full overflow-y-auto custom-scrollbar">
@@ -304,27 +319,39 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
             </div>
             
             {/* Stats Bar */}
-            <div className="flex flex-wrap justify-center gap-4 mb-8">
-                 <div className="bg-slate-900 border border-slate-800 px-6 py-3 rounded-xl flex items-center gap-4">
-                    <div className="text-right">
-                        <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Carga Base</p>
-                        <p className="text-lg font-black text-emerald-400">~{paceTarget.hours}h</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 max-w-4xl mx-auto w-full">
+                 <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity"><Zap size={48} /></div>
+                    <div className="bg-emerald-900/20 p-3 rounded-lg text-emerald-500 border border-emerald-500/20"><Timer size={24} /></div>
+                    <div>
+                        <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Potência Semanal</p>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-2xl font-black text-white">{paceTarget.hours}h</span>
+                            <span className="text-xs text-emerald-400 font-bold">({paceTarget.blocks} blocos)</span>
+                        </div>
                     </div>
-                    <Timer className="text-emerald-900" size={20} />
                 </div>
-                 <div className="bg-slate-900 border border-slate-800 px-6 py-3 rounded-xl flex items-center gap-4">
-                    <div className="text-right">
-                        <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Base Tópicos</p>
-                        <p className="text-lg font-black text-blue-400">{totalItems}</p>
+                 <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity"><Layers size={48} /></div>
+                    <div className="bg-blue-900/20 p-3 rounded-lg text-blue-500 border border-blue-500/20"><Layers size={24} /></div>
+                    <div>
+                        <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Inventário Total</p>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-2xl font-black text-white">{totalItems}</span>
+                            <span className="text-xs text-slate-500">Tópicos</span>
+                        </div>
                     </div>
-                    <Layers className="text-blue-900" size={20} />
                 </div>
-                <div className="bg-slate-900 border border-slate-800 px-6 py-3 rounded-xl flex items-center gap-4">
-                    <div className="text-right">
-                        <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Estimativa</p>
-                        <p className="text-lg font-black text-white">{weeksNeeded} <span className="text-xs text-slate-500">sem</span></p>
+                <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity"><Activity size={48} /></div>
+                    <div className="bg-purple-900/20 p-3 rounded-lg text-purple-500 border border-purple-500/20"><RotateCw size={24} /></div>
+                    <div>
+                        <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Giro do Edital</p>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-2xl font-black text-white">{giroDisplay}</span>
+                            <span className="text-xs text-slate-500">p/ Ciclo</span>
+                        </div>
                     </div>
-                    <CalendarClock className="text-slate-700" size={20} />
                 </div>
             </div>
 
@@ -511,7 +538,7 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
 
 // ... Rest of Setup Component (Export) ...
 export const Setup: React.FC = () => {
-  const { notebooks, config, updateConfig, moveNotebookToWeek, addNotebook, editNotebook } = useStore();
+  const { notebooks, config, updateConfig, moveNotebookToWeek, addNotebook, editNotebook, deleteNotebook } = useStore();
   
   const [viewMode, setViewMode] = useState<'timeline' | 'calculator'>('timeline');
   const [searchTerm, setSearchTerm] = useState('');
@@ -882,6 +909,23 @@ export const Setup: React.FC = () => {
       editNotebook(id, updates);
   }, [editNotebook]);
 
+  // --- UNDO / REMOVE ACTION ---
+  const handleRemoveFromWeek = useCallback((id: string) => {
+      // Moves back to backlog (null week) OR deletes if it was a clone?
+      // Since we implemented Clone logic from Library, if we just set weekId to null, 
+      // we might have duplicate items in Library.
+      // Better strategy: If it's a clone (has content-identical siblings), delete it. 
+      // If it's the only instance, move to backlog.
+      // But checking siblings is expensive. 
+      // User requested "Desfazer por engano". The simplest undo is moving back to backlog or deleting.
+      // Given the "Repeat" feature, deleting from week is safer as it acts as "Remove instance".
+      
+      const confirmRemove = window.confirm("Deseja remover este bloco do planejamento?");
+      if(confirmRemove) {
+          deleteNotebook(id);
+      }
+  }, [deleteNotebook]);
+
   // --- QUICK RECORD ACTION ---
   const handleQuickRecord = async () => {
       setIsSaving(true);
@@ -1139,7 +1183,7 @@ export const Setup: React.FC = () => {
                             </div>
                             <div className="p-3 space-y-2 overflow-y-auto flex-1 custom-scrollbar relative bg-slate-900/50">
                                 {week.isPast && <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagmonds-light.png')] opacity-10 pointer-events-none z-0"></div>}
-                                {weekNotebooks.map(nb => <DraggableCard key={nb.id} notebook={nb} onDragStart={onDragStart} onEdit={handleEditClick} onToggleComplete={handleToggleComplete} isCompact origin="week" disabled={week.isPast} />)}
+                                {weekNotebooks.map(nb => <DraggableCard key={nb.id} notebook={nb} onDragStart={onDragStart} onEdit={handleEditClick} onToggleComplete={handleToggleComplete} onRemove={handleRemoveFromWeek} isCompact origin="week" disabled={week.isPast} />)}
                                 {weekNotebooks.length === 0 && !week.isPast && <div className="h-full flex flex-col items-center justify-center text-slate-700 text-xs italic opacity-50 border-2 border-dashed border-slate-800 rounded-xl m-2 bg-slate-950/50 min-h-[100px]">Arraste matérias aqui</div>}
                             </div>
                             </div>

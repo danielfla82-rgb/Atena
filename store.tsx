@@ -358,32 +358,36 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       if (user && !isGuest) {
           try {
+              // SANITIZATION: Convert undefined to null for DB compatibility
               const payload = {
                   id: newNotebook.id,
                   user_id: user.id,
                   discipline: newNotebook.discipline,
                   name: newNotebook.name,
-                  subtitle: newNotebook.subtitle,
-                  tec_link: newNotebook.tecLink,
-                  law_link: newNotebook.lawLink,
-                  obsidian_link: newNotebook.obsidianLink,
+                  subtitle: newNotebook.subtitle || "",
+                  tec_link: newNotebook.tecLink || null,
+                  law_link: newNotebook.lawLink || null,
+                  obsidian_link: newNotebook.obsidianLink || null,
                   weight: newNotebook.weight,
                   relevance: newNotebook.relevance,
                   trend: newNotebook.trend,
                   target_accuracy: newNotebook.targetAccuracy,
                   accuracy: newNotebook.accuracy,
                   status: newNotebook.status,
-                  notes: newNotebook.notes,
+                  notes: newNotebook.notes || null,
                   image: newNotebook.images?.[0] || null,
                   images: newNotebook.images || [],
-                  last_practice: newNotebook.lastPractice,
-                  next_review: newNotebook.nextReview,
+                  last_practice: newNotebook.lastPractice || null,
+                  next_review: newNotebook.nextReview || null,
                   accuracy_history: newNotebook.accuracyHistory || []
               };
 
               const { error } = await supabase.from('notebooks').insert(payload);
               
-              if (error) throw error;
+              if (error) {
+                  console.error("Supabase Insert Error:", error);
+                  throw error;
+              }
 
               // Handle Cycle Allocation Persistence
               if (newNotebook.weekId && activeCycleId) {
@@ -394,11 +398,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                      await syncCycleData(activeCycleId, { planning: newPlanning });
                  }
               }
-          } catch (error) {
+          } catch (error: any) {
               console.error("Critical: Failed to save notebook", error);
               // Rollback
               setNotebooks(prev => prev.filter(n => n.id !== newNotebook.id));
-              alert("Erro ao salvar caderno. Operação desfeita.");
+              alert(`Erro ao salvar caderno: ${error.message || "Falha na conexão"}`);
           }
       } else if (isGuest && activeCycleId) {
           // Guest Logic remains simpler
@@ -446,21 +450,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if(user && !isGuest) {
           try {
               const dbUpdates: any = {};
-              // Mapping logic ...
+              // Mapping logic with null checks
               if(updates.name !== undefined) dbUpdates.name = updates.name;
               if(updates.discipline !== undefined) dbUpdates.discipline = updates.discipline;
-              if(updates.tecLink !== undefined) dbUpdates.tec_link = updates.tecLink;
-              if(updates.lawLink !== undefined) dbUpdates.law_link = updates.lawLink;
-              if(updates.obsidianLink !== undefined) dbUpdates.obsidian_link = updates.obsidianLink;
+              if(updates.tecLink !== undefined) dbUpdates.tec_link = updates.tecLink || null;
+              if(updates.lawLink !== undefined) dbUpdates.law_link = updates.lawLink || null;
+              if(updates.obsidianLink !== undefined) dbUpdates.obsidian_link = updates.obsidianLink || null;
               if(updates.targetAccuracy !== undefined) dbUpdates.target_accuracy = updates.targetAccuracy;
               if(updates.accuracy !== undefined) dbUpdates.accuracy = updates.accuracy;
-              if(updates.lastPractice !== undefined) dbUpdates.last_practice = updates.lastPractice;
-              if(updates.nextReview !== undefined) dbUpdates.next_review = updates.nextReview;
+              if(updates.lastPractice !== undefined) dbUpdates.last_practice = updates.lastPractice || null;
+              if(updates.nextReview !== undefined) dbUpdates.next_review = updates.nextReview || null;
               if(updates.status !== undefined) dbUpdates.status = updates.status;
               if(updates.weight !== undefined) dbUpdates.weight = updates.weight;
               if(updates.relevance !== undefined) dbUpdates.relevance = updates.relevance;
               if(updates.trend !== undefined) dbUpdates.trend = updates.trend;
-              if(updates.notes !== undefined) dbUpdates.notes = updates.notes;
+              if(updates.notes !== undefined) dbUpdates.notes = updates.notes || null;
               if(updates.accuracyHistory !== undefined) dbUpdates.accuracy_history = updates.accuracyHistory;
               if(updates.images !== undefined) {
                   dbUpdates.images = updates.images || [];
