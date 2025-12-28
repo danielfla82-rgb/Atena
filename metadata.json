@@ -1,6 +1,6 @@
 {
-  "name": "Projeto Atena v4.0.0 (Olympus)",
-  "description": "Plataforma SaaS de alta performance. v4.0.0: [LAUNCH] Versão Final para Produção. [UX] Interface refinada no Edital Verticalizado. [CORE] Estabilidade total de navegação.",
+  "name": "Projeto Atena v4.1.0 (Titan Edition)",
+  "description": "Plataforma SaaS de alta performance. v4.1.0: [RELEASE] Versão Estável (Titan). Schema de Banco de Dados consolidado, UI refinada e Algoritmo SRS calibrado.",
   "requestFramePermissions": [
     "microphone"
   ]

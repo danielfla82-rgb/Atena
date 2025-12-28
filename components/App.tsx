@@ -43,7 +43,7 @@ const AppContent: React.FC = () => {
       <div className="md:hidden bg-slate-900 p-4 border-b border-slate-800 flex justify-between items-center sticky top-0 z-40">
         <div className="flex items-center gap-2">
             <div className="bg-slate-800 p-1.5 rounded-lg"><Logo size="sm" /></div>
-            <h1 className="text-lg font-black tracking-wider text-white">ATENA <span className="text-[10px] text-emerald-500 bg-emerald-950/50 px-1.5 py-0.5 rounded ml-2 align-middle">v4.0</span></h1>
+            <h1 className="text-lg font-black tracking-wider text-white">ATENA <span className="text-[10px] text-emerald-500 bg-emerald-950/50 px-1.5 py-0.5 rounded ml-2 align-middle">v4.1</span></h1>
         </div>
         <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-slate-300">
           {sidebarOpen ? <X /> : <Menu />}
@@ -71,9 +71,9 @@ const AppContent: React.FC = () => {
                         <h1 className="text-lg font-black tracking-[0.15em] text-white leading-none group-hover:text-emerald-400 transition-colors">ATENA</h1>
                         <div className="flex items-center gap-2 mt-1.5">
                             <span className="text-[9px] font-mono text-emerald-400 bg-emerald-950/50 px-1.5 py-0.5 rounded border border-emerald-900/50 font-bold shadow-[0_0_10px_rgba(16,185,129,0.1)]">
-                                v4.0.0
+                                v4.1.0
                             </span>
-                            <span className="text-[9px] text-slate-500 uppercase font-bold tracking-wider">Olympus</span>
+                            <span className="text-[9px] text-slate-500 uppercase font-bold tracking-wider">Titan</span>
                         </div>
                     </div>
                 </div>
