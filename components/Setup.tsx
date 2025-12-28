@@ -1,8 +1,7 @@
-
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, Relevance, Trend, NotebookStatus, PaceType } from '../types';
-import { Plus, Search, Copy, Pencil, X, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2, CalendarDays, Sun, Save } from 'lucide-react';
+import { Plus, Search, Copy, Pencil, X, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2, CalendarDays, Sun, Save, Hand, MoveLeft } from 'lucide-react';
 import { calculateNextReview, getStatusColor } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 
@@ -36,7 +35,9 @@ const DraggableCard = React.memo(({
     origin, 
     isCompact, 
     disabled, 
-    onToggleComplete 
+    onToggleComplete,
+    onInitMove,
+    isMoving
 }: {
     notebook: Notebook;
     onDragStart: (e: React.DragEvent, id: string, origin: 'library' | 'week') => void;
@@ -45,6 +46,8 @@ const DraggableCard = React.memo(({
     isCompact?: boolean;
     disabled?: boolean;
     onToggleComplete?: (id: string, isCompleted: boolean) => void;
+    onInitMove: (id: string, origin: 'library' | 'week') => void;
+    isMoving: boolean;
 }) => {
     const statusColor = getStatusColor(notebook.accuracy, notebook.targetAccuracy);
     
@@ -56,10 +59,13 @@ const DraggableCard = React.memo(({
             draggable={!disabled}
             onDragStart={(e) => onDragStart(e, notebook.id, origin)}
             className={`
-                group relative bg-slate-800 border border-slate-700 rounded-lg p-3 cursor-grab active:cursor-grabbing hover:border-emerald-500/50 transition-all shadow-sm
-                ${disabled ? 'opacity-50 pointer-events-none' : ''}
+                group relative bg-slate-800 border rounded-lg p-3 transition-all shadow-sm
+                ${disabled ? 'opacity-50 pointer-events-none border-slate-700' : 'cursor-grab active:cursor-grabbing'}
                 ${isCompact ? 'text-xs' : 'text-sm'}
                 ${notebook.isWeekCompleted && origin === 'week' ? 'opacity-60 bg-slate-900 border-slate-800' : ''}
+                ${isMoving 
+                    ? 'border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-900/10' 
+                    : 'border-slate-700 hover:border-emerald-500/50'}
             `}
         >
             {origin === 'library' && (
@@ -89,13 +95,23 @@ const DraggableCard = React.memo(({
                      <span className={`font-mono font-bold text-xs ${notebook.accuracy < 60 ? 'text-red-400' : 'text-emerald-400'}`}>
                          {notebook.accuracy}%
                      </span>
-                     <button 
-                        onClick={(e) => { e.stopPropagation(); onEdit(notebook); }} 
-                        className="text-slate-500 hover:text-white p-1 rounded hover:bg-slate-700 transition-colors"
-                        title="Editar"
-                     >
-                         <Pencil size={12} />
-                     </button>
+                     <div className="flex gap-1">
+                        {/* TOUCH MOVE TRIGGER */}
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onInitMove(notebook.id, origin); }}
+                            className={`p-1 rounded transition-colors ${isMoving ? 'bg-emerald-500 text-white' : 'text-slate-500 hover:text-emerald-400 hover:bg-slate-700'}`}
+                            title="Mover (Toque)"
+                        >
+                            <Hand size={12} />
+                        </button>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onEdit(notebook); }} 
+                            className="text-slate-500 hover:text-white p-1 rounded hover:bg-slate-700 transition-colors"
+                            title="Editar"
+                        >
+                            <Pencil size={12} />
+                        </button>
+                     </div>
                 </div>
             </div>
 
@@ -525,6 +541,10 @@ export const Setup: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   
+  // Drag & Move State
+  const [movingNotebookId, setMovingNotebookId] = useState<string | null>(null);
+  const [movingOrigin, setMovingOrigin] = useState<'library' | 'week' | null>(null);
+
   // Save loading state
   const [isSaving, setIsSaving] = useState(false);
   
@@ -692,14 +712,7 @@ export const Setup: React.FC = () => {
   const onDragOver = useCallback((e: React.DragEvent) => e.preventDefault(), []);
   
   // --- UPDATED: Intelligent Drop Logic ---
-  const onDrop = (e: React.DragEvent, targetWeekId: string | null, isPast: boolean) => {
-    if (isPast) { alert("Você não pode alterar o planejamento de semanas que já passaram."); return; }
-    
-    const id = e.dataTransfer.getData("notebookId");
-    const origin = e.dataTransfer.getData("origin");
-    
-    if (!id || !targetWeekId) return;
-
+  const handleMoveOrDrop = (id: string, origin: string, targetWeekId: string) => {
     const sourceNotebook = notebooks.find(n => n.id === id);
     if (!sourceNotebook) return;
 
@@ -721,6 +734,39 @@ export const Setup: React.FC = () => {
         // Move within timeline
         moveNotebookToWeek(id, targetWeekId);
     }
+  };
+
+  const onDrop = (e: React.DragEvent, targetWeekId: string | null, isPast: boolean) => {
+    if (isPast) { alert("Você não pode alterar o planejamento de semanas que já passaram."); return; }
+    
+    const id = e.dataTransfer.getData("notebookId");
+    const origin = e.dataTransfer.getData("origin");
+    
+    if (!id || !targetWeekId) return;
+    
+    handleMoveOrDrop(id, origin, targetWeekId);
+  };
+
+  // --- TOUCH MOVE LOGIC ---
+  const handleSelectForMove = useCallback((id: string, origin: 'library' | 'week') => {
+      setMovingNotebookId(id);
+      setMovingOrigin(origin);
+  }, []);
+
+  const handleClickDrop = (targetWeekId: string, isPast: boolean) => {
+      if (isPast) { alert("Semanas passadas estão bloqueadas."); return; }
+      if (!movingNotebookId || !movingOrigin) return;
+
+      handleMoveOrDrop(movingNotebookId, movingOrigin, targetWeekId);
+      
+      // Reset state
+      setMovingNotebookId(null);
+      setMovingOrigin(null);
+  };
+
+  const handleCancelMove = () => {
+      setMovingNotebookId(null);
+      setMovingOrigin(null);
   };
 
   const handleEditClick = useCallback((notebook: Notebook) => {
@@ -876,7 +922,17 @@ export const Setup: React.FC = () => {
           </div>
           
           <div className="p-2 space-y-2 overflow-y-auto flex-1 custom-scrollbar">
-            {libraryNotebooks.map(nb => <DraggableCard key={nb.id} notebook={nb} onDragStart={onDragStart} onEdit={handleEditClick} origin="library" />)}
+            {libraryNotebooks.map(nb => (
+                <DraggableCard 
+                    key={nb.id} 
+                    notebook={nb} 
+                    onDragStart={onDragStart} 
+                    onEdit={handleEditClick} 
+                    origin="library" 
+                    onInitMove={handleSelectForMove} 
+                    isMoving={movingNotebookId === nb.id}
+                />
+            ))}
             
             {libraryNotebooks.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-10 text-slate-600 gap-2 opacity-50 px-4 text-center">
@@ -895,6 +951,17 @@ export const Setup: React.FC = () => {
       {/* Main Area */}
       <main className="flex-1 flex flex-col min-w-0 bg-slate-950 relative">
          <header className="flex flex-col lg:flex-row items-center justify-between gap-4 px-6 py-4 border-b border-slate-800 bg-slate-900/90 backdrop-blur-xl sticky top-0 z-30 shadow-lg">
+            
+            {/* MOVE MODE INDICATOR */}
+            {movingNotebookId && (
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 bg-emerald-600 text-white px-6 py-2 rounded-full shadow-xl flex items-center gap-4 animate-bounce">
+                    <span className="text-sm font-bold flex items-center gap-2">
+                        <MoveLeft size={16} /> Toque na semana de destino
+                    </span>
+                    <button onClick={handleCancelMove} className="bg-emerald-700 hover:bg-emerald-800 p-1 rounded-full"><X size={14}/></button>
+                </div>
+            )}
+
             <div className="flex items-center gap-6 w-full lg:w-auto lg:flex-1">
                  <div className="flex flex-col">
                     <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Início</span>
@@ -986,8 +1053,22 @@ export const Setup: React.FC = () => {
                         const missingBlocks = Math.max(0, paceTarget.blocks - blocksCount);
                         const isOverloaded = blocksCount > paceTarget.blocks;
                         const isComplete = blocksCount >= paceTarget.blocks && !isOverloaded;
+                        
+                        // Move Mode Visuals
+                        const isDropTarget = movingNotebookId !== null && !week.isPast;
+
                         return (
-                            <div key={week.id} className={`w-80 flex-shrink-0 flex flex-col rounded-2xl border transition-all duration-300 relative h-full max-h-full ${week.isPast ? 'bg-slate-900/30 border-slate-800/50 opacity-70' : 'bg-slate-900 border-slate-800 shadow-2xl hover:border-slate-700'}`} onDragOver={week.isPast ? undefined : onDragOver} onDrop={(e) => onDrop(e, week.id, week.isPast)}>
+                            <div 
+                                key={week.id} 
+                                onClick={() => isDropTarget && handleClickDrop(week.id, week.isPast)}
+                                className={`
+                                    w-80 flex-shrink-0 flex flex-col rounded-2xl border transition-all duration-300 relative h-full max-h-full
+                                    ${week.isPast ? 'bg-slate-900/30 border-slate-800/50 opacity-70' : 'bg-slate-900 border-slate-800 shadow-2xl hover:border-slate-700'}
+                                    ${isDropTarget ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-slate-950 cursor-pointer animate-pulse bg-emerald-900/10 border-emerald-500/50' : ''}
+                                `} 
+                                onDragOver={week.isPast ? undefined : onDragOver} 
+                                onDrop={(e) => onDrop(e, week.id, week.isPast)}
+                            >
                             <div className={`p-4 rounded-t-2xl border-b flex flex-col gap-3 z-10 relative ${week.isPast ? 'bg-slate-950/30 border-slate-800/50 text-slate-600' : 'bg-slate-900 border-slate-700 text-slate-200'}`}>
                                 <div className="flex justify-between items-start">
                                     <div><span className="font-black block text-base flex items-center gap-2 text-white">SEMANA {week.index} {week.isPast && <Lock size={14} />}</span><span className={`text-[10px] font-bold uppercase tracking-widest ${week.isPast ? 'line-through decoration-slate-600 opacity-50' : 'text-slate-500'}`}>{week.label}</span></div>
@@ -1002,8 +1083,21 @@ export const Setup: React.FC = () => {
                             </div>
                             <div className="p-3 space-y-2 overflow-y-auto flex-1 custom-scrollbar relative bg-slate-900/50">
                                 {week.isPast && <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagmonds-light.png')] opacity-10 pointer-events-none z-0"></div>}
-                                {weekNotebooks.map(nb => <DraggableCard key={nb.id} notebook={nb} onDragStart={onDragStart} onEdit={handleEditClick} onToggleComplete={handleToggleComplete} isCompact origin="week" disabled={week.isPast} />)}
-                                {weekNotebooks.length === 0 && !week.isPast && <div className="h-full flex flex-col items-center justify-center text-slate-700 text-xs italic opacity-50 border-2 border-dashed border-slate-800 rounded-xl m-2 bg-slate-950/50 min-h-[100px]">Arraste matérias aqui</div>}
+                                {weekNotebooks.map(nb => (
+                                    <DraggableCard 
+                                        key={nb.id} 
+                                        notebook={nb} 
+                                        onDragStart={onDragStart} 
+                                        onEdit={handleEditClick} 
+                                        onToggleComplete={handleToggleComplete} 
+                                        isCompact 
+                                        origin="week" 
+                                        disabled={week.isPast}
+                                        onInitMove={handleSelectForMove}
+                                        isMoving={movingNotebookId === nb.id}
+                                    />
+                                ))}
+                                {weekNotebooks.length === 0 && !week.isPast && <div className="h-full flex flex-col items-center justify-center text-slate-700 text-xs italic opacity-50 border-2 border-dashed border-slate-800 rounded-xl m-2 bg-slate-950/50 min-h-[100px]">{isDropTarget ? "Toque aqui para mover" : "Arraste matérias aqui"}</div>}
                             </div>
                             </div>
                         );
