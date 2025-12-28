@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store';
 import { Note } from '../types';
-import { Plus, Trash2, StickyNote, Palette, Cloud, CloudOff, Loader2 } from 'lucide-react';
+import { Plus, Trash2, StickyNote, Palette, Cloud, CloudOff, Loader2, Save } from 'lucide-react';
 
 const COLORS = {
     yellow: 'bg-yellow-200 text-yellow-900 border-yellow-300 placeholder-yellow-900/50',
@@ -49,6 +49,12 @@ const StickyNoteItem: React.FC<{ note: Note }> = ({ note }) => {
         setStatus('saved');
     };
 
+    const handleManualSave = async () => {
+        setStatus('saving');
+        await updateNote(note.id, content);
+        setStatus('saved');
+    };
+
     const handleBlur = async () => {
         if (content !== note.content) {
             setStatus('saving');
@@ -68,6 +74,14 @@ const StickyNoteItem: React.FC<{ note: Note }> = ({ note }) => {
             />
             
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 items-center">
+                <button 
+                    onClick={handleManualSave}
+                    className="p-1.5 bg-black/10 rounded-full hover:bg-emerald-600 hover:text-white text-current transition-colors"
+                    title="Salvar Agora"
+                >
+                    <Save size={14} />
+                </button>
+
                 <div className="group/palette relative">
                     <button className="p-1.5 bg-black/10 rounded-full hover:bg-black/20 text-current transition-colors">
                         <Palette size={14} />
@@ -91,9 +105,10 @@ const StickyNoteItem: React.FC<{ note: Note }> = ({ note }) => {
             </div>
             
             <div className="flex justify-between items-center mt-2 opacity-50 text-[9px] font-bold uppercase tracking-wider select-none">
-                <span>
+                <span className="flex items-center gap-1">
                     {status === 'saving' ? <Loader2 size={10} className="animate-spin" /> : 
                      status === 'saved' ? <Cloud size={10} /> : <CloudOff size={10} />}
+                    {status === 'unsaved' && ' Não salvo'}
                 </span>
                 <span>{new Date(note.updatedAt).toLocaleDateString()}</span>
             </div>

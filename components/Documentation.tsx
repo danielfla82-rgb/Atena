@@ -15,6 +15,8 @@ create table if not exists notebooks (
   name text not null,
   subtitle text,
   tec_link text,
+  error_notebook_link text, -- v3.7
+  legislation_link text, -- v4.0
   obsidian_link text,
   accuracy numeric default 0,
   target_accuracy numeric default 90,
@@ -27,6 +29,8 @@ create table if not exists notebooks (
   images jsonb default '[]', -- New (gallery)
   last_practice timestamptz,
   next_review timestamptz,
+  week_id text, -- v2.0
+  weekly_status text default 'PENDING', -- v3.3
   created_at timestamptz default now()
 );
 
@@ -36,8 +40,6 @@ create table if not exists cycles (
   user_id uuid not null,
   name text not null,
   config jsonb default '{}', -- AthensConfig
-  planning jsonb default '{}', -- Map<NotebookId, WeekId>
-  weekly_completion jsonb default '{}', -- Map<NotebookId, Boolean>
   last_access timestamptz default now(),
   created_at timestamptz default now()
 );
@@ -112,7 +114,7 @@ alter table notes enable row level security;
         </div>
         <div className="text-right hidden md:block">
             <p className="text-xs text-slate-500 uppercase font-bold tracking-widest">Última Atualização</p>
-            <p className="text-slate-300 font-mono">Titan Edition v3.6.4</p>
+            <p className="text-slate-300 font-mono">Titan Edition v4.0.0</p>
         </div>
       </div>
 
@@ -264,7 +266,8 @@ Ajuste Fino (Multiplicadores):
                         { name: "discipline", type: "string" },
                         { name: "accuracy", type: "number (0-100)" },
                         { name: "weight", type: "Enum (Baixo...Muito Alto)" },
-                        { name: "images", type: "string[] (Base64)" }
+                        { name: "images", type: "string[] (Base64)" },
+                        { name: "week_id", type: "string" }
                     ]}
                  />
                  
@@ -273,9 +276,7 @@ Ajuste Fino (Multiplicadores):
                     desc="Um contêiner de planejamento tático. Permite que o usuário gerencie múltiplos editais (ex: PF e Receita) simultaneamente, reutilizando o mesmo banco de cadernos."
                     fields={[
                         { name: "id", type: "UUID" },
-                        { name: "config", type: "JSONB (AthensConfig)" },
-                        { name: "planning", type: "JSONB (Map<NotebookID, WeekID>)" },
-                        { name: "weeklyCompletion", type: "JSONB (Map<NotebookID, boolean>)" }
+                        { name: "config", type: "JSONB (AthensConfig)" }
                     ]}
                  />
               </div>
@@ -289,14 +290,38 @@ Ajuste Fino (Multiplicadores):
               </div>
 
               <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-                   {/* v3.6.4 */}
+                   {/* v4.0.0 */}
                    <div className="p-6 border-b border-slate-800 bg-slate-950/50">
                       <div className="flex justify-between items-start mb-4">
                           <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                              <span className="bg-emerald-600 text-white px-2 py-0.5 rounded text-xs shadow-lg shadow-emerald-900/50">v3.6.4</span> 
-                              Titan Edition (Stable)
+                              <span className="bg-amber-500 text-slate-950 px-2 py-0.5 rounded text-xs shadow-lg font-black">v4.0.0</span> 
+                              Titan Prime (Gold)
                           </h3>
-                          <span className="text-xs text-slate-500 font-mono">Current Build</span>
+                          <span className="text-xs text-emerald-400 font-mono font-bold">Stable Release</span>
+                      </div>
+                      <ul className="space-y-3">
+                          <ChangelogItem 
+                            type="feat" 
+                            desc="[Panic Button] Redistribuição automática de tarefas atrasadas para as próximas semanas livres." 
+                          />
+                          <ChangelogItem 
+                            type="ui" 
+                            desc="[Planning] Adicionado seletor de Alocação Semanal no editor de cadernos para planejamento tático preciso." 
+                          />
+                          <ChangelogItem 
+                            type="core" 
+                            desc="[Data Integrity] Refinamento do schema do banco de dados para suportar múltiplos links (Lei Seca, Obsidian, Erros)." 
+                          />
+                      </ul>
+                  </div>
+
+                   {/* v3.6.4 */}
+                   <div className="p-6 border-b border-slate-800">
+                      <div className="flex justify-between items-start mb-4">
+                          <h3 className="text-lg font-bold text-slate-300 flex items-center gap-2">
+                              <span className="bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-xs border border-slate-600">v3.6.4</span> 
+                              Titan Beta
+                          </h3>
                       </div>
                       <ul className="space-y-3">
                           <ChangelogItem 
@@ -306,26 +331,6 @@ Ajuste Fino (Multiplicadores):
                           <ChangelogItem 
                             type="fix" 
                             desc="[Segurança] Blindagem da lógica de Ciclos para garantir que cadernos criados não fiquem órfãos (Vínculo imediato)." 
-                          />
-                      </ul>
-                  </div>
-
-                   {/* v3.5.0 */}
-                   <div className="p-6 border-b border-slate-800">
-                      <div className="flex justify-between items-start mb-4">
-                          <h3 className="text-lg font-bold text-slate-300 flex items-center gap-2">
-                              <span className="bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-xs border border-slate-600">v3.5.0</span> 
-                              Calendar Update
-                          </h3>
-                      </div>
-                      <ul className="space-y-3">
-                          <ChangelogItem 
-                            type="feat" 
-                            desc="[UX] Identificação visual de Feriados Nacionais e Alerta de Prova (Pulsação) no calendário anual." 
-                          />
-                          <ChangelogItem 
-                            type="feat" 
-                            desc="[Estratégia] Adicionado ritmo 'Iniciante' (Teal) e 'Micro-Datas' nas semanas para precisão de planejamento." 
                           />
                       </ul>
                   </div>

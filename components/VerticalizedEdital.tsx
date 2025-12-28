@@ -1,357 +1,254 @@
-import React, { useState, useMemo, useCallback } from 'react';
+
+import React, { useState, useRef } from 'react';
 import { useStore } from '../store';
-import { createAIClient } from '../utils/ai';
-import { Type } from "@google/genai";
-import { CheckSquare, Square, AlertCircle, ArrowUpCircle, CheckCircle2, ListChecks, Search, BrainCircuit, Loader2, Sparkles, ChevronDown, ChevronUp, FileWarning } from 'lucide-react';
-import { EditalDiscipline, EditalTopic } from '../types';
+import { 
+    Notebook, Weight, Relevance, Trend, NotebookStatus 
+} from '../types';
+import { 
+    CheckSquare, Square, AlertCircle, ArrowUpCircle, CheckCircle2, ListChecks, 
+    Search, BrainCircuit, Loader2, Sparkles, ChevronDown, ChevronUp, FileWarning,
+    ToggleLeft, ToggleRight, Plus, Link as LinkIcon, ExternalLink, Zap,
+    Clock, AlertTriangle, Save, X, Pencil, FileCode, ZoomIn, Trash2, Flag, Scale
+} from 'lucide-react';
+
+const INITIAL_FORM_STATE = {
+    discipline: '', name: '', subtitle: '', tecLink: '', obsidianLink: '', legislationLink: '', accuracy: 0, targetAccuracy: 90, 
+    weight: Weight.MEDIO, relevance: Relevance.MEDIA, trend: Trend.ESTAVEL, 
+    status: NotebookStatus.NOT_STARTED, notes: '', images: [] as string[],
+    lastPractice: new Date().toISOString().split('T')[0] 
+};
 
 export const VerticalizedEdital: React.FC = () => {
-  const { notebooks, config, updateConfig } = useStore();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [expandedDiscipline, setExpandedDiscipline] = useState<string | null>(null);
+    const { notebooks, updateNotebook, deleteNotebook } = useStore();
+    const [searchTerm, setSearchTerm] = useState('');
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [formData, setFormData] = useState(INITIAL_FORM_STATE);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+    const [expandedDiscipline, setExpandedDiscipline] = useState<string | null>(null);
 
-  // Normalize string for fuzzy matching (matches topic name to notebook name)
-  const normalize = (str: string) => {
-      return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
-  };
+    // Group by discipline
+    const groupedNotebooks = notebooks.reduce((acc, nb) => {
+        if (!acc[nb.discipline]) acc[nb.discipline] = [];
+        acc[nb.discipline].push(nb);
+        return acc;
+    }, {} as Record<string, Notebook[]>);
 
-  // --- AI PROCESSING ---
-  const processEditalWithAI = async () => {
-      if (!config.editalText || config.editalText.length < 50) {
-          alert("Por favor, insira o texto do Conteúdo Programático na aba 'Planejamento' (Configurar Concurso) antes de processar.");
-          return;
-      }
+    const sortedDisciplines = Object.keys(groupedNotebooks).sort();
 
-      setIsProcessing(true);
-      const ai = createAIClient();
+    const openModal = (nb: Notebook) => {
+        setEditingId(nb.id);
+        const currentImages = nb.images || (nb.image ? [nb.image] : []);
+        setFormData({
+            discipline: nb.discipline,
+            name: nb.name,
+            subtitle: nb.subtitle || '',
+            tecLink: nb.tecLink || '',
+            obsidianLink: nb.obsidianLink || '',
+            legislationLink: nb.legislationLink || '',
+            accuracy: nb.accuracy,
+            targetAccuracy: nb.targetAccuracy,
+            weight: nb.weight,
+            relevance: nb.relevance,
+            trend: nb.trend,
+            status: nb.status || NotebookStatus.NOT_STARTED,
+            notes: nb.notes || '',
+            images: currentImages,
+            lastPractice: nb.lastPractice ? nb.lastPractice.split('T')[0] : new Date().toISOString().split('T')[0]
+        });
+        setIsModalOpen(true);
+    };
 
-      try {
-          const prompt = `
-            Você é um especialista em concursos públicos.
-            Analise o seguinte texto de edital (conteúdo programático) e estruture-o.
-            Para cada tópico, estime a probabilidade de cair na prova (Alta, Média, Baixa) baseada no histórico geral de concursos para: ${config.targetRole}.
-            
-            TEXTO DO EDITAL:
-            ${config.editalText.substring(0, 30000)} 
-            
-            Retorne APENAS um JSON seguindo este schema:
-            {
-              "disciplines": [
-                {
-                  "name": "Nome da Disciplina",
-                  "topics": [
-                    { "name": "Nome do Tópico", "probability": "Alta" | "Média" | "Baixa" }
-                  ]
-                }
-              ]
-            }
-          `;
+    const handleChange = (field: string, value: any) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+    };
 
-          const response = await ai.models.generateContent({
-              model: 'gemini-3-flash-preview',
-              contents: prompt,
-              config: {
-                  responseMimeType: 'application/json',
-                  responseSchema: {
-                      type: Type.OBJECT,
-                      properties: {
-                          disciplines: {
-                              type: Type.ARRAY,
-                              items: {
-                                  type: Type.OBJECT,
-                                  properties: {
-                                      name: { type: Type.STRING },
-                                      topics: {
-                                          type: Type.ARRAY,
-                                          items: {
-                                              type: Type.OBJECT,
-                                              properties: {
-                                                  name: { type: Type.STRING },
-                                                  probability: { type: Type.STRING, enum: ['Alta', 'Média', 'Baixa'] }
-                                              }
-                                          }
-                                      }
-                                  }
-                              }
-                          }
-                      }
-                  }
-              }
-          });
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) {
+            Array.from(e.target.files).forEach((file: File) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setFormData(prev => ({ 
+                        ...prev, 
+                        images: [...prev.images, reader.result as string] 
+                    }));
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+    };
 
-          if (response.text) {
-              const result = JSON.parse(response.text);
-              // Add 'checked' property initialized to false
-              const structured: EditalDiscipline[] = result.disciplines.map((d: any) => ({
-                  name: d.name,
-                  topics: d.topics.map((t: any) => ({
-                      name: t.name,
-                      probability: t.probability,
-                      checked: false
-                  }))
-              }));
-              
-              updateConfig({ ...config, structuredEdital: structured });
-          }
+    const removeImage = (index: number) => {
+        setFormData(prev => ({
+            ...prev,
+            images: prev.images.filter((_, i) => i !== index)
+        }));
+    };
 
-      } catch (error) {
-          console.error("Erro ao processar edital:", error);
-          alert("Erro ao processar o edital com IA. Tente novamente.");
-      } finally {
-          setIsProcessing(false);
-      }
-  };
+    const handleSave = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (editingId) {
+            await updateNotebook(editingId, {
+                notes: formData.notes,
+                images: formData.images,
+                tecLink: formData.tecLink,
+                obsidianLink: formData.obsidianLink,
+                legislationLink: formData.legislationLink
+            });
+            setIsModalOpen(false);
+        }
+    };
 
-  // --- ACTIONS ---
-  const toggleCheck = (disciplineName: string, topicName: string) => {
-      if (!config.structuredEdital) return;
+    const toggleStatus = async (nb: Notebook) => {
+        const newStatus = nb.status === NotebookStatus.COMPLETED ? NotebookStatus.IN_PROGRESS : NotebookStatus.COMPLETED;
+        await updateNotebook(nb.id, { status: newStatus });
+    };
 
-      const newEdital = config.structuredEdital.map(d => {
-          if (d.name !== disciplineName) return d;
-          return {
-              ...d,
-              topics: d.topics.map(t => {
-                  if (t.name !== topicName) return t;
-                  return { ...t, checked: !t.checked };
-              })
-          };
-      });
+    return (
+        <div className="p-6 max-w-5xl mx-auto space-y-6 pb-20">
+            <div className="flex justify-between items-center border-b border-slate-800 pb-6">
+                <div>
+                    <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+                        <ListChecks className="text-emerald-500" /> Edital Verticalizado
+                    </h1>
+                    <p className="text-slate-400 mt-1">Checklist de tópicos estudados.</p>
+                </div>
+            </div>
 
-      updateConfig({ ...config, structuredEdital: newEdital });
-  };
-
-  // --- PERFORMANCE OPTIMIZATION: PRE-CALCULATE MATCHES ---
-  // Create a map of normalized notebook names/subtitles for O(1) lookup logic instead of O(N*M)
-  const matchesMap = useMemo(() => {
-      const map = new Map<string, { inCycle: boolean, blocksCount: number }>();
-      
-      if (!config.structuredEdital) return map;
-
-      // 1. Flatten all edital topics to iterate
-      const allTopics = config.structuredEdital.flatMap(d => d.topics.map(t => ({ topicName: t.name, discName: d.name })));
-
-      // 2. Pre-process notebooks for faster matching
-      const processedNotebooks = notebooks.map(nb => ({
-          normDisc: normalize(nb.discipline),
-          normName: normalize(nb.name),
-          normSub: normalize(nb.subtitle || ''),
-          weekId: nb.weekId
-      }));
-
-      // 3. Perform matching
-      allTopics.forEach(({ topicName, discName }) => {
-          const normTopic = normalize(topicName);
-          const normDisc = normalize(discName);
-          const key = `${discName}-${topicName}`;
-
-          let inCycle = false;
-          let blocksCount = 0;
-
-          processedNotebooks.forEach(nb => {
-              // Discipline loose match
-              const discMatch = nb.normDisc.includes(normDisc) || normDisc.includes(nb.normDisc);
-              if (!discMatch) return;
-
-              // Topic match (Topic name inside Notebook name OR Notebook name inside Topic name)
-              const nameMatch = nb.normName.includes(normTopic) || normTopic.includes(nb.normName) || (nb.normSub && normTopic.includes(nb.normSub));
-              
-              if (nameMatch) {
-                  if (nb.weekId) {
-                      inCycle = true;
-                      blocksCount++;
-                  }
-              }
-          });
-
-          map.set(key, { inCycle, blocksCount });
-      });
-
-      return map;
-  }, [notebooks, config.structuredEdital]);
-
-  // Optimized Helper to get status from Map
-  const getTopicStatus = useCallback((topicName: string, disciplineName: string) => {
-      const key = `${disciplineName}-${topicName}`;
-      const stat = matchesMap.get(key) || { inCycle: false, blocksCount: 0 };
-      
-      // Calculate discipline frequency just for display context (lighter calc)
-      // Note: This is an approximation for UI speed.
-      return stat;
-  }, [matchesMap]);
-
-  // --- FILTERING ---
-  const displayData = useMemo(() => {
-      if (!config.structuredEdital) return [];
-      
-      if (!searchTerm) return config.structuredEdital;
-
-      const lowerSearch = searchTerm.toLowerCase();
-      
-      return config.structuredEdital.map(d => ({
-          ...d,
-          topics: d.topics.filter(t => 
-              t.name.toLowerCase().includes(lowerSearch) || 
-              d.name.toLowerCase().includes(lowerSearch)
-          )
-      })).filter(d => d.topics.length > 0);
-
-  }, [config.structuredEdital, searchTerm]);
-
-  // --- RENDER ---
-  if (!config.structuredEdital || config.structuredEdital.length === 0) {
-      return (
-          <div className="p-6 max-w-4xl mx-auto h-full flex flex-col items-center justify-center text-center space-y-6 animate-in fade-in zoom-in">
-              <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-2xl max-w-lg w-full relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-cyan-500"></div>
-                  <ListChecks size={64} className="text-emerald-500 mx-auto mb-6" />
-                  <h2 className="text-2xl font-bold text-white mb-2">Edital Verticalizado Inteligente</h2>
-                  <p className="text-slate-400 text-sm mb-6">
-                      Ainda não processamos seu edital. A IA irá ler o conteúdo programático, estruturar os tópicos e calcular a probabilidade de cobrança.
-                  </p>
-                  
-                  {!config.editalText ? (
-                      <div className="bg-amber-900/20 border border-amber-500/20 p-4 rounded-lg text-amber-200 text-xs mb-4 flex items-center gap-2 text-left">
-                          <FileWarning size={24} className="flex-shrink-0" />
-                          <span>Você precisa colar o texto do edital em "Planejamento &gt; Configurar Concurso" primeiro.</span>
-                      </div>
-                  ) : (
-                      <button 
-                          onClick={processEditalWithAI} 
-                          disabled={isProcessing}
-                          className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2 transition-all"
-                      >
-                          {isProcessing ? <Loader2 size={20} className="animate-spin" /> : <Sparkles size={20} />}
-                          {isProcessing ? "IA Analisando Edital..." : "Gerar Edital Verticalizado"}
-                      </button>
-                  )}
-              </div>
-          </div>
-      );
-  }
-
-  return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6 pb-20 h-full flex flex-col">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-slate-800 pb-6 gap-4 flex-shrink-0">
-        <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
-            <ListChecks className="text-emerald-500" /> Edital Verticalizado
-          </h1>
-          <p className="text-slate-400 mt-1 text-sm">
-            Auditoria de cobertura, análise de probabilidade e cruzamento com o ciclo.
-          </p>
-        </div>
-        <div className="flex gap-3 w-full md:w-auto">
-             <div className="relative flex-1 md:w-64">
-                <Search className="absolute left-3 top-2.5 text-slate-500" size={16} />
+            <div className="flex items-center bg-slate-900 border border-slate-800 rounded-lg px-4 py-2 mb-6">
+                <Search className="text-slate-500 mr-2" size={18} />
                 <input 
                     type="text" 
                     placeholder="Filtrar tópicos..." 
                     value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg py-2 pl-9 pr-3 text-sm text-white focus:border-emerald-500 outline-none"
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="bg-transparent border-none outline-none text-white w-full placeholder-slate-600"
                 />
-             </div>
-             <button onClick={processEditalWithAI} className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700" title="Reprocessar com IA">
-                 <Sparkles size={18} />
-             </button>
+            </div>
+
+            <div className="space-y-4">
+                {sortedDisciplines.map(discipline => {
+                    const disciplineNotebooks = groupedNotebooks[discipline].filter(nb => 
+                        nb.name.toLowerCase().includes(searchTerm.toLowerCase())
+                    );
+                    
+                    if (disciplineNotebooks.length === 0) return null;
+
+                    const completedCount = disciplineNotebooks.filter(nb => nb.status === NotebookStatus.COMPLETED).length;
+                    const totalCount = disciplineNotebooks.length;
+                    const progress = Math.round((completedCount / totalCount) * 100);
+                    const isExpanded = expandedDiscipline === discipline || searchTerm.length > 0;
+
+                    return (
+                        <div key={discipline} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+                            <div 
+                                onClick={() => setExpandedDiscipline(expandedDiscipline === discipline ? null : discipline)}
+                                className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-800/50 transition-colors"
+                            >
+                                <div className="flex items-center gap-3">
+                                    {isExpanded ? <ChevronUp size={16} className="text-slate-500"/> : <ChevronDown size={16} className="text-slate-500"/>}
+                                    <h3 className="text-white font-bold">{discipline}</h3>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <div className="text-xs font-mono text-slate-400">{completedCount}/{totalCount} ({progress}%)</div>
+                                    <div className="w-24 h-2 bg-slate-800 rounded-full overflow-hidden">
+                                        <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {isExpanded && (
+                                <div className="border-t border-slate-800">
+                                    {disciplineNotebooks.map(nb => (
+                                        <div key={nb.id} className="p-3 pl-10 border-b border-slate-800/50 flex items-center justify-between hover:bg-slate-800/30 transition-colors">
+                                            <div className="flex items-center gap-3">
+                                                <button onClick={() => toggleStatus(nb)} className={`transition-colors ${nb.status === NotebookStatus.COMPLETED ? 'text-emerald-500' : 'text-slate-600 hover:text-slate-400'}`}>
+                                                    {nb.status === NotebookStatus.COMPLETED ? <CheckSquare size={20} /> : <Square size={20} />}
+                                                </button>
+                                                <span className={`${nb.status === NotebookStatus.COMPLETED ? 'line-through text-slate-500' : 'text-slate-300'}`}>{nb.name}</span>
+                                            </div>
+                                            <button onClick={() => openModal(nb)} className="p-2 text-slate-500 hover:text-white transition-colors">
+                                                <Pencil size={14} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+
+            {isModalOpen && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto custom-scrollbar flex flex-col">
+                        <div className="p-6 border-b border-slate-800 flex justify-between items-center sticky top-0 bg-slate-900 z-10">
+                            <h2 className="text-xl font-bold text-white">Editar Detalhes</h2>
+                            <button onClick={() => setIsModalOpen(false)}><X className="text-slate-500 hover:text-white" /></button>
+                        </div>
+                        
+                        <form onSubmit={handleSave} className="p-6 space-y-8">
+                             {/* Section 3: Rascunhos & Anotações (Required Snippet) */}
+                             <div className="space-y-4 pt-2">
+                                <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">3. Rascunhos & Anotações</h4>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Obsidian / Notion</label>
+                                        <div className="relative">
+                                            <FileCode className="absolute left-3 top-3.5 text-slate-500" size={16} />
+                                            <input type="url" value={formData.obsidianLink} onChange={e => handleChange('obsidianLink', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 pl-10 text-white outline-none focus:border-emerald-500" placeholder="obsidian://open?vault=..." />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Legislação (Lei Seca)</label>
+                                        <div className="relative">
+                                            <Scale className="absolute left-3 top-3.5 text-slate-500" size={16} />
+                                            <input type="url" value={formData.legislationLink} onChange={e => handleChange('legislationLink', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 pl-10 text-white outline-none focus:border-emerald-500" placeholder="https://planalto.gov.br..." />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Anotações / Resumo</label><textarea value={formData.notes} onChange={e => handleChange('notes', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500 transition-all min-h-[200px] resize-none text-sm" placeholder="Mnemônicos..." /></div>
+                                    <div className="flex flex-col h-full">
+                                        <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Galeria de Mapas Mentais</label>
+                                        <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 min-h-[200px] flex flex-col">
+                                            <div className="grid grid-cols-3 gap-2 mb-3">
+                                                {formData.images.map((img, idx) => (
+                                                    <div key={idx} className="relative group aspect-square bg-slate-900 rounded-lg overflow-hidden border border-slate-700 hover:border-emerald-500 transition-colors cursor-pointer">
+                                                        <img src={img} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" onClick={() => setLightboxIndex(idx)} />
+                                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 pointer-events-none"><ZoomIn size={16} className="text-white" /></div>
+                                                        <button type="button" onClick={(e) => { e.stopPropagation(); removeImage(idx); }} className="absolute top-1 right-1 bg-red-600 hover:bg-red-500 text-white rounded p-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto"><Trash2 size={12} /></button>
+                                                    </div>
+                                                ))}
+                                                <div onClick={() => fileInputRef.current?.click()} className="aspect-square border-2 border-dashed border-slate-700 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-emerald-500 hover:bg-slate-700/50 transition-colors text-slate-500 hover:text-emerald-500"><Plus size={24} /><span className="text-[10px] uppercase font-bold mt-1">Add Imagem</span></div>
+                                            </div>
+                                            <input type="file" ref={fileInputRef} className="hidden" accept="image/*" multiple onChange={handleImageUpload} />
+                                            <p className="text-[10px] text-slate-500 mt-auto text-center italic">Suporta múltiplas imagens. Clique em uma imagem para ampliar.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end pt-6 border-t border-slate-800 gap-3 sticky bottom-0 bg-slate-900 pb-4">
+                                {editingId && <button type="button" onClick={() => { deleteNotebook(editingId); setIsModalOpen(false); }} className="px-4 py-2 bg-red-900/20 text-red-400 hover:bg-red-900/40 rounded-lg mr-auto">Excluir</button>}
+                                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-400 hover:text-white">Cancelar</button>
+                                <button type="submit" className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg shadow-lg shadow-emerald-900/20">Salvar Alterações</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+            
+             {/* Lightbox */}
+            {lightboxIndex !== null && (
+                <div className="fixed inset-0 z-[60] bg-black/95 flex items-center justify-center p-4" onClick={() => setLightboxIndex(null)}>
+                    <img src={formData.images[lightboxIndex]} className="max-w-full max-h-full rounded-lg shadow-2xl" />
+                    <button className="absolute top-4 right-4 text-white hover:text-red-500"><X size={32}/></button>
+                </div>
+            )}
         </div>
-      </div>
-
-      <div className="space-y-4 flex-1 overflow-y-auto custom-scrollbar pr-2">
-          {displayData.map((discipline) => {
-              const isExpanded = expandedDiscipline === discipline.name;
-              const totalTopics = discipline.topics.length;
-              const checkedTopics = discipline.topics.filter(t => t.checked).length;
-              const progress = Math.round((checkedTopics / totalTopics) * 100);
-
-              // Aggregate stats for collapsed view
-              // Sum blocks from map
-              const disciplineBlocks = discipline.topics.reduce((acc, t) => acc + getTopicStatus(t.name, discipline.name).blocksCount, 0);
-              
-              return (
-                  <div key={discipline.name} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden transition-all">
-                      {/* Header */}
-                      <div 
-                        className="px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-slate-800/50 transition-colors"
-                        onClick={() => setExpandedDiscipline(isExpanded ? null : discipline.name)}
-                      >
-                          <div className="flex items-center gap-4">
-                              <div className="bg-slate-800 p-2 rounded-lg text-emerald-500">
-                                  {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-                              </div>
-                              <div>
-                                  <h3 className="font-bold text-white text-lg">{discipline.name}</h3>
-                                  <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
-                                      <span>{totalTopics} tópicos</span>
-                                      <span className="w-1 h-1 rounded-full bg-slate-700"></span>
-                                      <span>{disciplineBlocks} cadernos linkados</span>
-                                  </div>
-                              </div>
-                          </div>
-                          
-                          <div className="flex items-center gap-4">
-                              <div className="hidden md:block w-32 h-2 bg-slate-950 rounded-full overflow-hidden">
-                                  <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${progress}%` }}></div>
-                              </div>
-                              <span className="text-sm font-bold text-emerald-400">{progress}%</span>
-                          </div>
-                      </div>
-
-                      {/* Topics Table */}
-                      {isExpanded && (
-                          <div className="border-t border-slate-800">
-                              <div className="overflow-x-auto">
-                                  <table className="w-full text-left text-sm text-slate-400">
-                                      <thead className="bg-slate-950/50 text-xs uppercase font-bold text-slate-500">
-                                          <tr>
-                                              <th className="p-4 w-16 text-center">Status</th>
-                                              <th className="p-4">Tópico</th>
-                                              <th className="p-4 w-32 text-center">Probabilidade (IA)</th>
-                                              <th className="p-4 w-32 text-center">No Ciclo?</th>
-                                          </tr>
-                                      </thead>
-                                      <tbody className="divide-y divide-slate-800/50">
-                                          {discipline.topics.map((topic, idx) => {
-                                              const stats = getTopicStatus(topic.name, discipline.name);
-                                              const probColor = topic.probability === 'Alta' ? 'text-red-400 bg-red-900/20 border-red-500/30' : topic.probability === 'Média' ? 'text-amber-400 bg-amber-900/20 border-amber-500/30' : 'text-blue-400 bg-blue-900/20 border-blue-500/30';
-                                              
-                                              return (
-                                                  <tr key={idx} className="hover:bg-slate-800/20 transition-colors">
-                                                      <td className="p-4 text-center">
-                                                          <button onClick={(e) => { e.stopPropagation(); toggleCheck(discipline.name, topic.name); }} className="text-slate-500 hover:text-emerald-500 transition-colors">
-                                                              {topic.checked ? <CheckSquare size={18} className="text-emerald-500" /> : <Square size={18} />}
-                                                          </button>
-                                                      </td>
-                                                      <td className={`p-4 font-medium ${topic.checked ? 'text-slate-500 line-through' : 'text-slate-200'}`}>
-                                                          {topic.name}
-                                                      </td>
-                                                      <td className="p-4 text-center">
-                                                          <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded border ${probColor}`}>
-                                                              {topic.probability}
-                                                          </span>
-                                                      </td>
-                                                      <td className="p-4 text-center">
-                                                          {stats.inCycle ? (
-                                                              <span className="flex items-center justify-center gap-1 text-emerald-400 font-bold text-xs" title={`${stats.blocksCount} cadernos encontrados`}>
-                                                                  <CheckCircle2 size={14} /> Sim
-                                                              </span>
-                                                          ) : (
-                                                              <span className="text-slate-600 text-xs">Não</span>
-                                                          )}
-                                                      </td>
-                                                  </tr>
-                                              );
-                                          })}
-                                      </tbody>
-                                  </table>
-                              </div>
-                          </div>
-                      )}
-                  </div>
-              );
-          })}
-      </div>
-    </div>
-  );
+    );
 };

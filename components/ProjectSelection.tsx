@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, PlusCircle, ArrowRight, FolderOpen, Calendar, Trash2, X, AlertTriangle, HelpCircle } from 'lucide-react';
+import { LayoutDashboard, PlusCircle, ArrowRight, FolderOpen, Calendar, Trash2, X, AlertTriangle, HelpCircle, LogOut } from 'lucide-react';
 import { useStore } from '../store';
 import { LOGO_URL } from '../constants';
 
 interface Props {
   onNavigate: (view: 'dashboard' | 'setup' | 'library' | 'onboarding') => void;
+  onLogout: () => void;
 }
 
-export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
+export const ProjectSelection: React.FC<Props> = ({ onNavigate, onLogout }) => {
   const { cycles, activeCycleId, createCycle, selectCycle, deleteCycle } = useStore();
   
   // State for creation modal
@@ -94,13 +95,21 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
                     <FolderOpen size={24} className="text-emerald-500"/> Meus Projetos Ativos
                 </h3>
                 
-                <button 
-                    onClick={() => onNavigate('onboarding')}
-                    className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-emerald-400 hover:text-emerald-300 bg-emerald-900/10 hover:bg-emerald-900/20 px-4 py-2 rounded-full border border-emerald-500/20 transition-all"
-                >
-                    <HelpCircle size={14} />
-                    Conhecendo a Plataforma
-                </button>
+                <div className="flex items-center gap-3">
+                    <button 
+                        onClick={onLogout}
+                        className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-red-400 bg-slate-900 hover:bg-slate-800 px-4 py-2 rounded-full border border-slate-700 transition-all"
+                    >
+                        <LogOut size={14} /> Sair
+                    </button>
+                    <button 
+                        onClick={() => onNavigate('onboarding')}
+                        className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-emerald-400 hover:text-emerald-300 bg-emerald-900/10 hover:bg-emerald-900/20 px-4 py-2 rounded-full border border-emerald-500/20 transition-all"
+                    >
+                        <HelpCircle size={14} />
+                        Conhecendo a Plataforma
+                    </button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

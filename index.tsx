@@ -1,3 +1,4 @@
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
@@ -48,7 +49,7 @@ function showFatalError(details: string) {
 
 // --- CONFIGURAÇÃO DE AMBIENTE ---
 if (typeof window !== 'undefined') {
-  console.log(`[System] Booting Atena v3.6.2 (Olympus Edition)`);
+  console.log(`[System] Booting Atena v4.0.0 (Titan Prime)`);
 }
 
 const rootElement = document.getElementById('root');

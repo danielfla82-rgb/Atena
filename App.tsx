@@ -23,6 +23,7 @@ import {
   ChevronDown, ChevronRight, Target, Loader2
 } from 'lucide-react';
 import { Logo } from './components/Logo';
+import { supabase } from './lib/supabase';
 
 // --- SUBCOMPONENT: Nav Group (Collapsible) ---
 const NavGroup = ({ title, children, defaultOpen = false }: { title: string, children?: React.ReactNode, defaultOpen?: boolean }) => {
@@ -80,6 +81,11 @@ const AppContent: React.FC = () => {
       }
   }, [user, loading, view, isProcessingOAuth]);
 
+  const handleLogout = async () => {
+      await supabase.auth.signOut();
+      setView('login');
+  };
+
   // Loading Screen (Initial Boot or OAuth Processing)
   if ((loading || isProcessingOAuth) && view === 'login') {
       return (
@@ -106,7 +112,7 @@ const AppContent: React.FC = () => {
   }
 
   if (view === 'selection') {
-    return <ProjectSelection onNavigate={(v) => setView(v as any)} />;
+    return <ProjectSelection onNavigate={(v) => setView(v as any)} onLogout={handleLogout} />;
   }
 
   const NavItem = ({ id, label, icon: Icon }: { id: typeof view, label: string, icon: any }) => (
@@ -200,7 +206,7 @@ const AppContent: React.FC = () => {
               </p>
               <p className="text-[10px] text-emerald-400 font-mono mt-0.5">Online</p>
             </div>
-            <button onClick={() => setView('login')} className="text-slate-500 hover:text-red-400 transition-colors p-1" title="Sair">
+            <button onClick={handleLogout} className="text-slate-500 hover:text-red-400 transition-colors p-1" title="Sair">
                 <LogOut size={16} />
             </button>
           </div>
