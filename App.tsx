@@ -222,9 +222,9 @@ const AppContent: React.FC = () => {
          {/* Background Glow */}
          <div className="fixed top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-900/10 via-slate-950 to-slate-950 pointer-events-none -z-10"></div>
          
-         {view === 'dashboard' ? <Dashboard /> : 
+         {view === 'dashboard' ? <Dashboard onNavigate={(v) => setView(v as any)} /> : 
           view === 'setup' ? <Setup /> : 
-          view === 'verticalized' ? <VerticalizedEdital /> :
+          view === 'verticalized' ? <VerticalizedEdital onNavigate={(v) => setView(v as any)} /> :
           view === 'library' ? <Library /> :
           view === 'notes' ? <Notes /> :
           view === 'tips' ? <Tips /> :

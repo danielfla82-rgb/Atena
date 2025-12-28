@@ -317,7 +317,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
 
   // --- DATA: TREEMAP (HIERARCHY) ---
   const treemapData = useMemo(() => {
-      const grouped: Record<string, any[]> = {};
+      const grouped: Record<string, { name: string; size: number }[]> = {};
       
       notebooks.forEach(nb => {
          if(nb.discipline === 'Revisão Geral') return;
@@ -355,6 +355,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       startWildcard();
     } else {
       // FIX: Open Study Session directly instead of navigating to Library Edit
+      // This solves the "button not working" issue by providing immediate action
       setSelectedSession(nb);
     }
   };
@@ -413,6 +414,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       </div>
 
       {/* === TOP METRICS CARDS (ELITE PRINT STYLE) === */}
+      {/* Changed to 3 columns to remove "Study Time" */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           
           {/* Card 1: Desempenho */}
