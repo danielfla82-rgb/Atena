@@ -1,5 +1,4 @@
-
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { Notebook, AthensConfig, Weight, Relevance, Trend, SavedReport, ProtocolItem, NotebookStatus, Cycle, FrameworkData, Note, ScheduleItem } from './types';
 import { calculateNextReview } from './utils/algorithm';
 import { supabase } from './lib/supabase';
@@ -159,6 +158,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [activeCycleId, setActiveCycleId] = useState<string | null>(null);
   const [config, setConfig] = useState<AthensConfig>(DEFAULT_CONFIG);
 
+  // --- SAFETY LOCK: PREVENT AUTO-OVERWRITE ---
+  const isDataLoaded = useRef(false);
+
   useEffect(() => {
     const initSession = async () => {
         try {
@@ -168,7 +170,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             if (!isGuest) {
                 setUser(data.session?.user ?? null);
                 if (data.session?.user) {
-                    await fetchAllData(data.session.user.id);
+                    if (!isDataLoaded.current) await fetchAllData(data.session.user.id);
                 } else {
                     setLoading(false);
                 }
@@ -183,12 +185,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isGuest) {
         setUser(session?.user ?? null);
-        // FIX: Only fetch on explicit login or initial session to avoid overwriting local state on token refresh
-        if (session?.user && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
+        
+        // CRITICAL FIX: Only fetch if we strictly haven't loaded data yet. 
+        // This ignores TOKEN_REFRESHED or weird Supabase events that occur mid-session.
+        if (session?.user && !isDataLoaded.current) {
             fetchAllData(session.user.id);
         } else if (event === 'SIGNED_OUT') {
             setNotebooks([]);
             setCycles([]);
+            isDataLoaded.current = false;
         }
       }
     });
@@ -206,6 +211,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setLoading(true);
       setIsGuest(true);
       setUser({ id: 'guest', email: 'visitante@atena.os' });
+      isDataLoaded.current = true;
       
       try {
         const savedData = localStorage.getItem('athena_guest_db');
@@ -326,6 +332,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               const fmtNotes = results[5].value.data.map((n: any) => ({ ...n, createdAt: n.created_at, updatedAt: n.updated_at }));
               setNotes(fmtNotes);
           }
+          
+          isDataLoaded.current = true; // Mark as loaded to prevent overwrites
+          
       } catch (error) {
           console.error("Erro geral ao sincronizar dados:", error);
       } finally {
@@ -411,15 +420,35 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       try {
           const payload: any = {};
           if(updates.config) payload.config = updates.config;
-          if(updates.planning) payload.planning = updates.planning;
           if(updates.weeklyCompletion) payload.weekly_completion = updates.weeklyCompletion;
-          if(updates.schedule) payload.schedule = updates.schedule; // New Field
           
+          if(updates.schedule) {
+              payload.schedule = updates.schedule;
+              
+              // --- POLYFILL: BACKWARD COMPATIBILITY ---
+              // Save a flat version to 'planning' column if 'schedule' column doesn't exist or for legacy clients
+              const derivedPlanning: Record<string, string | null> = {};
+              Object.entries(updates.schedule).forEach(([weekId, slots]) => {
+                  (slots as ScheduleItem[]).forEach(slot => {
+                      derivedPlanning[slot.notebookId] = weekId;
+                  });
+              });
+              payload.planning = derivedPlanning;
+          } else if (updates.planning) {
+              payload.planning = updates.planning;
+          }
+
           const { error } = await supabase.from('cycles').update(payload).eq('id', cycleId);
-          if (error) throw error;
-      } catch (e) {
+          if (error) {
+              console.error("Supabase Save Error:", error);
+              throw error;
+          }
+      } catch (e: any) {
           console.error("Erro crítico ao sincronizar ciclo:", e);
-          alert("Falha ao salvar alterações na nuvem. Verifique sua conexão.");
+          // Only alert if it's a real persistence error, not a network blip
+          if (e.message && !e.message.includes("Failed to fetch")) {
+             alert(`Atenção: Falha ao salvar no banco de dados. Suas alterações podem ser perdidas. Erro: ${e.message}`);
+          }
       } finally {
           setIsSyncing(false);
       }
