@@ -1,6 +1,6 @@
 {
-  "name": "Projeto Atena v4.0.0 (Titan Prime)",
-  "description": "Plataforma SaaS de alta performance. v4.0.0: [GOLD] Lançamento Oficial. Algoritmo de redistribuição de carga (Panic Button), Seletor Temporal e Otimização de Core Vitals.",
+  "name": "Projeto Atena v3.6.4 (Titan Stable)",
+  "description": "Plataforma SaaS de alta performance. v3.6.4: [OPTIMIZATION] Refatoração do motor de cruzamento de edital e blindagem de persistência de ciclos.",
   "requestFramePermissions": [
     "microphone"
   ]

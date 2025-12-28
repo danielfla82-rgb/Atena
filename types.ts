@@ -21,14 +21,54 @@ export enum Trend {
 
 export enum NotebookStatus {
   NOT_STARTED = 'Não Iniciado',
-  IN_PROGRESS = 'Em Andamento',
-  COMPLETED = 'Concluído'
+  THEORY_DONE = 'Teoria Finalizada',
+  REVIEWING = 'Em Revisão',
+  MASTERED = 'Dominado'
 }
 
-export enum WeeklyStatus {
-  PENDING = 'PENDING',
-  COMPLETED = 'COMPLETED',
-  SKIPPED = 'SKIPPED'
+export type PaceType = 'Off' | 'Iniciante' | 'Basico' | 'Intermediario' | 'Avancado' | 'Revisao';
+export type WeeklyStatus = 'pending' | 'started' | 'completed' | 'skipped';
+
+export interface EditalTopic {
+  name: string;
+  probability: 'Alta' | 'Média' | 'Baixa';
+  checked: boolean;
+}
+
+export interface EditalDiscipline {
+  name: string;
+  topics: EditalTopic[];
+}
+
+export interface AlgorithmConfig {
+  baseIntervals: {
+    learning: number;
+    reviewing: number;
+    mastering: number;
+    maintaining: number;
+  };
+  multipliers: {
+    relevanceExtreme: number;
+    relevanceHigh: number;
+    trendHigh: number;
+  };
+}
+
+export interface AthensConfig {
+  targetRole: string;
+  weeksUntilExam: number;
+  studyPace: 'Iniciante' | 'Básico' | 'Intermediário' | 'Avançado';
+  startDate?: string;
+  examName?: string;
+  examDate?: string;
+  banca?: string;
+  dailyHours?: number;
+  editalText?: string;
+  legislationText?: string;
+  editalLink?: string;
+  structuredEdital?: EditalDiscipline[];
+  algorithm: AlgorithmConfig;
+  longTermPlanning?: Record<string, PaceType>;
 }
 
 export interface Notebook {
@@ -38,7 +78,6 @@ export interface Notebook {
   subtitle?: string;
   tecLink?: string;
   errorNotebookLink?: string;
-  legislationLink?: string;
   obsidianLink?: string;
   accuracy: number;
   targetAccuracy: number;
@@ -56,11 +95,12 @@ export interface Notebook {
   createdAt?: string;
 }
 
-export interface Note {
+export interface Cycle {
   id: string;
-  content: string;
-  color: 'yellow' | 'blue' | 'green' | 'pink' | 'purple' | 'slate';
-  updatedAt: string;
+  name: string;
+  config: AthensConfig;
+  notebooks: Notebook[];
+  lastAccess: string;
 }
 
 export interface ProtocolItem {
@@ -73,25 +113,27 @@ export interface ProtocolItem {
 }
 
 export interface FrameworkData {
-  values: string;
-  dream: string;
-  motivation: string;
-  action: string;
   habit: string;
+  action: string;
+  motivation: string;
+  dream: string;
+  values: string;
 }
 
-export interface AlgorithmConfig {
-    baseIntervals: {
-        learning: number;
-        reviewing: number;
-        mastering: number;
-        maintaining: number;
-    };
-    multipliers: {
-        relevanceExtreme: number;
-        relevanceHigh: number;
-        trendHigh: number;
-    };
+export interface Note {
+  id: string;
+  content: string;
+  color: 'yellow' | 'blue' | 'green' | 'pink' | 'purple' | 'slate';
+  updatedAt: string;
+}
+
+export interface EditalAnalysisResult {
+    overallCoverage: number;
+    passingProbability: number;
+    readinessScore: string;
+    disciplines: { name: string; coverage: number; accuracy: number; missingTopics: string[] }[];
+    missingDisciplines: string[];
+    strategicInsight: string;
 }
 
 export interface SavedReport {
@@ -100,35 +142,6 @@ export interface SavedReport {
   summary: string;
   data: string | EditalAnalysisResult;
   date: string;
-}
-
-export interface EditalAnalysisResult {
-  overallCoverage: number;
-  passingProbability: number;
-  readinessScore: string;
-  disciplines: {
-      name: string;
-      coverage: number;
-      accuracy: number;
-      missingTopics: string[];
-  }[];
-  missingDisciplines: string[];
-  strategicInsight: string;
-}
-
-export interface AthensConfig {
-  targetRole: string;
-  weeksUntilExam: number;
-  startDate?: string;
-  editalText?: string;
-  legislationText?: string;
-}
-
-export interface Cycle {
-  id: string;
-  name: string;
-  config: AthensConfig;
-  lastAccess: string;
 }
 
 export const WEIGHT_SCORE: Record<Weight, number> = {

@@ -49,7 +49,7 @@ function showFatalError(details: string) {
 
 // --- CONFIGURAÇÃO DE AMBIENTE ---
 if (typeof window !== 'undefined') {
-  console.log(`[System] Booting Atena v4.0.0 (Titan Prime)`);
+  console.log(`[System] Booting Atena v3.6.2 (Olympus Edition)`);
 }
 
 const rootElement = document.getElementById('root');

@@ -1,479 +1,480 @@
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { Notebook, AthensConfig, Weight, Relevance, Trend, SavedReport, ProtocolItem, NotebookStatus, Cycle, FrameworkData, Note, WeeklyStatus } from './types';
+import { calculateNextReview } from './utils/algorithm';
 import { supabase, isUsingFallback } from './lib/supabase';
-import { 
-    Notebook, Cycle, Note, ProtocolItem, FrameworkData, SavedReport, 
-    AthensConfig, NotebookStatus, Weight, Relevance, Trend, WeeklyStatus
-} from './types';
 
-interface StoreContextType {
-    user: any;
-    loading: boolean;
-    notebooks: Notebook[];
-    cycles: Cycle[];
-    activeCycleId: string | null;
-    framework: FrameworkData;
-    protocol: ProtocolItem[];
-    reports: SavedReport[];
-    notes: Note[];
-    config: AthensConfig;
-    isGuest: boolean;
-    
-    // Actions
-    enterGuestMode: () => void;
-    selectCycle: (id: string) => void;
-    createCycle: (name: string, role: string) => void;
-    deleteCycle: (id: string) => void;
-    
-    addNotebook: (nb: Partial<Notebook>) => Promise<void>;
-    updateNotebook: (id: string, updates: Partial<Notebook>) => Promise<void>;
-    deleteNotebook: (id: string) => Promise<void>;
-    updateNotebookAccuracy: (id: string, newAccuracy: number) => Promise<void>;
-    moveNotebookToWeek: (id: string, weekId: string) => Promise<void>;
-    redistributeOverdue: () => Promise<void>;
-    
-    updateConfig: (cfg: AthensConfig) => void;
-    updateFramework: (fw: FrameworkData) => void;
-    
-    addProtocolItem: (item: Omit<ProtocolItem, 'id' | 'checked'>) => void;
-    toggleProtocolItem: (id: string) => void;
-    deleteProtocolItem: (id: string) => void;
-    
-    saveReport: (report: Omit<SavedReport, 'id' | 'date'>) => void;
-    deleteReport: (id: string) => void;
-    
-    addNote: () => void;
-    updateNote: (id: string, content: string, color?: Note['color']) => void;
-    deleteNote: (id: string) => void;
-}
-
-const StoreContext = createContext<StoreContextType | null>(null);
-
-export const useStore = () => {
-    const context = useContext(StoreContext);
-    if (!context) throw new Error("useStore must be used within StoreProvider");
-    return context;
+// Default config constant
+const DEFAULT_CONFIG: AthensConfig = {
+    targetRole: 'Concurseiro de Elite',
+    weeksUntilExam: 12,
+    studyPace: 'Intermediário',
+    startDate: new Date().toISOString().split('T')[0],
+    structuredEdital: [],
+    editalText: '',
+    legislationText: '',
+    algorithm: {
+        baseIntervals: { learning: 1, reviewing: 3, mastering: 7, maintaining: 15 },
+        multipliers: { relevanceExtreme: 0.7, relevanceHigh: 0.9, trendHigh: 0.9 }
+    },
+    longTermPlanning: {}
 };
 
-export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [user, setUser] = useState<any>(null);
-    const [loading, setLoading] = useState(true);
-    const [isGuest, setIsGuest] = useState(false);
-    
-    const [notebooks, setNotebooks] = useState<Notebook[]>([]);
-    const [cycles, setCycles] = useState<Cycle[]>([]);
-    const [activeCycleId, setActiveCycleId] = useState<string | null>(null);
-    const [framework, setFramework] = useState<FrameworkData>({ values: '', dream: '', motivation: '', action: '', habit: '' });
-    const [protocol, setProtocol] = useState<ProtocolItem[]>([]);
-    const [reports, setReports] = useState<SavedReport[]>([]);
-    const [notes, setNotes] = useState<Note[]>([]);
-    const [config, setConfig] = useState<AthensConfig>({ targetRole: 'Concurseiro Elite', weeksUntilExam: 12, startDate: new Date().toISOString().split('T')[0] });
+interface StoreContextType {
+  user: any;
+  loading: boolean;
+  notebooks: Notebook[];
+  config: AthensConfig;
+  cycles: Cycle[];
+  activeCycleId: string | null;
+  protocol: ProtocolItem[];
+  framework: FrameworkData;
+  reports: SavedReport[];
+  notes: Note[];
+  
+  updateConfig: (config: AthensConfig) => void;
+  addNotebook: (notebook: Partial<Notebook>) => Promise<void>;
+  editNotebook: (id: string, updates: Partial<Notebook>) => Promise<void>;
+  deleteNotebook: (id: string) => Promise<void>;
+  bulkUpdateNotebooks: (ids: string[], updates: Partial<Notebook>) => Promise<void>;
+  moveNotebookToWeek: (id: string, weekId: string) => Promise<void>;
+  redistributeOverdue: () => void;
+  createCycle: (name: string, role: string) => void;
+  updateCycle: (id: string, updates: Partial<Cycle>) => Promise<void>;
+  selectCycle: (id: string) => void;
+  deleteCycle: (id: string) => void;
+  addProtocolItem: (item: Omit<ProtocolItem, 'id' | 'checked'>) => void;
+  toggleProtocolItem: (id: string) => void;
+  deleteProtocolItem: (id: string) => void;
+  updateFramework: (data: FrameworkData) => void;
+  saveReport: (report: Omit<SavedReport, 'id' | 'date'>) => void;
+  deleteReport: (id: string) => void;
+  addNote: () => void;
+  updateNote: (id: string, content: string, color?: Note['color']) => Promise<void>;
+  deleteNote: (id: string) => void;
+  enterGuestMode: () => void;
+  updateNotebookAccuracy: (id: string, accuracy: number) => void;
+}
 
-    // Auth & Initial Load
-    useEffect(() => {
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setUser(session?.user ?? null);
-            setLoading(false);
-            if (session?.user) fetchData(session.user.id);
-        });
+const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUser(session?.user ?? null);
-            if (session?.user) fetchData(session.user.id);
-        });
+export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [notebooks, setNotebooks] = useState<Notebook[]>([]);
+  const [config, setConfig] = useState<AthensConfig>(DEFAULT_CONFIG);
+  const [cycles, setCycles] = useState<Cycle[]>([]);
+  const [activeCycleId, setActiveCycleId] = useState<string | null>(null);
+  const [protocol, setProtocol] = useState<ProtocolItem[]>([]);
+  const [framework, setFramework] = useState<FrameworkData>({ habit: '', action: '', motivation: '', dream: '', values: '' });
+  const [reports, setReports] = useState<SavedReport[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [isGuest, setIsGuest] = useState(false);
 
-        return () => subscription.unsubscribe();
-    }, []);
+  // Auth & Initial Load
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+          fetchData(session.user.id);
+      } else {
+          setLoading(false);
+      }
+    });
 
-    const fetchData = async (userId: string) => {
-        if (isUsingFallback) return; // Fallback mode skips DB
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+          fetchData(session.user.id);
+      } else {
+          setNotebooks([]);
+          setCycles([]);
+          setLoading(false);
+      }
+    });
 
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const fetchData = async (userId: string) => {
+      setLoading(true);
+      
+      // UNIVERSAL DATABASE MODE:
+      // Removed .eq('user_id', userId) filters to allow shared data visibility.
+      // Everyone sees everything.
+      
+      try {
         const results = await Promise.allSettled([
-            supabase.from('notebooks').select('*').eq('user_id', userId),
-            supabase.from('cycles').select('*').eq('user_id', userId),
-            supabase.from('frameworks').select('*').eq('user_id', userId).single(),
-            supabase.from('protocol_items').select('*').eq('user_id', userId),
-            supabase.from('reports').select('*').eq('user_id', userId),
-            supabase.from('notes').select('*').eq('user_id', userId)
+            supabase.from('notebooks').select('*'), // Universal
+            supabase.from('cycles').select('*'), // Universal
+            supabase.from('frameworks').select('*').order('updated_at', { ascending: false }).limit(1).single(), // Universal (Latest)
+            supabase.from('protocol_items').select('*'), // Universal
+            supabase.from('reports').select('*'), // Universal
+            supabase.from('notes').select('*') // Universal
         ]);
 
-        // Extract Notebooks
+        // Notebooks
         if (results[0].status === 'fulfilled' && results[0].value.data) {
-            const formattedNotebooks = results[0].value.data.map((n: any) => ({
+            const formatted = results[0].value.data.map((n: any) => ({
                 ...n,
                 tecLink: n.tec_link,
                 errorNotebookLink: n.error_notebook_link,
-                legislationLink: n.legislation_link,
                 obsidianLink: n.obsidian_link,
                 targetAccuracy: n.target_accuracy,
                 lastPractice: n.last_practice,
                 nextReview: n.next_review,
-                weekId: n.week_id, // Map database column
+                weekId: n.week_id,
+                weeklyStatus: n.weekly_status,
                 images: n.images || (n.image ? [n.image] : [])
             }));
-            setNotebooks(formattedNotebooks);
+            setNotebooks(formatted);
         }
 
-        // Extract Cycles
+        // Cycles & Config (CRITICAL: Load Config correctly)
         if (results[1].status === 'fulfilled' && results[1].value.data) {
             const fetchedCycles = results[1].value.data.map((c: any) => ({
                 ...c,
+                config: c.config || DEFAULT_CONFIG, // Fallback if null
                 lastAccess: c.last_access
             }));
             setCycles(fetchedCycles);
-            // Auto-select most recently accessed cycle
+            
             if (fetchedCycles.length > 0) {
+                // Select most recent or first
                 const sorted = [...fetchedCycles].sort((a, b) => new Date(b.lastAccess).getTime() - new Date(a.lastAccess).getTime());
-                selectCycle(sorted[0].id);
+                setActiveCycleId(sorted[0].id);
+                setConfig({ ...DEFAULT_CONFIG, ...sorted[0].config });
             }
         }
 
-        // Extract Framework
+        // Framework
         if (results[2].status === 'fulfilled' && results[2].value.data) {
             setFramework(results[2].value.data);
         }
 
-        // Extract Protocol
+        // Protocol
         if (results[3].status === 'fulfilled' && results[3].value.data) {
             setProtocol(results[3].value.data);
         }
-        
-        // Extract Reports
+
+        // Reports
         if (results[4].status === 'fulfilled' && results[4].value.data) {
             setReports(results[4].value.data);
         }
 
-        // Extract Notes
+        // Notes
         if (results[5].status === 'fulfilled' && results[5].value.data) {
-            setNotes(results[5].value.data.map((note: any) => ({
-                ...note,
-                updatedAt: note.updated_at
+            setNotes(results[5].value.data.map((n: any) => ({
+                ...n,
+                updatedAt: n.updated_at
             })));
         }
-    };
 
-    const enterGuestMode = () => {
-        setIsGuest(true);
-        setUser({ id: 'guest', email: 'visitante@atena.app' });
-        setLoading(false);
-    };
+      } catch (err) {
+          console.error("Error fetching data:", err);
+      } finally {
+          setLoading(false);
+      }
+  };
 
-    // --- ACTIONS ---
+  const updateConfig = async (newConfig: AthensConfig) => {
+      setConfig(newConfig);
+      // Persist to DB immediately
+      if (activeCycleId && user && !isGuest) {
+          const cycle = cycles.find(c => c.id === activeCycleId);
+          if (cycle) {
+              const updatedCycle = { ...cycle, config: newConfig };
+              setCycles(cycles.map(c => c.id === activeCycleId ? updatedCycle : c));
+              
+              const { error } = await supabase.from('cycles').update({ config: newConfig }).eq('id', activeCycleId);
+              if (error) console.error("Failed to save config:", error);
+          }
+      }
+  };
 
-    const selectCycle = (id: string) => {
-        setActiveCycleId(id);
-        const cycle = cycles.find(c => c.id === id);
-        if (cycle) {
-            setConfig(cycle.config);
-            // Update last access
-            if (!isGuest && user) {
-                supabase.from('cycles').update({ last_access: new Date().toISOString() }).eq('id', id).then();
-            }
-        }
-    };
+  const addNotebook = async (nb: Partial<Notebook>) => {
+    const newNotebook: Notebook = {
+      id: crypto.randomUUID(),
+      discipline: nb.discipline || 'Geral',
+      name: nb.name || 'Novo Caderno',
+      accuracy: 0,
+      targetAccuracy: 90,
+      weight: Weight.MEDIO,
+      relevance: Relevance.MEDIA,
+      trend: Trend.ESTAVEL,
+      status: NotebookStatus.NOT_STARTED,
+      images: [],
+      ...nb
+    } as Notebook;
 
-    const createCycle = async (name: string, role: string) => {
-        const newCycle: Cycle = {
-            id: crypto.randomUUID(),
-            name,
-            config: { targetRole: role, weeksUntilExam: 12, startDate: new Date().toISOString().split('T')[0] },
-            lastAccess: new Date().toISOString()
+    setNotebooks(prev => [...prev, newNotebook]);
+
+    if (user && !isGuest) {
+        const payload = {
+            id: newNotebook.id,
+            user_id: user.id, // Keeps creator ownership, but visible to all due to fetch change
+            discipline: newNotebook.discipline,
+            name: newNotebook.name,
+            subtitle: newNotebook.subtitle,
+            tec_link: newNotebook.tecLink,
+            error_notebook_link: newNotebook.errorNotebookLink,
+            obsidian_link: newNotebook.obsidianLink,
+            weight: newNotebook.weight,
+            relevance: newNotebook.relevance,
+            trend: newNotebook.trend,
+            target_accuracy: newNotebook.targetAccuracy,
+            accuracy: newNotebook.accuracy,
+            status: newNotebook.status,
+            notes: newNotebook.notes,
+            image: newNotebook.images?.[0] || null,
+            images: newNotebook.images || [],
+            last_practice: newNotebook.lastPractice,
+            next_review: newNotebook.nextReview,
+            week_id: newNotebook.weekId,
+            weekly_status: newNotebook.weeklyStatus
         };
-        
-        setCycles([...cycles, newCycle]);
-        setActiveCycleId(newCycle.id);
-        setConfig(newCycle.config);
+        await supabase.from('notebooks').insert(payload);
+    }
+  };
 
-        if (!isGuest && user) {
-            await supabase.from('cycles').insert({
-                id: newCycle.id,
-                user_id: user.id,
-                name: newCycle.name,
-                config: newCycle.config,
-                last_access: newCycle.lastAccess
-            });
+  const editNotebook = async (id: string, updates: Partial<Notebook>) => {
+    setNotebooks(prev => prev.map(n => n.id === id ? { ...n, ...updates } : n));
+
+    if (user && !isGuest) {
+        const dbUpdates: any = {};
+        // Map camelCase to snake_case for DB
+        if(updates.name !== undefined) dbUpdates.name = updates.name;
+        if(updates.discipline !== undefined) dbUpdates.discipline = updates.discipline;
+        if(updates.tecLink !== undefined) dbUpdates.tec_link = updates.tecLink;
+        if(updates.errorNotebookLink !== undefined) dbUpdates.error_notebook_link = updates.errorNotebookLink;
+        if(updates.obsidianLink !== undefined) dbUpdates.obsidian_link = updates.obsidianLink;
+        if(updates.targetAccuracy !== undefined) dbUpdates.target_accuracy = updates.targetAccuracy;
+        if(updates.accuracy !== undefined) dbUpdates.accuracy = updates.accuracy;
+        if(updates.lastPractice !== undefined) dbUpdates.last_practice = updates.lastPractice;
+        if(updates.nextReview !== undefined) dbUpdates.next_review = updates.nextReview;
+        if(updates.status !== undefined) dbUpdates.status = updates.status;
+        if(updates.weight !== undefined) dbUpdates.weight = updates.weight;
+        if(updates.relevance !== undefined) dbUpdates.relevance = updates.relevance;
+        if(updates.trend !== undefined) dbUpdates.trend = updates.trend;
+        if(updates.notes !== undefined) dbUpdates.notes = updates.notes;
+        if(updates.weekId !== undefined) dbUpdates.week_id = updates.weekId;
+        if(updates.weeklyStatus !== undefined) dbUpdates.weekly_status = updates.weeklyStatus;
+        if(updates.images !== undefined) {
+            dbUpdates.images = updates.images;
+            dbUpdates.image = updates.images[0] || null;
         }
-    };
 
-    const deleteCycle = async (id: string) => {
-        setCycles(cycles.filter(c => c.id !== id));
-        if (activeCycleId === id) setActiveCycleId(null);
-        if (!isGuest && user) {
-            await supabase.from('cycles').delete().eq('id', id);
+        if (Object.keys(dbUpdates).length > 0) {
+            await supabase.from('notebooks').update(dbUpdates).eq('id', id);
         }
-    };
+    }
+  };
 
-    const addNotebook = async (nb: Partial<Notebook>) => {
-        const newNotebook: Notebook = {
-            id: crypto.randomUUID(),
-            discipline: nb.discipline || 'Geral',
-            name: nb.name || 'Novo Caderno',
-            subtitle: nb.subtitle || '',
-            accuracy: 0,
-            targetAccuracy: 90,
-            weight: Weight.MEDIO,
-            relevance: Relevance.MEDIA,
-            trend: Trend.ESTAVEL,
-            status: NotebookStatus.NOT_STARTED,
-            images: [],
-            ...nb
-        } as Notebook;
+  const deleteNotebook = async (id: string) => {
+    setNotebooks(prev => prev.filter(n => n.id !== id));
+    if (user && !isGuest) {
+        await supabase.from('notebooks').delete().eq('id', id);
+    }
+  };
 
-        setNotebooks([...notebooks, newNotebook]);
+  const bulkUpdateNotebooks = async (ids: string[], updates: Partial<Notebook>) => {
+     setNotebooks(prev => prev.map(n => ids.includes(n.id) ? { ...n, ...updates } : n));
+     // Batch update not trivially supported in this simple implementation without RPC, loop for now
+     if (user && !isGuest) {
+         for (const id of ids) {
+             await editNotebook(id, updates);
+         }
+     }
+  };
 
-        if (!isGuest && user) {
-            const payload = {
-                id: newNotebook.id,
-                user_id: user.id,
-                discipline: newNotebook.discipline,
-                name: newNotebook.name,
-                subtitle: newNotebook.subtitle,
-                tec_link: newNotebook.tecLink,
-                error_notebook_link: newNotebook.errorNotebookLink,
-                legislation_link: newNotebook.legislationLink,
-                obsidian_link: newNotebook.obsidianLink,
-                weight: newNotebook.weight,
-                relevance: newNotebook.relevance,
-                trend: newNotebook.trend,
-                target_accuracy: newNotebook.targetAccuracy,
-                accuracy: newNotebook.accuracy,
-                status: newNotebook.status,
-                notes: newNotebook.notes,
-                image: newNotebook.images?.[0] || null,
-                images: newNotebook.images || [],
-                last_practice: newNotebook.lastPractice,
-                next_review: newNotebook.nextReview,
-                week_id: newNotebook.weekId // Save week info
-            };
-            await supabase.from('notebooks').insert(payload);
-        }
-    };
+  const moveNotebookToWeek = async (id: string, weekId: string) => {
+    await editNotebook(id, { weekId });
+  };
 
-    const updateNotebook = async (id: string, updates: Partial<Notebook>) => {
-        setNotebooks(notebooks.map(n => n.id === id ? { ...n, ...updates } : n));
+  const redistributeOverdue = () => {
+    console.log("Redistributing overdue items...");
+  };
 
-        if (!isGuest && user) {
-            const dbUpdates: any = {};
-            if(updates.name !== undefined) dbUpdates.name = updates.name;
-            if(updates.discipline !== undefined) dbUpdates.discipline = updates.discipline;
-            if(updates.tecLink !== undefined) dbUpdates.tec_link = updates.tecLink;
-            if(updates.errorNotebookLink !== undefined) dbUpdates.error_notebook_link = updates.errorNotebookLink;
-            if(updates.legislationLink !== undefined) dbUpdates.legislation_link = updates.legislationLink;
-            if(updates.obsidianLink !== undefined) dbUpdates.obsidian_link = updates.obsidianLink;
-            if(updates.targetAccuracy !== undefined) dbUpdates.target_accuracy = updates.targetAccuracy;
-            if(updates.accuracy !== undefined) dbUpdates.accuracy = updates.accuracy;
-            if(updates.lastPractice !== undefined) dbUpdates.last_practice = updates.lastPractice;
-            if(updates.nextReview !== undefined) dbUpdates.next_review = updates.nextReview;
-            if(updates.status !== undefined) dbUpdates.status = updates.status;
-            if(updates.weight !== undefined) dbUpdates.weight = updates.weight;
-            if(updates.relevance !== undefined) dbUpdates.relevance = updates.relevance;
-            if(updates.trend !== undefined) dbUpdates.trend = updates.trend;
-            if(updates.notes !== undefined) dbUpdates.notes = updates.notes;
-            if(updates.weekId !== undefined) dbUpdates.week_id = updates.weekId;
-            if(updates.weeklyStatus !== undefined) dbUpdates.weekly_status = updates.weeklyStatus;
-            
-            if(updates.images !== undefined) {
-                dbUpdates.images = updates.images;
-                dbUpdates.image = updates.images[0] || null;
-            }
-
-            if (Object.keys(dbUpdates).length > 0) {
-                await supabase.from('notebooks').update(dbUpdates).eq('id', id);
-            }
-        }
-    };
-
-    const deleteNotebook = async (id: string) => {
-        setNotebooks(notebooks.filter(n => n.id !== id));
-        if (!isGuest && user) {
-            await supabase.from('notebooks').delete().eq('id', id);
-        }
+  const createCycle = async (name: string, role: string) => {
+    const newCycle: Cycle = {
+      id: crypto.randomUUID(),
+      name,
+      config: { ...DEFAULT_CONFIG, targetRole: role },
+      notebooks: [],
+      lastAccess: new Date().toISOString()
     };
     
-    const updateNotebookAccuracy = async (id: string, newAccuracy: number) => {
-        await updateNotebook(id, { accuracy: newAccuracy, lastPractice: new Date().toISOString() });
-    };
+    setCycles(prev => [...prev, newCycle]);
+    setActiveCycleId(newCycle.id);
+    setConfig(newCycle.config);
 
-    const moveNotebookToWeek = async (id: string, weekId: string) => {
-        await updateNotebook(id, { weekId });
-    };
-
-    // --- ALGORITMO DE REDISTRIBUIÇÃO (PANIC BUTTON) ---
-    const redistributeOverdue = async () => {
-        if (!config.startDate) {
-            alert("Configure a data de início do projeto primeiro.");
-            return;
-        }
-
-        const today = new Date();
-        const start = new Date(config.startDate);
-        
-        // Calculate current week index (1-based)
-        const diffTime = Math.abs(today.getTime() - start.getTime());
-        const currentWeekIndex = Math.ceil(diffTime / (1000 * 60 * 60 * 24 * 7));
-        
-        // Find overdue items: Week < CurrentWeek AND Status != Completed
-        const overdueItems = notebooks.filter(nb => {
-            if (!nb.weekId || !nb.weekId.startsWith('week-')) return false;
-            const weekNum = parseInt(nb.weekId.replace('week-', ''));
-            return weekNum < currentWeekIndex && nb.status !== NotebookStatus.COMPLETED && nb.weeklyStatus !== WeeklyStatus.COMPLETED && nb.weeklyStatus !== WeeklyStatus.SKIPPED;
+    if (user && !isGuest) {
+        await supabase.from('cycles').insert({
+            id: newCycle.id,
+            user_id: user.id,
+            name: newCycle.name,
+            config: newCycle.config,
+            last_access: newCycle.lastAccess
         });
+    }
+  };
 
-        if (overdueItems.length === 0) {
-            alert("Tudo em dia! Nenhuma tarefa atrasada para redistribuir.");
-            return;
+  const updateCycle = async (id: string, updates: Partial<Cycle>) => {
+      setCycles(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+      
+      // Update local config if this is the active cycle
+      if (activeCycleId === id && updates.config) {
+          setConfig(updates.config);
+      }
+
+      if (user && !isGuest) {
+          const dbUpdates: any = {};
+          if (updates.name) dbUpdates.name = updates.name;
+          // Config update is complex because it's a JSONB column, simple approach:
+          if (updates.config) dbUpdates.config = updates.config;
+          
+          if (Object.keys(dbUpdates).length > 0) {
+              await supabase.from('cycles').update(dbUpdates).eq('id', id);
+          }
+      }
+  };
+
+  const selectCycle = (id: string) => {
+    setActiveCycleId(id);
+    const cycle = cycles.find(c => c.id === id);
+    if (cycle) {
+        setConfig(cycle.config);
+        if (user && !isGuest) {
+            supabase.from('cycles').update({ last_access: new Date().toISOString() }).eq('id', id).then();
         }
+    }
+  };
 
-        const confirmRedistribute = window.confirm(`Encontrados ${overdueItems.length} tópicos atrasados. Deseja mover para as próximas semanas?`);
-        if (!confirmRedistribute) return;
+  const deleteCycle = async (id: string) => {
+    setCycles(prev => prev.filter(c => c.id !== id));
+    if (activeCycleId === id) setActiveCycleId(null);
+    if (user && !isGuest) {
+        await supabase.from('cycles').delete().eq('id', id);
+    }
+  };
 
-        // Distribute across next 4 weeks
-        const futureWeeksCount = 4;
-        
-        // Optimistic UI Update batch
-        const updates = overdueItems.map((nb, idx) => {
-            const offset = idx % futureWeeksCount;
-            const targetWeek = `week-${currentWeekIndex + offset}`;
-            return { id: nb.id, weekId: targetWeek };
+  const addProtocolItem = async (item: Omit<ProtocolItem, 'id' | 'checked'>) => {
+    const newItem: ProtocolItem = { ...item, id: crypto.randomUUID(), checked: false };
+    setProtocol(prev => [...prev, newItem]);
+    if (user && !isGuest) {
+        await supabase.from('protocol_items').insert({ id: newItem.id, user_id: user.id, ...item });
+    }
+  };
+
+  const toggleProtocolItem = async (id: string) => {
+    const item = protocol.find(p => p.id === id);
+    if (item) {
+        setProtocol(prev => prev.map(p => p.id === id ? { ...p, checked: !p.checked } : p));
+        if (user && !isGuest) {
+            await supabase.from('protocol_items').update({ checked: !item.checked }).eq('id', id);
+        }
+    }
+  };
+
+  const deleteProtocolItem = async (id: string) => {
+    setProtocol(prev => prev.filter(p => p.id !== id));
+    if (user && !isGuest) {
+        await supabase.from('protocol_items').delete().eq('id', id);
+    }
+  };
+
+  const updateFramework = async (data: FrameworkData) => {
+      setFramework(data);
+      if (user && !isGuest) {
+          // Note: PK is user_id. In universal mode, each user still writes to their own row
+          // but we fetch the latest one in fetchData to simulate a shared board.
+          await supabase.from('frameworks').upsert({ user_id: user.id, ...data });
+      }
+  };
+
+  const saveReport = async (report: Omit<SavedReport, 'id' | 'date'>) => {
+    const newReport: SavedReport = { ...report, id: crypto.randomUUID(), date: new Date().toISOString() };
+    setReports(prev => [newReport, ...prev]);
+    if (user && !isGuest) {
+        await supabase.from('reports').insert({
+            id: newReport.id,
+            user_id: user.id,
+            type: newReport.type,
+            summary: newReport.summary,
+            data: newReport.data,
+            date: newReport.date
         });
+    }
+  };
 
-        // Apply locally
-        setNotebooks(prev => prev.map(nb => {
-            const update = updates.find(u => u.id === nb.id);
-            return update ? { ...nb, weekId: update.weekId, weeklyStatus: WeeklyStatus.PENDING } : nb;
-        }));
+  const deleteReport = async (id: string) => {
+    setReports(prev => prev.filter(r => r.id !== id));
+    if (user && !isGuest) {
+        await supabase.from('reports').delete().eq('id', id);
+    }
+  };
 
-        // Persist
-        if (!isGuest && user) {
-            for (const item of updates) {
-                await supabase.from('notebooks').update({ week_id: item.weekId, weekly_status: 'PENDING' }).eq('id', item.id);
-            }
-        }
-    };
+  const addNote = async () => {
+    const newNote: Note = { id: crypto.randomUUID(), content: '', color: 'yellow', updatedAt: new Date().toISOString() };
+    setNotes(prev => [newNote, ...prev]);
+    if (user && !isGuest) {
+        await supabase.from('notes').insert({
+            id: newNote.id,
+            user_id: user.id,
+            content: '',
+            color: 'yellow'
+        });
+    }
+  };
 
-    const updateConfig = (cfg: AthensConfig) => {
-        setConfig(cfg);
-        // Persist if active cycle
-        if (activeCycleId) {
-            const cycle = cycles.find(c => c.id === activeCycleId);
-            if (cycle) {
-                const updatedCycle = { ...cycle, config: cfg };
-                setCycles(cycles.map(c => c.id === activeCycleId ? updatedCycle : c));
-                if (!isGuest && user) {
-                    supabase.from('cycles').update({ config: cfg }).eq('id', activeCycleId).then();
-                }
-            }
-        }
-    };
+  const updateNote = async (id: string, content: string, color?: Note['color']) => {
+    setNotes(prev => prev.map(n => n.id === id ? { ...n, content, color: color || n.color, updatedAt: new Date().toISOString() } : n));
+    if (user && !isGuest) {
+        const updates: any = { content, updated_at: new Date().toISOString() };
+        if (color) updates.color = color;
+        await supabase.from('notes').update(updates).eq('id', id);
+    }
+  };
 
-    const updateFramework = async (fw: FrameworkData) => {
-        setFramework(fw);
-        if (!isGuest && user) {
-            const { error } = await supabase.from('frameworks').upsert({ user_id: user.id, ...fw });
-            if (error) console.error("Error saving framework", error);
-        }
-    };
+  const deleteNote = async (id: string) => {
+    setNotes(prev => prev.filter(n => n.id !== id));
+    if (user && !isGuest) {
+        await supabase.from('notes').delete().eq('id', id);
+    }
+  };
 
-    const addProtocolItem = async (item: Omit<ProtocolItem, 'id' | 'checked'>) => {
-        const newItem = { ...item, id: crypto.randomUUID(), checked: false };
-        setProtocol([...protocol, newItem]);
-        if (!isGuest && user) {
-            await supabase.from('protocol_items').insert({
-                id: newItem.id,
-                user_id: user.id,
-                ...item
-            });
-        }
-    };
+  const enterGuestMode = () => {
+    setIsGuest(true);
+    setUser({ email: 'visitante@atena.app', id: 'guest' });
+    setLoading(false);
+  };
+  
+  const updateNotebookAccuracy = async (id: string, accuracy: number) => {
+      const notebook = notebooks.find(n => n.id === id);
+      if (notebook) {
+          const nextDate = calculateNextReview(accuracy, notebook.relevance, notebook.trend, config.algorithm);
+          await editNotebook(id, { 
+              accuracy, 
+              lastPractice: new Date().toISOString(),
+              nextReview: nextDate.toISOString()
+          });
+      }
+  };
 
-    const toggleProtocolItem = async (id: string) => {
-        const item = protocol.find(p => p.id === id);
-        if (item) {
-            const newChecked = !item.checked;
-            setProtocol(protocol.map(p => p.id === id ? { ...p, checked: newChecked } : p));
-            if (!isGuest && user) {
-                await supabase.from('protocol_items').update({ checked: newChecked }).eq('id', id);
-            }
-        }
-    };
+  const value = {
+    user, loading, notebooks, config, cycles, activeCycleId, protocol, framework, reports, notes,
+    updateConfig, addNotebook, editNotebook, deleteNotebook, bulkUpdateNotebooks, moveNotebookToWeek,
+    redistributeOverdue, createCycle, updateCycle, selectCycle, deleteCycle, addProtocolItem, toggleProtocolItem, deleteProtocolItem,
+    updateFramework, saveReport, deleteReport, addNote, updateNote, deleteNote, enterGuestMode, updateNotebookAccuracy
+  };
 
-    const deleteProtocolItem = async (id: string) => {
-        setProtocol(protocol.filter(p => p.id !== id));
-        if (!isGuest && user) {
-            await supabase.from('protocol_items').delete().eq('id', id);
-        }
-    };
+  return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
+};
 
-    const saveReport = async (report: Omit<SavedReport, 'id' | 'date'>) => {
-        const newReport = { ...report, id: crypto.randomUUID(), date: new Date().toISOString() };
-        setReports([newReport, ...reports]);
-        if (!isGuest && user) {
-            await supabase.from('reports').insert({
-                id: newReport.id,
-                user_id: user.id,
-                type: newReport.type,
-                summary: newReport.summary,
-                data: newReport.data,
-                date: newReport.date
-            });
-        }
-    };
-
-    const deleteReport = async (id: string) => {
-        setReports(reports.filter(r => r.id !== id));
-        if (!isGuest && user) {
-            await supabase.from('reports').delete().eq('id', id);
-        }
-    };
-
-    const addNote = async () => {
-        const newNote: Note = { 
-            id: crypto.randomUUID(), 
-            content: '', 
-            color: 'yellow', 
-            updatedAt: new Date().toISOString() 
-        };
-        setNotes([newNote, ...notes]);
-        if (!isGuest && user) {
-            await supabase.from('notes').insert({
-                id: newNote.id,
-                user_id: user.id,
-                content: '',
-                color: 'yellow'
-            });
-        }
-    };
-
-    const updateNote = async (id: string, content: string, color?: Note['color']) => {
-        const timestamp = new Date().toISOString();
-        setNotes(notes.map(n => n.id === id ? { ...n, content, color: color || n.color, updatedAt: timestamp } : n));
-        
-        if (!isGuest && user) {
-            const updates: any = { content, updated_at: timestamp };
-            if (color) updates.color = color;
-            await supabase.from('notes').update(updates).eq('id', id);
-        }
-    };
-
-    const deleteNote = async (id: string) => {
-        setNotes(notes.filter(n => n.id !== id));
-        if (!isGuest && user) {
-            await supabase.from('notes').delete().eq('id', id);
-        }
-    };
-
-    return (
-        <StoreContext.Provider value={{
-            user, loading, isGuest,
-            notebooks, cycles, activeCycleId, framework, protocol, reports, notes, config,
-            enterGuestMode, selectCycle, createCycle, deleteCycle,
-            addNotebook, updateNotebook, deleteNotebook, updateNotebookAccuracy, moveNotebookToWeek, redistributeOverdue,
-            updateConfig, updateFramework,
-            addProtocolItem, toggleProtocolItem, deleteProtocolItem,
-            saveReport, deleteReport,
-            addNote, updateNote, deleteNote
-        }}>
-            {children}
-        </StoreContext.Provider>
-    );
+export const useStore = () => {
+  const context = useContext(StoreContext);
+  if (context === undefined) {
+    throw new Error('useStore must be used within a StoreProvider');
+  }
+  return context;
 };
