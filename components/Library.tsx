@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { useStore } from '../store';
 import { 
@@ -88,6 +89,7 @@ const LibraryItem = React.memo(({
     onToggleSelection, 
     onToggleDetails, 
     onEdit, 
+    onDelete,
     showDate 
 }: { 
     nb: Notebook; 
@@ -96,6 +98,7 @@ const LibraryItem = React.memo(({
     onToggleSelection: (id: string) => void; 
     onToggleDetails: (id: string) => void; 
     onEdit: (nb: Notebook) => void;
+    onDelete: (id: string) => void;
     showDate: boolean;
 }) => {
     return (
@@ -147,6 +150,18 @@ const LibraryItem = React.memo(({
                     </button>
                     <button onClick={() => onEdit(nb)} className="p-1.5 text-slate-500 hover:text-emerald-400 rounded hover:bg-slate-800" title="Editar">
                         <Pencil size={14} />
+                    </button>
+                    <button 
+                        type="button"
+                        onClick={(e) => { 
+                            e.preventDefault();
+                            e.stopPropagation(); 
+                            onDelete(nb.id); 
+                        }} 
+                        className="p-1.5 text-slate-500 hover:text-red-500 rounded hover:bg-slate-800 relative z-10" 
+                        title="Excluir Caderno"
+                    >
+                        <Trash2 size={14} />
                     </button>
                 </div>
             </div>
@@ -365,6 +380,30 @@ export const Library: React.FC = () => {
           return newSet;
       });
   }, [groupedData]);
+
+  // --- DELETE HANDLERS ---
+  const handleDeleteNotebook = useCallback(async (id: string) => {
+      // Usar setTimeout para garantir que a UI não bloqueie o confirm e o clique seja registrado
+      setTimeout(async () => {
+          if (window.confirm("Tem certeza que deseja excluir este caderno? Essa ação não pode ser desfeita.")) {
+              await deleteNotebook(id);
+          }
+      }, 50);
+  }, [deleteNotebook]);
+
+  const handleDeleteDisciplineGroup = useCallback(async (discipline: string) => {
+      // Busca diretamente na lista completa de notebooks para garantir exclusão total
+      const allDisciplineNotebooks = notebooks.filter(n => n.discipline === discipline);
+      const idsToDelete = allDisciplineNotebooks.map(n => n.id);
+
+      if (idsToDelete.length === 0) return;
+
+      setTimeout(async () => {
+          if (window.confirm(`ATENÇÃO: Você está prestes a excluir a disciplina "${discipline}" do banco de dados.\n\nIsso apagará TODOS os ${idsToDelete.length} cadernos associados, inclusive os que não estão visíveis no filtro atual.\n\nTem certeza absoluta?`)) {
+              await bulkUpdateNotebooks(idsToDelete, 'DELETE');
+          }
+      }, 50);
+  }, [notebooks, bulkUpdateNotebooks]);
 
   // --- MODAL HANDLERS ---
   const handleChange = (field: string, value: any) => setFormData(prev => ({ ...prev, [field]: value }));
@@ -593,6 +632,21 @@ export const Library: React.FC = () => {
                                   <div className="h-full bg-emerald-500 transition-all duration-500" style={{width: `${progress}%`}}></div>
                               </div>
                               <span className="text-xs font-bold text-slate-500 w-8 text-right hidden md:block">{progress}%</span>
+                              
+                              {/* DELETE DISCIPLINE BUTTON */}
+                              <button 
+                                type="button"
+                                onClick={(e) => { 
+                                    e.preventDefault();
+                                    e.stopPropagation(); 
+                                    handleDeleteDisciplineGroup(discipline); 
+                                }}
+                                className="text-slate-600 hover:text-red-500 transition-colors p-1.5 rounded hover:bg-slate-800 relative z-10"
+                                title="Excluir Disciplina inteira"
+                              >
+                                  <Trash2 size={16} />
+                              </button>
+
                               <ChevronRight size={18} className={`text-slate-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                           </div>
                       </div>
@@ -609,6 +663,7 @@ export const Library: React.FC = () => {
                                     onToggleSelection={toggleSelection}
                                     onToggleDetails={toggleDetails}
                                     onEdit={openEditModal}
+                                    onDelete={handleDeleteNotebook}
                                     showDate={sortByReview}
                                   />
                               ))}
