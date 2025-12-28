@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, Relevance, Trend, NotebookStatus } from '../types';
-import { Plus, Search, Copy, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2, TrendingUp, History, ListPlus, Minus, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Plus, Search, Copy, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2, TrendingUp, History, ListPlus, Minus, AlertTriangle, CheckCircle2, RotateCw } from 'lucide-react';
 import { calculateNextReview, getStatusColor } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 
@@ -20,7 +20,8 @@ const DraggableCard = React.memo(({
     origin, 
     isCompact, 
     disabled, 
-    onToggleComplete 
+    onToggleComplete,
+    allocationCount
 }: {
     notebook: Notebook;
     onDragStart: (e: React.DragEvent, id: string, origin: 'library' | 'week') => void;
@@ -29,6 +30,7 @@ const DraggableCard = React.memo(({
     isCompact?: boolean;
     disabled?: boolean;
     onToggleComplete?: (id: string, isCompleted: boolean) => void;
+    allocationCount?: number;
 }) => {
     const statusColor = getStatusColor(notebook.accuracy, notebook.targetAccuracy);
     const isScheduled = !!notebook.weekId;
@@ -46,7 +48,7 @@ const DraggableCard = React.memo(({
         >
             {origin === 'library' && (
                 <div className={`absolute right-0 top-0 p-1 rounded-bl text-[9px] uppercase font-bold tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border-l border-b z-10 flex items-center gap-1 ${isScheduled ? 'bg-blue-900/80 border-blue-700 text-blue-300' : 'bg-slate-900/80 border-slate-700 text-emerald-500'}`}>
-                    {isScheduled ? <><Copy size={10}/> Repetir</> : "Mover"}
+                    {isScheduled ? <><Copy size={10}/> Clonar</> : "Mover"}
                 </div>
             )}
 
@@ -61,7 +63,11 @@ const DraggableCard = React.memo(({
                         <h4 className={`font-bold truncate leading-tight ${notebook.isWeekCompleted && origin === 'week' ? 'text-slate-500 line-through' : 'text-slate-200'}`}>
                             {notebook.discipline}
                         </h4>
-                        {origin === 'library' && isScheduled && <span className="text-[8px] bg-blue-900/30 text-blue-400 border border-blue-500/30 px-1 rounded">Alocado</span>}
+                        {origin === 'library' && allocationCount && allocationCount > 0 ? (
+                            <span className="text-[8px] bg-blue-900/30 text-blue-400 border border-blue-500/30 px-1.5 rounded flex items-center gap-1" title="Vezes alocado neste ciclo">
+                                <RotateCw size={8} /> {allocationCount}x
+                            </span>
+                        ) : null}
                     </div>
                     <p className={`truncate mb-1 leading-tight ${notebook.isWeekCompleted && origin === 'week' ? 'text-slate-600' : 'text-slate-400'}`} title={notebook.name}>{notebook.name}</p>
                     {notebook.subtitle && <p className="text-slate-500 text-[10px] truncate">{notebook.subtitle}</p>}
@@ -571,13 +577,13 @@ export const Setup: React.FC = () => {
 
   // --- UPDATED: Library Logic with Filters ---
   const libraryNotebooks = useMemo(() => {
-    // Pre-process Edital Text for Smart Filter
     const editalRaw = config.editalText || "";
     const editalNormalized = normalizeText(editalRaw);
     const hasEdital = editalRaw.length > 10;
 
     // Use Map to ensure uniqueness by content key
     const uniqueMap = new Map<string, Notebook>();
+    const allocationCountMap = new Map<string, number>();
     
     // Sort so unallocated items come first (preferred as drag source)
     const sorted = [...notebooks].sort((a, b) => {
@@ -589,6 +595,14 @@ export const Setup: React.FC = () => {
     sorted.forEach(nb => {
         if (nb.discipline === 'Revisão Geral') return;
 
+        // Generate Unique Content Key
+        const key = `${normalizeText(nb.discipline)}|${normalizeText(nb.name)}|${normalizeText(nb.subtitle || '')}`;
+        
+        // Count allocations across the board
+        if (nb.weekId) {
+            allocationCountMap.set(key, (allocationCountMap.get(key) || 0) + 1);
+        }
+
         // Apply filters
         const matchesSearch = 
             nb.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -596,7 +610,7 @@ export const Setup: React.FC = () => {
         
         if (!matchesSearch) return;
 
-        // 2. Filter Logic
+        // 2. Filter Logic (Modified: Unallocated logic just highlights or prioritizes, doesn't hard hide if it exists)
         if (libraryFilter === 'unallocated') {
             if (nb.weekId) return;
         }
@@ -615,9 +629,6 @@ export const Setup: React.FC = () => {
             if (!(editalNormalized.includes(nameNorm) || editalNormalized.includes(discNorm) || discMatch)) return;
         }
 
-        // Generate Unique Content Key
-        const key = `${normalizeText(nb.discipline)}|${normalizeText(nb.name)}|${normalizeText(nb.subtitle || '')}`;
-        
         // Only add if not exists. Since we sorted unallocated first, 
         // this guarantees we pick the unallocated instance if available.
         if (!uniqueMap.has(key)) {
@@ -625,9 +636,16 @@ export const Setup: React.FC = () => {
         }
     });
 
-    return Array.from(uniqueMap.values()).sort((a, b) => {
-        return a.discipline.localeCompare(b.discipline) || a.name.localeCompare(b.name);
-    });
+    // Attach allocation counts to return structure (helper only)
+    return Array.from(uniqueMap.values())
+        .sort((a, b) => a.discipline.localeCompare(b.discipline) || a.name.localeCompare(b.name))
+        .map(nb => {
+            const key = `${normalizeText(nb.discipline)}|${normalizeText(nb.name)}|${normalizeText(nb.subtitle || '')}`;
+            return {
+                ...nb,
+                _allocationCount: allocationCountMap.get(key) || 0
+            };
+        });
   }, [notebooks, searchTerm, libraryFilter, config.editalText, normalizeText]);
 
   const existingDisciplines = useMemo(() => {
@@ -722,23 +740,44 @@ export const Setup: React.FC = () => {
         const sourceNb = notebooks.find(n => n.id === id);
         if (!sourceNb) return;
 
-        // If the item in the library (which might be the only one visible due to dedup)
-        // is already allocated, it means the user wants to repeat it (Clone).
-        // If it is unallocated, they are moving it from backlog to timeline.
+        // If the item in the library is unallocated, we move it to the week.
+        // If the user drags an item that is ALREADY allocated (found via deduplication logic), 
+        // we CLONE it to create a new instance (allows repeating the same subject multiple times).
         if (!sourceNb.weekId) {
             await moveNotebookToWeek(sourceNb.id, targetWeekId);
         } else {
-            // Clone Logic
-            const { id: _, weekId: __, accuracy: ___, status: ____, lastPractice: _____, nextReview: ______, accuracyHistory: _______, ...props } = sourceNb;
-            const newNb = {
-                ...props,
+            // CLONE LOGIC: Create a Clean Payload
+            // We explicitly construct the payload to avoid copying system fields (like ID or CreatedAt) 
+            // that might cause database errors.
+            const payload = {
+                discipline: sourceNb.discipline,
+                name: sourceNb.name,
+                subtitle: sourceNb.subtitle || '',
+                weight: sourceNb.weight,
+                relevance: sourceNb.relevance,
+                trend: sourceNb.trend,
+                targetAccuracy: sourceNb.targetAccuracy,
+                tecLink: sourceNb.tecLink,
+                lawLink: sourceNb.lawLink,
+                obsidianLink: sourceNb.obsidianLink,
+                notes: sourceNb.notes,
+                images: sourceNb.images || [],
                 weekId: targetWeekId,
+                // Reset State for the new copy
                 accuracy: 0,
                 status: NotebookStatus.NOT_STARTED,
                 accuracyHistory: [],
-                isWeekCompleted: false
+                isWeekCompleted: false,
+                lastPractice: undefined, // Reset dates
+                nextReview: undefined
             };
-            await addNotebook(newNb);
+            
+            try {
+                await addNotebook(payload);
+            } catch (err) {
+                console.error("Cloning failed:", err);
+                alert("Erro ao duplicar caderno. Verifique se os dados estão válidos.");
+            }
         }
     }
   };
@@ -938,7 +977,16 @@ export const Setup: React.FC = () => {
           </div>
           
           <div className="p-2 space-y-2 overflow-y-auto flex-1 custom-scrollbar">
-            {libraryNotebooks.map(nb => <DraggableCard key={nb.id} notebook={nb} onDragStart={onDragStart} onEdit={handleEditClick} origin="library" />)}
+            {libraryNotebooks.map((nb: any) => (
+                <DraggableCard 
+                    key={nb.id} 
+                    notebook={nb} 
+                    onDragStart={onDragStart} 
+                    onEdit={handleEditClick} 
+                    origin="library" 
+                    allocationCount={nb._allocationCount}
+                />
+            ))}
             
             {libraryNotebooks.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-10 text-slate-600 gap-2 opacity-50 px-4 text-center">
