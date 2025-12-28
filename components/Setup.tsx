@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, Relevance, Trend, NotebookStatus } from '../types';
-import { Plus, Search, Copy, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2, TrendingUp, History, ListPlus } from 'lucide-react';
+import { Plus, Search, Copy, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2, TrendingUp, History, ListPlus, Minus } from 'lucide-react';
 import { calculateNextReview, getStatusColor } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 
@@ -12,7 +12,7 @@ const PACE_SETTINGS: Record<string, { hours: number, blocks: number }> = {
     'Avançado': { hours: 44, blocks: 66 }
 };
 
-// MEMOIZED COMPONENT TO PREVENT RE-RENDERS ON DRAG/SEARCH
+// ... DraggableCard (kept as is) ...
 const DraggableCard = React.memo(({ 
     notebook, 
     onDragStart, 
@@ -31,8 +31,6 @@ const DraggableCard = React.memo(({
     onToggleComplete?: (id: string, isCompleted: boolean) => void;
 }) => {
     const statusColor = getStatusColor(notebook.accuracy, notebook.targetAccuracy);
-    
-    // Check if it's already scheduled (for visual cue in Library)
     const isScheduled = !!notebook.weekId;
 
     return (
@@ -105,6 +103,9 @@ const DraggableCard = React.memo(({
     );
 });
 
+// Helper for normalization
+const normalizeStr = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
 const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: number } }) => {
     const { notebooks, config, updateConfig } = useStore();
     const [newDiscName, setNewDiscName] = useState('');
@@ -112,18 +113,26 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
     // --- PERSISTENT STATE MANAGEMENT ---
     
     // 1. Get Base Disciplines from Notebooks + Custom Disciplines from Config
+    // FIX: Using strict deduping with Set and ensuring custom ones are merged correctly
     const availableDisciplines = useMemo<string[]>(() => {
-        const fromNotebooks = Array.from(new Set(notebooks.filter(n => n.discipline !== 'Revisão Geral').map(n => n.discipline)));
-        const fromConfig = config.calculatorState?.customDisciplines || [];
-        return Array.from(new Set([...fromNotebooks, ...fromConfig])).sort();
+        const set = new Set<string>();
+        // Add from Notebooks
+        notebooks.forEach(n => {
+            if (n.discipline !== 'Revisão Geral') set.add(n.discipline);
+        });
+        // Add from Custom Config
+        (config.calculatorState?.customDisciplines || []).forEach(d => set.add(d));
+        
+        return Array.from(set).sort();
     }, [notebooks, config.calculatorState?.customDisciplines]);
 
     // 2. Initialize or sync calculator state
     useEffect(() => {
-        // If config doesn't have calculator state yet, init it
+        // Init if empty
         if (!config.calculatorState) {
             const initialWeights: Record<string, number> = {};
-            availableDisciplines.forEach(d => initialWeights[d] = 1);
+            // Explicitly type 'd' to avoid 'unknown' index type error
+            availableDisciplines.forEach((d: string) => initialWeights[d] = 1);
             
             updateConfig({
                 ...config,
@@ -133,36 +142,8 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
                     customDisciplines: []
                 }
             });
-        } else {
-            // Check if there are new disciplines in notebooks that aren't in state yet
-            const currentSelected = new Set(config.calculatorState.selectedDisciplines);
-            const currentWeights = { ...config.calculatorState.weights };
-            let hasChanges = false;
-
-            availableDisciplines.forEach(d => {
-                if (!currentWeights[d]) {
-                    currentWeights[d] = 1;
-                    // Auto-select new disciplines found in DB, but not necessarily newly added custom ones unless desired
-                    // For safety, let's auto-select them if they are from notebooks (to match prev behavior)
-                    if (!config.calculatorState?.selectedDisciplines.includes(d) && notebooks.some(n => n.discipline === d)) {
-                       // Dont force select, user might have unchecked it.
-                       // Just ensure weight exists.
-                    }
-                    hasChanges = true;
-                }
-            });
-
-            if (hasChanges) {
-                updateConfig({
-                    ...config,
-                    calculatorState: {
-                        ...config.calculatorState,
-                        weights: currentWeights
-                    }
-                });
-            }
         }
-    }, [availableDisciplines.length]); // Only run if count changes to avoid loops
+    }, [availableDisciplines.length]); 
 
     // Helper accessors
     const weights: Record<string, number> = config.calculatorState?.weights || {};
@@ -176,50 +157,62 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
         if (newSet.has(d)) newSet.delete(d);
         else newSet.add(d);
         
+        // Also update weight map if needed
+        const newWeights = { ...weights };
+        if (!newWeights[d]) newWeights[d] = 1;
+
         updateConfig({
             ...config,
             calculatorState: {
                 ...config.calculatorState!,
-                selectedDisciplines: Array.from(newSet)
+                selectedDisciplines: Array.from(newSet),
+                weights: newWeights
             }
         });
     };
 
     const updateWeight = (d: string, w: number) => {
+        const safeW = Math.max(0.5, Math.min(10, w)); // Clamp between 0.5 and 10
         updateConfig({
             ...config,
             calculatorState: {
                 ...config.calculatorState!,
-                weights: { ...weights, [d]: Math.max(0.5, w) }
+                weights: { ...weights, [d]: safeW }
             }
         });
     };
 
     const handleAddDiscipline = (e: React.FormEvent) => {
         e.preventDefault();
-        if (newDiscName && !availableDisciplines.includes(newDiscName)) {
-            const newCustom = [...customDiscs, newDiscName];
-            const newSelected = [...Array.from(selectedDiscs), newDiscName];
-            const newWeights = { ...weights, [newDiscName]: 1 };
+        const trimmed = newDiscName.trim();
+        if (!trimmed) return;
 
-            updateConfig({
-                ...config,
-                calculatorState: {
-                    weights: newWeights,
-                    selectedDisciplines: newSelected,
-                    customDisciplines: newCustom
-                }
-            });
+        // Check duplicates (Case insensitive, accent insensitive)
+        const normNew = normalizeStr(trimmed);
+        const exists = availableDisciplines.some(d => normalizeStr(d) === normNew);
+
+        if (exists) {
+            alert("Esta disciplina já existe na lista.");
             setNewDiscName('');
+            return;
         }
+
+        const newCustom = [...customDiscs, trimmed];
+        const newSelected = [...Array.from(selectedDiscs), trimmed];
+        const newWeights = { ...weights, [trimmed]: 1 };
+
+        updateConfig({
+            ...config,
+            calculatorState: {
+                weights: newWeights,
+                selectedDisciplines: newSelected,
+                customDisciplines: newCustom
+            }
+        });
+        setNewDiscName('');
     };
 
     const handleRemoveDiscipline = (d: string) => {
-        // If it's a custom discipline, remove it entirely
-        // If it's from notebooks, we can only "hide" it by unchecking, 
-        // but here we are explicitly removing it from the calculator view/state if possible.
-        // Since we derive availableDisciplines from notebooks, we can't delete it if it has notebooks.
-        
         const isFromNotebooks = notebooks.some(n => n.discipline === d);
         
         if (isFromNotebooks) {
@@ -233,7 +226,6 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
                     selectedDisciplines: Array.from(newSet)
                 }
             });
-            alert("Esta disciplina possui cadernos associados. Ela foi desmarcada do planejamento, mas não excluída do banco.");
         } else {
             // Remove completely
             const newCustom = customDiscs.filter(c => c !== d);
@@ -271,15 +263,13 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
             const weight = weights[d] || 1;
             const percentage = weight / totalWeight;
             const blocks = Math.round(percentage * paceTarget.blocks);
-            // Count actual topics in DB for info
-            const topicCount = notebooks.filter(n => n.discipline === d).length;
-
+            
             return {
                 name: d,
                 weight,
                 percentage,
                 blocks,
-                topicCount
+                topicCount: notebooks.filter(n => n.discipline === d).length
             };
         }).filter(Boolean) as {name: string, weight: number, percentage: number, blocks: number, topicCount: number}[];
     }, [availableDisciplines, selectedDiscs, weights, totalWeight, paceTarget.blocks, notebooks]);
@@ -301,147 +291,169 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
                 </div>
                 <h2 className="text-2xl font-bold text-white mb-2">Planejamento de Ciclo</h2>
                 <p className="text-slate-400 text-sm max-w-xl mx-auto">
-                    Defina os pesos estratégicos. O algoritmo Atena distribuirá sua carga de <strong className="text-white">{paceTarget.blocks} blocos/semana</strong>. Dados salvos automaticamente.
+                    Defina os pesos estratégicos. O algoritmo Atena distribuirá sua carga de <strong className="text-white">{paceTarget.blocks} blocos/semana</strong>.
                 </p>
             </div>
             
-            {/* Quick Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
-                    <div>
+            {/* Stats Bar */}
+            <div className="flex flex-wrap justify-center gap-4 mb-8">
+                 <div className="bg-slate-900 border border-slate-800 px-6 py-3 rounded-xl flex items-center gap-4">
+                    <div className="text-right">
+                        <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Carga Semanal</p>
+                        <p className="text-lg font-black text-emerald-400">~{paceTarget.hours}h</p>
+                    </div>
+                    <Timer className="text-emerald-900" size={20} />
+                </div>
+                 <div className="bg-slate-900 border border-slate-800 px-6 py-3 rounded-xl flex items-center gap-4">
+                    <div className="text-right">
+                        <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Base Tópicos</p>
+                        <p className="text-lg font-black text-blue-400">{totalItems}</p>
+                    </div>
+                    <Layers className="text-blue-900" size={20} />
+                </div>
+                <div className="bg-slate-900 border border-slate-800 px-6 py-3 rounded-xl flex items-center gap-4">
+                    <div className="text-right">
                         <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Estimativa</p>
-                        <p className="text-2xl font-black text-white">{weeksNeeded} <span className="text-sm font-medium text-slate-500">Semanas</span></p>
+                        <p className="text-lg font-black text-white">{weeksNeeded} <span className="text-xs text-slate-500">sem</span></p>
                     </div>
-                    <CalendarClock className="text-slate-700" size={24} />
-                </div>
-                 <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
-                    <div>
-                        <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Carga Líquida</p>
-                        <p className="text-2xl font-black text-emerald-400">~{paceTarget.hours}h <span className="text-sm font-medium text-slate-500">/ sem</span></p>
-                    </div>
-                    <Timer className="text-emerald-900" size={24} />
-                </div>
-                 <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
-                    <div>
-                        <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Base de Dados</p>
-                        <p className="text-2xl font-black text-blue-400">{totalItems} <span className="text-sm font-medium text-slate-500">Tópicos</span></p>
-                    </div>
-                    <Layers className="text-blue-900" size={24} />
+                    <CalendarClock className="text-slate-700" size={20} />
                 </div>
             </div>
 
-            {/* Main Calculator Table */}
+            {/* Input for Adding New Discipline */}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 mb-6 shadow-lg">
+                <form onSubmit={handleAddDiscipline} className="flex gap-2 items-center">
+                    <div className="bg-slate-800 p-2 rounded-lg text-emerald-500">
+                        <ListPlus size={20} />
+                    </div>
+                    <input 
+                        type="text" 
+                        placeholder="Adicionar disciplina extra ao planejamento (ex: Direito Financeiro)" 
+                        value={newDiscName}
+                        onChange={e => setNewDiscName(e.target.value)}
+                        className="flex-1 bg-transparent text-sm text-white focus:outline-none placeholder-slate-600 px-2"
+                    />
+                    <button 
+                        type="submit" 
+                        disabled={!newDiscName} 
+                        className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wider transition-colors"
+                    >
+                        Adicionar
+                    </button>
+                </form>
+            </div>
+
+            {/* Main Calculator List (Improved UX) */}
             <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl flex flex-col">
-                <div className="p-4 border-b border-slate-800 bg-slate-950/50 flex justify-between items-center">
-                    <h3 className="font-bold text-white flex items-center gap-2"><Scale size={18} className="text-emerald-500"/> Distribuição Ponderada</h3>
-                    <div className="text-xs font-mono text-slate-500">
-                        Alocado: <span className={diff !== 0 ? 'text-amber-400' : 'text-emerald-400'}>{totalAllocated}</span> / {paceTarget.blocks} blocos
+                <div className="p-4 border-b border-slate-800 bg-slate-950/50 flex justify-between items-center sticky top-0 z-10 backdrop-blur-sm">
+                    <h3 className="font-bold text-white text-sm uppercase tracking-wider flex items-center gap-2">
+                        <Scale size={16} className="text-emerald-500"/> Distribuição Ponderada
+                    </h3>
+                    <div className={`text-xs font-mono px-3 py-1 rounded-full border ${diff === 0 ? 'bg-emerald-900/20 text-emerald-400 border-emerald-500/30' : 'bg-amber-900/20 text-amber-400 border-amber-500/30'}`}>
+                        Alocado: <strong>{totalAllocated}</strong> / {paceTarget.blocks} blocos
                     </div>
                 </div>
                 
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead>
-                            <tr className="border-b border-slate-800 text-[10px] uppercase font-bold text-slate-500 tracking-wider">
-                                <th className="p-4 w-12 text-center">
-                                    <CheckSquare size={14} />
-                                </th>
-                                <th className="p-4">Disciplina</th>
-                                <th className="p-4 text-center">Tópicos DB</th>
-                                <th className="p-4 w-32 text-center">Peso Edital</th>
-                                <th className="p-4 w-48">Blocos Sugeridos</th>
-                                <th className="p-4 w-10"></th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-800 text-sm">
-                            {availableDisciplines.map(d => {
-                                const isSelected = selectedDiscs.has(d);
-                                const dist = distribution.find(x => x.name === d);
-                                const blocks = dist?.blocks || 0;
-                                const percent = dist ? Math.round(dist.percentage * 100) : 0;
+                <div className="divide-y divide-slate-800/50">
+                    {/* Header Row */}
+                    <div className="flex items-center p-3 text-[10px] uppercase font-bold text-slate-500 tracking-wider bg-slate-950/30">
+                        <div className="w-12 text-center"><CheckSquare size={14} className="mx-auto" /></div>
+                        <div className="flex-1 px-2">Disciplina</div>
+                        <div className="w-20 text-center hidden md:block">Tópicos</div>
+                        <div className="w-32 text-center">Peso</div>
+                        <div className="w-40 px-4">Sugestão</div>
+                        <div className="w-10"></div>
+                    </div>
 
-                                return (
-                                    <tr key={d} className={`transition-colors ${isSelected ? 'hover:bg-slate-800/30' : 'bg-slate-950 opacity-50'}`}>
-                                        <td className="p-4 text-center">
-                                            <input 
-                                                type="checkbox" 
-                                                checked={isSelected} 
-                                                onChange={() => toggleDisc(d)}
-                                                className="rounded border-slate-600 bg-slate-800 text-emerald-500 focus:ring-0 cursor-pointer w-4 h-4 accent-emerald-500"
-                                            />
-                                        </td>
-                                        <td className="p-4 font-medium text-slate-200">
-                                            {d}
-                                        </td>
-                                        <td className="p-4 text-center text-slate-500">
+                    {availableDisciplines.map(d => {
+                        const isSelected = selectedDiscs.has(d);
+                        const dist = distribution.find(x => x.name === d);
+                        const blocks = dist?.blocks || 0;
+                        const percent = dist ? Math.round(dist.percentage * 100) : 0;
+                        const currentWeight = weights[d] || 1;
+
+                        return (
+                            <div key={d} className={`flex items-center p-3 transition-colors hover:bg-slate-800/40 group ${isSelected ? '' : 'opacity-60 bg-slate-950/50'}`}>
+                                {/* Checkbox */}
+                                <div className="w-12 flex justify-center">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={isSelected} 
+                                        onChange={() => toggleDisc(d)}
+                                        className="w-4 h-4 rounded border-slate-600 bg-slate-800 text-emerald-600 focus:ring-offset-slate-900 cursor-pointer"
+                                    />
+                                </div>
+
+                                {/* Name */}
+                                <div className="flex-1 px-2 font-medium text-sm text-slate-200 truncate">
+                                    {d}
+                                </div>
+
+                                {/* Topic Count Badge */}
+                                <div className="w-20 text-center hidden md:flex justify-center">
+                                    {notebooks.some(n => n.discipline === d) ? (
+                                        <span className="bg-slate-800 text-slate-400 text-[10px] px-2 py-0.5 rounded-full border border-slate-700">
                                             {notebooks.filter(n => n.discipline === d).length}
-                                        </td>
-                                        <td className="p-4">
-                                            <div className="flex items-center justify-center">
-                                                <input 
-                                                    type="number" 
-                                                    step="0.5"
-                                                    min="0.5"
-                                                    value={weights[d] || 1}
-                                                    disabled={!isSelected}
-                                                    onChange={(e) => updateWeight(d, parseFloat(e.target.value))}
-                                                    className="w-16 bg-slate-800 border border-slate-700 rounded-lg p-1.5 text-center text-white font-bold focus:border-emerald-500 outline-none disabled:opacity-50 transition-all focus:bg-slate-700"
-                                                />
-                                            </div>
-                                        </td>
-                                        <td className="p-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
-                                                    <div 
-                                                        className="h-full bg-emerald-500 transition-all duration-500" 
-                                                        style={{ width: isSelected ? `${percent}%` : '0%' }}
-                                                    ></div>
-                                                </div>
-                                                <div className="flex flex-col items-end w-12 flex-shrink-0">
-                                                    <span className={`font-bold ${blocks > 0 ? 'text-emerald-400' : 'text-slate-600'}`}>{blocks}</span>
-                                                    <span className="text-[9px] text-slate-500 uppercase">bl</span>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="p-4 text-center">
-                                            <button onClick={() => handleRemoveDiscipline(d)} className="text-slate-600 hover:text-red-500 transition-colors" title="Remover da lista">
-                                                <Trash2 size={14} />
-                                            </button>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                            {/* Add Row */}
-                            <tr className="bg-slate-900/50">
-                                <td className="p-4 text-center"><Plus size={14} className="text-slate-500 mx-auto"/></td>
-                                <td colSpan={5} className="p-4">
-                                    <form onSubmit={handleAddDiscipline} className="flex gap-2">
-                                        <input 
-                                            type="text" 
-                                            placeholder="Adicionar nova disciplina..." 
-                                            value={newDiscName}
-                                            onChange={e => setNewDiscName(e.target.value)}
-                                            className="bg-transparent border-b border-slate-700 text-sm text-white focus:border-emerald-500 outline-none px-2 py-1 w-full"
-                                        />
-                                        <button type="submit" disabled={!newDiscName} className="text-emerald-500 hover:text-emerald-400 font-bold text-xs uppercase disabled:opacity-50">
-                                            Adicionar
+                                        </span>
+                                    ) : (
+                                        <span className="text-[10px] text-slate-600">-</span>
+                                    )}
+                                </div>
+
+                                {/* Weight Controls */}
+                                <div className="w-32 flex justify-center">
+                                    <div className={`flex items-center bg-slate-950 border border-slate-700 rounded-lg overflow-hidden ${!isSelected ? 'opacity-50 pointer-events-none' : ''}`}>
+                                        <button 
+                                            onClick={() => updateWeight(d, currentWeight - 0.5)}
+                                            className="px-2 py-1 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors border-r border-slate-800"
+                                        >
+                                            <Minus size={12} />
                                         </button>
-                                    </form>
-                                </td>
-                            </tr>
-                        </tbody>
-                        <tfoot>
-                            <tr className="bg-slate-950/80 border-t border-slate-800 font-bold text-white">
-                                <td colSpan={3} className="p-4 text-right text-xs uppercase text-slate-500">Totais</td>
-                                <td className="p-4 text-center text-amber-400">{totalWeight.toFixed(1)} pts</td>
-                                <td className="p-4 flex justify-end items-center gap-2">
-                                    <span className="text-lg">{totalAllocated}</span> 
-                                    <span className="text-xs font-normal text-slate-500">/ {paceTarget.blocks} blocos</span>
-                                </td>
-                                <td></td>
-                            </tr>
-                        </tfoot>
-                    </table>
+                                        <div className="w-8 text-center text-xs font-bold text-white">{currentWeight}</div>
+                                        <button 
+                                            onClick={() => updateWeight(d, currentWeight + 0.5)}
+                                            className="px-2 py-1 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors border-l border-slate-800"
+                                        >
+                                            <Plus size={12} />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Result Bar */}
+                                <div className="w-40 px-4">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className={`text-sm font-bold ${blocks > 0 ? 'text-emerald-400' : 'text-slate-600'}`}>{blocks}</span>
+                                        <span className="text-[10px] text-slate-500">blocos</span>
+                                    </div>
+                                    <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                                        <div 
+                                            className="h-full bg-emerald-500 transition-all duration-500 ease-out" 
+                                            style={{ width: isSelected ? `${percent}%` : '0%' }}
+                                        ></div>
+                                    </div>
+                                </div>
+
+                                {/* Delete */}
+                                <div className="w-10 flex justify-center">
+                                    <button 
+                                        onClick={() => handleRemoveDiscipline(d)} 
+                                        className="p-1.5 text-slate-600 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                                        title="Remover ou Ocultar"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+                
+                {/* Footer Totals */}
+                <div className="bg-slate-950/80 border-t border-slate-800 p-4 flex justify-end items-center gap-6 text-sm">
+                    <div className="text-right">
+                        <span className="text-slate-500 text-xs uppercase font-bold mr-2">Peso Total</span>
+                        <span className="text-amber-400 font-bold">{totalWeight.toFixed(1)} pts</span>
+                    </div>
                 </div>
             </div>
             
@@ -456,6 +468,7 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
     );
 };
 
+// ... Rest of Setup Component (Export) ...
 export const Setup: React.FC = () => {
   const { notebooks, config, updateConfig, moveNotebookToWeek, addNotebook, editNotebook } = useStore();
   
@@ -681,7 +694,7 @@ export const Setup: React.FC = () => {
     setIsModalOpen(true);
   }, []);
 
-  const handleChange = (field: string, value: any) => setFormData(prev => ({ ...prev, [field]: value }));
+  const handleChange = (field: keyof typeof initialFormState, value: any) => setFormData(prev => ({ ...prev, [field]: value }));
   
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
