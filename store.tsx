@@ -85,6 +85,7 @@ interface StoreContextType {
   framework: FrameworkData;
   notes: Note[];
   loading: boolean;
+  isSyncing: boolean; // NOVO: Indicador visual de salvamento
   user: any;
   isGuest: boolean;
   
@@ -95,6 +96,7 @@ interface StoreContextType {
   setPendingCreateData: (data: Partial<Notebook> | null) => void;
   
   enterGuestMode: () => void;
+  exportDatabase: () => void; // NOVO: Backup Manual
 
   createCycle: (name: string, targetRole: string) => void;
   selectCycle: (id: string) => void;
@@ -138,6 +140,7 @@ export const useStore = () => {
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false); // NOVO
   const [isGuest, setIsGuest] = useState(false);
 
   // Global Data
@@ -256,6 +259,30 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
   };
 
+  const exportDatabase = () => {
+      const data = {
+          exportDate: new Date().toISOString(),
+          version: "4.3.0",
+          user: user?.email || "guest",
+          notebooks,
+          cycles,
+          framework,
+          protocol,
+          reports,
+          notes
+      };
+      
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `atena_backup_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+  };
+
   const fetchAllData = async (userId: string) => {
       setLoading(true);
       try {
@@ -315,7 +342,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               // Helper: Determine if a notebook is "allocated" at all in the schedule
               const allocationMap: Record<string, boolean> = {};
               if (activeCycle.schedule) {
-                  Object.values(activeCycle.schedule).forEach(slots => {
+                  Object.values(activeCycle.schedule).forEach((slots: ScheduleItem[]) => {
                       slots.forEach(slot => {
                           allocationMap[slot.notebookId] = true;
                       });
@@ -342,7 +369,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // --- ACTIONS ---
   const updateFramework = async (data: FrameworkData) => {
       setFramework(data);
-      if(user && !isGuest) await supabase.from('frameworks').upsert({ user_id: user.id, ...data });
+      if(user && !isGuest) {
+          setIsSyncing(true);
+          await supabase.from('frameworks').upsert({ user_id: user.id, ...data });
+          setIsSyncing(false);
+      }
   };
 
   const createCycle = async (name: string, targetRole: string) => {
@@ -353,10 +384,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setCycles(prev => [...prev, newCycle]);
       setActiveCycleId(newCycle.id);
       if(user && !isGuest) {
+          setIsSyncing(true);
           await supabase.from('cycles').insert({
               id: newCycle.id, user_id: user.id, name: newCycle.name, config: newCycle.config,
               planning: newCycle.planning, weekly_completion: newCycle.weeklyCompletion, schedule: newCycle.schedule
           });
+          setIsSyncing(false);
       }
   };
 
@@ -364,17 +397,28 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const deleteCycle = async (id: string) => {
       setCycles(prev => prev.filter(c => c.id !== id));
       if(activeCycleId === id) setActiveCycleId(null);
-      if(user && !isGuest) await supabase.from('cycles').delete().eq('id', id);
+      if(user && !isGuest) {
+          setIsSyncing(true);
+          await supabase.from('cycles').delete().eq('id', id);
+          setIsSyncing(false);
+      }
   };
 
   const syncCycleData = async (cycleId: string, updates: Partial<Cycle>) => {
       if(!user || isGuest) return;
-      const payload: any = {};
-      if(updates.config) payload.config = updates.config;
-      if(updates.planning) payload.planning = updates.planning;
-      if(updates.weeklyCompletion) payload.weekly_completion = updates.weeklyCompletion;
-      if(updates.schedule) payload.schedule = updates.schedule; // New Field
-      await supabase.from('cycles').update(payload).eq('id', cycleId);
+      setIsSyncing(true);
+      try {
+          const payload: any = {};
+          if(updates.config) payload.config = updates.config;
+          if(updates.planning) payload.planning = updates.planning;
+          if(updates.weeklyCompletion) payload.weekly_completion = updates.weeklyCompletion;
+          if(updates.schedule) payload.schedule = updates.schedule; // New Field
+          await supabase.from('cycles').update(payload).eq('id', cycleId);
+      } catch (e) {
+          console.error("Sync error", e);
+      } finally {
+          setIsSyncing(false);
+      }
   };
 
   const updateConfig = (newConfig: AthensConfig) => {
@@ -407,13 +451,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           
           newSchedule[weekId].push(newSlot);
       } 
-      // If weekId is NULL, we are typically "removing from schedule" via the Library, 
-      // BUT in multi-slot mode, usually we remove specific instances. 
-      // However, if called from Library drag to "Remove", we might want to clear ALL instances?
-      // For safety, let's keep weekId=null as "Unused" in legacy, but here we likely won't call this with null for bulk remove.
       
-      // Update State
+      // Update State Immediately (Optimistic UI)
       setCycles(prev => prev.map(c => c.id === activeCycleId ? { ...c, schedule: newSchedule } : c));
+      
+      // Persist (Robust Sync)
       await syncCycleData(activeCycleId, { schedule: newSchedule });
   };
 
@@ -458,6 +500,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setNotebooks(prev => [...prev, newNotebook]);
 
       if (user && !isGuest) {
+          setIsSyncing(true);
           try {
               const payload = {
                   id: newNotebook.id,
@@ -489,6 +532,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               console.error("Critical: Failed to save notebook", error);
               setNotebooks(prev => prev.filter(n => n.id !== newNotebook.id));
               alert(`Erro ao salvar: ${error.message}`);
+          } finally {
+              setIsSyncing(false);
           }
       }
   };
@@ -500,6 +545,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setNotebooks(prev => prev.map(nb => nb.id === id ? { ...nb, ...updates } : nb));
 
       if(user && !isGuest) {
+          setIsSyncing(true);
           try {
               const dbUpdates: any = {};
               if(updates.name !== undefined) dbUpdates.name = updates.name;
@@ -531,6 +577,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               console.error("Critical: Failed to update notebook", err);
               setNotebooks(prev => prev.map(n => n.id === id ? prevNotebook : n));
               alert("Falha de conexão. Alterações não salvas.");
+          } finally {
+              setIsSyncing(false);
           }
       }
   };
@@ -556,6 +604,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setNotebooks(prev => prev.filter(n => n.id !== id));
       
       if(user && !isGuest) {
+          setIsSyncing(true);
           try {
               const { error } = await supabase.from('notebooks').delete().eq('id', id);
               if (error) throw error;
@@ -563,6 +612,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               console.error("Delete failed", err);
               if (prevNotebook) setNotebooks(prev => [...prev, prevNotebook]);
               alert("Erro ao excluir. Tente novamente.");
+          } finally {
+              setIsSyncing(false);
           }
       }
   };
@@ -570,7 +621,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const bulkUpdateNotebooks = async (ids: string[], updates: Partial<Notebook> | 'DELETE') => {
       if (updates === 'DELETE') {
           setNotebooks(prev => prev.filter(nb => !ids.includes(nb.id)));
-          if(user && !isGuest) await supabase.from('notebooks').delete().in('id', ids);
+          if(user && !isGuest) {
+              setIsSyncing(true);
+              await supabase.from('notebooks').delete().in('id', ids);
+              setIsSyncing(false);
+          }
       } else {
           setNotebooks(prev => prev.map(nb => ids.includes(nb.id) ? { ...nb, ...updates } : nb));
           if(user && !isGuest) ids.forEach(id => editNotebook(id, updates));
@@ -587,7 +642,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const addProtocolItem = async (item: Omit<ProtocolItem, 'id' | 'checked'>) => {
       const newItem = { ...item, id: crypto.randomUUID(), checked: false };
       setProtocol(prev => [...prev, newItem]);
-      if(user && !isGuest) await supabase.from('protocol_items').insert({ ...newItem, user_id: user.id });
+      if(user && !isGuest) {
+          setIsSyncing(true);
+          await supabase.from('protocol_items').insert({ ...newItem, user_id: user.id });
+          setIsSyncing(false);
+      }
   };
   
   const toggleProtocolItem = async (id: string) => {
@@ -595,36 +654,57 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if(item && user) {
           const newItem = { ...item, checked: !item.checked };
           setProtocol(prev => prev.map(i => i.id === id ? newItem : i));
-          if (!isGuest) await supabase.from('protocol_items').update({ checked: newItem.checked }).eq('id', id);
+          if (!isGuest) {
+              setIsSyncing(true);
+              await supabase.from('protocol_items').update({ checked: newItem.checked }).eq('id', id);
+              setIsSyncing(false);
+          }
       }
   };
 
   const deleteProtocolItem = async (id: string) => {
       setProtocol(prev => prev.filter(i => i.id !== id));
-      if(user && !isGuest) await supabase.from('protocol_items').delete().eq('id', id);
+      if(user && !isGuest) {
+          setIsSyncing(true);
+          await supabase.from('protocol_items').delete().eq('id', id);
+          setIsSyncing(false);
+      }
   };
 
   const saveReport = async (report: Omit<SavedReport, 'id' | 'date'>) => {
       const newReport = { ...report, id: crypto.randomUUID(), date: new Date().toISOString() };
       setReports(prev => [newReport, ...prev]);
-      if(user && !isGuest) await supabase.from('reports').insert({ ...newReport, user_id: user.id });
+      if(user && !isGuest) {
+          setIsSyncing(true);
+          await supabase.from('reports').insert({ ...newReport, user_id: user.id });
+          setIsSyncing(false);
+      }
   };
 
   const deleteReport = async (id: string) => {
       setReports(prev => prev.filter(r => r.id !== id));
-      if(user && !isGuest) await supabase.from('reports').delete().eq('id', id);
+      if(user && !isGuest) {
+          setIsSyncing(true);
+          await supabase.from('reports').delete().eq('id', id);
+          setIsSyncing(false);
+      }
   };
 
   const addNote = async () => {
       const newNote: Note = { id: crypto.randomUUID(), content: '', color: 'yellow', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
       setNotes(prev => [newNote, ...prev]);
-      if(user && !isGuest) await supabase.from('notes').insert({ id: newNote.id, user_id: user.id, content: '', color: 'yellow' });
+      if(user && !isGuest) {
+          setIsSyncing(true);
+          await supabase.from('notes').insert({ id: newNote.id, user_id: user.id, content: '', color: 'yellow' });
+          setIsSyncing(false);
+      }
   };
 
   const updateNote = async (id: string, content: string, color?: Note['color']) => {
       const updatedAt = new Date().toISOString();
       setNotes(prev => prev.map(n => n.id === id ? { ...n, content, color: color || n.color, updatedAt } : n));
       if(user && !isGuest) {
+          // Notas geralmente não precisam de spinner de sync intrusivo, mas é bom ter
           const payload: any = { content, updated_at: updatedAt };
           if(color) payload.color = color;
           await supabase.from('notes').update(payload).eq('id', id);
@@ -633,14 +713,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const deleteNote = async (id: string) => {
       setNotes(prev => prev.filter(n => n.id !== id));
-      if(user && !isGuest) await supabase.from('notes').delete().eq('id', id);
+      if(user && !isGuest) {
+          setIsSyncing(true);
+          await supabase.from('notes').delete().eq('id', id);
+          setIsSyncing(false);
+      }
   };
 
   return (
     <StoreContext.Provider value={{ 
-      notebooks, config, reports, protocol, cycles, activeCycleId, framework, notes, loading, user, isGuest,
+      notebooks, config, reports, protocol, cycles, activeCycleId, framework, notes, loading, isSyncing, user, isGuest,
       focusedNotebookId, setFocusedNotebookId, pendingCreateData, setPendingCreateData,
-      enterGuestMode, createCycle, selectCycle, deleteCycle, updateConfig, updateNotebookAccuracy, 
+      enterGuestMode, exportDatabase, createCycle, selectCycle, deleteCycle, updateConfig, updateNotebookAccuracy, 
       moveNotebookToWeek, toggleSlotCompletion, removeSlotFromWeek,
       getWildcardNotebook, addNotebook, editNotebook, deleteNotebook, bulkUpdateNotebooks, saveReport, deleteReport,
       addProtocolItem, toggleProtocolItem, deleteProtocolItem, updateFramework, addNote, updateNote, deleteNote
