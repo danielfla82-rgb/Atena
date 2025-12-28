@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, Relevance, Trend, NotebookStatus } from '../types';
-import { Plus, Search, Copy, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2, TrendingUp, History, ListPlus, Minus, AlertTriangle, CheckCircle2, RotateCw, Zap, Activity } from 'lucide-react';
+import { Plus, Search, Copy, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2, TrendingUp, History, ListPlus, Minus, AlertTriangle, CheckCircle2, RotateCw, Zap, Activity, Info } from 'lucide-react';
 import { calculateNextReview, getStatusColor } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 
@@ -49,8 +49,8 @@ const DraggableCard = React.memo(({
             `}
         >
             {origin === 'library' && (
-                <div className={`absolute right-0 top-0 p-1 rounded-bl text-[9px] uppercase font-bold tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border-l border-b z-10 flex items-center gap-1 ${isScheduled ? 'bg-blue-900/80 border-blue-700 text-blue-300' : 'bg-slate-900/80 border-slate-700 text-emerald-500'}`}>
-                    {isScheduled ? <><Copy size={10}/> Clonar</> : "Mover"}
+                <div className={`absolute right-0 top-0 p-1 rounded-bl text-[9px] uppercase font-bold tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border-l border-b z-10 flex items-center gap-1 bg-slate-900/80 border-slate-700 text-emerald-500`}>
+                    <Copy size={10}/> + Agendar
                 </div>
             )}
 
@@ -91,8 +91,8 @@ const DraggableCard = React.memo(({
                          {origin === 'week' && onRemove && !disabled && (
                              <button 
                                 onClick={(e) => { e.stopPropagation(); onRemove(notebook.id); }} 
-                                className="text-slate-500 hover:text-red-400 p-1 rounded hover:bg-slate-700 transition-colors"
-                                title="Remover da semana (Desfazer)"
+                                className="text-slate-500 hover:text-red-400 p-1 rounded hover:bg-red-900/20 hover:border-red-500/30 border border-transparent transition-colors"
+                                title="Remover do planejamento (Desfazer)"
                              >
                                  <Trash2 size={12} />
                              </button>
@@ -750,7 +750,7 @@ export const Setup: React.FC = () => {
 
   const onDragOver = useCallback((e: React.DragEvent) => e.preventDefault(), []);
   
-  // --- UPDATED: Intelligent Drop Logic ---
+  // --- UPDATED: Intelligent Drop Logic (DB PERSISTENCE FIX) ---
   const onDrop = async (e: React.DragEvent, targetWeekId: string | null, isPast: boolean) => {
     if (isPast) { alert("Você não pode alterar o planejamento de semanas que já passaram."); return; }
     
@@ -760,51 +760,43 @@ export const Setup: React.FC = () => {
     if (!id || !targetWeekId) return;
 
     if (origin === 'week') {
-        // Simple move within timeline
+        // Simple move within timeline (Drag from Week A to Week B)
         await moveNotebookToWeek(id, targetWeekId);
     } else {
-        // Library Logic: Decide between Move or Clone
+        // Library Logic: ALWAYS CLONE to create a new study instance.
+        // This ensures the Library (DB Template) remains untouched and fixed.
+        // The user can repeat the same notebook multiple times.
         const sourceNb = notebooks.find(n => n.id === id);
         if (!sourceNb) return;
 
-        // If the item in the library is unallocated, we move it to the week.
-        // If the user drags an item that is ALREADY allocated (found via deduplication logic), 
-        // we CLONE it to create a new instance (allows repeating the same subject multiple times).
-        if (!sourceNb.weekId) {
-            await moveNotebookToWeek(sourceNb.id, targetWeekId);
-        } else {
-            // CLONE LOGIC: Create a Clean Payload
-            // We explicitly construct the payload to avoid copying system fields (like ID or CreatedAt) 
-            // that might cause database errors.
-            const payload = {
-                discipline: sourceNb.discipline,
-                name: sourceNb.name,
-                subtitle: sourceNb.subtitle || '',
-                weight: sourceNb.weight,
-                relevance: sourceNb.relevance,
-                trend: sourceNb.trend,
-                targetAccuracy: sourceNb.targetAccuracy,
-                tecLink: sourceNb.tecLink,
-                lawLink: sourceNb.lawLink,
-                obsidianLink: sourceNb.obsidianLink,
-                notes: sourceNb.notes,
-                images: sourceNb.images || [],
-                weekId: targetWeekId,
-                // Reset State for the new copy
-                accuracy: 0,
-                status: NotebookStatus.NOT_STARTED,
-                accuracyHistory: [],
-                isWeekCompleted: false,
-                lastPractice: undefined, // Reset dates
-                nextReview: undefined
-            };
-            
-            try {
-                await addNotebook(payload);
-            } catch (err) {
-                console.error("Cloning failed:", err);
-                alert("Erro ao duplicar caderno. Verifique se os dados estão válidos.");
-            }
+        const payload = {
+            discipline: sourceNb.discipline,
+            name: sourceNb.name,
+            subtitle: sourceNb.subtitle || '',
+            weight: sourceNb.weight,
+            relevance: sourceNb.relevance,
+            trend: sourceNb.trend,
+            targetAccuracy: sourceNb.targetAccuracy,
+            tecLink: sourceNb.tecLink,
+            lawLink: sourceNb.lawLink,
+            obsidianLink: sourceNb.obsidianLink,
+            notes: sourceNb.notes,
+            images: sourceNb.images || [],
+            weekId: targetWeekId,
+            // Reset State for the new instance
+            accuracy: 0,
+            status: NotebookStatus.NOT_STARTED,
+            accuracyHistory: [],
+            isWeekCompleted: false,
+            lastPractice: undefined, // Will be sanitized to null by store
+            nextReview: undefined
+        };
+        
+        try {
+            await addNotebook(payload);
+        } catch (err) {
+            console.error("Cloning failed:", err);
+            alert("Erro ao adicionar caderno.");
         }
     }
   };
@@ -864,18 +856,13 @@ export const Setup: React.FC = () => {
         const payload: any = { ...formData, accuracy: Number(formData.accuracy), targetAccuracy: Number(formData.targetAccuracy) };
         
         // --- History Logic ---
-        // If accuracy changed OR we want to record a session explicitly
         let newHistory = [...(formData.accuracyHistory || [])];
         
-        // We always add a new entry if saving from this modal to capture the data point
-        // But to avoid duplicates on quick saves, we could check last entry date, 
-        // for now, we just append and slice.
         newHistory.push({
             date: new Date().toISOString(),
             accuracy: Number(formData.accuracy)
         });
         
-        // Keep last 3
         if (newHistory.length > 3) {
             newHistory = newHistory.slice(-3);
         }
@@ -883,7 +870,6 @@ export const Setup: React.FC = () => {
         payload.accuracyHistory = newHistory;
         
         if (editingId) {
-          // Await the promise to ensure data persistence before closing
           await editNotebook(editingId, payload);
         }
         setIsModalOpen(false);
@@ -911,16 +897,7 @@ export const Setup: React.FC = () => {
 
   // --- UNDO / REMOVE ACTION ---
   const handleRemoveFromWeek = useCallback((id: string) => {
-      // Moves back to backlog (null week) OR deletes if it was a clone?
-      // Since we implemented Clone logic from Library, if we just set weekId to null, 
-      // we might have duplicate items in Library.
-      // Better strategy: If it's a clone (has content-identical siblings), delete it. 
-      // If it's the only instance, move to backlog.
-      // But checking siblings is expensive. 
-      // User requested "Desfazer por engano". The simplest undo is moving back to backlog or deleting.
-      // Given the "Repeat" feature, deleting from week is safer as it acts as "Remove instance".
-      
-      const confirmRemove = window.confirm("Deseja remover este bloco do planejamento?");
+      const confirmRemove = window.confirm("Deseja remover este bloco do planejamento da semana? (O caderno original permanece no Banco de Dados)");
       if(confirmRemove) {
           deleteNotebook(id);
       }
@@ -939,7 +916,6 @@ export const Setup: React.FC = () => {
                   accuracyHistory: newHistory,
                   lastPractice: new Date().toISOString()
               });
-              // Update local state to reflect change immediately without closing
               setFormData(prev => ({ ...prev, accuracyHistory: newHistory }));
           }
       } catch (err) {
@@ -1016,7 +992,7 @@ export const Setup: React.FC = () => {
             
             <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold">
                 <span>Total: {libraryNotebooks.length}</span>
-                <span className="text-emerald-500 flex items-center gap-1">Arraste <ArrowRight size={10} /></span>
+                <span className="text-emerald-500 flex items-center gap-1">Arraste para agendar <ArrowRight size={10} /></span>
             </div>
           </div>
           
