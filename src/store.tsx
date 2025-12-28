@@ -180,12 +180,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
     initSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (!isGuest) {
         setUser(session?.user ?? null);
-        if (session?.user) {
+        // FIX: Only fetch on explicit login or initial session to avoid overwriting local state on token refresh
+        if (session?.user && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION')) {
             fetchAllData(session.user.id);
-        } else {
+        } else if (event === 'SIGNED_OUT') {
             setNotebooks([]);
             setCycles([]);
         }
@@ -413,9 +414,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if(updates.planning) payload.planning = updates.planning;
           if(updates.weeklyCompletion) payload.weekly_completion = updates.weeklyCompletion;
           if(updates.schedule) payload.schedule = updates.schedule; // New Field
-          await supabase.from('cycles').update(payload).eq('id', cycleId);
+          
+          const { error } = await supabase.from('cycles').update(payload).eq('id', cycleId);
+          if (error) throw error;
       } catch (e) {
-          console.error("Sync error", e);
+          console.error("Erro crítico ao sincronizar ciclo:", e);
+          alert("Falha ao salvar alterações na nuvem. Verifique sua conexão.");
       } finally {
           setIsSyncing(false);
       }
@@ -429,7 +433,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
   };
 
-  // --- SCHEDULING (V4.2) ---
+  // --- SCHEDULING (V4.2) - FIX: Immutable Updates ---
 
   const moveNotebookToWeek = async (notebookId: string, weekId: string | null) => {
       if (!activeCycleId) return;
@@ -437,9 +441,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const cycle = cycles.find(c => c.id === activeCycleId);
       if (!cycle) return;
 
-      const newSchedule = { ...(cycle.schedule || {}) };
+      // Deep copy to prevent mutation of state references
+      const newSchedule: Record<string, ScheduleItem[]> = {};
+      if (cycle.schedule) {
+          Object.keys(cycle.schedule).forEach(key => {
+              newSchedule[key] = [...(cycle.schedule![key] || [])];
+          });
+      }
       
-      // If weekId is provided, we are ADDING a new slot (duplication allowed)
+      // If weekId is provided, we are ADDING a new slot
       if (weekId) {
           if (!newSchedule[weekId]) newSchedule[weekId] = [];
           
@@ -464,17 +474,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const cycle = cycles.find(c => c.id === activeCycleId);
       if (!cycle || !cycle.schedule || !cycle.schedule[weekId]) return;
 
+      // Immutable Update
       const newSchedule = { ...cycle.schedule };
-      const slotIndex = newSchedule[weekId].findIndex(s => s.instanceId === instanceId);
+      // Copy array for specific week
+      const currentWeek = [...(newSchedule[weekId] || [])];
+      
+      const slotIndex = currentWeek.findIndex(s => s.instanceId === instanceId);
       
       if (slotIndex !== -1) {
-          const slot = newSchedule[weekId][slotIndex];
-          newSchedule[weekId][slotIndex] = { ...slot, completed: !slot.completed };
-          
-          // Also update last practice on the notebook itself if completed
-          if (!slot.completed) { // Was false, now true
-             // Update logic...
-          }
+          const slot = currentWeek[slotIndex];
+          currentWeek[slotIndex] = { ...slot, completed: !slot.completed };
+          newSchedule[weekId] = currentWeek; // Assign new array to object
 
           setCycles(prev => prev.map(c => c.id === activeCycleId ? { ...c, schedule: newSchedule } : c));
           await syncCycleData(activeCycleId, { schedule: newSchedule });
@@ -487,6 +497,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (!cycle || !cycle.schedule || !cycle.schedule[weekId]) return;
 
       const newSchedule = { ...cycle.schedule };
+      // Immutable filter
       newSchedule[weekId] = newSchedule[weekId].filter(s => s.instanceId !== instanceId);
 
       setCycles(prev => prev.map(c => c.id === activeCycleId ? { ...c, schedule: newSchedule } : c));
