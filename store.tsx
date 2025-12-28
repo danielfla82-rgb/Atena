@@ -400,7 +400,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       if (user && !isGuest) {
           try {
-              // Now we send ALL data, including accuracy_history, as the schema should support it.
+              // Now we send ALL data, assuming DB schema is updated
               const payload = {
                   id: newNotebook.id,
                   user_id: user.id,
@@ -438,7 +438,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           } catch (error: any) {
               console.error("Critical: Failed to save notebook", error);
               setNotebooks(prev => prev.filter(n => n.id !== newNotebook.id));
-              alert(`Erro ao salvar: ${error.message}`);
+              
+              // Intelligent Error Handling for Schema Mismatch
+              if (error.message && (error.message.includes("Could not find the") || error.message.includes("column"))) {
+                  alert(`⚠️ ERRO DE SCHEMA DO BANCO DE DADOS ⚠️\n\nO Supabase não possui a coluna necessária: ${error.message}.\n\nPOR FAVOR: Execute o script 'migration_v4.sql' no painel do Supabase para corrigir.`);
+              } else {
+                  alert(`Erro ao salvar: ${error.message}`);
+              }
           }
       } else if (isGuest && activeCycleId) {
           const activeCycle = cycles.find(c => c.id === activeCycleId);
@@ -488,7 +494,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               if(updates.relevance !== undefined) dbUpdates.relevance = updates.relevance;
               if(updates.trend !== undefined) dbUpdates.trend = updates.trend;
               if(updates.notes !== undefined) dbUpdates.notes = updates.notes || null;
-              // Now correctly mapped
               if(updates.accuracyHistory !== undefined) dbUpdates.accuracy_history = updates.accuracyHistory;
               
               if(updates.images !== undefined) {
@@ -506,11 +511,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   let cUpdate = updates.isWeekCompleted !== undefined ? { ...activeCycle?.weeklyCompletion, [id]: updates.isWeekCompleted } : undefined;
                   await syncCycleData(activeCycleId, { planning: pUpdate, weeklyCompletion: cUpdate });
               }
-          } catch (err) {
+          } catch (err: any) {
               console.error("Critical: Failed to update notebook", err);
               setNotebooks(prev => prev.map(n => n.id === id ? prevNotebook : n));
               if (activeCycleId) setCycles(prev => prev.map(c => c.id === activeCycleId ? { ...c, planning: prevPlanning } : c));
-              alert("Falha de conexão. Alterações não salvas.");
+              
+              if (err.message && (err.message.includes("Could not find the") || err.message.includes("column"))) {
+                  alert(`⚠️ ERRO DE SCHEMA DO BANCO DE DADOS ⚠️\n\nColuna faltando: ${err.message}.\n\nPOR FAVOR: Execute o script 'migration_v4.sql' no painel do Supabase.`);
+              } else {
+                  alert("Falha de conexão. Alterações não salvas.");
+              }
           }
       }
   };
