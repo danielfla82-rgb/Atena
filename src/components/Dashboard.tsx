@@ -145,35 +145,17 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
 
   // --- NEW METRICS CALCULATIONS ---
   const metrics = useMemo(() => {
-      // 1. Time Calculation: 45 min per COMPLETED block in planning (SCHEDULE BASED)
-      let completedBlocks = 0;
-      const activeCycle = cycles.find(c => c.id === activeCycleId);
-
-      if (activeCycle?.schedule) {
-          // V4.2+: Calculate directly from schedule slots
-          Object.values(activeCycle.schedule).forEach((weekSlots: ScheduleItem[]) => {
-              completedBlocks += weekSlots.filter(slot => slot.completed).length;
-          });
-      } else {
-          // Legacy Fallback
-          completedBlocks = notebooks.filter(n => n.weekId && n.isWeekCompleted).length;
-      }
-
-      const totalMinutes = completedBlocks * 45;
-      const hours = Math.floor(totalMinutes / 60);
-      const mins = totalMinutes % 60;
-
-      // 2. Performance
+      // 1. Performance
       const activeNotebooks = notebooks.filter(n => n.accuracy > 0);
       const totalAcc = activeNotebooks.reduce((sum, n) => sum + n.accuracy, 0);
       const avgAccuracy = activeNotebooks.length > 0 ? Math.round(totalAcc / activeNotebooks.length) : 0;
       
-      // 3. Progress
+      // 2. Progress
       const totalTopics = notebooks.filter(n => n.discipline !== 'Revisão Geral').length;
       const completedTopics = notebooks.filter(n => (n.status === 'Dominado' || n.accuracy >= n.targetAccuracy) && n.discipline !== 'Revisão Geral').length;
       const progressPercent = totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0;
 
-      // 4. Consistency (Last 14 days)
+      // 3. Consistency (Last 14 days)
       const dates = [];
       const streakMap: Record<string, boolean> = {};
       let currentStreak = 0;
@@ -203,7 +185,6 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       }
 
       return {
-          time: `${hours}h${mins > 0 ? mins + 'min' : ''}`,
           avgAccuracy,
           completedTopics,
           pendingTopics: totalTopics - completedTopics,
@@ -373,9 +354,8 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
     if (nb.discipline === 'Revisão Geral') {
       startWildcard();
     } else {
-      // Use navigation focus instead of modal
-      setFocusedNotebookId(nb.id);
-      onNavigate('library');
+      // FIX: Open Study Session directly instead of navigating to Library Edit
+      setSelectedSession(nb);
     }
   };
 
@@ -433,17 +413,9 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       </div>
 
       {/* === TOP METRICS CARDS (ELITE PRINT STYLE) === */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           
-          {/* Card 1: Tempo de Estudo */}
-          <div className="bg-slate-50 text-slate-900 rounded-xl p-5 shadow-lg border border-slate-200 flex flex-col justify-between h-32">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Tempo de Estudo</span>
-              <div className="text-right">
-                  <span className="text-3xl font-black text-slate-900 tracking-tight">{metrics.time}</span>
-              </div>
-          </div>
-
-          {/* Card 2: Desempenho */}
+          {/* Card 1: Desempenho */}
           <div className="bg-slate-50 text-slate-900 rounded-xl p-5 shadow-lg border border-slate-200 flex flex-col justify-between h-32">
               <div className="flex justify-between items-start">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Desempenho</span>
@@ -461,7 +433,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
               </div>
           </div>
 
-          {/* Card 3: Progresso Edital */}
+          {/* Card 2: Progresso Edital */}
           <div className="bg-slate-50 text-slate-900 rounded-xl p-5 shadow-lg border border-slate-200 flex flex-col justify-between h-32">
               <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Progresso no Edital</span>
               <div className="flex justify-between items-end">
@@ -473,7 +445,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
               </div>
           </div>
 
-          {/* Card 4: Quote */}
+          {/* Card 3: Quote */}
           <div className="bg-slate-50 text-slate-900 rounded-xl p-5 shadow-lg border border-slate-200 flex items-center justify-center h-32 relative overflow-hidden group">
               <Quote className="absolute top-2 left-2 text-slate-200 w-8 h-8 opacity-50" />
               <p className="text-sm font-medium text-slate-700 italic text-center leading-relaxed z-10 px-2 font-serif group-hover:scale-105 transition-transform duration-500">
@@ -544,7 +516,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                     </div>
                     <button 
                         onClick={() => handleRecommendationClick(athenaRecommendation.notebook)}
-                        className="w-full py-4 bg-white text-slate-950 font-bold rounded-xl hover:bg-slate-200 transition-all flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] active:scale-95 z-10"
+                        className="w-full py-4 bg-white text-slate-950 font-bold rounded-xl hover:bg-slate-200 transition-all flex items-center justify-center gap-2 shadow-lg hover:scale-[1.02] active:scale-95 z-20 relative cursor-pointer"
                         aria-label="Abrir caderno no banco de dados"
                     >
                         <ArrowRight size={20} />
