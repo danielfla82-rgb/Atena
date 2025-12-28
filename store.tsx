@@ -75,22 +75,14 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
-      if (session?.user) {
-          fetchData(session.user.id);
-      } else {
-          setLoading(false);
-      }
+      // UNIVERSAL MODE: Always fetch data, even if not logged in (Public Board)
+      fetchData(session?.user?.id || 'guest');
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
-      if (session?.user) {
-          fetchData(session.user.id);
-      } else {
-          setNotebooks([]);
-          setCycles([]);
-          setLoading(false);
-      }
+      // Refresh data on auth change
+      fetchData(session?.user?.id || 'guest');
     });
 
     return () => subscription.unsubscribe();
@@ -100,17 +92,17 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       setLoading(true);
       
       // UNIVERSAL DATABASE MODE:
-      // Removed .eq('user_id', userId) filters to allow shared data visibility.
-      // Everyone sees everything.
+      // Removed .eq('user_id', userId) filters.
+      // Fetches everything for everyone.
       
       try {
         const results = await Promise.allSettled([
-            supabase.from('notebooks').select('*'), // Universal
-            supabase.from('cycles').select('*'), // Universal
-            supabase.from('frameworks').select('*').order('updated_at', { ascending: false }).limit(1).single(), // Universal (Latest)
-            supabase.from('protocol_items').select('*'), // Universal
-            supabase.from('reports').select('*'), // Universal
-            supabase.from('notes').select('*') // Universal
+            supabase.from('notebooks').select('*'),
+            supabase.from('cycles').select('*'),
+            supabase.from('frameworks').select('*').order('updated_at', { ascending: false }).limit(1).single(),
+            supabase.from('protocol_items').select('*'),
+            supabase.from('reports').select('*'),
+            supabase.from('notes').select('*')
         ]);
 
         // Notebooks
@@ -130,17 +122,16 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             setNotebooks(formatted);
         }
 
-        // Cycles & Config (CRITICAL: Load Config correctly)
+        // Cycles
         if (results[1].status === 'fulfilled' && results[1].value.data) {
             const fetchedCycles = results[1].value.data.map((c: any) => ({
                 ...c,
-                config: c.config || DEFAULT_CONFIG, // Fallback if null
+                config: c.config || DEFAULT_CONFIG,
                 lastAccess: c.last_access
             }));
             setCycles(fetchedCycles);
             
             if (fetchedCycles.length > 0) {
-                // Select most recent or first
                 const sorted = [...fetchedCycles].sort((a, b) => new Date(b.lastAccess).getTime() - new Date(a.lastAccess).getTime());
                 setActiveCycleId(sorted[0].id);
                 setConfig({ ...DEFAULT_CONFIG, ...sorted[0].config });
@@ -212,7 +203,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     if (user && !isGuest) {
         const payload = {
             id: newNotebook.id,
-            user_id: user.id, // Keeps creator ownership, but visible to all due to fetch change
+            user_id: user.id, 
             discipline: newNotebook.discipline,
             name: newNotebook.name,
             subtitle: newNotebook.subtitle,
@@ -242,7 +233,6 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     if (user && !isGuest) {
         const dbUpdates: any = {};
-        // Map camelCase to snake_case for DB
         if(updates.name !== undefined) dbUpdates.name = updates.name;
         if(updates.discipline !== undefined) dbUpdates.discipline = updates.discipline;
         if(updates.tecLink !== undefined) dbUpdates.tec_link = updates.tecLink;
@@ -279,7 +269,6 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const bulkUpdateNotebooks = async (ids: string[], updates: Partial<Notebook>) => {
      setNotebooks(prev => prev.map(n => ids.includes(n.id) ? { ...n, ...updates } : n));
-     // Batch update not trivially supported in this simple implementation without RPC, loop for now
      if (user && !isGuest) {
          for (const id of ids) {
              await editNotebook(id, updates);
@@ -322,7 +311,6 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const updateCycle = async (id: string, updates: Partial<Cycle>) => {
       setCycles(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
       
-      // Update local config if this is the active cycle
       if (activeCycleId === id && updates.config) {
           setConfig(updates.config);
       }
@@ -330,7 +318,6 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       if (user && !isGuest) {
           const dbUpdates: any = {};
           if (updates.name) dbUpdates.name = updates.name;
-          // Config update is complex because it's a JSONB column, simple approach:
           if (updates.config) dbUpdates.config = updates.config;
           
           if (Object.keys(dbUpdates).length > 0) {
@@ -386,8 +373,6 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const updateFramework = async (data: FrameworkData) => {
       setFramework(data);
       if (user && !isGuest) {
-          // Note: PK is user_id. In universal mode, each user still writes to their own row
-          // but we fetch the latest one in fetchData to simulate a shared board.
           await supabase.from('frameworks').upsert({ user_id: user.id, ...data });
       }
   };
@@ -446,7 +431,7 @@ export const StoreProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const enterGuestMode = () => {
     setIsGuest(true);
     setUser({ email: 'visitante@atena.app', id: 'guest' });
-    setLoading(false);
+    fetchData('guest'); // Guest sees shared data now
   };
   
   const updateNotebookAccuracy = async (id: string, accuracy: number) => {
