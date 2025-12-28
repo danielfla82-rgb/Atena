@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Notebook, AthensConfig, Weight, Relevance, Trend, SavedReport, ProtocolItem, NotebookStatus, Cycle, FrameworkData, Note, ScheduleItem } from './types';
 import { calculateNextReview } from './utils/algorithm';
@@ -315,7 +314,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               // Helper: Determine if a notebook is "allocated" at all in the schedule
               const allocationMap: Record<string, boolean> = {};
               if (activeCycle.schedule) {
-                  Object.values(activeCycle.schedule).forEach(slots => {
+                  Object.values(activeCycle.schedule).forEach((slots: ScheduleItem[]) => {
                       slots.forEach(slot => {
                           allocationMap[slot.notebookId] = true;
                       });

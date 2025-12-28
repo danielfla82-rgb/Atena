@@ -1,22 +1,19 @@
 
 /**
- * DOCUMENTAÇÃO TÉCNICA - PROJETO ATENA V3.3.0
+ * DOCUMENTAÇÃO TÉCNICA - PROJETO ATENA V4.2.0
  * ============================================
  * Data Model e Tipagem do Sistema.
  * 
- * STATUS: STABLE / ELITE OS
- * DATA: 2024-05-23
+ * STATUS: STABLE / TITAN EDITION
  * 
- * CHANGELOG V3.3.0:
- * - [UI] Novo design do bloco de identidade (Sidebar).
- * - [CORE] Estabilização do módulo de Anotações.
- * - [FIX] Ajustes de tipografia e espaçamento.
+ * CHANGELOG V4.2.0:
+ * - [CORE] Implementação de Multi-Slot Scheduling (ScheduleItem).
+ * - [FEAT] Permite repetir o mesmo caderno na semana sem duplicar no DB.
  * 
  * PRINCIPAIS ENTIDADES:
- * 1. Notebook (Caderno): A unidade atômica de estudo. Contém performance, metadados e conteúdo.
- * 2. Cycle (Ciclo): Um contêiner para um projeto de estudo específico (ex: "PF 2025"). Permite multitenancy local.
- * 3. FrameworkData: Estrutura piramidal de 5 camadas para alinhamento estratégico/mental.
- * 4. AthensConfig: Configurações do contexto de estudo atual (IA context).
+ * 1. Notebook (Caderno): A unidade atômica de estudo.
+ * 2. Cycle (Ciclo): Contêiner de planejamento.
+ * 3. ScheduleItem: Instância de agendamento de um caderno em uma semana.
  */
 
 /** Níveis de Peso no Edital (Eixo Y da Matriz Estratégica) */
@@ -93,9 +90,13 @@ export interface Notebook {
   image?: string;
   /** Lista de imagens em Base64 para rascunhos e resumos */
   images?: string[];
-  /** ID da semana no planejamento (ex: 'week-1') ou null se estiver no backlog. (Nota: Em v2, gerenciado pelo Cycle) */
+  /** 
+   * ID da semana no planejamento.
+   * Em V4.2+, usado principalmente para indicar se está ALOCADO em algum lugar.
+   * O posicionamento real fica no Cycle.schedule.
+   */
   weekId?: string | null;
-  /** Marcador se o estudo foi concluído naquela semana específica - NOVO */
+  /** Marcador legado */
   isWeekCompleted?: boolean;
 }
 
@@ -163,9 +164,17 @@ export interface AthensConfig {
 }
 
 /** 
- * Entidade Ciclo (Projeto) - V2.0 CORE
- * Permite múltiplos planejamentos usando o mesmo banco de dados (Universal Notebooks).
- * Separa a "Biblioteca de Conhecimento" do "Planejamento Tático".
+ * V4.2: Slot de Agendamento
+ * Permite que um mesmo caderno seja agendado múltiplas vezes na semana.
+ */
+export interface ScheduleItem {
+    instanceId: string; // ID único deste "bloco" de estudo na semana
+    notebookId: string; // Referência ao caderno original
+    completed: boolean; // Status deste bloco específico
+}
+
+/** 
+ * Entidade Ciclo (Projeto) - V4.2 CORE
  */
 export interface Cycle {
   id: string;
@@ -173,10 +182,14 @@ export interface Cycle {
   createdAt: string;
   lastAccess: string;
   config: AthensConfig;
-  /** Mapeia o ID do notebook (Global) para o weekId neste ciclo específico */
+  /** Legacy Map: Mantido para compatibilidade, mas o Schedule tem precedência */
   planning: Record<string, string | null>; 
-  /** Mapeia o ID do notebook para status de concluído na semana neste ciclo */
   weeklyCompletion: Record<string, boolean>;
+  /** 
+   * V4.2+: Mapa de Semana -> Lista de Slots.
+   * Ex: { 'week-1': [{instanceId: '...', notebookId: 'n1'}, {instanceId: '...', notebookId: 'n1'}] }
+   */
+  schedule?: Record<string, ScheduleItem[]>;
 }
 
 /** Dados do Framework Piramidal (V2.0 FEATURE) */

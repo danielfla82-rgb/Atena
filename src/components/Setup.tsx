@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, Relevance, Trend, NotebookStatus, ScheduleItem } from '../types';
@@ -301,7 +300,7 @@ export const Setup: React.FC = () => {
     const activeCycle = cycles.find(c => c.id === activeCycleId);
     
     if (activeCycle?.schedule) {
-        Object.values(activeCycle.schedule).forEach(slots => {
+        Object.values(activeCycle.schedule).forEach((slots: ScheduleItem[]) => {
             slots.forEach(slot => {
                 const nb = notebooks.find(n => n.id === slot.notebookId);
                 if (nb && nb.discipline !== 'Revisão Geral') {
@@ -323,7 +322,7 @@ export const Setup: React.FC = () => {
       const activeCycle = cycles.find(c => c.id === activeCycleId);
       if (activeCycle?.schedule) {
           let count = 0;
-          Object.values(activeCycle.schedule).forEach(slots => count += slots.length);
+          Object.values(activeCycle.schedule).forEach((slots: ScheduleItem[]) => count += slots.length);
           return count;
       }
       return notebooks.filter(n => n.weekId && n.weekId.startsWith('week-')).length;
