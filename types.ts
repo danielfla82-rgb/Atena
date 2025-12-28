@@ -3,20 +3,6 @@
  * DOCUMENTAÇÃO TÉCNICA - PROJETO ATENA V3.3.0
  * ============================================
  * Data Model e Tipagem do Sistema.
- * 
- * STATUS: STABLE / ELITE OS
- * DATA: 2024-05-23
- * 
- * CHANGELOG V3.3.0:
- * - [UI] Novo design do bloco de identidade (Sidebar).
- * - [CORE] Estabilização do módulo de Anotações.
- * - [FIX] Ajustes de tipografia e espaçamento.
- * 
- * PRINCIPAIS ENTIDADES:
- * 1. Notebook (Caderno): A unidade atômica de estudo. Contém performance, metadados e conteúdo.
- * 2. Cycle (Ciclo): Um contêiner para um projeto de estudo específico (ex: "PF 2025"). Permite multitenancy local.
- * 3. FrameworkData: Estrutura piramidal de 5 camadas para alinhamento estratégico/mental.
- * 4. AthensConfig: Configurações do contexto de estudo atual (IA context).
  */
 
 /** Níveis de Peso no Edital (Eixo Y da Matriz Estratégica) */
@@ -52,7 +38,7 @@ export enum NotebookStatus {
 
 /**
  * Entidade Principal: Caderno (Notebook)
- * Representa um tópico atômico de estudo.
+ * Representa um tópico atômico de estudo (Definição).
  */
 export interface Notebook {
   /** UUID v4 */
@@ -93,10 +79,21 @@ export interface Notebook {
   image?: string;
   /** Lista de imagens em Base64 para rascunhos e resumos */
   images?: string[];
-  /** ID da semana no planejamento (ex: 'week-1') ou null se estiver no backlog. (Nota: Em v2, gerenciado pelo Cycle) */
+  
+  // Propriedades Legadas (Mantidas para compatibilidade com Dashboard antigo, mas populadas dinamicamente)
   weekId?: string | null;
-  /** Marcador se o estudo foi concluído naquela semana específica - NOVO */
   isWeekCompleted?: boolean;
+}
+
+/** 
+ * Entidade de Alocação (Instância de Estudo) 
+ * Permite que o mesmo caderno seja estudado múltiplas vezes na mesma semana ou em semanas diferentes.
+ */
+export interface Allocation {
+  id: string; // ID único da instância (ex: 'alloc-123')
+  notebookId: string; // Referência ao caderno
+  weekId: string; // Semana alocada
+  completed: boolean; // Se esta instância específica foi feita
 }
 
 /** Item do Protocolo Fisiológico */
@@ -112,15 +109,15 @@ export interface ProtocolItem {
 /** Configuração Avançada do Algoritmo de Revisão */
 export interface AlgorithmConfig {
   baseIntervals: {
-    learning: number; // Acurácia < 60%
-    reviewing: number; // Acurácia 60-79%
-    mastering: number; // Acurácia 80-89%
-    maintaining: number; // Acurácia >= 90%
+    learning: number;
+    reviewing: number;
+    mastering: number;
+    maintaining: number;
   };
   multipliers: {
-    relevanceHigh: number; // Multiplicador para Relevância Alta
-    relevanceExtreme: number; // Multiplicador para Relevância Altíssima
-    trendHigh: number; // Multiplicador para Tendência Alta
+    relevanceHigh: number;
+    relevanceExtreme: number;
+    trendHigh: number;
   };
 }
 
@@ -141,57 +138,52 @@ export interface AthensConfig {
   targetRole: string;
   weeksUntilExam: number;
   studyPace: 'Iniciante' | 'Básico' | 'Intermediário' | 'Avançado';
-  /** Map of weekId -> pace override. E.g. { 'week-1': 'Avançado' } */
   weeklyPace?: Record<string, string>;
-  startDate?: string; // YYYY-MM-DD
-  // Contexto rico para IA
+  startDate?: string;
   examName?: string;
   examDate?: string;
   banca?: string;
-  editalText?: string; // Texto raw
+  editalText?: string;
   editalLink?: string;
-  // Edital Estruturado (Salvo após processamento da IA)
   structuredEdital?: EditalDiscipline[];
-  // Algoritmo Customizável
   algorithm?: AlgorithmConfig;
-  // Estado persistente da Calculadora de Ciclo
   calculatorState?: {
       weights: Record<string, number>;
-      selectedDisciplines: string[]; // Lista de nomes das disciplinas selecionadas
-      customDisciplines: string[]; // Lista de disciplinas adicionadas manualmente
+      selectedDisciplines: string[];
+      customDisciplines: string[];
   };
 }
 
 /** 
  * Entidade Ciclo (Projeto) - V2.0 CORE
- * Permite múltiplos planejamentos usando o mesmo banco de dados (Universal Notebooks).
- * Separa a "Biblioteca de Conhecimento" do "Planejamento Tático".
  */
 export interface Cycle {
   id: string;
-  name: string; // Ex: "Receita Federal 2025"
+  name: string; 
   createdAt: string;
   lastAccess: string;
   config: AthensConfig;
-  /** Mapeia o ID do notebook (Global) para o weekId neste ciclo específico */
-  planning: Record<string, string | null>; 
-  /** Mapeia o ID do notebook para status de concluído na semana neste ciclo */
-  weeklyCompletion: Record<string, boolean>;
+  /** 
+   * V3.0: Lista de Alocações (Permite Múltiplas Instâncias)
+   * Armazena Allocation[] diretamente.
+   * Backward Compat: Pode vir como Record<string, string> do banco antigo, Store converte.
+   */
+  planning: Allocation[] | any; 
+  /** @deprecated Usado apenas na migração V2 -> V3 */
+  weeklyCompletion?: Record<string, boolean>;
 }
 
-/** Dados do Framework Piramidal (V2.0 FEATURE) */
+/** Dados do Framework Piramidal */
 export interface FrameworkData {
-  values: string; // Base da pirâmide
+  values: string;
   dream: string;
   motivation: string;
   action: string;
-  habit: string; // Topo da pirâmide
+  habit: string;
 }
 
-/** Tipos de Relatórios Salvos */
 export type ReportType = 'tactical' | 'edital';
 
-/** Resultado da Análise de Edital via IA */
 export interface EditalAnalysisResult {
   overallCoverage: number;
   passingProbability: number;
@@ -206,7 +198,6 @@ export interface EditalAnalysisResult {
   strategicInsight: string;
 }
 
-/** Entidade de Persistência de Relatórios */
 export interface SavedReport {
   id: string;
   date: string;
@@ -215,7 +206,6 @@ export interface SavedReport {
   data: string | EditalAnalysisResult;
 }
 
-/** Entidade de Anotação Rápida (Post-it) */
 export interface Note {
   id: string;
   content: string;
@@ -225,7 +215,6 @@ export interface Note {
 }
 
 // --- CONSTANTES DE SCORE ---
-
 export const WEIGHT_SCORE: Record<Weight, number> = {
   [Weight.BAIXO]: 1,
   [Weight.MEDIO]: 2,
