@@ -300,7 +300,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   lastPractice: n.last_practice,
                   nextReview: n.next_review,
                   images: n.images || (n.image ? [n.image] : []),
-                  // FIX: Handle missing column gracefully if it comes back later
+                  // DB is now updated, we can safely read this column
                   accuracyHistory: n.accuracy_history || [] 
               }));
               setNotebooks(formattedNotebooks);
@@ -392,7 +392,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
   };
 
-  // --- ROBUST PERSISTENCE ACTIONS (FIXED) ---
+  // --- PERSISTENCE ACTIONS (RESTORED) ---
 
   const addNotebook = async (notebook: Omit<Notebook, 'id'>): Promise<void> => {
       const newNotebook = { ...notebook, id: crypto.randomUUID() };
@@ -400,7 +400,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       if (user && !isGuest) {
           try {
-              // DB SANITIZATION: Remove 'accuracy_history' to prevent crash
+              // Now we send ALL data, including accuracy_history, as the schema should support it.
               const payload = {
                   id: newNotebook.id,
                   user_id: user.id,
@@ -421,7 +421,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   images: newNotebook.images || [],
                   last_practice: newNotebook.lastPractice || null,
                   next_review: newNotebook.nextReview || null,
-                  accuracy_history: newNotebook.accuracyHistory || []
+                  accuracy_history: newNotebook.accuracyHistory || [] 
               };
 
               const { error } = await supabase.from('notebooks').insert(payload);
@@ -488,6 +488,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               if(updates.relevance !== undefined) dbUpdates.relevance = updates.relevance;
               if(updates.trend !== undefined) dbUpdates.trend = updates.trend;
               if(updates.notes !== undefined) dbUpdates.notes = updates.notes || null;
+              // Now correctly mapped
               if(updates.accuracyHistory !== undefined) dbUpdates.accuracy_history = updates.accuracyHistory;
               
               if(updates.images !== undefined) {
