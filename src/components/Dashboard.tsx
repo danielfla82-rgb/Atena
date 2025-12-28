@@ -143,7 +143,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       return NIETZSCHE_QUOTES[index];
   }, []);
 
-  // --- NEW METRICS CALCULATIONS ---
+  // --- NEW METRICS CALCULATIONS (SIMPLIFIED) ---
   const metrics = useMemo(() => {
       // 1. Performance
       const activeNotebooks = notebooks.filter(n => n.accuracy > 0);
@@ -354,16 +354,15 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
     if (nb.discipline === 'Revisão Geral') {
       startWildcard();
     } else {
-      // FIX: Open Study Session directly instead of navigating to Library Edit
-      // This solves the "button not working" issue by providing immediate action
+      // Fix: Direct Navigation logic based on previous user input style
+      // or open modal if that's what makes buttons "work" best.
+      // Based on typical user expectation:
       setSelectedSession(nb);
     }
   };
 
   const handleRecommendationClick = (nb: Notebook) => {
-      // Set the focused notebook ID in the store
       setFocusedNotebookId(nb.id);
-      // Navigate to library view
       onNavigate('library');
   };
 
@@ -414,7 +413,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       </div>
 
       {/* === TOP METRICS CARDS (ELITE PRINT STYLE) === */}
-      {/* Changed to 3 columns to remove "Study Time" */}
+      {/* Reduced to 3 columns - Removed Study Time */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           
           {/* Card 1: Desempenho */}
