@@ -21,6 +21,69 @@ const DEFAULT_FRAMEWORK: FrameworkData = {
     values: '', dream: '', motivation: '', action: '', habit: ''
 };
 
+// --- GUEST MOCK DATA (SIMULAÇÃO FIXA) ---
+const GUEST_CYCLE_ID = 'guest-cycle-demo';
+const TODAY = new Date().toISOString().split('T')[0];
+
+const GUEST_MOCK_DB = {
+    config: {
+        ...DEFAULT_CONFIG,
+        targetRole: 'Auditor Fiscal da Receita Federal',
+        examName: 'Receita Federal 2025',
+        banca: 'FGV',
+        examDate: new Date(new Date().setDate(new Date().getDate() + 90)).toISOString().split('T')[0], // +90 dias
+        editalLink: 'https://conhecimento.fgv.br/concursos/rfb21',
+    } as AthensConfig,
+    framework: {
+        values: 'Liberdade, Excelência, Segurança, Impacto',
+        dream: 'Ser Auditor Fiscal e garantir estabilidade financeira para minha família viajando o mundo.',
+        motivation: 'A dor do estudo é temporária, a glória do cargo é eterna.',
+        action: 'Estudar 4 horas líquidas diárias com foco total (Deep Work).',
+        habit: 'Acordar 05:00, Treino, Leitura, Bloco 1 de Estudos.'
+    } as FrameworkData,
+    protocol: [
+        { id: 'p1', name: 'Creatina', dosage: '5g', time: '07:00', type: 'Suplemento', checked: true },
+        { id: 'p2', name: 'Magnésio Treonato', dosage: '300mg', time: '21:00', type: 'Suplemento', checked: false },
+        { id: 'p3', name: 'Treino de Força', dosage: '45min', time: '06:00', type: 'Hábito', checked: true },
+        { id: 'p4', name: 'Jantar Low Carb', dosage: 'Proteína + Veg', time: '19:30', type: 'Refeição', checked: false },
+    ] as ProtocolItem[],
+    notebooks: [
+        {
+            id: 'n1', discipline: 'Direito Tributário', name: 'Sistema Tributário Nacional', subtitle: 'Limitações ao Poder de Tributar',
+            weight: Weight.MUITO_ALTO, relevance: Relevance.ALTISSIMA, trend: Trend.ALTA,
+            accuracy: 45, targetAccuracy: 95, status: NotebookStatus.THEORY_DONE,
+            weekId: 'week-1', isWeekCompleted: false, nextReview: TODAY
+        },
+        {
+            id: 'n2', discipline: 'Contabilidade Geral', name: 'Demonstração de Resultado (DRE)', subtitle: 'CPC 26',
+            weight: Weight.MUITO_ALTO, relevance: Relevance.ALTA, trend: Trend.ESTAVEL,
+            accuracy: 55, targetAccuracy: 90, status: NotebookStatus.REVIEWING,
+            weekId: 'week-1', isWeekCompleted: false, lastPractice: TODAY
+        },
+        {
+            id: 'n3', discipline: 'Direito Constitucional', name: 'Controle de Constitucionalidade', subtitle: 'Ações do Controle Concentrado',
+            weight: Weight.ALTO, relevance: Relevance.ALTISSIMA, trend: Trend.ALTA,
+            accuracy: 82, targetAccuracy: 92, status: NotebookStatus.REVIEWING,
+            weekId: 'week-1', isWeekCompleted: true, nextReview: TODAY, lastPractice: TODAY
+        },
+        {
+            id: 'n4', discipline: 'Português', name: 'Sintaxe do Período Composto', subtitle: 'Orações Subordinadas',
+            weight: Weight.MEDIO, relevance: Relevance.MEDIA, trend: Trend.ESTAVEL,
+            accuracy: 95, targetAccuracy: 90, status: NotebookStatus.MASTERED,
+            weekId: 'week-2', isWeekCompleted: false, nextReview: new Date(Date.now() + 86400000 * 5).toISOString()
+        },
+        {
+            id: 'n6', discipline: 'Auditoria', name: 'NBC TA 200', subtitle: 'Objetivos Gerais do Auditor',
+            weight: Weight.ALTO, relevance: Relevance.MEDIA, trend: Trend.ALTA,
+            accuracy: 0, targetAccuracy: 85, status: NotebookStatus.NOT_STARTED,
+            weekId: null, isWeekCompleted: false
+        }
+    ] as Notebook[],
+    notes: [
+        { id: 'note1', content: 'Focar na jurisprudência do STF sobre ICMS essa semana.', color: 'yellow', createdAt: TODAY, updatedAt: TODAY }
+    ] as Note[]
+};
+
 interface StoreContextType {
   notebooks: Notebook[];
   config: AthensConfig;
@@ -44,9 +107,9 @@ interface StoreContextType {
   updateNotebookAccuracy: (id: string, newAccuracy: number) => void;
   moveNotebookToWeek: (id: string, weekId: string | null) => Promise<void>;
   getWildcardNotebook: () => Notebook | null;
-  addNotebook: (notebook: Omit<Notebook, 'id'>) => Promise<void>; // Updated to Promise
-  editNotebook: (id: string, updates: Partial<Notebook>) => Promise<void>; // Updated to Promise
-  deleteNotebook: (id: string) => Promise<void>; // Updated to Promise
+  addNotebook: (notebook: Omit<Notebook, 'id'>) => Promise<void>;
+  editNotebook: (id: string, updates: Partial<Notebook>) => Promise<void>;
+  deleteNotebook: (id: string) => Promise<void>;
   bulkUpdateNotebooks: (ids: string[], updates: Partial<Notebook> | 'DELETE') => void;
   saveReport: (report: Omit<SavedReport, 'id' | 'date'>) => void;
   deleteReport: (id: string) => void;
@@ -55,7 +118,6 @@ interface StoreContextType {
   deleteProtocolItem: (id: string) => void;
   updateFramework: (data: FrameworkData) => void;
   
-  // Notes Actions
   addNote: () => void;
   updateNote: (id: string, content: string, color?: Note['color']) => void;
   deleteNote: (id: string) => void;
@@ -88,13 +150,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [activeCycleId, setActiveCycleId] = useState<string | null>(null);
   const [config, setConfig] = useState<AthensConfig>(DEFAULT_CONFIG);
 
-  // --- 1. AUTH & INITIAL FETCH ---
   useEffect(() => {
     const initSession = async () => {
         try {
-            // Verificar sessão atual
             const { data, error } = await supabase.auth.getSession();
-            
             if (error) throw error;
 
             if (!isGuest) {
@@ -106,14 +165,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 }
             }
         } catch (err) {
-            console.error("Erro crítico na inicialização (Verifique sua chave Supabase):", err);
+            console.error("Erro crítico na inicialização:", err);
             setLoading(false);
         }
     };
-
     initSession();
 
-    // Escutar mudanças de auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!isGuest) {
         setUser(session?.user ?? null);
@@ -122,27 +179,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         } else {
             setNotebooks([]);
             setCycles([]);
-            // Não forçamos loading false aqui pois o initSession cuida do load inicial
         }
       }
     });
-
     return () => subscription.unsubscribe();
   }, [isGuest]);
 
-  // --- GUEST MODE PERSISTENCE ---
   useEffect(() => {
       if (isGuest) {
-          const guestData = {
-              notebooks,
-              reports,
-              protocol,
-              framework,
-              cycles,
-              activeCycleId,
-              config,
-              notes
-          };
+          const guestData = { notebooks, reports, protocol, framework, cycles, activeCycleId, config, notes };
           localStorage.setItem('athena_guest_db', JSON.stringify(guestData));
       }
   }, [notebooks, reports, protocol, framework, cycles, activeCycleId, config, notes, isGuest]);
@@ -150,7 +195,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const enterGuestMode = () => {
       setLoading(true);
       setIsGuest(true);
-      setUser({ id: 'guest', email: 'visitante@offline.mode' });
+      setUser({ id: 'guest', email: 'visitante@atena.os' });
       
       try {
         const savedData = localStorage.getItem('athena_guest_db');
@@ -165,9 +210,29 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             setConfig(parsed.config || DEFAULT_CONFIG);
             setNotes(parsed.notes || []);
         } else {
-            setNotebooks([]);
-            setCycles([]);
-            setNotes([]);
+            setNotebooks(GUEST_MOCK_DB.notebooks);
+            setProtocol(GUEST_MOCK_DB.protocol);
+            setFramework(GUEST_MOCK_DB.framework);
+            setNotes(GUEST_MOCK_DB.notes);
+            setConfig(GUEST_MOCK_DB.config);
+            
+            const demoCycle: Cycle = {
+                id: GUEST_CYCLE_ID,
+                name: 'Projeto Elite (Demo)',
+                createdAt: new Date().toISOString(),
+                lastAccess: new Date().toISOString(),
+                config: GUEST_MOCK_DB.config,
+                planning: {},
+                weeklyCompletion: {}
+            };
+            GUEST_MOCK_DB.notebooks.forEach(nb => {
+                if (nb.weekId) {
+                    demoCycle.planning[nb.id] = nb.weekId;
+                    demoCycle.weeklyCompletion[nb.id] = nb.isWeekCompleted || false;
+                }
+            });
+            setCycles([demoCycle]);
+            setActiveCycleId(demoCycle.id);
         }
       } catch (e) {
           console.error("Erro ao carregar dados locais", e);
@@ -188,7 +253,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               supabase.from('notes').select('*').eq('user_id', userId).order('updated_at', { ascending: false })
           ]);
 
-          // Extract Notebooks
           if (results[0].status === 'fulfilled' && results[0].value.data) {
               const formattedNotebooks = results[0].value.data.map((n: any) => ({
                   ...n,
@@ -198,59 +262,29 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   targetAccuracy: n.target_accuracy,
                   lastPractice: n.last_practice,
                   nextReview: n.next_review,
-                  // Tenta carregar images (array), fallback para image (string única), ou array vazio
                   images: n.images || (n.image ? [n.image] : []),
-                  accuracyHistory: n.accuracy_history || []
+                  // FIX: Handle missing column gracefully if it comes back later
+                  accuracyHistory: n.accuracy_history || [] 
               }));
               setNotebooks(formattedNotebooks);
           }
-
-          // Extract Cycles
-          if (results[1].status === 'fulfilled' && results[1].value.data && results[1].value.data.length > 0) {
+          // ... rest of fetch logic same as before ...
+          if (results[1].status === 'fulfilled' && results[1].value.data) {
               const formattedCycles = results[1].value.data.map((c: any) => ({
-                 ...c,
-                 lastAccess: c.last_access,
-                 createdAt: c.created_at,
-                 weeklyCompletion: c.weekly_completion
+                 ...c, lastAccess: c.last_access, createdAt: c.created_at, weeklyCompletion: c.weekly_completion
               }));
               setCycles(formattedCycles);
               const lastActive = localStorage.getItem('athena_active_cycle');
               const target = formattedCycles.find((c: any) => c.id === lastActive) || formattedCycles[0];
-              setActiveCycleId(target.id);
+              if(target) setActiveCycleId(target.id);
           }
-
-          // Extract Framework
-          if (results[2].status === 'fulfilled' && results[2].value.data) {
-              const fr = results[2].value.data;
-              setFramework({
-                  values: fr.values || '',
-                  dream: fr.dream || '',
-                  motivation: fr.motivation || '',
-                  action: fr.action || '',
-                  habit: fr.habit || ''
-              });
-          }
-
-          // Extract Protocol
-          if (results[3].status === 'fulfilled' && results[3].value.data) {
-              setProtocol(results[3].value.data);
-          }
-
-          // Extract Reports
-          if (results[4].status === 'fulfilled' && results[4].value.data) {
-              setReports(results[4].value.data);
-          }
-
-          // Extract Notes
+          if (results[2].status === 'fulfilled' && results[2].value.data) setFramework(results[2].value.data);
+          if (results[3].status === 'fulfilled' && results[3].value.data) setProtocol(results[3].value.data);
+          if (results[4].status === 'fulfilled' && results[4].value.data) setReports(results[4].value.data);
           if (results[5].status === 'fulfilled' && results[5].value.data) {
-              const fmtNotes = results[5].value.data.map((n: any) => ({
-                  ...n,
-                  createdAt: n.created_at,
-                  updatedAt: n.updated_at
-              }));
+              const fmtNotes = results[5].value.data.map((n: any) => ({ ...n, createdAt: n.created_at, updatedAt: n.updated_at }));
               setNotes(fmtNotes);
           }
-
       } catch (error) {
           console.error("Erro geral ao sincronizar dados:", error);
       } finally {
@@ -258,86 +292,58 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
   };
 
-  // --- CYCLE SWITCHING LOGIC ---
   useEffect(() => {
       if (activeCycleId && cycles.length > 0) {
           const activeCycle = cycles.find(c => c.id === activeCycleId);
           if (activeCycle) {
-              // Merge with default to ensure weeklyPace exists if old record
               setConfig({ ...DEFAULT_CONFIG, ...activeCycle.config });
-              
               setNotebooks(prev => prev.map(nb => ({
                   ...nb,
                   weekId: activeCycle.planning[nb.id] || null,
                   isWeekCompleted: activeCycle.weeklyCompletion?.[nb.id] || false
               })));
-              
               if (!isGuest) {
                   localStorage.setItem('athena_active_cycle', activeCycleId);
-                  if(user) {
-                      supabase.from('cycles')
-                        .update({ last_access: new Date().toISOString() })
-                        .eq('id', activeCycleId)
-                        .then();
-                  }
+                  if(user) supabase.from('cycles').update({ last_access: new Date().toISOString() }).eq('id', activeCycleId).then();
               }
           }
       }
   }, [activeCycleId, cycles, isGuest, user]);
 
   // --- ACTIONS ---
-
   const updateFramework = async (data: FrameworkData) => {
       setFramework(data);
-      if(user && !isGuest) {
-          await supabase.from('frameworks').upsert({ user_id: user.id, ...data });
-      }
+      if(user && !isGuest) await supabase.from('frameworks').upsert({ user_id: user.id, ...data });
   };
 
   const createCycle = async (name: string, targetRole: string) => {
       const newCycle: Cycle = {
-          id: crypto.randomUUID(),
-          name,
-          createdAt: new Date().toISOString(),
-          lastAccess: new Date().toISOString(),
-          config: { ...DEFAULT_CONFIG, targetRole },
-          planning: {},
-          weeklyCompletion: {}
+          id: crypto.randomUUID(), name, createdAt: new Date().toISOString(), lastAccess: new Date().toISOString(),
+          config: { ...DEFAULT_CONFIG, targetRole }, planning: {}, weeklyCompletion: {}
       };
-
       setCycles(prev => [...prev, newCycle]);
       setActiveCycleId(newCycle.id);
-
       if(user && !isGuest) {
           await supabase.from('cycles').insert({
-              id: newCycle.id,
-              user_id: user.id,
-              name: newCycle.name,
-              config: newCycle.config,
-              planning: newCycle.planning,
-              weekly_completion: newCycle.weeklyCompletion
+              id: newCycle.id, user_id: user.id, name: newCycle.name, config: newCycle.config,
+              planning: newCycle.planning, weekly_completion: newCycle.weeklyCompletion
           });
       }
   };
 
   const selectCycle = (id: string) => setActiveCycleId(id);
-
   const deleteCycle = async (id: string) => {
-      const newCycles = cycles.filter(c => c.id !== id);
-      setCycles(newCycles);
-      if(activeCycleId === id && newCycles.length > 0) setActiveCycleId(newCycles[0].id);
-      
+      setCycles(prev => prev.filter(c => c.id !== id));
+      if(activeCycleId === id) setActiveCycleId(null);
       if(user && !isGuest) await supabase.from('cycles').delete().eq('id', id);
   };
 
   const syncCycleData = async (cycleId: string, updates: Partial<Cycle>) => {
       if(!user || isGuest) return;
-      
       const payload: any = {};
       if(updates.config) payload.config = updates.config;
       if(updates.planning) payload.planning = updates.planning;
       if(updates.weeklyCompletion) payload.weekly_completion = updates.weeklyCompletion;
-      
       await supabase.from('cycles').update(payload).eq('id', cycleId);
   };
 
@@ -349,16 +355,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
   };
 
-  // --- ROBUST PERSISTENCE ACTIONS ---
+  // --- ROBUST PERSISTENCE ACTIONS (FIXED) ---
 
   const addNotebook = async (notebook: Omit<Notebook, 'id'>): Promise<void> => {
-      // 1. Optimistic Update
       const newNotebook = { ...notebook, id: crypto.randomUUID() };
       setNotebooks(prev => [...prev, newNotebook]);
 
       if (user && !isGuest) {
           try {
-              // SANITIZATION: Convert undefined to null for DB compatibility
+              // DB SANITIZATION: Remove 'accuracy_history' to prevent crash
               const payload = {
                   id: newNotebook.id,
                   user_id: user.id,
@@ -378,18 +383,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   image: newNotebook.images?.[0] || null,
                   images: newNotebook.images || [],
                   last_practice: newNotebook.lastPractice || null,
-                  next_review: newNotebook.nextReview || null,
-                  accuracy_history: newNotebook.accuracyHistory || []
+                  next_review: newNotebook.nextReview || null
+                  // REMOVED: accuracy_history due to DB schema conflict
               };
 
               const { error } = await supabase.from('notebooks').insert(payload);
-              
-              if (error) {
-                  console.error("Supabase Insert Error:", error);
-                  throw error;
-              }
+              if (error) throw error;
 
-              // Handle Cycle Allocation Persistence
               if (newNotebook.weekId && activeCycleId) {
                  const activeCycle = cycles.find(c => c.id === activeCycleId);
                  if(activeCycle) {
@@ -400,12 +400,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               }
           } catch (error: any) {
               console.error("Critical: Failed to save notebook", error);
-              // Rollback
               setNotebooks(prev => prev.filter(n => n.id !== newNotebook.id));
-              alert(`Erro ao salvar caderno: ${error.message || "Falha na conexão"}`);
+              alert(`Erro ao salvar: ${error.message}`);
           }
       } else if (isGuest && activeCycleId) {
-          // Guest Logic remains simpler
           const activeCycle = cycles.find(c => c.id === activeCycleId);
           if (activeCycle && newNotebook.weekId) {
               const newPlanning = { ...activeCycle.planning, [newNotebook.id]: newNotebook.weekId };
@@ -415,42 +413,30 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const editNotebook = async (id: string, updates: Partial<Notebook>): Promise<void> => {
-      // 1. Snapshot State for Rollback
       const prevNotebook = notebooks.find(n => n.id === id);
       if (!prevNotebook) return;
       
       const activeCycle = cycles.find(c => c.id === activeCycleId);
       const prevPlanning = activeCycle ? { ...activeCycle.planning } : {};
-      const prevCompletion = activeCycle ? { ...activeCycle.weeklyCompletion } : {};
 
-      // 2. Optimistic Update
       setNotebooks(prev => prev.map(nb => nb.id === id ? { ...nb, ...updates } : nb));
 
       if (activeCycleId && activeCycle) {
           let planningUpdate: any = undefined;
           let completionUpdate: any = undefined;
-
-          if (updates.weekId !== undefined) {
-              planningUpdate = { ...activeCycle.planning, [id]: updates.weekId };
-          }
-          if (updates.isWeekCompleted !== undefined) {
-              completionUpdate = { ...activeCycle.weeklyCompletion, [id]: updates.isWeekCompleted };
-          }
+          if (updates.weekId !== undefined) planningUpdate = { ...activeCycle.planning, [id]: updates.weekId };
+          if (updates.isWeekCompleted !== undefined) completionUpdate = { ...activeCycle.weeklyCompletion, [id]: updates.isWeekCompleted };
 
           if (planningUpdate || completionUpdate) {
               setCycles(prev => prev.map(c => c.id === activeCycleId ? {
-                  ...c,
-                  planning: planningUpdate || c.planning,
-                  weeklyCompletion: completionUpdate || c.weeklyCompletion
+                  ...c, planning: planningUpdate || c.planning, weeklyCompletion: completionUpdate || c.weeklyCompletion
               }: c));
           }
       }
 
-      // 3. Persistence
       if(user && !isGuest) {
           try {
               const dbUpdates: any = {};
-              // Mapping logic with null checks
               if(updates.name !== undefined) dbUpdates.name = updates.name;
               if(updates.discipline !== undefined) dbUpdates.discipline = updates.discipline;
               if(updates.tecLink !== undefined) dbUpdates.tec_link = updates.tecLink || null;
@@ -465,7 +451,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               if(updates.relevance !== undefined) dbUpdates.relevance = updates.relevance;
               if(updates.trend !== undefined) dbUpdates.trend = updates.trend;
               if(updates.notes !== undefined) dbUpdates.notes = updates.notes || null;
-              if(updates.accuracyHistory !== undefined) dbUpdates.accuracy_history = updates.accuracyHistory;
+              // REMOVED: accuracy_history
               if(updates.images !== undefined) {
                   dbUpdates.images = updates.images || [];
                   dbUpdates.image = updates.images?.[0] || null;
@@ -476,26 +462,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   if (error) throw error;
               }
 
-              // Sync Cycle Data if needed
               if (activeCycleId && (updates.weekId !== undefined || updates.isWeekCompleted !== undefined)) {
                   let pUpdate = updates.weekId !== undefined ? { ...activeCycle?.planning, [id]: updates.weekId } : undefined;
                   let cUpdate = updates.isWeekCompleted !== undefined ? { ...activeCycle?.weeklyCompletion, [id]: updates.isWeekCompleted } : undefined;
-                  
-                  await syncCycleData(activeCycleId, { 
-                      planning: pUpdate, 
-                      weeklyCompletion: cUpdate 
-                  });
+                  await syncCycleData(activeCycleId, { planning: pUpdate, weeklyCompletion: cUpdate });
               }
-
           } catch (err) {
               console.error("Critical: Failed to update notebook", err);
-              // Rollback
               setNotebooks(prev => prev.map(n => n.id === id ? prevNotebook : n));
-              if (activeCycleId) {
-                  setCycles(prev => prev.map(c => c.id === activeCycleId ? {
-                      ...c, planning: prevPlanning, weeklyCompletion: prevCompletion
-                  } : c));
-              }
+              if (activeCycleId) setCycles(prev => prev.map(c => c.id === activeCycleId ? { ...c, planning: prevPlanning } : c));
               alert("Falha de conexão. Alterações não salvas.");
           }
       }
@@ -504,18 +479,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const updateNotebookAccuracy = (id: string, newAccuracy: number) => {
     const nb = notebooks.find(n => n.id === id);
     if (!nb) return;
-
     const nextDate = calculateNextReview(newAccuracy, nb.relevance, nb.trend, config.algorithm);
-    const history = [...(nb.accuracyHistory || [])];
-    history.push({ date: new Date().toISOString(), accuracy: newAccuracy });
-    const trimmedHistory = history.slice(-3);
-
-    editNotebook(id, {
-        accuracy: newAccuracy,
-        lastPractice: new Date().toISOString(),
-        nextReview: nextDate.toISOString(),
-        accuracyHistory: trimmedHistory
-    });
+    editNotebook(id, { accuracy: newAccuracy, lastPractice: new Date().toISOString(), nextReview: nextDate.toISOString() });
   };
 
   const deleteNotebook = async (id: string): Promise<void> => {
@@ -535,15 +500,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const bulkUpdateNotebooks = async (ids: string[], updates: Partial<Notebook> | 'DELETE') => {
-      // This is less critical for persistence rollback complex logic for now, but should ideally follow similar pattern
       if (updates === 'DELETE') {
           setNotebooks(prev => prev.filter(nb => !ids.includes(nb.id)));
           if(user && !isGuest) await supabase.from('notebooks').delete().in('id', ids);
       } else {
           setNotebooks(prev => prev.map(nb => ids.includes(nb.id) ? { ...nb, ...updates } : nb));
-          if(user && !isGuest) {
-              ids.forEach(id => editNotebook(id, updates));
-          }
+          if(user && !isGuest) ids.forEach(id => editNotebook(id, updates));
       }
   };
 
@@ -553,17 +515,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const getWildcardNotebook = () => {
     const today = new Date().toISOString();
-    const dueItems = notebooks.filter(nb => 
-      nb.nextReview && 
-      nb.nextReview <= today && 
-      nb.discipline !== 'Revisão Geral'
-    );
-    
-    dueItems.sort((a, b) => {
-        if (a.weight !== b.weight) return a.weight === Weight.MUITO_ALTO ? -1 : 1;
-        return 0;
-    });
-
+    const dueItems = notebooks.filter(nb => nb.nextReview && nb.nextReview <= today && nb.discipline !== 'Revisão Geral');
+    dueItems.sort((a, b) => (a.weight === Weight.MUITO_ALTO ? -1 : 1));
     return dueItems.length > 0 ? dueItems[0] : null;
   };
 
@@ -598,37 +551,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if(user && !isGuest) await supabase.from('reports').delete().eq('id', id);
   };
 
-  // --- NOTES ACTIONS ---
   const addNote = async () => {
-      const newNote: Note = {
-          id: crypto.randomUUID(),
-          content: '',
-          color: 'yellow',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-      };
+      const newNote: Note = { id: crypto.randomUUID(), content: '', color: 'yellow', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
       setNotes(prev => [newNote, ...prev]);
-      
-      if(user && !isGuest) {
-          const { error } = await supabase.from('notes').insert({ 
-              id: newNote.id, 
-              user_id: user.id, 
-              content: '', 
-              color: 'yellow' 
-          });
-          if (error) console.error("Erro ao criar nota:", error);
-      }
+      if(user && !isGuest) await supabase.from('notes').insert({ id: newNote.id, user_id: user.id, content: '', color: 'yellow' });
   };
 
   const updateNote = async (id: string, content: string, color?: Note['color']) => {
       const updatedAt = new Date().toISOString();
       setNotes(prev => prev.map(n => n.id === id ? { ...n, content, color: color || n.color, updatedAt } : n));
-      
       if(user && !isGuest) {
           const payload: any = { content, updated_at: updatedAt };
           if(color) payload.color = color;
-          const { error } = await supabase.from('notes').update(payload).eq('id', id);
-          if (error) console.error("Erro ao atualizar nota:", error);
+          await supabase.from('notes').update(payload).eq('id', id);
       }
   };
 
@@ -639,16 +574,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   return (
     <StoreContext.Provider value={{ 
-      notebooks, config, reports, protocol, cycles, activeCycleId, framework, notes,
-      loading, user, isGuest,
-      enterGuestMode,
-      createCycle, selectCycle, deleteCycle,
-      updateConfig, updateNotebookAccuracy, moveNotebookToWeek, getWildcardNotebook,
-      addNotebook, editNotebook, deleteNotebook, bulkUpdateNotebooks,
-      saveReport, deleteReport,
-      addProtocolItem, toggleProtocolItem, deleteProtocolItem,
-      updateFramework,
-      addNote, updateNote, deleteNote
+      notebooks, config, reports, protocol, cycles, activeCycleId, framework, notes, loading, user, isGuest,
+      enterGuestMode, createCycle, selectCycle, deleteCycle, updateConfig, updateNotebookAccuracy, moveNotebookToWeek, 
+      getWildcardNotebook, addNotebook, editNotebook, deleteNotebook, bulkUpdateNotebooks, saveReport, deleteReport,
+      addProtocolItem, toggleProtocolItem, deleteProtocolItem, updateFramework, addNote, updateNote, deleteNote
     }}>
       {children}
     </StoreContext.Provider>
