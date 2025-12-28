@@ -4,8 +4,7 @@ import {
     Trash2, Plus, Search, X, Link as LinkIcon, Pencil, RefreshCw, 
     ChevronRight, ChevronLeft, Layers, Square, CheckSquare, 
     Circle, BookOpen, CheckCircle2, Siren, Star, Clock, Sparkles,
-    Maximize2, FileCode, CalendarClock, ZoomIn, Flag, Save, Inbox, ScanSearch,
-    Crown, Shield, Ghost, AlertOctagon, History
+    Maximize2, FileCode, CalendarClock, ZoomIn, Flag, Save, Inbox, ScanSearch, Scale, Loader2
 } from 'lucide-react';
 import { Weight, Relevance, Trend, Notebook, NotebookStatus } from '../types';
 import { calculateNextReview } from '../utils/algorithm';
@@ -43,14 +42,11 @@ const LibraryItem = React.memo(({
     onEdit: (nb: Notebook) => void;
     showDate: boolean;
 }) => {
-    const isCritical = nb.accuracy < 60 && nb.accuracy > 0;
-
     return (
         <div 
           className={`
               p-3 pl-12 border-b border-slate-800/50 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors hover:bg-slate-800/20
               ${isSelected ? 'bg-emerald-900/10' : ''}
-              ${isCritical ? 'bg-red-900/5' : ''}
           `}
         >
             <div className="flex items-center gap-3 flex-1">
@@ -62,10 +58,9 @@ const LibraryItem = React.memo(({
                 </button>
                 <div>
                     <div className="flex items-center gap-2">
-                        <h4 className={`text-sm font-medium ${isCritical ? 'text-red-200' : 'text-slate-300'}`}>{nb.name}</h4>
+                        <h4 className="text-sm font-medium text-slate-300">{nb.name}</h4>
                         {nb.subtitle && <span className="text-xs text-slate-500 hidden lg:inline-block">• {nb.subtitle}</span>}
                         {nb.weekId && <span className="text-[9px] bg-slate-800 text-slate-400 px-1.5 rounded border border-slate-700">Planejado</span>}
-                        {isCritical && <span className="text-[9px] bg-red-500/20 text-red-400 px-1.5 rounded border border-red-500/30 flex items-center gap-1"><AlertOctagon size={8} /> Crítico</span>}
                     </div>
                     
                     {isExpanded && (
@@ -86,7 +81,7 @@ const LibraryItem = React.memo(({
                     </span>
                 )}
                 <StatusBadge status={nb.status} />
-                <div className={`text-xs font-bold px-2 py-0.5 rounded border ${nb.accuracy < 60 ? 'bg-red-500/10 text-red-400 border-red-500/20' : nb.accuracy < 80 ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
+                <div className={`text-xs font-bold px-2 py-0.5 rounded border ${nb.accuracy < 60 ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
                     {nb.accuracy}%
                 </div>
                 
@@ -126,7 +121,7 @@ export const Library: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   
   const initialFormState = {
-    discipline: '', name: '', subtitle: '', tecLink: '', obsidianLink: '', accuracy: 0, targetAccuracy: 90, 
+    discipline: '', name: '', subtitle: '', tecLink: '', lawLink: '', obsidianLink: '', accuracy: 0, targetAccuracy: 90, 
     weight: Weight.MEDIO, relevance: Relevance.MEDIA, trend: Trend.ESTAVEL, 
     status: NotebookStatus.NOT_STARTED, notes: '', images: [] as string[],
     lastPractice: new Date().toISOString().split('T')[0] 
@@ -184,25 +179,15 @@ export const Library: React.FC = () => {
     return Array.from(new Set(notebooks.map(n => n.discipline))).sort();
   }, [notebooks]);
 
-  const normalizeText = (str: string) => str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
-
-  // --- GROUPING LOGIC (HIERARCHY & INTELLIGENCE) ---
+  // --- GROUPING LOGIC (HIERARCHY) ---
   const groupedData = useMemo(() => {
       const groups: Record<string, Notebook[]> = {};
-      const stats: Record<string, { total: number, done: number, avgAcc: number, lastSeen: string | null, totalSyllabus: number }> = {};
+      const stats: Record<string, { total: number, done: number, avgAcc: number }> = {};
 
       filteredNotebooks.forEach(nb => {
           if (!groups[nb.discipline]) {
               groups[nb.discipline] = [];
-              
-              // Try to find total syllabus count from Verticalized Edital if available
-              let syllabusCount = 0;
-              if (config.structuredEdital) {
-                  const discEdital = config.structuredEdital.find(d => normalizeText(d.name) === normalizeText(nb.discipline));
-                  if (discEdital) syllabusCount = discEdital.topics.length;
-              }
-
-              stats[nb.discipline] = { total: 0, done: 0, avgAcc: 0, lastSeen: null, totalSyllabus: syllabusCount };
+              stats[nb.discipline] = { total: 0, done: 0, avgAcc: 0 };
           }
           groups[nb.discipline].push(nb);
           
@@ -210,23 +195,16 @@ export const Library: React.FC = () => {
           stats[nb.discipline].total += 1;
           if (nb.status === NotebookStatus.MASTERED || nb.accuracy >= 90) stats[nb.discipline].done += 1;
           stats[nb.discipline].avgAcc += nb.accuracy;
-          
-          // Last Seen Logic
-          if (nb.lastPractice) {
-              if (!stats[nb.discipline].lastSeen || nb.lastPractice > stats[nb.discipline].lastSeen!) {
-                  stats[nb.discipline].lastSeen = nb.lastPractice;
-              }
-          }
       });
 
       // Normalize averages
       Object.keys(stats).forEach(d => {
-          stats[d].avgAcc = stats[d].total > 0 ? Math.round(stats[d].avgAcc / stats[d].total) : 0;
+          stats[d].avgAcc = Math.round(stats[d].avgAcc / stats[d].total);
       });
 
       const sortedKeys = Object.keys(groups).sort();
       return { groups, stats, sortedKeys };
-  }, [filteredNotebooks, config.structuredEdital]);
+  }, [filteredNotebooks]);
   
   // --- HANDLERS ---
   const toggleDiscipline = useCallback((discipline: string) => {
@@ -314,6 +292,7 @@ export const Library: React.FC = () => {
           name: nb.name,
           subtitle: nb.subtitle,
           tecLink: nb.tecLink || '',
+          lawLink: nb.lawLink || '',
           obsidianLink: nb.obsidianLink || '',
           accuracy: nb.accuracy,
           targetAccuracy: nb.targetAccuracy,
@@ -345,24 +324,8 @@ export const Library: React.FC = () => {
       setIsModalOpen(false);
   };
 
-  // Helper for Recency Calculation
-  const getDaysSince = (dateStr: string | null) => {
-      if (!dateStr) return 999;
-      const diff = new Date().getTime() - new Date(dateStr).getTime();
-      return Math.floor(diff / (1000 * 3600 * 24));
-  };
-
-  const getPerformanceColor = (acc: number) => {
-      if (acc < 60) return 'bg-red-500';
-      if (acc < 80) return 'bg-amber-500';
-      return 'bg-emerald-500';
-  };
-
-  const getPerformanceText = (acc: number) => {
-      if (acc < 60) return 'text-red-400';
-      if (acc < 80) return 'text-amber-400';
-      return 'text-emerald-400';
-  };
+  // Save loading state
+  const [isSaving, setIsSaving] = useState(false);
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 h-[calc(100vh-80px)] flex flex-col relative">
@@ -434,17 +397,11 @@ export const Library: React.FC = () => {
       <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pb-20">
           {groupedData.sortedKeys.map(discipline => {
               const stats = groupedData.stats[discipline];
+              const progress = Math.round((stats.done / stats.total) * 100);
               const isExpanded = expandedDisciplines.has(discipline) || sortByReview; 
               
-              // Recency Intelligence
-              const daysSince = getDaysSince(stats.lastSeen);
-              const isStale = stats.avgAcc >= 80 && daysSince > 30; // High accuracy but old
-              
-              // Coverage Calc (if syllabus known)
-              const coverage = stats.totalSyllabus > 0 ? Math.round((stats.total / stats.totalSyllabus) * 100) : null;
-              
               return (
-                  <div key={discipline} className={`bg-slate-900 border border-slate-800 rounded-xl overflow-hidden transition-all ${isStale ? 'opacity-60 border-slate-700 border-dashed' : ''}`}>
+                  <div key={discipline} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden transition-all">
                       {/* Accordion Header */}
                       <div 
                         className={`p-4 flex items-center justify-between cursor-pointer hover:bg-slate-800/50 transition-colors ${isExpanded ? 'bg-slate-800/30' : ''}`}
@@ -462,41 +419,20 @@ export const Library: React.FC = () => {
                                   {discipline.charAt(0)}
                               </div>
                               <div>
-                                  <div className="flex items-center gap-2">
-                                      <h3 className="font-bold text-slate-200 text-sm">{discipline}</h3>
-                                      {/* Tactical Badges */}
-                                      {coverage && coverage > 90 && <Crown size={12} className="text-amber-400" fill="currentColor" />}
-                                      {stats.avgAcc >= 80 && <Shield size={12} className="text-emerald-400" />}
-                                      {isStale && <Ghost size={12} className="text-slate-500 animate-pulse" title="Conhecimento Fantasma (Deteriorado)" />}
-                                  </div>
-                                  <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
-                                      <span>{stats.total} {stats.total === 1 ? 'item' : 'itens'}</span>
-                                      <span className="w-1 h-1 bg-slate-700 rounded-full"></span>
-                                      <span className={`font-bold ${getPerformanceText(stats.avgAcc)}`}>{stats.avgAcc}% acerto</span>
-                                      {coverage !== null && (
-                                          <>
-                                            <span className="w-1 h-1 bg-slate-700 rounded-full"></span>
-                                            <span>{coverage}% coberto</span>
-                                          </>
-                                      )}
-                                      {stats.lastSeen && (
-                                          <>
-                                            <span className="w-1 h-1 bg-slate-700 rounded-full"></span>
-                                            <span className={daysSince > 30 ? 'text-amber-500' : 'text-slate-500'}>
-                                                {daysSince === 0 ? 'Hoje' : `Há ${daysSince} dias`}
-                                            </span>
-                                          </>
-                                      )}
+                                  <h3 className="font-bold text-slate-200 text-sm">{discipline}</h3>
+                                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                                      <span>{stats.total} itens</span>
+                                      <span>•</span>
+                                      <span className={stats.avgAcc < 60 ? 'text-red-400' : 'text-emerald-400'}>{stats.avgAcc}% acerto médio</span>
                                   </div>
                               </div>
                           </div>
                           
                           <div className="flex items-center gap-4">
                               <div className="w-24 h-2 bg-slate-800 rounded-full overflow-hidden hidden md:block">
-                                  {/* Progress bar reflects Average Accuracy now, not completion count */}
-                                  <div className={`h-full transition-all duration-500 ${getPerformanceColor(stats.avgAcc)}`} style={{width: `${stats.avgAcc}%`}}></div>
+                                  <div className="h-full bg-emerald-500 transition-all duration-500" style={{width: `${progress}%`}}></div>
                               </div>
-                              <span className="text-xs font-bold text-slate-500 w-8 text-right hidden md:block">{stats.avgAcc}%</span>
+                              <span className="text-xs font-bold text-slate-500 w-8 text-right hidden md:block">{progress}%</span>
                               <ChevronRight size={18} className={`text-slate-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                           </div>
                       </div>
@@ -572,7 +508,22 @@ export const Library: React.FC = () => {
               </div>
               <div className="space-y-4 pt-2">
                 <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">3. Rascunhos & Anotações</h4>
-                <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Obsidian / Notion</label><div className="relative"><FileCode className="absolute left-3 top-3.5 text-slate-500" size={16} /><input type="url" value={formData.obsidianLink} onChange={e => handleChange('obsidianLink', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 pl-10 text-white outline-none focus:border-emerald-500" placeholder="obsidian://open?vault=..." /></div></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Texto de Lei</label>
+                        <div className="relative">
+                            <Scale className="absolute left-3 top-3.5 text-slate-500" size={16} />
+                            <input type="url" value={formData.lawLink} onChange={e => handleChange('lawLink', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 pl-10 text-white outline-none focus:border-emerald-500" placeholder="https://planalto.gov.br..." />
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Obsidian / Notion</label>
+                        <div className="relative">
+                            <FileCode className="absolute left-3 top-3.5 text-slate-500" size={16} />
+                            <input type="url" value={formData.obsidianLink} onChange={e => handleChange('obsidianLink', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 pl-10 text-white outline-none focus:border-emerald-500" placeholder="obsidian://open?vault=..." />
+                        </div>
+                    </div>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Anotações / Resumo</label><textarea value={formData.notes} onChange={e => handleChange('notes', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500 transition-all min-h-[200px] resize-none text-sm" placeholder="Mnemônicos..." /></div>
                     <div className="flex flex-col h-full">

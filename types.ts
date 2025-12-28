@@ -1,34 +1,130 @@
 
+/**
+ * DOCUMENTAÇÃO TÉCNICA - PROJETO ATENA V3.3.0
+ * ============================================
+ * Data Model e Tipagem do Sistema.
+ * 
+ * STATUS: STABLE / ELITE OS
+ * DATA: 2024-05-23
+ * 
+ * CHANGELOG V3.3.0:
+ * - [UI] Novo design do bloco de identidade (Sidebar).
+ * - [CORE] Estabilização do módulo de Anotações.
+ * - [FIX] Ajustes de tipografia e espaçamento.
+ * 
+ * PRINCIPAIS ENTIDADES:
+ * 1. Notebook (Caderno): A unidade atômica de estudo. Contém performance, metadados e conteúdo.
+ * 2. Cycle (Ciclo): Um contêiner para um projeto de estudo específico (ex: "PF 2025"). Permite multitenancy local.
+ * 3. FrameworkData: Estrutura piramidal de 5 camadas para alinhamento estratégico/mental.
+ * 4. AthensConfig: Configurações do contexto de estudo atual (IA context).
+ */
+
+/** Níveis de Peso no Edital (Eixo Y da Matriz Estratégica) */
 export enum Weight {
   BAIXO = 'Baixo',
   MEDIO = 'Médio',
   ALTO = 'Alto',
-  MUITO_ALTO = 'Muito Alto'
+  MUITO_ALTO = 'Muito Alto',
 }
 
+/** Níveis de Relevância/Dificuldade Pessoal (Eixo X da Matriz Estratégica) */
 export enum Relevance {
   BAIXA = 'Baixa',
   MEDIA = 'Média',
   ALTA = 'Alta',
-  ALTISSIMA = 'Altíssima'
+  ALTISSIMA = 'Altíssima',
 }
 
+/** Tendência de cobrança pela banca examinadora (Ajuste fino do algoritmo) */
 export enum Trend {
   BAIXA = 'Baixa',
   ESTAVEL = 'Estável',
-  ALTA = 'Alta'
+  ALTA = 'Alta',
 }
 
+/** Status do ciclo de vida de um caderno de estudos */
 export enum NotebookStatus {
   NOT_STARTED = 'Não Iniciado',
-  THEORY_DONE = 'Teoria Finalizada',
+  THEORY_DONE = 'Teoria Lida',
   REVIEWING = 'Em Revisão',
   MASTERED = 'Dominado'
 }
 
-export type PaceType = 'Off' | 'Iniciante' | 'Basico' | 'Intermediario' | 'Avancado' | 'Revisao';
-export type WeeklyStatus = 'pending' | 'started' | 'completed' | 'skipped';
+/**
+ * Entidade Principal: Caderno (Notebook)
+ * Representa um tópico atômico de estudo.
+ */
+export interface Notebook {
+  /** UUID v4 */
+  id: string;
+  /** Disciplina pai (ex: Direito Constitucional) */
+  discipline: string;
+  /** Nome do Tópico (ex: Controle de Constitucionalidade) */
+  name: string;
+  /** Subtópico ou foco específico (ex: ADI e ADC) */
+  subtitle: string;
+  /** Link externo para caderno de questões (Tec/QConcursos) */
+  tecLink?: string;
+  /** Link externo para texto de lei ou legislação */
+  lawLink?: string;
+  /** Link externo para anotações (Obsidian/Notion) - NOVO */
+  obsidianLink?: string;
+  /** Acurácia atual em % (0-100) */
+  accuracy: number;
+  /** Histórico de acurácia (Últimos 3 registros para tendência) */
+  accuracyHistory?: { date: string; accuracy: number }[];
+  /** Meta de acurácia desejada em % (ex: 90) */
+  targetAccuracy: number;
+  /** Peso estratégico no edital */
+  weight: Weight;
+  /** Relevância pessoal/estratégica */
+  relevance: Relevance;
+  /** Tendência da banca */
+  trend: Trend;
+  /** Status atual do progresso */
+  status: NotebookStatus;
+  /** Data ISO da última bateria de questões */
+  lastPractice?: string;
+  /** Data ISO calculada para próxima revisão (Algoritmo) */
+  nextReview?: string;
+  /** Anotações textuais rápidas (Markdown supportado futuramente) */
+  notes?: string;
+  /** @deprecated Use 'images' array instead. Mantido para compatibilidade. */
+  image?: string;
+  /** Lista de imagens em Base64 para rascunhos e resumos */
+  images?: string[];
+  /** ID da semana no planejamento (ex: 'week-1') ou null se estiver no backlog. (Nota: Em v2, gerenciado pelo Cycle) */
+  weekId?: string | null;
+  /** Marcador se o estudo foi concluído naquela semana específica - NOVO */
+  isWeekCompleted?: boolean;
+}
 
+/** Item do Protocolo Fisiológico */
+export interface ProtocolItem {
+  id: string;
+  name: string;
+  dosage: string;
+  time: string; // "HH:MM"
+  type: 'Suplemento' | 'Medicamento' | 'Refeição' | 'Hábito';
+  checked: boolean; // Reset diário
+}
+
+/** Configuração Avançada do Algoritmo de Revisão */
+export interface AlgorithmConfig {
+  baseIntervals: {
+    learning: number; // Acurácia < 60%
+    reviewing: number; // Acurácia 60-79%
+    mastering: number; // Acurácia 80-89%
+    maintaining: number; // Acurácia >= 90%
+  };
+  multipliers: {
+    relevanceHigh: number; // Multiplicador para Relevância Alta
+    relevanceExtreme: number; // Multiplicador para Relevância Altíssima
+    trendHigh: number; // Multiplicador para Tendência Alta
+  };
+}
+
+/** Estrutura do Edital Verticalizado (Parsed by IA) */
 export interface EditalTopic {
   name: string;
   probability: 'Alta' | 'Média' | 'Baixa';
@@ -40,120 +136,104 @@ export interface EditalDiscipline {
   topics: EditalTopic[];
 }
 
-export interface AlgorithmConfig {
-  baseIntervals: {
-    learning: number;
-    reviewing: number;
-    mastering: number;
-    maintaining: number;
-  };
-  multipliers: {
-    relevanceExtreme: number;
-    relevanceHigh: number;
-    trendHigh: number;
-  };
-}
-
+/** Configuração Global do Concurso (Contexto para IA) */
 export interface AthensConfig {
   targetRole: string;
   weeksUntilExam: number;
   studyPace: 'Iniciante' | 'Básico' | 'Intermediário' | 'Avançado';
-  startDate?: string;
+  startDate?: string; // YYYY-MM-DD
+  // Contexto rico para IA
   examName?: string;
   examDate?: string;
   banca?: string;
-  dailyHours?: number;
-  editalText?: string;
-  legislationText?: string;
+  editalText?: string; // Texto raw
   editalLink?: string;
+  // Edital Estruturado (Salvo após processamento da IA)
   structuredEdital?: EditalDiscipline[];
-  algorithm: AlgorithmConfig;
-  longTermPlanning?: Record<string, PaceType>;
+  // Algoritmo Customizável
+  algorithm?: AlgorithmConfig;
+  // Estado persistente da Calculadora de Ciclo
+  calculatorState?: {
+      weights: Record<string, number>;
+      selectedDisciplines: string[]; // Lista de nomes das disciplinas selecionadas
+      customDisciplines: string[]; // Lista de disciplinas adicionadas manualmente
+  };
 }
 
-export interface Notebook {
-  id: string;
-  discipline: string;
-  name: string;
-  subtitle?: string;
-  tecLink?: string;
-  errorNotebookLink?: string;
-  obsidianLink?: string;
-  accuracy: number;
-  targetAccuracy: number;
-  weight: Weight;
-  relevance: Relevance;
-  trend: Trend;
-  status: NotebookStatus;
-  notes?: string;
-  image?: string;
-  images: string[];
-  lastPractice?: string;
-  nextReview?: string;
-  weekId?: string | null;
-  weeklyStatus?: WeeklyStatus;
-  createdAt?: string;
-}
-
+/** 
+ * Entidade Ciclo (Projeto) - V2.0 CORE
+ * Permite múltiplos planejamentos usando o mesmo banco de dados (Universal Notebooks).
+ * Separa a "Biblioteca de Conhecimento" do "Planejamento Tático".
+ */
 export interface Cycle {
   id: string;
-  name: string;
-  config: AthensConfig;
-  notebooks: Notebook[];
+  name: string; // Ex: "Receita Federal 2025"
+  createdAt: string;
   lastAccess: string;
+  config: AthensConfig;
+  /** Mapeia o ID do notebook (Global) para o weekId neste ciclo específico */
+  planning: Record<string, string | null>; 
+  /** Mapeia o ID do notebook para status de concluído na semana neste ciclo */
+  weeklyCompletion: Record<string, boolean>;
 }
 
-export interface ProtocolItem {
-  id: string;
-  name: string;
-  dosage: string;
-  time: string;
-  type: 'Suplemento' | 'Medicamento' | 'Refeição';
-  checked: boolean;
-}
-
+/** Dados do Framework Piramidal (V2.0 FEATURE) */
 export interface FrameworkData {
-  habit: string;
-  action: string;
-  motivation: string;
+  values: string; // Base da pirâmide
   dream: string;
-  values: string;
+  motivation: string;
+  action: string;
+  habit: string; // Topo da pirâmide
 }
 
+/** Tipos de Relatórios Salvos */
+export type ReportType = 'tactical' | 'edital';
+
+/** Resultado da Análise de Edital via IA */
+export interface EditalAnalysisResult {
+  overallCoverage: number;
+  passingProbability: number;
+  readinessScore: string;
+  disciplines: {
+    name: string;
+    coverage: number;
+    accuracy: number;
+    missingTopics: string[];
+  }[];
+  missingDisciplines: string[];
+  strategicInsight: string;
+}
+
+/** Entidade de Persistência de Relatórios */
+export interface SavedReport {
+  id: string;
+  date: string;
+  type: ReportType;
+  summary: string;
+  data: string | EditalAnalysisResult;
+}
+
+/** Entidade de Anotação Rápida (Post-it) */
 export interface Note {
   id: string;
   content: string;
   color: 'yellow' | 'blue' | 'green' | 'pink' | 'purple' | 'slate';
+  createdAt: string;
   updatedAt: string;
 }
 
-export interface EditalAnalysisResult {
-    overallCoverage: number;
-    passingProbability: number;
-    readinessScore: string;
-    disciplines: { name: string; coverage: number; accuracy: number; missingTopics: string[] }[];
-    missingDisciplines: string[];
-    strategicInsight: string;
-}
-
-export interface SavedReport {
-  id: string;
-  type: 'tactical' | 'edital';
-  summary: string;
-  data: string | EditalAnalysisResult;
-  date: string;
-}
+// --- CONSTANTES DE SCORE ---
 
 export const WEIGHT_SCORE: Record<Weight, number> = {
   [Weight.BAIXO]: 1,
   [Weight.MEDIO]: 2,
   [Weight.ALTO]: 3,
-  [Weight.MUITO_ALTO]: 4
+  [Weight.MUITO_ALTO]: 4,
 };
 
 export const RELEVANCE_SCORE: Record<Relevance, number> = {
   [Relevance.BAIXA]: 1,
   [Relevance.MEDIA]: 2,
   [Relevance.ALTA]: 3,
-  [Relevance.ALTISSIMA]: 4
+  [Relevance.ALTISSIMA]: 4,
 };

@@ -1,12 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { Loader2, Mail, Lock, UserPlus, LogIn, KeyRound, WifiOff, User, AlertTriangle, ExternalLink, Copy, Settings, ShieldAlert, Database } from 'lucide-react';
+import React, { useState } from 'react';
+import { Loader2, Mail, Lock, UserPlus, LogIn, KeyRound, WifiOff, User, AlertTriangle, ExternalLink } from 'lucide-react';
 import { Logo } from './Logo';
-import { supabase, isUsingFallback, projectUrl } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import { useStore } from '../store';
 
 interface Props {
   onLoginSuccess: () => void;
-  initialError?: string | null;
 }
 
 // Simple Google Icon SVG for clean UI
@@ -21,26 +20,17 @@ const GoogleIcon = () => (
   </svg>
 );
 
-export const Login: React.FC<Props> = ({ onLoginSuccess, initialError }) => {
-  const { enterGuestMode, loading: globalLoading } = useStore();
-  const [localLoading, setLocalLoading] = useState(false);
+export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
+  const { enterGuestMode } = useStore();
+  const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState<{text: string, type: 'error' | 'success' | 'info'} | null>(null);
-  
-  // Inicializar com erro passado via prop, se houver
-  useEffect(() => {
-      if (initialError) {
-          setMessage({ text: initialError, type: 'error' });
-      }
-  }, [initialError]);
-  
-  const isLoading = globalLoading || localLoading;
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLocalLoading(true);
+    setLoading(true);
     setMessage(null);
 
     try {
@@ -56,12 +46,12 @@ export const Login: React.FC<Props> = ({ onLoginSuccess, initialError }) => {
     } catch (error: any) {
         setMessage({ text: error.message, type: 'error' });
     } finally {
-        setLocalLoading(false);
+        setLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
-    setLocalLoading(true);
+    setLoading(true);
     setMessage(null);
     const origin = window.location.origin;
     
@@ -75,15 +65,23 @@ export const Login: React.FC<Props> = ({ onLoginSuccess, initialError }) => {
         
         if (error) throw error;
         
+        // Se não houver erro imediato, o redirecionamento acontecerá.
+        // Se o usuário ver a mensagem abaixo, algo bloqueou o popup ou redirect
         setMessage({ text: "Redirecionando para Google...", type: 'info' });
 
     } catch (error: any) {
         console.error("Google Auth Error:", error);
+        
+        let hint = "";
+        if (error.message?.includes("configuration")) {
+            hint = "Verifique se o Google Provider está habilitado no painel do Supabase.";
+        }
+        
         setMessage({ 
-            text: `Falha na conexão: ${error.message}`, 
+            text: `Erro ao conectar: ${error.message}. ${hint}`, 
             type: 'error' 
         });
-        setLocalLoading(false);
+        setLoading(false);
     }
   };
 
@@ -111,21 +109,11 @@ export const Login: React.FC<Props> = ({ onLoginSuccess, initialError }) => {
         </h1>
         
         <p className="text-slate-400 mb-8 text-lg font-light tracking-wide">
-          Plataforma de planejamento para concurseiros de elite.
+          Plataforma de planejamento para concurseiros de elite. <span className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full border border-slate-700 ml-2 align-middle font-mono">v3.3.0</span>
         </p>
 
-        <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm relative">
+        <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm">
            
-           {/* Loader Overlay */}
-           {isLoading && (
-               <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center rounded-2xl border border-emerald-500/20">
-                   <Loader2 size={32} className="text-emerald-500 animate-spin mb-2" />
-                   <p className="text-xs text-emerald-400 font-bold uppercase tracking-wider animate-pulse">
-                       {globalLoading ? 'Verificando Sessão...' : 'Autenticando...'}
-                   </p>
-               </div>
-           )}
-
            <form onSubmit={handleAuth} className="space-y-4">
                <div>
                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1 text-left">Email</label>
@@ -135,10 +123,9 @@ export const Login: React.FC<Props> = ({ onLoginSuccess, initialError }) => {
                            type="email" 
                            value={email}
                            onChange={e => setEmail(e.target.value)}
-                           className="w-full bg-slate-950 border border-slate-700 rounded-lg py-2.5 pl-10 text-white outline-none focus:border-emerald-500 disabled:opacity-50"
+                           className="w-full bg-slate-950 border border-slate-700 rounded-lg py-2.5 pl-10 text-white outline-none focus:border-emerald-500"
                            placeholder="seu@email.com"
                            required
-                           disabled={isLoading}
                        />
                    </div>
                </div>
@@ -151,11 +138,10 @@ export const Login: React.FC<Props> = ({ onLoginSuccess, initialError }) => {
                            type="password" 
                            value={password}
                            onChange={e => setPassword(e.target.value)}
-                           className="w-full bg-slate-950 border border-slate-700 rounded-lg py-2.5 pl-10 text-white outline-none focus:border-emerald-500 disabled:opacity-50"
+                           className="w-full bg-slate-950 border border-slate-700 rounded-lg py-2.5 pl-10 text-white outline-none focus:border-emerald-500"
                            placeholder="••••••••"
                            required
                            minLength={6}
-                           disabled={isLoading}
                        />
                    </div>
                </div>
@@ -165,19 +151,15 @@ export const Login: React.FC<Props> = ({ onLoginSuccess, initialError }) => {
                        ${message.type === 'error' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 
                          message.type === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
                          'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
-                       <span className="font-bold flex items-center gap-1 leading-tight">
-                           {message.type === 'error' && <AlertTriangle size={14} className="flex-shrink-0"/>}
+                       <span className="font-bold flex items-center gap-1">
+                           {message.type === 'error' && <AlertTriangle size={12}/>}
                            {message.text}
                        </span>
-                       
-                       {/* Enhanced Google Error Help */}
-                       {message.type === 'error' && (message.text.includes("OAuth") || message.text.includes("Google") || message.text.includes("URL")) && (
-                           <div className="mt-2 pt-2 border-t border-red-500/20 text-[10px] opacity-90">
-                               <p className="font-bold mb-1 text-red-300 flex items-center gap-1"><ShieldAlert size={12}/> Configuração Supabase:</p>
-                               <p className="mb-1">Certifique-se de adicionar esta URL exata em <em>Authentication &gt; URL Configuration &gt; Redirect URLs</em>:</p>
-                               <code className="block bg-black/40 p-2 rounded mt-1 font-mono text-emerald-400 select-all cursor-text break-all border border-red-500/30">
-                                   {typeof window !== 'undefined' ? window.location.origin : '...'}
-                               </code>
+                       {message.type === 'error' && message.text.includes("Google") && (
+                           <div className="mt-1 pt-1 border-t border-red-500/20 text-[10px] opacity-80">
+                               <strong>Dica Técnica:</strong> No painel do Supabase, vá em <em>Authentication &gt; URL Configuration</em> e adicione: <br/>
+                               <code className="bg-black/30 px-1 rounded">{window.location.origin}</code> <br/>
+                               na lista de "Redirect URLs".
                            </div>
                        )}
                    </div>
@@ -185,10 +167,10 @@ export const Login: React.FC<Props> = ({ onLoginSuccess, initialError }) => {
 
                <button 
                  type="submit"
-                 disabled={isLoading}
-                 className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-900/20 mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
+                 disabled={loading}
+                 className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-900/20 mt-4"
                >
-                 {isSignUp ? <UserPlus size={18} /> : <LogIn size={18} />}
+                 {loading && !message?.text.includes("Google") ? <Loader2 className="animate-spin" /> : isSignUp ? <UserPlus size={18} /> : <LogIn size={18} />}
                  {isSignUp ? "Criar Conta" : "Acessar Sistema"}
                </button>
            </form>
@@ -205,8 +187,8 @@ export const Login: React.FC<Props> = ({ onLoginSuccess, initialError }) => {
             <button 
                 type="button"
                 onClick={handleGoogleLogin}
-                disabled={isLoading}
-                className={`w-full bg-slate-800 hover:bg-slate-700 text-white font-medium py-3 rounded-xl flex items-center justify-center gap-3 transition-colors border border-slate-700 mb-4 disabled:opacity-50`}
+                disabled={loading}
+                className="w-full bg-slate-800 hover:bg-slate-700 text-white font-medium py-3 rounded-xl flex items-center justify-center gap-3 transition-colors border border-slate-700 mb-4"
             >
                 <GoogleIcon />
                 <span>Google</span>
@@ -215,11 +197,11 @@ export const Login: React.FC<Props> = ({ onLoginSuccess, initialError }) => {
             <button 
                 type="button"
                 onClick={handleGuestAccess}
-                disabled={isLoading}
-                className="w-full bg-transparent border border-slate-700 hover:border-slate-500 text-slate-400 hover:text-white font-medium py-3 rounded-xl flex items-center justify-center gap-2 transition-all group disabled:opacity-50"
+                disabled={loading}
+                className="w-full bg-transparent border border-slate-700 hover:border-slate-500 text-slate-400 hover:text-white font-medium py-3 rounded-xl flex items-center justify-center gap-2 transition-all group"
             >
                 <WifiOff size={18} className="group-hover:text-emerald-400 transition-colors" />
-                <span>Modo Visitante (Offline)</span>
+                <span>Modo Visitante</span>
             </button>
             <p className="text-[10px] text-slate-600 mt-2">Dados locais não são sincronizados com a nuvem.</p>
 
@@ -227,7 +209,6 @@ export const Login: React.FC<Props> = ({ onLoginSuccess, initialError }) => {
                <button 
                   onClick={() => { setIsSignUp(!isSignUp); setMessage(null); }}
                   className="text-sm text-slate-500 hover:text-emerald-400 transition-colors flex items-center justify-center gap-2 w-full"
-                  disabled={isLoading}
                >
                    <KeyRound size={14} />
                    {isSignUp ? "Já tenho conta" : "Criar nova conta"}

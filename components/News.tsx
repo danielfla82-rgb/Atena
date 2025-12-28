@@ -18,19 +18,24 @@ export const News: React.FC = () => {
   const [errorDetail, setErrorDetail] = useState<string | null>(null);
   const [mode, setMode] = useState<'live' | 'offline' | 'demo'>('live');
 
-  // Dados Estáticos de Fallback (Último recurso)
+  // Dados Estáticos de Fallback
   const STATIC_BRIEFING = `
 ### Panorama Estratégico (Modo de Segurança)
 
-**Atenção:** O sistema não conseguiu conectar com a Inteligência Artificial (Cota Excedida ou Erro de Rede). Exibindo dados de referência estáticos para ${config.targetRole}.
+**Atenção:** O sistema de Inteligência Artificial está operando em modo restrito (API não ativada, Chave Inválida ou Cota Excedida). Exibindo dados de referência para ${config.targetRole}.
 
 ## 1. Perfil da Banca (Tendência Geral)
-*   **Português:** Foco em interpretação de texto complexa e reescrita de frases.
-*   **Direito Constitucional:** Jurisprudência do STF tem peso muito alto.
-*   **Raciocínio Lógico:** Ênfase em lógica de argumentação.
+*   **Português:** Foco em interpretação de texto complexa e reescrita de frases. A gramática é cobrada de forma contextual.
+*   **Direito Constitucional:** Jurisprudência do STF tem peso muito alto (Repercussão Geral e Súmulas Vinculantes).
+*   **Raciocínio Lógico:** Ênfase em lógica de argumentação e análise combinatória.
 
-## 2. Recomendação
-Verifique sua conexão ou a Chave de API nas configurações. Enquanto isso, foque em resolução de questões e revisão de lei seca.
+## 2. Tópicos de Alta Incidência (Histórico)
+*   Atos Administrativos (Vícios e Anulação).
+*   Controle de Constitucionalidade (Concentrado vs Difuso).
+*   Licitações (Lei 14.133/21 - Foco nas novas modalidades).
+
+## 3. Dica de Preparação
+Aumente a carga horária em **resolução de questões** e reduza a leitura passiva de teoria. O momento exige prática deliberada.
   `;
 
   const fetchNews = async () => {
@@ -43,7 +48,6 @@ Verifique sua conexão ou a Chave de API nas configurações. Enquanto isso, foq
     const ai = createAIClient();
 
     try {
-      // 1. TENTATIVA LIVE (Google Search)
       const promptLive = `
         Atue como Analista de Inteligência de Concursos (Alvo: ${config.targetRole}).
         Faça uma varredura nas últimas notícias sobre este concurso ou área.
@@ -61,7 +65,7 @@ Verifique sua conexão ou a Chave de API nas configurações. Enquanto isso, foq
       });
 
       const text = response.text;
-      if (!text) throw new Error("Resposta vazia da IA (Live)");
+      if (!text) throw new Error("Resposta vazia da IA");
       
       setBriefing(text);
 
@@ -86,60 +90,54 @@ Verifique sua conexão ou a Chave de API nas configurações. Enquanto isso, foq
       setSources(extractedSources);
       setLastUpdate(new Date().toLocaleTimeString());
 
-    } catch (liveError: any) {
-      console.warn("Falha no Google Search (Live Mode). Tentando Fallback Offline...", liveError);
+    } catch (error: any) {
+      console.warn("Falha no Google Search (Live Mode).", error);
+      const errStr = JSON.stringify(error);
       
-      // Identificar erro de cota para mensagem adequada
-      const errStr = JSON.stringify(liveError);
-      const isQuota = errStr.includes("429") || liveError.status === 429;
-      
-      // 2. TENTATIVA OFFLINE (Base de Conhecimento do Modelo sem Search)
-      setMode('offline');
-      setSources([]); 
-      
-      try {
-          const promptFallback = `
-            Atue como Mentor de Concursos para o cargo: ${config.targetRole}.
-            Como não conseguimos acessar as notícias em tempo real agora, forneça um:
-            "Panorama Estratégico Baseado em Histórico"
-            1. O que geralmente é cobrado para este cargo?
-            2. Qual o perfil das bancas mais prováveis?
-            3. Dicas de preparação de longo prazo.
-            Formato: Markdown.
-          `;
-          
-          // Tenta usar um modelo standard (sem search) para ver se passa
-          // Se o 3-flash estiver com cota, talvez o 2.5-flash passe
-          const fallbackResponse = await ai.models.generateContent({
-            model: 'gemini-2.5-flash-latest',
-            contents: promptFallback
-          });
+      // Categorização robusta de erros de API
+      const isQuotaError = error.status === 429 || errStr.includes("429") || errStr.includes("quota");
+      const isKeyError = errStr.includes("API_KEY") || error.status === 403;
+      const isServiceError = errStr.includes("SERVICE_DISABLED") || errStr.includes("Generative Language API");
 
-          if (!fallbackResponse.text) throw new Error("Resposta vazia no fallback");
-
-          setBriefing(fallbackResponse.text);
-          setLastUpdate(new Date().toLocaleTimeString());
-          
-          let msg = "Acesso à Web instável. Exibindo análise baseada no histórico interno da IA.";
-          if (isQuota) msg = "Cota de busca (Search) excedida. Exibindo análise estratégica interna.";
-          
-          setErrorDetail(msg);
-
-      } catch (fallbackError: any) {
-          // 3. FALLBACK ESTÁTICO (Demo Mode - Falha Total)
-          console.error("Falha total na IA.", fallbackError);
+      if (isQuotaError || isKeyError || isServiceError) {
           setMode('demo');
           setBriefing(STATIC_BRIEFING);
           setLastUpdate(new Date().toLocaleTimeString());
           
-          let msg = "Erro crítico de conexão com a IA.";
-          if (isQuota || JSON.stringify(fallbackError).includes("429")) {
-              msg = "Cota da API esgotada (429). Modo de Segurança Ativo.";
-          } else if (errStr.includes("API_KEY")) {
-              msg = "Chave de API inválida.";
-          }
+          let msg = "Erro de configuração da API.";
+          if (isQuotaError) msg = "Cota da API excedida (429). Tente novamente mais tarde.";
+          if (isKeyError) msg = "Chave de API inválida ou sem permissão.";
+          if (isServiceError) msg = "API Google Search Grounding não ativada no GCP.";
           
           setErrorDetail(msg);
+      } else {
+          // Erros genéricos (Timeout, Network, Model Confusion) caem para Offline Mode (Base de Conhecimento do Modelo)
+          setMode('offline');
+          try {
+              const promptFallback = `
+                Atue como Mentor de Concursos para o cargo: ${config.targetRole}.
+                Como não conseguimos acessar as notícias em tempo real agora (Erro de Busca), forneça um:
+                "Panorama Estratégico Atemporal"
+                1. O que geralmente é cobrado para este cargo?
+                2. Qual o perfil das bancas mais prováveis?
+                3. Dicas de preparação de longo prazo.
+                Formato: Markdown.
+              `;
+              
+              const fallbackResponse = await ai.models.generateContent({
+                model: 'gemini-3-flash-preview',
+                contents: promptFallback
+              });
+
+              setBriefing(fallbackResponse.text || "Sem dados disponíveis.");
+              setLastUpdate(new Date().toLocaleTimeString());
+              setErrorDetail("Falha na busca web. Exibindo conhecimento da base de dados do modelo.");
+              
+          } catch (fallbackError: any) {
+              setMode('demo');
+              setBriefing(STATIC_BRIEFING);
+              setErrorDetail("Erro total de conexão com a IA.");
+          }
       }
     } finally {
       setLoading(false);
