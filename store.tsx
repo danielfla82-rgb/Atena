@@ -23,14 +23,6 @@ const DEFAULT_FRAMEWORK: FrameworkData = { values: '', dream: '', motivation: ''
 const GUEST_CYCLE_ID = 'guest-cycle-demo';
 const TODAY = new Date().toISOString().split('T')[0];
 
-const GUEST_MOCK_DB: any = {
-    config: { ...DEFAULT_CONFIG },
-    framework: { values: 'Demo Values', dream: 'Demo Dream', motivation: '', action: '', habit: '' },
-    protocol: [],
-    notebooks: [],
-    notes: []
-};
-
 interface StoreContextType {
   notebooks: Notebook[];
   config: AthensConfig;
@@ -78,6 +70,9 @@ interface StoreContextType {
   addNote: () => void;
   updateNote: (id: string, content: string, color?: Note['color']) => void;
   deleteNote: (id: string) => void;
+  
+  // Deprecated/Compatibility Helper
+  moveNotebookToWeek: (id: string, weekId: string | null) => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -247,6 +242,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if(updates.lastPractice) dbUpdates.last_practice = updates.lastPractice;
           if(updates.nextReview) dbUpdates.next_review = updates.nextReview;
           if(updates.accuracyHistory) dbUpdates.accuracy_history = updates.accuracyHistory;
+          // Add other fields as necessary based on schema
           
           await supabase.from('notebooks').update(dbUpdates).eq('id', id);
       }
@@ -264,10 +260,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       if (user && !isGuest) {
           try {
-              // Delete from DB (Allocations in cycles are JSONB, need to update row)
+              // Delete from DB (Notebook)
               await supabase.from('notebooks').delete().eq('id', id);
               
-              // Sync cleaned cycles
+              // Sync cleaned cycles allocations
               for (const cycle of cycles) {
                   const cleanedPlanning = (cycle.planning as Allocation[]).filter(a => a.notebookId !== id);
                   await supabase.from('cycles').update({ planning: cleanedPlanning }).eq('id', cycle.id);
@@ -368,13 +364,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const enterGuestMode = () => {
       setLoading(true); setIsGuest(true); setUser({ id: 'guest', email: 'visitante@atena.os' });
-      // ... (Guest Init Logic Omitted for Brevity, assumes similar structure)
+      // ... (Guest Init Logic Omitted for Brevity)
       setLoading(false);
   };
 
-  // Placeholders for minor features
+  // Placeholders / Compat
   const getWildcardNotebook = () => null;
   const bulkUpdateNotebooks = () => {};
+  const moveNotebookToWeek = async (id: string, weekId: string | null) => {
+      // Compatibility shim: if weekId is null, it removes from planning (legacy). 
+      // This is mostly replaced by Allocation logic in UI.
+  };
   const selectCycle = setActiveCycleId;
   const deleteCycle = (id: string) => {
       setCycles(p => p.filter(c => c.id !== id));
@@ -397,7 +397,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       enterGuestMode, createCycle, selectCycle, deleteCycle, updateConfig, updateNotebookAccuracy,
       getWildcardNotebook, addNotebook, editNotebook, deleteNotebook, bulkUpdateNotebooks, saveReport, deleteReport,
       addProtocolItem, toggleProtocolItem, deleteProtocolItem, updateFramework, addNote, updateNote, deleteNote,
-      addAllocation, removeAllocation, moveAllocation, toggleAllocationComplete
+      addAllocation, removeAllocation, moveAllocation, toggleAllocationComplete, moveNotebookToWeek
     }}>
       {children}
     </StoreContext.Provider>

@@ -38,7 +38,7 @@ export enum NotebookStatus {
 
 /**
  * Entidade Principal: Caderno (Notebook)
- * Representa um tópico atômico de estudo (Definição).
+ * Representa um tópico atômico de estudo.
  */
 export interface Notebook {
   /** UUID v4 */
@@ -80,7 +80,7 @@ export interface Notebook {
   /** Lista de imagens em Base64 para rascunhos e resumos */
   images?: string[];
   
-  // Propriedades Legadas (Mantidas para compatibilidade com Dashboard antigo, mas populadas dinamicamente)
+  // Propriedades Legadas/Injetadas (Mantidas para compatibilidade com Dashboard antigo, mas populadas dinamicamente via Store)
   weekId?: string | null;
   isWeekCompleted?: boolean;
 }
