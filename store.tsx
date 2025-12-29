@@ -262,7 +262,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const exportDatabase = () => {
       const data = {
           exportDate: new Date().toISOString(),
-          version: "4.3.0",
+          version: "6.0.0",
           user: user?.email || "guest",
           notebooks,
           cycles,
@@ -491,6 +491,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       setCycles(prev => prev.map(c => c.id === activeCycleId ? { ...c, schedule: newSchedule } : c));
       await syncCycleData(activeCycleId, { schedule: newSchedule });
+      
+      // Check if notebook has any other slots left, if not, update visual flag
+      // (This is implicitly handled by the AllocationMap effect in StoreProvider)
   };
 
   // --- PERSISTENCE ACTIONS (LEGACY & NEW) ---

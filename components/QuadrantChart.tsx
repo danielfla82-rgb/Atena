@@ -1,9 +1,20 @@
-
 import React, { useMemo, useState } from 'react';
 import { Notebook, Weight, Relevance, WEIGHT_SCORE, RELEVANCE_SCORE } from '../types';
 import { AlertTriangle, CheckCircle2, Minus, Target, Grid3X3, ScatterChart as ScatterIcon } from 'lucide-react';
-import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell } from 'recharts';
 import { getStatusColor } from '../utils/algorithm';
+
+// Chart.js imports
+import {
+  Chart as ChartJS,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Tooltip,
+  Legend
+} from 'chart.js';
+import { Scatter } from 'react-chartjs-2';
+
+ChartJS.register(LinearScale, PointElement, LineElement, Tooltip, Legend);
 
 interface Props {
   data: Notebook[];
@@ -52,32 +63,67 @@ export const QuadrantChart: React.FC<Props> = ({ data }) => {
     return <AlertTriangle size={14} />;
   };
 
-  // --- SCATTER PLOT LOGIC ---
+  // --- SCATTER PLOT LOGIC (Chart.js) ---
   const scatterData = useMemo(() => {
-    return data.map(nb => ({
-      ...nb,
-      x: RELEVANCE_SCORE[nb.relevance], // 1-4
-      y: WEIGHT_SCORE[nb.weight], // 1-4
-      z: 1 // Uniform size (could use weight for bubble size)
-    }));
+    return {
+        datasets: [{
+            label: 'Cadernos',
+            data: data.map(nb => ({
+                x: RELEVANCE_SCORE[nb.relevance] + (Math.random() * 0.2 - 0.1), // Jitter
+                y: WEIGHT_SCORE[nb.weight] + (Math.random() * 0.2 - 0.1), // Jitter
+                r: 6, // Radius
+                notebook: nb
+            })),
+            backgroundColor: data.map(nb => {
+                if (nb.accuracy >= nb.targetAccuracy) return '#10b981'; // Green
+                if (nb.accuracy < 60) return '#ef4444'; // Red
+                return '#f59e0b'; // Amber
+            }),
+            borderWidth: 0
+        }]
+    };
   }, [data]);
 
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      const item = payload[0].payload;
-      return (
-        <div className="bg-slate-900 border border-slate-700 p-3 rounded-lg shadow-xl z-50">
-          <p className="font-bold text-white text-sm mb-1">{item.name}</p>
-          <p className="text-xs text-slate-400 mb-2">{item.discipline}</p>
-          <div className="flex gap-2 text-xs">
-             <span className="text-emerald-400">Acerto: {item.accuracy}%</span>
-             <span className="text-slate-500">|</span>
-             <span className="text-slate-300">Meta: {item.targetAccuracy}%</span>
-          </div>
-        </div>
-      );
-    }
-    return null;
+  const scatterOptions = {
+      scales: {
+          x: {
+              type: 'linear' as const,
+              position: 'bottom' as const,
+              title: { display: true, text: 'Relevância', color: '#94a3b8' },
+              min: 0.5,
+              max: 4.5,
+              ticks: { 
+                  stepSize: 1, 
+                  callback: (val: any) => ['', 'Baixa', 'Média', 'Alta', 'Altíssima'][val] || '',
+                  color: '#94a3b8'
+              },
+              grid: { color: '#334155' }
+          },
+          y: {
+              type: 'linear' as const,
+              title: { display: true, text: 'Peso no Edital', color: '#94a3b8' },
+              min: 0.5,
+              max: 4.5,
+              ticks: { 
+                  stepSize: 1, 
+                  callback: (val: any) => ['', 'Baixo', 'Médio', 'Alto', 'M. Alto'][val] || '',
+                  color: '#94a3b8'
+              },
+              grid: { color: '#334155' }
+          }
+      },
+      plugins: {
+          legend: { display: false },
+          tooltip: {
+              callbacks: {
+                  label: (ctx: any) => {
+                      const nb = ctx.raw.notebook;
+                      return `${nb.name} (${nb.accuracy}%)`;
+                  }
+              }
+          }
+      },
+      maintainAspectRatio: false
   };
 
   return (
@@ -190,58 +236,12 @@ export const QuadrantChart: React.FC<Props> = ({ data }) => {
                 </div>
             </>
         ) : (
-            // --- SCATTER RENDER ---
+            // --- CHART.JS SCATTER RENDER ---
             <div className="w-full h-full relative">
-                 <ResponsiveContainer width="100%" height="100%">
-                    <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                      <XAxis 
-                        type="number" 
-                        dataKey="x" 
-                        name="Relevância" 
-                        domain={[0.5, 4.5]} 
-                        ticks={[1, 2, 3, 4]}
-                        stroke="#94a3b8"
-                        tickFormatter={(val) => {
-                            const labels = ['', 'Baixa', 'Média', 'Alta', 'Altíssima'];
-                            return labels[val] || '';
-                        }}
-                        tick={{fontSize: 10}}
-                      />
-                      <YAxis 
-                        type="number" 
-                        dataKey="y" 
-                        name="Peso" 
-                        domain={[0.5, 4.5]} 
-                        ticks={[1, 2, 3, 4]}
-                        stroke="#94a3b8"
-                        tickFormatter={(val) => {
-                            const labels = ['', 'Baixo', 'Médio', 'Alto', 'M. Alto'];
-                            return labels[val] || '';
-                        }}
-                        tick={{fontSize: 10}}
-                      />
-                      <Tooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3' }} />
-                      
-                      {/* Quadrant Guidelines */}
-                      <ReferenceLine x={2.5} stroke="#475569" strokeDasharray="3 3" />
-                      <ReferenceLine y={2.5} stroke="#475569" strokeDasharray="3 3" />
-
-                      <Scatter name="Cadernos" data={scatterData}>
-                        {scatterData.map((entry, index) => (
-                          <Cell 
-                             key={`cell-${index}`} 
-                             fill={getStatusColor(entry.accuracy, entry.targetAccuracy)} 
-                             strokeWidth={1}
-                             stroke="#fff"
-                          />
-                        ))}
-                      </Scatter>
-                    </ScatterChart>
-                 </ResponsiveContainer>
+                 <Scatter data={scatterData} options={scatterOptions} />
                  
-                 {/* Scatter Legend */}
-                 <div className="absolute top-0 right-0 text-[10px] bg-slate-900/90 p-2 rounded border border-slate-700 text-slate-400 backdrop-blur-sm">
+                 {/* Legend */}
+                 <div className="absolute top-0 right-0 text-[10px] bg-slate-900/90 p-2 rounded border border-slate-700 text-slate-400 backdrop-blur-sm pointer-events-none">
                     <div className="flex items-center gap-1.5 mb-1"><div className="w-2 h-2 rounded-full bg-red-500"></div> Crítico</div>
                     <div className="flex items-center gap-1.5 mb-1"><div className="w-2 h-2 rounded-full bg-orange-500"></div> Atenção</div>
                     <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500"></div> Dominado</div>

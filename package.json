@@ -1,5 +1,5 @@
 {
-  "name": "projeto-atena-v4.1.0-(titan-edition)",
+  "name": "projeto-atena-v6.0",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,11 +10,13 @@
   },
   "dependencies": {
     "react-dom": "^19.2.3",
-    "recharts": "^3.6.0",
+    "recharts": "^2.12.0",
     "lucide-react": "^0.562.0",
     "react": "^19.2.3",
     "@google/genai": "^1.34.0",
-    "@supabase/supabase-js": "^2.89.0"
+    "@supabase/supabase-js": "^2.89.0",
+    "chart.js": "4.4.1",
+    "react-chartjs-2": "5.2.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

@@ -1,14 +1,15 @@
 
 /**
- * DOCUMENTAÇÃO TÉCNICA - PROJETO ATENA V4.2.0
+ * DOCUMENTAÇÃO TÉCNICA - PROJETO ATENA V6.0.0
  * ============================================
  * Data Model e Tipagem do Sistema.
  * 
- * STATUS: STABLE / TITAN EDITION
+ * STATUS: STABLE / GOLD EDITION
  * 
- * CHANGELOG V4.2.0:
- * - [CORE] Implementação de Multi-Slot Scheduling (ScheduleItem).
- * - [FEAT] Permite repetir o mesmo caderno na semana sem duplicar no DB.
+ * CHANGELOG V6.0.0:
+ * - [RELEASE] Lançamento Oficial.
+ * - [CORE] Estabilização do Algoritmo de Agendamento Neural.
+ * - [UI] Refinamento visual completo (Dark Mode Elite).
  * 
  * PRINCIPAIS ENTIDADES:
  * 1. Notebook (Caderno): A unidade atômica de estudo.

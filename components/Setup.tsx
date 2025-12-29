@@ -1,8 +1,7 @@
-
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, Relevance, Trend, NotebookStatus, ScheduleItem } from '../types';
-import { Plus, Search, Copy, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2, TrendingUp, History, ListPlus, Minus, AlertTriangle, CheckCircle2, RotateCw, Zap, Activity, Info, Clock, Archive, Cloud, CloudOff, Download } from 'lucide-react';
+import { Plus, Search, Copy, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2, TrendingUp, History, ListPlus, Minus, AlertTriangle, CheckCircle2, RotateCw, Zap, Activity, Info, Clock, Archive, Cloud, CloudOff, Download, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { calculateNextReview, getStatusColor } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 
@@ -50,14 +49,14 @@ const DraggableCard = React.memo(({
             draggable={!disabled}
             onDragStart={(e) => onDragStart(e, notebook.id, origin)}
             className={`
-                group relative bg-slate-800 border border-slate-700 rounded-lg p-3 cursor-grab active:cursor-grabbing hover:border-emerald-500/50 transition-all shadow-sm
+                group relative bg-slate-800 border border-slate-700 rounded-xl p-3 cursor-grab active:cursor-grabbing hover:border-emerald-500/50 transition-all shadow-sm
                 ${disabled ? 'opacity-50 pointer-events-none' : ''}
                 ${isCompact ? 'text-xs' : 'text-sm'}
                 ${isCompleted && isWeek ? 'bg-slate-900 border-slate-800' : ''}
             `}
         >
             {isLibrary && (
-                <div className={`absolute right-0 top-0 p-1 rounded-bl text-[9px] uppercase font-bold tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border-l border-b z-10 flex items-center gap-1 bg-slate-900/80 border-slate-700 text-emerald-500`}>
+                <div className={`absolute right-0 top-0 p-1 rounded-bl-lg text-[9px] uppercase font-bold tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border-l border-b z-10 flex items-center gap-1 bg-slate-900/90 border-slate-700 text-emerald-500 rounded-tr-xl`}>
                     <Calendar size={10}/> + Agendar
                 </div>
             )}
@@ -78,22 +77,25 @@ const DraggableCard = React.memo(({
 
             <div className="flex justify-between items-start">
                 <div className="flex-1 min-w-0 pr-2">
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex flex-wrap items-center gap-2 mb-1.5">
                          <div 
                             className="w-2 h-2 rounded-full flex-shrink-0" 
                             style={{ backgroundColor: statusColor }} 
                             title={`Acurácia: ${notebook.accuracy}%`}
                          />
-                        <h4 className={`font-bold truncate leading-tight ${isCompleted && isWeek ? 'text-emerald-400 line-through' : 'text-slate-200'}`}>
+                        <h4 className={`font-bold truncate leading-tight max-w-[140px] ${isCompleted && isWeek ? 'text-emerald-400 line-through' : 'text-slate-200'}`}>
                             {notebook.discipline}
                         </h4>
+                        
+                        {/* REDESIGNED "NO CICLO" BADGE */}
                         {isLibrary && allocationCount && allocationCount > 0 ? (
-                            <span className="text-[8px] bg-blue-900/30 text-blue-400 border border-blue-500/30 px-1.5 rounded flex items-center gap-1" title="Alocado no planejamento">
-                                <CheckCircle2 size={8} /> No Ciclo
+                            <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[9px] font-bold text-indigo-300 uppercase tracking-wide shadow-[0_0_10px_rgba(99,102,241,0.1)]">
+                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></span>
+                                No Ciclo
                             </span>
                         ) : null}
                     </div>
-                    <p className={`truncate mb-1 leading-tight ${isCompleted && isWeek ? 'text-slate-600' : 'text-slate-400'}`} title={notebook.name}>{notebook.name}</p>
+                    <p className={`truncate mb-1 leading-tight font-medium ${isCompleted && isWeek ? 'text-slate-600' : 'text-slate-400'}`} title={notebook.name}>{notebook.name}</p>
                     {notebook.subtitle && <p className="text-slate-500 text-[10px] truncate">{notebook.subtitle}</p>}
                 </div>
                 
@@ -141,8 +143,6 @@ const DraggableCard = React.memo(({
 const normalizeStr = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
 const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: number } }) => {
-    // ... (CycleCalculator logic remains the same) ...
-    // Omitted for brevity in this response, assumed existing code block
     const { notebooks, config, updateConfig } = useStore();
     const [newDiscName, setNewDiscName] = useState('');
     
@@ -235,7 +235,6 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
 
     return (
         <div className="flex-1 flex flex-col p-4 md:p-8 animate-in fade-in zoom-in duration-500 max-w-6xl mx-auto w-full overflow-y-auto custom-scrollbar">
-            {/* ... Render Logic for Calculator ... */}
              <div className="text-center mb-8">
                 <div className="w-16 h-16 bg-slate-800/50 rounded-full flex items-center justify-center mb-4 shadow-xl shadow-emerald-900/10 mx-auto border border-slate-700"><Scale size={32} className="text-emerald-500" /></div>
                 <h2 className="text-2xl font-bold text-white mb-2">Planejamento de Ciclo</h2>
@@ -272,7 +271,6 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
     );
 };
 
-// ... Rest of Setup Component (Export) ...
 export const Setup: React.FC = () => {
   const { notebooks, cycles, activeCycleId, config, updateConfig, moveNotebookToWeek, editNotebook, toggleSlotCompletion, removeSlotFromWeek, isSyncing, isGuest, exportDatabase } = useStore();
   
@@ -284,6 +282,7 @@ export const Setup: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
   const initialFormState = {
     discipline: '', name: '', subtitle: '', tecLink: '', lawLink: '', obsidianLink: '', accuracy: 0, targetAccuracy: 90,
@@ -296,7 +295,6 @@ export const Setup: React.FC = () => {
   const currentPace = config.studyPace || 'Intermediário';
   const paceTarget = PACE_SETTINGS[currentPace] || PACE_SETTINGS['Intermediário'];
   
-  // Calculate allocation from slots
   const allocationData = useMemo(() => {
     const data: Record<string, number> = {};
     const activeCycle = cycles.find(c => c.id === activeCycleId);
@@ -311,7 +309,6 @@ export const Setup: React.FC = () => {
             });
         });
     } else {
-        // Legacy fallback
         notebooks.filter(n => n.discipline !== 'Revisão Geral' && n.weekId).forEach(nb => {
             data[nb.discipline] = (data[nb.discipline] || 0) + 1;
         });
@@ -334,7 +331,6 @@ export const Setup: React.FC = () => {
       return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\n\r]/g, " ").replace(/\s+/g, " ").replace(/[^a-z0-9\s]/g, "");
   }, []);
 
-  // --- UPDATED: Library Logic (Pure Templates with Filters) ---
   const libraryNotebooks = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
     const sorted = [...notebooks].sort((a, b) => {
@@ -410,7 +406,6 @@ export const Setup: React.FC = () => {
       updateConfig({ ...config, weeklyPace: { ...(config.weeklyPace || {}), [weekId]: newPace } });
   };
 
-  // --- DRAG HANDLERS ---
   const onDragStart = useCallback((e: React.DragEvent, id: string, origin: 'library' | 'week') => {
     e.dataTransfer.setData("notebookId", id);
     e.dataTransfer.setData("origin", origin);
@@ -503,7 +498,6 @@ export const Setup: React.FC = () => {
   return (
     <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-slate-950">
       
-      {/* Lightbox */}
       {lightboxIndex !== null && (
           <div className="fixed inset-0 z-[60] bg-slate-950/95 flex items-center justify-center p-4 backdrop-blur-sm">
              <button onClick={() => setLightboxIndex(null)} className="absolute top-4 right-4 text-white hover:text-emerald-500 z-50"><X size={32} /></button>
@@ -518,49 +512,76 @@ export const Setup: React.FC = () => {
           </div>
       )}
 
-      {/* Sidebar Library */}
+      {/* Sidebar Library - COLLAPSIBLE */}
       {viewMode === 'timeline' && (
-      <aside className="w-72 flex-shrink-0 border-r border-slate-800 bg-slate-900/30 flex flex-col z-20 hidden md:flex">
-          {/* ... Sidebar Content ... */}
-          <div className="p-4 border-b border-slate-800 space-y-3">
-            <h2 className="text-xs font-bold text-slate-400 flex items-center gap-2 uppercase tracking-wider"><Layout size={14} className="text-emerald-500" /> Banco de Disciplinas</h2>
-            
-            <div className="flex gap-2">
-                <button onClick={() => setLibraryFilter('all')} className={`flex-1 py-1.5 text-[10px] rounded border font-bold ${libraryFilter === 'all' ? 'bg-slate-800 border-slate-600 text-white' : 'bg-transparent border-slate-800 text-slate-500'}`}>Todos</button>
-                <button onClick={() => setLibraryFilter('unallocated')} className={`flex-1 py-1.5 text-[10px] rounded border font-bold ${libraryFilter === 'unallocated' ? 'bg-blue-900/20 border-blue-500/30 text-blue-400' : 'bg-transparent border-slate-800 text-slate-500'}`}>Pendentes</button>
-                <button onClick={() => setLibraryFilter('overdue')} className={`flex-1 py-1.5 text-[10px] rounded border font-bold ${libraryFilter === 'overdue' ? 'bg-red-900/20 border-red-500/30 text-red-400' : 'bg-transparent border-slate-800 text-slate-500'}`}>Atrasados</button>
-            </div>
-
-            <div className="relative">
-                <Search className="absolute left-3 top-2.5 text-slate-500" size={14} />
-                <input type="text" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg py-2 pl-9 pr-3 text-xs text-white focus:border-emerald-500 outline-none" />
-            </div>
-            
-            <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold">
-                <span>Total: {libraryNotebooks.length}</span>
-                <span className="text-emerald-500 flex items-center gap-1">Arraste para Agendar <ArrowRight size={10} /></span>
-            </div>
+      <aside className={`flex-shrink-0 border-r border-slate-800 bg-slate-900/30 flex flex-col z-20 hidden md:flex transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'w-14' : 'w-80'}`}>
+          <div className={`p-4 border-b border-slate-800 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
+            {!isSidebarCollapsed && (
+                <h2 className="text-xs font-bold text-slate-400 flex items-center gap-2 uppercase tracking-wider"><Layout size={14} className="text-emerald-500" /> Banco de Disciplinas</h2>
+            )}
+            <button 
+                onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
+                className="text-slate-500 hover:text-white p-1 rounded hover:bg-slate-800 transition-colors"
+                title={isSidebarCollapsed ? "Expandir Lista" : "Recolher Lista"}
+            >
+                {isSidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+            </button>
           </div>
           
-          <div className="p-2 space-y-2 overflow-y-auto flex-1 custom-scrollbar">
-            {libraryNotebooks.map((nb: any) => (
-                <DraggableCard 
-                    key={nb.id} 
-                    notebook={nb} 
-                    onDragStart={onDragStart} 
-                    onEdit={handleEditClick} 
-                    origin="library" 
-                    allocationCount={nb.weekId ? 1 : 0}
-                />
-            ))}
-            
-            {libraryNotebooks.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-10 text-slate-600 gap-2 opacity-50 px-4 text-center">
-                    <Settings2 size={24} />
-                    <span className="text-xs">Nenhum caderno encontrado. {libraryFilter === 'unallocated' ? "Tudo já está agendado!" : "Crie um novo caderno."}</span>
+          {/* Collapsed State: Vertical Text / Icons */}
+          {isSidebarCollapsed && (
+              <div className="flex-1 flex flex-col items-center py-6 gap-6">
+                  <div className="vertical-text text-slate-600 font-bold uppercase tracking-widest text-xs whitespace-nowrap" style={{ writingMode: 'vertical-rl' }}>
+                      Banco de Disciplinas ({libraryNotebooks.length})
+                  </div>
+                  <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-500">
+                      <Inbox size={14} />
+                  </div>
+              </div>
+          )}
+
+          {/* Expanded State: Full List */}
+          {!isSidebarCollapsed && (
+              <>
+                <div className="px-4 pb-4 space-y-3 pt-2">
+                    <div className="flex gap-2">
+                        <button onClick={() => setLibraryFilter('all')} className={`flex-1 py-1.5 text-[10px] rounded border font-bold ${libraryFilter === 'all' ? 'bg-slate-800 border-slate-600 text-white' : 'bg-transparent border-slate-800 text-slate-500'}`}>Todos</button>
+                        <button onClick={() => setLibraryFilter('unallocated')} className={`flex-1 py-1.5 text-[10px] rounded border font-bold ${libraryFilter === 'unallocated' ? 'bg-blue-900/20 border-blue-500/30 text-blue-400' : 'bg-transparent border-slate-800 text-slate-500'}`}>Pendentes</button>
+                        <button onClick={() => setLibraryFilter('overdue')} className={`flex-1 py-1.5 text-[10px] rounded border font-bold ${libraryFilter === 'overdue' ? 'bg-red-900/20 border-red-500/30 text-red-400' : 'bg-transparent border-slate-800 text-slate-500'}`}>Atrasados</button>
+                    </div>
+
+                    <div className="relative">
+                        <Search className="absolute left-3 top-2.5 text-slate-500" size={14} />
+                        <input type="text" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg py-2 pl-9 pr-3 text-xs text-white focus:border-emerald-500 outline-none" />
+                    </div>
+                    
+                    <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold">
+                        <span>Total: {libraryNotebooks.length}</span>
+                        <span className="text-emerald-500 flex items-center gap-1">Arraste <ArrowRight size={10} /></span>
+                    </div>
                 </div>
-            )}
-          </div>
+                
+                <div className="p-2 space-y-2 overflow-y-auto flex-1 custom-scrollbar">
+                    {libraryNotebooks.map((nb: any) => (
+                        <DraggableCard 
+                            key={nb.id} 
+                            notebook={nb} 
+                            onDragStart={onDragStart} 
+                            onEdit={handleEditClick} 
+                            origin="library" 
+                            allocationCount={nb.weekId ? 1 : 0}
+                        />
+                    ))}
+                    
+                    {libraryNotebooks.length === 0 && (
+                        <div className="flex flex-col items-center justify-center py-10 text-slate-600 gap-2 opacity-50 px-4 text-center">
+                            <Settings2 size={24} />
+                            <span className="text-xs">Nenhum caderno encontrado. {libraryFilter === 'unallocated' ? "Tudo já está agendado!" : "Crie um novo caderno."}</span>
+                        </div>
+                    )}
+                </div>
+              </>
+          )}
       </aside>
       )}
 
@@ -576,7 +597,6 @@ export const Setup: React.FC = () => {
                     </div>
                  </div>
                  
-                 {/* SAVE STATUS INDICATOR */}
                  <div className="flex flex-col">
                     <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Status</span>
                     <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 min-w-[120px]">
@@ -627,7 +647,6 @@ export const Setup: React.FC = () => {
                     </div>
                  </div>
                  
-                 {/* MANUAL BACKUP BUTTON */}
                  <button 
                     onClick={exportDatabase} 
                     className="h-[42px] w-[42px] flex items-center justify-center rounded-xl transition-all border bg-slate-800 text-slate-400 border-slate-700 hover:text-white hover:bg-slate-700 hover:border-emerald-500/50"
@@ -642,7 +661,6 @@ export const Setup: React.FC = () => {
 
          {viewMode === 'timeline' ? (
              <div className="flex flex-col h-full overflow-hidden">
-                 {/* ... (Timeline content remains identical) ... */}
                  <div className={`overflow-hidden transition-all duration-300 ease-in-out bg-slate-900 border-b border-slate-800 flex-shrink-0 ${showStats ? 'max-h-64 opacity-100' : 'max-h-0 opacity-0 border-none'}`}>
                     <div className="p-4 h-64 flex gap-6">
                         <div className="flex-1">
@@ -674,16 +692,14 @@ export const Setup: React.FC = () => {
                     <div className="flex h-full p-6 gap-6 min-w-max items-start">
                         {weeks.map(week => {
                         
-                        // NEW LOGIC: Get slots from schedule OR fallback to single instances
                         let weekSlots: ScheduleItem[] = [];
                         
                         if (activeCycle?.schedule && activeCycle.schedule[week.id]) {
                             weekSlots = activeCycle.schedule[week.id];
                         } else {
-                            // Legacy fallback display
                             const legacyNotebooks = notebooks.filter(nb => nb.weekId === week.id);
                             weekSlots = legacyNotebooks.map(nb => ({
-                                instanceId: nb.id + '-legacy', // Fake instance ID
+                                instanceId: nb.id + '-legacy', 
                                 notebookId: nb.id,
                                 completed: !!nb.isWeekCompleted
                             }));
@@ -697,7 +713,6 @@ export const Setup: React.FC = () => {
                         const loadPercentage = Math.min((blocksCount / weekTarget.blocks) * 100, 100);
                         const missingBlocks = Math.max(0, weekTarget.blocks - blocksCount);
                         
-                        // Status Logic
                         const isOverloaded = blocksCount > weekTarget.blocks;
                         const isAllocated = blocksCount >= weekTarget.blocks && !isOverloaded;
                         const isWeekFullyDone = blocksCount > 0 && blocksCompleted === blocksCount;
@@ -729,10 +744,8 @@ export const Setup: React.FC = () => {
                                     </div>
                                 )}
                                 <div className="space-y-2 mt-1">
-                                    {/* Barra de Alocação (Planejamento) */}
                                     <div className="w-full h-1 bg-slate-950 rounded-full overflow-hidden flex relative group border border-slate-800"><div className={`h-full transition-all duration-500 ${isOverloaded ? 'bg-red-500' : 'bg-slate-600'}`} style={{ width: `${loadPercentage}%` }}></div></div>
                                     
-                                    {/* Status Message */}
                                     <div className="flex justify-between items-center h-5">
                                         {isWeekFullyDone ? (
                                             <span className="text-[10px] text-emerald-500 font-bold flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 w-full justify-center">
@@ -797,8 +810,6 @@ export const Setup: React.FC = () => {
                 <button onClick={() => !isSaving && setIsModalOpen(false)} className="text-slate-400 hover:text-white" disabled={isSaving}><X size={24} /></button>
             </div>
             <form onSubmit={handleSave} className="overflow-y-auto p-6 space-y-6 custom-scrollbar">
-              {/* ... Form Content Identical ... */}
-              {/* Simplified for brevity as changes are only in the DraggableCard render logic above */}
               <div className="space-y-4">
                   <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">1. Identificação</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
