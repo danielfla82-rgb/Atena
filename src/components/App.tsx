@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StoreProvider, useStore } from '../store';
 import { Dashboard } from './Dashboard';
 import { Setup } from './Setup';
@@ -18,15 +18,22 @@ import { Notes } from './Notes';
 import { About } from './About';
 import { 
   LayoutDashboard, Settings, Layers, Menu, X, Library as LibraryIcon, 
-  Activity, Lightbulb, Flame, Brain, Newspaper, Pill, Pyramid, Book, ListChecks, Shield, StickyNote, Command, LogOut, ChevronDown, ChevronRight
+  Activity, Lightbulb, Flame, Brain, Newspaper, Pill, Pyramid, Book, ListChecks, Shield, StickyNote, Command, LogOut, ChevronDown
 } from 'lucide-react';
 import { Logo } from './components/Logo';
 
 const AppContent: React.FC = () => {
   const [view, setView] = useState<'login' | 'selection' | 'dashboard' | 'setup' | 'library' | 'diagnostics' | 'tips' | 'nietzsche' | 'psycho' | 'news' | 'protocol' | 'framework' | 'docs' | 'verticalized' | 'notes' | 'about'>('login');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [mentalMenuOpen, setMentalMenuOpen] = useState(false); // State for dropdown
+  const [mentalMenuOpen, setMentalMenuOpen] = useState(false);
   const { user } = useStore();
+
+  // Auto-expand menu if sub-item is active
+  useEffect(() => {
+    if (['framework', 'nietzsche', 'psycho', 'protocol', 'tips'].includes(view)) {
+      setMentalMenuOpen(true);
+    }
+  }, [view]);
 
   // If in login or selection, show full screen components
   if (view === 'login') {
@@ -37,7 +44,6 @@ const AppContent: React.FC = () => {
     return <ProjectSelection onNavigate={(v) => setView(v as any)} />;
   }
 
-  // Helper for Mental Menu Active State
   const isMentalActive = ['framework', 'nietzsche', 'psycho', 'protocol', 'tips'].includes(view);
 
   // Main App Layout
@@ -137,7 +143,7 @@ const AppContent: React.FC = () => {
               <span className="text-sm">Notícias</span>
           </button>
 
-          {/* --- DROPDOWN MENU FOR MENTAL & FÍSICO --- */}
+          {/* === COLLAPSIBLE MENTAL MENU === */}
           <div className="pt-2">
               <button 
                 onClick={() => setMentalMenuOpen(!mentalMenuOpen)}

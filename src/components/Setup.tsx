@@ -140,7 +140,8 @@ const DraggableCard = React.memo(({
 const normalizeStr = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
 const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: number } }) => {
-    // ... [Implementation identical to previous version, omitted for brevity]
+    // ... [CycleCalculator logic remains unchanged] ...
+    // Assuming identical content as previous file
     const { notebooks, config, updateConfig } = useStore();
     const [newDiscName, setNewDiscName] = useState('');
     
@@ -282,7 +283,7 @@ export const Setup: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-  const [isLibraryOpen, setIsLibraryOpen] = useState(true); // NEW: Sidebar toggle
+  const [isLibraryOpen, setIsLibraryOpen] = useState(true); // NEW STATE FOR COLLAPSE
   
   const initialFormState = {
     discipline: '', name: '', subtitle: '', tecLink: '', lawLink: '', obsidianLink: '', accuracy: 0, targetAccuracy: 90,
@@ -338,30 +339,25 @@ export const Setup: React.FC = () => {
     const today = new Date().toISOString().split('T')[0];
     
     // Sort to prioritize "Library" items (weekId == null)
-    // Actually for unique view, we just want to list items.
     const sorted = [...notebooks].sort((a, b) => {
         if (!a.weekId && b.weekId) return -1;
         if (a.weekId && !b.weekId) return 1;
         return 0;
     });
 
-    // Simple list, just filtered by search and criteria
     let result = sorted.filter(nb => {
         if (nb.discipline === 'Revisão Geral') return false;
         const matchesSearch = nb.name.toLowerCase().includes(searchTerm.toLowerCase()) || nb.discipline.toLowerCase().includes(searchTerm.toLowerCase());
         return matchesSearch;
     });
 
-    // APPLY FILTERS
     if (libraryFilter === 'unallocated') {
         result = result.filter(nb => !nb.weekId);
     } else if (libraryFilter === 'overdue') {
         result = result.filter(nb => nb.nextReview && nb.nextReview.split('T')[0] < today);
     }
 
-    // Sort: Discipline then Name
     result.sort((a, b) => a.discipline.localeCompare(b.discipline) || a.name.localeCompare(b.name));
-
     return result;
   }, [notebooks, searchTerm, libraryFilter, normalizeText]);
 
@@ -420,20 +416,15 @@ export const Setup: React.FC = () => {
   const onDragStart = useCallback((e: React.DragEvent, id: string, origin: 'library' | 'week') => {
     e.dataTransfer.setData("notebookId", id);
     e.dataTransfer.setData("origin", origin);
-    // Always MOVE (Schedule), never COPY (Clone)
     e.dataTransfer.effectAllowed = 'move';
   }, []);
 
   const onDragOver = useCallback((e: React.DragEvent) => e.preventDefault(), []);
   
-  // --- SENIOR FIX: M:N Relationship Support ---
   const onDrop = async (e: React.DragEvent, targetWeekId: string | null, isPast: boolean) => {
     if (isPast) { alert("Você não pode alterar o planejamento de semanas que já passaram."); return; }
-    
     const id = e.dataTransfer.getData("notebookId");
     if (!id || !targetWeekId) return;
-
-    // Use new scheduling logic
     await moveNotebookToWeek(id, targetWeekId);
   };
 
@@ -489,12 +480,10 @@ export const Setup: React.FC = () => {
       else setLightboxIndex((lightboxIndex - 1 + formData.images.length) % formData.images.length);
   };
 
-  // --- NEW: Handle Slot Specific Actions ---
   const handleToggleSlot = useCallback((instanceId: string, isCompleted: boolean) => {
       // Logic handled via props
   }, []);
 
-  // --- SENIOR FIX: DELETE INSTANCE CORRECTLY ---
   const handleRemoveFromWeek = useCallback((instanceId: string, weekId: string) => {
       removeSlotFromWeek(instanceId, weekId);
   }, [removeSlotFromWeek]);
@@ -531,7 +520,7 @@ export const Setup: React.FC = () => {
           </div>
       )}
 
-      {/* Sidebar Library */}
+      {/* Sidebar Library - NOW COLLAPSIBLE */}
       {viewMode === 'timeline' && isLibraryOpen && (
       <aside className="w-72 flex-shrink-0 border-r border-slate-800 bg-slate-900/30 flex flex-col z-20 hidden md:flex transition-all">
           <div className="p-4 border-b border-slate-800 space-y-3">
@@ -596,6 +585,7 @@ export const Setup: React.FC = () => {
          )}
 
          <header className="flex flex-col lg:flex-row items-center justify-between gap-4 px-6 py-4 border-b border-slate-800 bg-slate-900/90 backdrop-blur-xl sticky top-0 z-30 shadow-lg">
+            {/* Header Content... */}
             <div className="flex items-center gap-6 w-full lg:w-auto lg:flex-1">
                  <div className="flex flex-col">
                     <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Início</span>
@@ -605,7 +595,6 @@ export const Setup: React.FC = () => {
                     </div>
                  </div>
                  
-                 {/* SAVE STATUS INDICATOR */}
                  <div className="flex flex-col">
                     <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Status</span>
                     <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 min-w-[120px]">
@@ -656,7 +645,6 @@ export const Setup: React.FC = () => {
                     </div>
                  </div>
                  
-                 {/* MANUAL BACKUP BUTTON */}
                  <button 
                     onClick={exportDatabase} 
                     className="h-[42px] w-[42px] flex items-center justify-center rounded-xl transition-all border bg-slate-800 text-slate-400 border-slate-700 hover:text-white hover:bg-slate-700 hover:border-emerald-500/50"
