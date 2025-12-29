@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, Relevance, Trend, NotebookStatus, ScheduleItem } from '../types';
-import { Plus, Search, Copy, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2, TrendingUp, History, ListPlus, Minus, AlertTriangle, CheckCircle2, RotateCw, Zap, Activity, Info, Clock, Archive } from 'lucide-react';
+import { Plus, Search, Copy, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2, TrendingUp, History, ListPlus, Minus, AlertTriangle, CheckCircle2, RotateCw, Zap, Activity, Info, Clock, Archive, Cloud, CloudOff, Download, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { calculateNextReview, getStatusColor } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 
@@ -272,7 +272,7 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
 
 // ... Rest of Setup Component (Export) ...
 export const Setup: React.FC = () => {
-  const { notebooks, cycles, activeCycleId, config, updateConfig, moveNotebookToWeek, editNotebook, toggleSlotCompletion, removeSlotFromWeek } = useStore();
+  const { notebooks, cycles, activeCycleId, config, updateConfig, moveNotebookToWeek, editNotebook, toggleSlotCompletion, removeSlotFromWeek, isSyncing, isGuest, exportDatabase } = useStore();
   
   const [viewMode, setViewMode] = useState<'timeline' | 'calculator'>('timeline');
   const [searchTerm, setSearchTerm] = useState('');
@@ -282,6 +282,7 @@ export const Setup: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [isLibraryOpen, setIsLibraryOpen] = useState(true); // NEW: Sidebar toggle
   
   const initialFormState = {
     discipline: '', name: '', subtitle: '', tecLink: '', lawLink: '', obsidianLink: '', accuracy: 0, targetAccuracy: 90,
@@ -490,11 +491,7 @@ export const Setup: React.FC = () => {
 
   // --- NEW: Handle Slot Specific Actions ---
   const handleToggleSlot = useCallback((instanceId: string, isCompleted: boolean) => {
-      // Find the week this slot belongs to (inefficient but safe) or rely on context
-      // But DraggableCard receives onToggleComplete with ID.
-      // We need to pass WeekID or search.
-      // Let's assume DraggableCard is inside a loop where weekID is known, but the callback here needs context.
-      // Better approach: Curry the function in the render loop.
+      // Logic handled via props
   }, []);
 
   // --- SENIOR FIX: DELETE INSTANCE CORRECTLY ---
@@ -535,10 +532,15 @@ export const Setup: React.FC = () => {
       )}
 
       {/* Sidebar Library */}
-      {viewMode === 'timeline' && (
-      <aside className="w-72 flex-shrink-0 border-r border-slate-800 bg-slate-900/30 flex flex-col z-20 hidden md:flex">
+      {viewMode === 'timeline' && isLibraryOpen && (
+      <aside className="w-72 flex-shrink-0 border-r border-slate-800 bg-slate-900/30 flex flex-col z-20 hidden md:flex transition-all">
           <div className="p-4 border-b border-slate-800 space-y-3">
-            <h2 className="text-xs font-bold text-slate-400 flex items-center gap-2 uppercase tracking-wider"><Layout size={14} className="text-emerald-500" /> Banco de Disciplinas</h2>
+            <div className="flex justify-between items-center">
+                <h2 className="text-xs font-bold text-slate-400 flex items-center gap-2 uppercase tracking-wider"><Layout size={14} className="text-emerald-500" /> Banco de Disciplinas</h2>
+                <button onClick={() => setIsLibraryOpen(false)} className="text-slate-500 hover:text-white" title="Recolher Menu">
+                    <PanelLeftClose size={16} />
+                </button>
+            </div>
             
             <div className="flex gap-2">
                 <button onClick={() => setLibraryFilter('all')} className={`flex-1 py-1.5 text-[10px] rounded border font-bold ${libraryFilter === 'all' ? 'bg-slate-800 border-slate-600 text-white' : 'bg-transparent border-slate-800 text-slate-500'}`}>Todos</button>
@@ -581,6 +583,18 @@ export const Setup: React.FC = () => {
 
       {/* Main Area */}
       <main className="flex-1 flex flex-col min-w-0 bg-slate-950 relative">
+         
+         {/* Reopen Sidebar Toggle (Visible when sidebar is closed in timeline view) */}
+         {viewMode === 'timeline' && !isLibraryOpen && (
+             <button 
+                onClick={() => setIsLibraryOpen(true)}
+                className="absolute left-0 top-24 z-30 p-2 bg-slate-800 rounded-r-lg shadow-lg border-y border-r border-slate-700 text-slate-400 hover:text-white hover:bg-slate-700 transition-all"
+                title="Expandir Banco de Disciplinas"
+             >
+                 <PanelLeftOpen size={16} />
+             </button>
+         )}
+
          <header className="flex flex-col lg:flex-row items-center justify-between gap-4 px-6 py-4 border-b border-slate-800 bg-slate-900/90 backdrop-blur-xl sticky top-0 z-30 shadow-lg">
             <div className="flex items-center gap-6 w-full lg:w-auto lg:flex-1">
                  <div className="flex flex-col">
@@ -590,13 +604,24 @@ export const Setup: React.FC = () => {
                         <input type="date" value={config.startDate || ''} onChange={(e) => updateConfig({...config, startDate: e.target.value})} className="bg-transparent outline-none text-xs text-white cursor-pointer font-medium" />
                     </div>
                  </div>
+                 
+                 {/* SAVE STATUS INDICATOR */}
                  <div className="flex flex-col">
-                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Data da Prova</span>
-                    <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5">
-                        <CalendarClock size={14} className="text-red-500" />
-                        <span className="text-xs text-white font-medium">{config.examDate ? new Date(config.examDate).toLocaleDateString() : '--/--/----'}</span>
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Status</span>
+                    <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 min-w-[120px]">
+                        {isSyncing ? (
+                            <Loader2 size={14} className="text-amber-500 animate-spin" />
+                        ) : isGuest ? (
+                            <CloudOff size={14} className="text-slate-500" />
+                        ) : (
+                            <Cloud size={14} className="text-emerald-500" />
+                        )}
+                        <span className={`text-xs font-bold ${isSyncing ? 'text-amber-500' : isGuest ? 'text-slate-500' : 'text-emerald-500'}`}>
+                            {isSyncing ? "Salvando..." : isGuest ? "Local (Visitante)" : "Sincronizado"}
+                        </span>
                     </div>
                  </div>
+
                  {daysRemaining !== null && (
                      <div className="flex flex-col">
                         <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Restam</span>
@@ -630,12 +655,23 @@ export const Setup: React.FC = () => {
                         </div>
                     </div>
                  </div>
+                 
+                 {/* MANUAL BACKUP BUTTON */}
+                 <button 
+                    onClick={exportDatabase} 
+                    className="h-[42px] w-[42px] flex items-center justify-center rounded-xl transition-all border bg-slate-800 text-slate-400 border-slate-700 hover:text-white hover:bg-slate-700 hover:border-emerald-500/50"
+                    title="Fazer Backup Manual (.json)"
+                 >
+                    <Download size={18} />
+                 </button>
+
                  <button onClick={() => setShowStats(!showStats)} className={`h-[42px] w-[42px] flex items-center justify-center rounded-xl transition-all border flex-shrink-0 ${showStats ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white hover:bg-slate-700'}`}><BarChart3 size={18} /></button>
             </div>
          </header>
 
          {viewMode === 'timeline' ? (
              <div className="flex flex-col h-full overflow-hidden">
+                 {/* ... (Timeline content remains identical) ... */}
                  <div className={`overflow-hidden transition-all duration-300 ease-in-out bg-slate-900 border-b border-slate-800 flex-shrink-0 ${showStats ? 'max-h-64 opacity-100' : 'max-h-0 opacity-0 border-none'}`}>
                     <div className="p-4 h-64 flex gap-6">
                         <div className="flex-1">
@@ -890,6 +926,7 @@ export const Setup: React.FC = () => {
           </div>
         </div>
       )}
+
     </div>
   );
 };

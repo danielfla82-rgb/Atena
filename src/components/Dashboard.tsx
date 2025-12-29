@@ -572,8 +572,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           </div>
       </div>
 
-      {/* === DETAILED ANALYSIS (COLLAPSIBLE SECTIONS) === */}
-      {/* ... (Chart sections remain unchanged) ... */}
+      {/* ... Chart sections below (Collapsible) ... */}
       <DashboardSection title="Radiografia Tática" subtitle="Liquidez do Conhecimento & Matriz Estratégica" icon={<Target size={20} />}>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2">
@@ -724,7 +723,6 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
         <StudySession notebook={selectedSession} onClose={() => setSelectedSession(null)} />
       )}
 
-      {/* Configuration Modal */}
       {isConfigOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh]">

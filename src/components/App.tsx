@@ -18,13 +18,14 @@ import { Notes } from './Notes';
 import { About } from './About';
 import { 
   LayoutDashboard, Settings, Layers, Menu, X, Library as LibraryIcon, 
-  Activity, Lightbulb, Flame, Brain, Newspaper, Pill, Pyramid, Book, ListChecks, Shield, StickyNote, Command, LogOut
+  Activity, Lightbulb, Flame, Brain, Newspaper, Pill, Pyramid, Book, ListChecks, Shield, StickyNote, Command, LogOut, ChevronDown, ChevronRight
 } from 'lucide-react';
 import { Logo } from './components/Logo';
 
 const AppContent: React.FC = () => {
   const [view, setView] = useState<'login' | 'selection' | 'dashboard' | 'setup' | 'library' | 'diagnostics' | 'tips' | 'nietzsche' | 'psycho' | 'news' | 'protocol' | 'framework' | 'docs' | 'verticalized' | 'notes' | 'about'>('login');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mentalMenuOpen, setMentalMenuOpen] = useState(false); // State for dropdown
   const { user } = useStore();
 
   // If in login or selection, show full screen components
@@ -35,6 +36,9 @@ const AppContent: React.FC = () => {
   if (view === 'selection') {
     return <ProjectSelection onNavigate={(v) => setView(v as any)} />;
   }
+
+  // Helper for Mental Menu Active State
+  const isMentalActive = ['framework', 'nietzsche', 'psycho', 'protocol', 'tips'].includes(view);
 
   // Main App Layout
   return (
@@ -133,47 +137,58 @@ const AppContent: React.FC = () => {
               <span className="text-sm">Notícias</span>
           </button>
 
-          <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-2 mt-6 ml-2">Mental & Físico</p>
-          
-          <button 
-              onClick={() => { setView('framework'); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${view === 'framework' ? 'bg-slate-700 text-white border border-slate-600 shadow-lg font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
-            >
-              <Pyramid size={18} className={view === 'framework' ? 'text-emerald-400' : ''}/>
-              <span className="text-sm">Framework</span>
-          </button>
+          {/* --- DROPDOWN MENU FOR MENTAL & FÍSICO --- */}
+          <div className="pt-2">
+              <button 
+                onClick={() => setMentalMenuOpen(!mentalMenuOpen)}
+                className={`w-full flex items-center justify-between px-2 py-1.5 mb-1 text-[10px] uppercase font-bold tracking-wider hover:bg-slate-800 rounded transition-colors ${isMentalActive ? 'text-white' : 'text-slate-500'}`}
+              >
+                  <span>Mental & Físico</span>
+                  <ChevronDown size={14} className={`transition-transform duration-300 ${mentalMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+              
+              <div className={`space-y-1 overflow-hidden transition-all duration-300 ease-in-out ${mentalMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+                  <button 
+                      onClick={() => { setView('framework'); setSidebarOpen(false); }}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${view === 'framework' ? 'bg-slate-700 text-white border border-slate-600 shadow-lg font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
+                    >
+                      <Pyramid size={18} className={view === 'framework' ? 'text-emerald-400' : ''}/>
+                      <span className="text-sm">Framework</span>
+                  </button>
 
-          <button 
-              onClick={() => { setView('nietzsche'); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${view === 'nietzsche' ? 'bg-slate-800 text-white border border-slate-600 font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
-            >
-              <Flame size={18} className={view === 'nietzsche' ? 'text-orange-500' : ''} />
-              <span className="text-sm">Incentivador</span>
-          </button>
+                  <button 
+                      onClick={() => { setView('nietzsche'); setSidebarOpen(false); }}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${view === 'nietzsche' ? 'bg-slate-800 text-white border border-slate-600 font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
+                    >
+                      <Flame size={18} className={view === 'nietzsche' ? 'text-orange-500' : ''} />
+                      <span className="text-sm">Incentivador</span>
+                  </button>
 
-          <button 
-              onClick={() => { setView('psycho'); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${view === 'psycho' ? 'bg-indigo-600 text-white shadow-lg font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
-            >
-              <Brain size={18} />
-              <span className="text-sm">Psicanalista</span>
-          </button>
+                  <button 
+                      onClick={() => { setView('psycho'); setSidebarOpen(false); }}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${view === 'psycho' ? 'bg-indigo-600 text-white shadow-lg font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
+                    >
+                      <Brain size={18} />
+                      <span className="text-sm">Psicanalista</span>
+                  </button>
 
-          <button 
-              onClick={() => { setView('protocol'); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${view === 'protocol' ? 'bg-blue-600 text-white shadow-lg font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
-            >
-              <Pill size={18} />
-              <span className="text-sm">Protocolo</span>
-          </button>
-          
-          <button 
-              onClick={() => { setView('tips'); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${view === 'tips' ? 'bg-yellow-600/80 text-white shadow-lg shadow-yellow-900/50 font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
-            >
-              <Lightbulb size={18} />
-              <span className="text-sm">Dicas de Elite</span>
-          </button>
+                  <button 
+                      onClick={() => { setView('protocol'); setSidebarOpen(false); }}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${view === 'protocol' ? 'bg-blue-600 text-white shadow-lg font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
+                    >
+                      <Pill size={18} />
+                      <span className="text-sm">Protocolo</span>
+                  </button>
+                  
+                  <button 
+                      onClick={() => { setView('tips'); setSidebarOpen(false); }}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${view === 'tips' ? 'bg-yellow-600/80 text-white shadow-lg shadow-yellow-900/50 font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
+                    >
+                      <Lightbulb size={18} />
+                      <span className="text-sm">Dicas de Elite</span>
+                  </button>
+              </div>
+          </div>
 
           <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider mb-2 mt-6 ml-2">Sistema</p>
           <button 
