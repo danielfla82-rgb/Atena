@@ -596,6 +596,17 @@ export const Setup: React.FC = () => {
                         <input type="date" value={config.startDate || ''} onChange={(e) => updateConfig({...config, startDate: e.target.value})} className="bg-transparent outline-none text-xs text-white cursor-pointer font-medium" />
                     </div>
                  </div>
+
+                 {/* DATA DA PROVA (ADICIONADO) */}
+                 <div className="flex flex-col">
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Prova</span>
+                    <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 cursor-not-allowed opacity-80" title="Data da Prova">
+                        <Flag size={14} className="text-emerald-500" />
+                        <span className="text-xs text-white font-medium">
+                            {config.examDate ? new Date(config.examDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : 'ND'}
+                        </span>
+                    </div>
+                 </div>
                  
                  <div className="flex flex-col">
                     <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Status</span>

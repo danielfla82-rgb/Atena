@@ -105,7 +105,7 @@ interface Props {
 }
 
 export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
-  const { notebooks, config, updateConfig, getWildcardNotebook, setFocusedNotebookId } = useStore();
+  const { notebooks, config, updateConfig, getWildcardNotebook, setFocusedNotebookId, cycles, activeCycleId } = useStore();
   const [selectedSession, setSelectedSession] = useState<Notebook | null>(null);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [localConfig, setLocalConfig] = useState(config);
@@ -131,14 +131,42 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
   }, []);
 
   const weeklyFocus = useMemo(() => {
-      const counts: Record<string, number> = {};
-      notebooks.forEach(n => {
-          if(n.discipline === 'Revisão Geral') return;
-          if(n.weekId) counts[n.discipline] = (counts[n.discipline] || 0) + 2;
-          if(n.weight === Weight.MUITO_ALTO) counts[n.discipline] = (counts[n.discipline] || 0) + 1;
-      });
-      return Object.entries(counts).sort(([,a], [,b]) => b - a).slice(0, 4).map(([k]) => k);
-  }, [notebooks]);
+      if (!activeCycleId || cycles.length === 0) return [];
+      const activeCycle = cycles.find(c => c.id === activeCycleId);
+      if (!activeCycle) return [];
+
+      // 1. Determine Current Week ID
+      const start = config.startDate ? new Date(config.startDate) : new Date();
+      // Set hours to 0 to compare dates properly
+      start.setHours(0,0,0,0);
+      const now = new Date();
+      now.setHours(0,0,0,0);
+      
+      const diffTime = now.getTime() - start.getTime();
+      // If start date is in the future, it's week 1
+      const diffDays = diffTime < 0 ? 0 : Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      const currentWeekIndex = Math.floor(diffDays / 7) + 1;
+      const currentWeekId = `week-${currentWeekIndex}`;
+
+      // 2. Get Pending Slots for THIS specific week
+      const pendingDisciplines = new Set<string>();
+
+      if (activeCycle.schedule && activeCycle.schedule[currentWeekId]) {
+          activeCycle.schedule[currentWeekId].forEach(slot => {
+              if (!slot.completed) {
+                  const nb = notebooks.find(n => n.id === slot.notebookId);
+                  if (nb) pendingDisciplines.add(nb.discipline);
+              }
+          });
+      } else {
+          // Fallback logic if no schedule found or legacy mode: show overdue or high priority
+          // This ensures the box isn't empty if the user hasn't planned properly yet
+          notebooks.filter(n => n.weight === Weight.MUITO_ALTO && n.accuracy < n.targetAccuracy)
+                   .forEach(n => pendingDisciplines.add(n.discipline));
+      }
+
+      return Array.from(pendingDisciplines).slice(0, 4); // Limit to 4 for UI fit
+  }, [notebooks, activeCycleId, cycles, config.startDate]);
 
   const metrics = useMemo(() => {
       const activeNotebooks = notebooks.filter(n => n.accuracy > 0);
@@ -373,7 +401,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           <div className="bg-slate-50 text-slate-900 rounded-xl p-5 shadow-lg border border-slate-200 flex flex-col h-32 relative overflow-hidden">
               <div className="flex justify-between items-center mb-2">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-1">
-                      <Crosshair size={12} className="text-emerald-500"/> Foco da Semana
+                      <Crosshair size={12} className="text-emerald-500"/> Foco da Semana (Pendentes)
                   </span>
               </div>
               <div className="flex-1 grid grid-cols-2 gap-2">
@@ -384,7 +412,9 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                           </div>
                       ))
                   ) : (
-                      <div className="col-span-2 flex items-center justify-center text-xs text-slate-400 italic">Sem planejamento.</div>
+                      <div className="col-span-2 flex items-center justify-center text-xs text-slate-400 italic">
+                          <span className="flex items-center gap-1"><CheckCircle2 size={12} className="text-emerald-500"/> Semana em dia!</span>
+                      </div>
                   )}
               </div>
           </div>

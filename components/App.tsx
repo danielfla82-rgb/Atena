@@ -138,7 +138,7 @@ const AppContent: React.FC = () => {
                     className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('library') ? 'bg-slate-800 text-white border-emerald-500' : 'border-transparent text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
                   >
                     <LibraryIcon size={18} />
-                    <span className="text-sm">Banco de Dados</span>
+                    <span className="text-sm">Banco de Disciplinas</span>
                   </button>
 
                   <button 
