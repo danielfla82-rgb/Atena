@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { useStore } from '../store';
 import { createAIClient } from '../utils/ai';
 import { Type } from "@google/genai";
-import { CheckSquare, Square, AlertCircle, ArrowUpCircle, CheckCircle2, ListChecks, Search, BrainCircuit, Loader2, Sparkles, ChevronDown, ChevronUp, FileWarning, ExternalLink, Plus, BookOpen } from 'lucide-react';
+import { CheckSquare, Square, AlertCircle, ArrowUpCircle, CheckCircle2, ListChecks, Search, BrainCircuit, Loader2, Sparkles, ChevronDown, ChevronUp, FileWarning, ExternalLink, Plus, BookOpen, X, FileText } from 'lucide-react';
 import { EditalDiscipline, EditalTopic, Weight, Relevance, Trend } from '../types';
 
 interface Props {
@@ -14,16 +14,27 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [expandedDiscipline, setExpandedDiscipline] = useState<string | null>(null);
+  
+  // Reprocess Modal State
+  const [showReprocessModal, setShowReprocessModal] = useState(false);
+  const [localEditalText, setLocalEditalText] = useState('');
 
   // Normalize string for fuzzy matching (matches topic name to notebook name)
   const normalize = (str: string) => {
       return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
   };
 
+  const openReprocessModal = () => {
+      setLocalEditalText(config.editalText || '');
+      setShowReprocessModal(true);
+  };
+
   // --- AI PROCESSING ---
   const processEditalWithAI = async () => {
-      if (!config.editalText || config.editalText.length < 50) {
-          alert("Por favor, insira o texto do Conteúdo Programático na aba 'Planejamento' (Configurar Concurso) antes de processar.");
+      const textToProcess = localEditalText || config.editalText;
+
+      if (!textToProcess || textToProcess.length < 50) {
+          alert("Por favor, insira o texto do Conteúdo Programático.");
           return;
       }
 
@@ -31,12 +42,17 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
       const ai = createAIClient();
 
       try {
+          // Update global config with the text being processed
+          if (localEditalText && localEditalText !== config.editalText) {
+              updateConfig({ ...config, editalText: localEditalText });
+          }
+
           const prompt = `
             Você é um especialista em concursos públicos.
             Analise o seguinte texto de edital (conteúdo programático) e estruture-o.
             
             TEXTO DO EDITAL:
-            ${config.editalText.substring(0, 30000)} 
+            ${textToProcess.substring(0, 30000)} 
             
             Retorne APENAS um JSON seguindo este schema:
             {
@@ -94,7 +110,8 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
                   }))
               }));
               
-              updateConfig({ ...config, structuredEdital: structured });
+              updateConfig({ ...config, structuredEdital: structured, editalText: textToProcess });
+              setShowReprocessModal(false);
           }
 
       } catch (error) {
@@ -249,21 +266,23 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
                       Ainda não processamos seu edital. A IA irá ler o conteúdo programático, estruturar os tópicos e calcular a probabilidade de cobrança.
                   </p>
                   
-                  {!config.editalText ? (
-                      <div className="bg-amber-900/20 border border-amber-500/20 p-4 rounded-lg text-amber-200 text-xs mb-4 flex items-center gap-2 text-left">
-                          <FileWarning size={24} className="flex-shrink-0" />
-                          <span>Você precisa colar o texto do edital em "Planejamento &gt; Configurar Concurso" primeiro.</span>
-                      </div>
-                  ) : (
-                      <button 
-                          onClick={processEditalWithAI} 
-                          disabled={isProcessing}
-                          className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2 transition-all"
-                      >
-                          {isProcessing ? <Loader2 size={20} className="animate-spin" /> : <Sparkles size={20} />}
-                          {isProcessing ? "IA Analisando Edital..." : "Gerar Edital Verticalizado"}
-                      </button>
-                  )}
+                  <div className="mb-4 text-left">
+                        <textarea 
+                            value={localEditalText}
+                            onChange={(e) => setLocalEditalText(e.target.value)}
+                            placeholder="Cole o Conteúdo Programático do Edital aqui..."
+                            className="w-full h-40 bg-slate-950 border border-slate-700 rounded-xl p-4 text-white text-xs font-mono focus:border-emerald-500 outline-none resize-none custom-scrollbar"
+                        />
+                  </div>
+
+                  <button 
+                      onClick={processEditalWithAI} 
+                      disabled={isProcessing || !localEditalText}
+                      className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800 disabled:text-slate-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2 transition-all"
+                  >
+                      {isProcessing ? <Loader2 size={20} className="animate-spin" /> : <Sparkles size={20} />}
+                      {isProcessing ? "IA Analisando Edital..." : "Gerar Edital Verticalizado"}
+                  </button>
               </div>
           </div>
       );
@@ -291,8 +310,8 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg py-2 pl-9 pr-3 text-sm text-white focus:border-emerald-500 outline-none"
                 />
              </div>
-             <button onClick={processEditalWithAI} className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700" title="Reprocessar com IA">
-                 <Sparkles size={18} />
+             <button onClick={openReprocessModal} className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 font-medium text-xs transition-colors shadow-sm">
+                 <Sparkles size={14} className="text-emerald-500" /> Reprocessar
              </button>
         </div>
       </div>
@@ -418,6 +437,59 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
               );
           })}
       </div>
+
+      {/* REPROCESS MODAL */}
+      {showReprocessModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+                  <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900">
+                      <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                          <Sparkles size={20} className="text-emerald-500"/> Reprocessar Edital
+                      </h3>
+                      <button onClick={() => setShowReprocessModal(false)} className="text-slate-400 hover:text-white transition-colors">
+                          <X size={24} />
+                      </button>
+                  </div>
+                  
+                  <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+                      <div className="bg-amber-900/20 border border-amber-500/20 p-4 rounded-lg mb-4 flex gap-3">
+                          <AlertCircle className="text-amber-500 flex-shrink-0" size={20} />
+                          <p className="text-amber-200 text-sm">
+                              Isso irá reestruturar todos os tópicos listados abaixo com base no novo texto. 
+                              O status de "concluído" (checkbox) dos tópicos pode ser resetado se os nomes mudarem drasticamente.
+                          </p>
+                      </div>
+
+                      <label className="block text-xs font-bold text-slate-400 mb-2 uppercase flex items-center gap-2">
+                          <FileText size={14}/> Conteúdo Programático (Ctrl+V)
+                      </label>
+                      <textarea 
+                          value={localEditalText}
+                          onChange={(e) => setLocalEditalText(e.target.value)}
+                          placeholder="Cole aqui o texto do edital..."
+                          className="w-full h-64 bg-slate-950 border border-slate-700 rounded-xl p-4 text-white text-xs font-mono focus:border-emerald-500 outline-none resize-none custom-scrollbar"
+                      />
+                  </div>
+
+                  <div className="p-6 border-t border-slate-800 bg-slate-900 flex justify-end gap-3">
+                      <button 
+                          onClick={() => setShowReprocessModal(false)} 
+                          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-medium transition-colors"
+                      >
+                          Cancelar
+                      </button>
+                      <button 
+                          onClick={processEditalWithAI} 
+                          disabled={isProcessing || !localEditalText}
+                          className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-900/20 flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                          {isProcessing ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
+                          {isProcessing ? "Processando..." : "Confirmar e Processar"}
+                      </button>
+                  </div>
+              </div>
+          </div>
+      )}
     </div>
   );
 };
