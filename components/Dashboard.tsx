@@ -545,7 +545,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       <DashboardSection title="Radiografia Tática" subtitle="Matriz Estratégica & Liquidez" icon={<Target size={20} />} defaultOpen={true}>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 order-1 lg:order-1">
-                  <QuadrantChart data={quadrantData} />
+                  <QuadrantChart data={quadrantData} onNavigate={onNavigate} />
               </div>
               <div className="lg:col-span-1 order-2 lg:order-2">
                   <LiquidityGauge notebooks={notebooks} />
@@ -553,6 +553,9 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           </div>
       </DashboardSection>
 
+      {/* ...rest of the component (Evolution, Pareto, etc.) remains unchanged... */}
+      {/* Keeping existing chart sections for brevity as they don't change */}
+      
       {/* === EVOLUTION & COMPETENCE (CHART.JS MIGRATION) === */}
       <DashboardSection title="Evolução & Competência" subtitle="Histórico de Desempenho e Equilíbrio de Matérias" icon={<Activity size={20} />} defaultOpen={true}>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

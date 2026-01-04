@@ -1,16 +1,16 @@
 
 /**
- * DOCUMENTAÇÃO TÉCNICA - PROJETO ATENA V7.0.0
+ * DOCUMENTAÇÃO TÉCNICA - PROJETO ATENA V7.5.0
  * ============================================
  * Data Model e Tipagem do Sistema.
  * 
  * STATUS: STABLE / INTELLIGENCE EDITION
  * 
- * CHANGELOG V7.0.0:
- * - [FEATURE] Painel HUD Estatístico na Biblioteca.
- * - [FEATURE] Cálculo de Carga Diária (Pace) no Planejador.
- * - [CORE] Rastreamento Granular de Semanas no Edital Verticalizado.
- * - [UI] Refinamento visual final para lançamento.
+ * CHANGELOG V7.5.0:
+ * - [FEATURE] Matriz Estratégica Interativa (Drill-down nos quadrantes).
+ * - [FEATURE] Projeção de Data de Revisão em tempo real no formulário.
+ * - [UX] Indicador visual de "Em Dia" na dashboard quando não há revisões.
+ * - [CORE] Estabilização do React 19 e Chart.js.
  * 
  * PRINCIPAIS ENTIDADES:
  * 1. Notebook (Caderno): A unidade atômica de estudo.

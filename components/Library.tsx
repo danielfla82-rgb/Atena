@@ -5,23 +5,38 @@ import {
     ChevronRight, ChevronLeft, Layers, Square, CheckSquare, 
     Circle, BookOpen, CheckCircle2, Siren, Star, Clock, Sparkles,
     Maximize2, FileCode, CalendarClock, ZoomIn, Flag, Save, Inbox, ScanSearch, Scale, Loader2, ArrowRight, XCircle,
-    LayoutGrid, Book
+    LayoutGrid, Book, Calendar, History, TrendingUp
 } from 'lucide-react';
 import { Weight, Relevance, Trend, Notebook, NotebookStatus } from '../types';
 import { calculateNextReview } from '../utils/algorithm';
 
-// --- SUB-COMPONENT: Status Badge ---
-const StatusBadge = ({ status }: { status: NotebookStatus }) => {
-    switch(status) {
-        case NotebookStatus.NOT_STARTED: 
-          return <span className="flex items-center gap-1 text-[10px] text-slate-500 bg-slate-800 px-2 py-0.5 rounded border border-slate-700"><Circle size={8} className="border border-slate-500 rounded-full" /> Não Iniciado</span>;
+// --- SUB-COMPONENT: Status Badge (ATUALIZADO V7.1) ---
+// Agora considera se o item está planejado (weekId) ou se já tem acurácia registrada
+const StatusBadge = ({ nb }: { nb: Notebook }) => {
+    // 1. Prioridade: Dominado
+    if (nb.status === NotebookStatus.MASTERED || nb.accuracy >= 95) {
+        return <span className="flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20"><CheckCircle2 size={10} /> Dominado</span>;
+    }
+
+    // 2. Prioridade: Em Andamento Real (Tem acurácia > 0)
+    if (nb.accuracy > 0) {
+         return <span className="flex items-center gap-1 text-[10px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20"><BookOpen size={10} /> Em Andamento ({nb.accuracy}%)</span>;
+    }
+
+    // 3. Prioridade: Planejado (Está no Ciclo) - CORREÇÃO SOLICITADA
+    // Se está no planejamento, não é "Não Iniciado" visualmente
+    if (nb.weekId) {
+        return <span className="flex items-center gap-1 text-[10px] text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20"><Calendar size={10} /> Planejado</span>;
+    }
+
+    // 4. Fallback: Status do Banco
+    switch(nb.status) {
         case NotebookStatus.THEORY_DONE: 
           return <span className="flex items-center gap-1 text-[10px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20"><BookOpen size={10} /> Teoria OK</span>;
         case NotebookStatus.REVIEWING: 
           return <span className="flex items-center gap-1 text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20"><RefreshCw size={10} /> Revisando</span>;
-        case NotebookStatus.MASTERED: 
-          return <span className="flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20"><CheckCircle2 size={10} /> Dominado</span>;
-        default: return null;
+        default: 
+          return <span className="flex items-center gap-1 text-[10px] text-slate-500 bg-slate-800 px-2 py-0.5 rounded border border-slate-700"><Circle size={8} className="border border-slate-500 rounded-full" /> Não Iniciado</span>;
     }
 };
 
@@ -133,7 +148,6 @@ const LibraryItem = React.memo(({
                     <div className="flex items-center gap-2">
                         <h4 className="text-sm font-medium text-slate-300">{nb.name}</h4>
                         {nb.subtitle && <span className="text-xs text-slate-500 hidden lg:inline-block">• {nb.subtitle}</span>}
-                        {nb.weekId && <span className="text-[9px] bg-slate-800 text-slate-400 px-1.5 rounded border border-slate-700">Planejado</span>}
                     </div>
                     
                     {isExpanded && (
@@ -153,7 +167,9 @@ const LibraryItem = React.memo(({
                         {new Date(nb.nextReview).toLocaleDateString()}
                     </span>
                 )}
-                <StatusBadge status={nb.status} />
+                {/* STATUS BADGE ATUALIZADO */}
+                <StatusBadge nb={nb} />
+                
                 <div className={`text-xs font-bold px-2 py-0.5 rounded border ${nb.accuracy < 60 ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
                     {nb.accuracy}%
                 </div>
@@ -220,6 +236,12 @@ export const Library: React.FC = () => {
   const [formData, setFormData] = useState(initialFormState);
   const [newHistoryDate, setNewHistoryDate] = useState(new Date().toISOString().split('T')[0]);
   const [newHistoryAccuracy, setNewHistoryAccuracy] = useState(0);
+
+  // ALGORITMO EM TEMPO REAL NO MODAL
+  const computedNextReview = useMemo(() => {
+      if (!isModalOpen) return null;
+      return calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm);
+  }, [formData.accuracy, formData.relevance, formData.trend, config.algorithm, isModalOpen]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -548,6 +570,7 @@ export const Library: React.FC = () => {
   const handleSave = (e: React.FormEvent) => {
       e.preventDefault();
       // Ensure calculation uses the latest date/accuracy
+      // ESTE É O PONTO CRÍTICO QUE GARANTE QUE O RECURSO DE DATA FUNCIONA
       const nextDate = calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm);
       
       const payload: any = { 
@@ -555,12 +578,41 @@ export const Library: React.FC = () => {
           accuracy: Number(formData.accuracy), 
           targetAccuracy: Number(formData.targetAccuracy),
           lastPractice: new Date(formData.lastPractice).toISOString(),
-          nextReview: nextDate.toISOString()
+          nextReview: nextDate.toISOString() // Data é salva baseada no algoritmo
       };
 
       if (editingId) editNotebook(editingId, payload);
       else addNotebook({ ...payload, weekId: null });
       setIsModalOpen(false);
+  };
+
+  const handleQuickRecord = async () => {
+      setIsSaving(true);
+      try {
+          const newAccuracy = Number(formData.accuracy);
+          // Calculate next review date based on algorithm to keep consistency if we are saving history/accuracy
+          const nextDate = calculateNextReview(newAccuracy, formData.relevance, formData.trend, config.algorithm);
+          const newHistory = [...(formData.accuracyHistory || []), { date: new Date().toISOString(), accuracy: newAccuracy }].slice(-3);
+          
+          if(editingId) {
+              await editNotebook(editingId, { 
+                  accuracy: newAccuracy, 
+                  accuracyHistory: newHistory, 
+                  lastPractice: new Date().toISOString(),
+                  nextReview: nextDate.toISOString()
+              });
+              setFormData(prev => ({ 
+                  ...prev, 
+                  accuracyHistory: newHistory,
+                  lastPractice: new Date().toISOString().split('T')[0]
+              }));
+          }
+      } catch (err) { 
+          console.error("Quick save failed", err); 
+          alert("Erro ao salvar registro rápido.");
+      } finally { 
+          setIsSaving(false); 
+      }
   };
 
   // Save loading state
@@ -784,36 +836,49 @@ export const Library: React.FC = () => {
                       <div><label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Meta (%)</label><input type="number" min="0" max="100" value={formData.targetAccuracy} onChange={e => handleChange('targetAccuracy', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm text-center font-bold" /></div>
                   </div>
                   <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex flex-col items-stretch gap-4">
-                      {/* --- ALGORITHM PREVIEW --- */}
-                      <AlgorithmProjection accuracy={formData.accuracy} relevance={formData.relevance} trend={formData.trend} config={config} />
-                      
-                      <div className="flex flex-col md:flex-row gap-4 items-end mt-4 pt-4 border-t border-slate-700/50">
+                      <div className="flex flex-col md:flex-row gap-4 items-end">
                           <div className="flex-1 w-full">
-                              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-2">Registrar Sessão de Estudo</label>
-                              <div className="flex gap-2 items-center">
-                                  <input type="date" value={newHistoryDate} onChange={e => setNewHistoryDate(e.target.value)} className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-white" />
-                                  <input type="number" min="0" max="100" placeholder="%" value={newHistoryAccuracy} onChange={e => setNewHistoryAccuracy(Number(e.target.value))} className="w-20 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-sm text-white text-center font-bold" />
-                                  <button type="button" onClick={addHistoryItem} className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 rounded text-xs font-bold uppercase tracking-wider">Adicionar</button>
-                              </div>
+                             <div className="flex justify-between mb-1">
+                                <label className="block text-[10px] font-bold text-emerald-400 uppercase">Taxa de Acerto Atual (%)</label>
+                                {formData.accuracyHistory && formData.accuracyHistory.length > 0 && (
+                                    <span className="text-[9px] text-slate-500 font-mono flex items-center gap-1">
+                                        <History size={10}/> Últimos 3
+                                    </span>
+                                )}
+                             </div>
+                             <div className="flex gap-2">
+                                <input type="number" min="0" max="100" value={formData.accuracy} onChange={e => handleChange('accuracy', e.target.value)} className="flex-1 bg-slate-900 border border-slate-600 rounded-lg p-2 text-white font-mono text-center font-bold text-lg focus:border-emerald-500 outline-none" />
+                                <button type="button" onClick={handleQuickRecord} disabled={isSaving} className="px-4 bg-emerald-600/20 border border-emerald-600/50 text-emerald-400 hover:bg-emerald-600 hover:text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2">{isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Registrar</button>
+                             </div>
+                             
+                             {/* INDICADOR DE DATA DA PRÓXIMA REVISÃO (SOLICITADO) */}
+                             {computedNextReview && (
+                                 <div className="flex items-center justify-end gap-1.5 mt-2 text-[10px] font-bold text-slate-400">
+                                     <span className="uppercase tracking-widest text-slate-500">Próxima Revisão:</span>
+                                     <span className="text-emerald-400 bg-emerald-900/20 px-1.5 py-0.5 rounded border border-emerald-500/20 flex items-center gap-1">
+                                         <Calendar size={10} /> {computedNextReview.toLocaleDateString()}
+                                     </span>
+                                 </div>
+                             )}
+
+                          </div>
+                          <div className="flex-1 w-full flex gap-2">
+                             <button type="button" onClick={handleNotStudied} className="flex-1 py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 font-bold text-sm bg-slate-700 hover:bg-slate-600 text-slate-200 transition-all border border-slate-600">
+                                <Flag size={16} /> Não estudei
+                             </button>
                           </div>
                       </div>
-
-                      {/* HISTORY LIST */}
-                      <div className="border-t border-slate-700/50 pt-2 flex flex-col gap-2 max-h-32 overflow-y-auto custom-scrollbar">
-                          {formData.accuracyHistory && formData.accuracyHistory.length > 0 ? (
-                              formData.accuracyHistory.slice().reverse().map((h, i) => (
-                                  <div key={i} className="flex justify-between items-center bg-slate-900 px-3 py-2 rounded border border-slate-800">
-                                      <span className="text-xs text-slate-400 font-mono">{new Date(h.date).toLocaleDateString()}</span>
-                                      <div className="flex items-center gap-3">
-                                        <span className={`text-sm font-bold ${h.accuracy >= formData.targetAccuracy ? 'text-emerald-400' : h.accuracy < 60 ? 'text-red-400' : 'text-amber-400'}`}>{h.accuracy}%</span>
-                                        <button type="button" onClick={() => removeHistoryItem(formData.accuracyHistory.length - 1 - i)} className="text-slate-600 hover:text-red-500"><Trash2 size={12} /></button>
-                                      </div>
+                      {formData.accuracyHistory && formData.accuracyHistory.length > 0 && (
+                          <div className="border-t border-slate-700/50 pt-2 flex gap-2 overflow-x-auto pb-1">
+                              {formData.accuracyHistory.map((h, i) => (
+                                  <div key={i} className="flex flex-col items-center bg-slate-900 px-2 py-1 rounded border border-slate-800 min-w-[60px]">
+                                      <span className="text-[10px] text-slate-500 font-mono">{new Date(h.date).toLocaleDateString(undefined, {day:'2-digit', month:'2-digit'})}</span>
+                                      <span className={`text-xs font-bold ${h.accuracy >= formData.targetAccuracy ? 'text-emerald-400' : h.accuracy < 60 ? 'text-red-400' : 'text-amber-400'}`}>{h.accuracy}%</span>
                                   </div>
-                              ))
-                          ) : (
-                              <p className="text-xs text-slate-600 text-center italic py-2">Sem histórico de acertos.</p>
-                          )}
-                      </div>
+                              ))}
+                              <div className="flex items-center text-xs text-slate-500 gap-1 ml-2"><TrendingUp size={14} /> Tendência</div>
+                          </div>
+                      )}
                   </div>
               </div>
               <div className="space-y-4 pt-2">

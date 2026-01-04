@@ -1,7 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { Notebook, Weight, Relevance, WEIGHT_SCORE, RELEVANCE_SCORE } from '../types';
-import { AlertTriangle, CheckCircle2, Minus, Target, Grid3X3, ScatterChart as ScatterIcon } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Minus, Target, Grid3X3, ScatterChart as ScatterIcon, X, ExternalLink } from 'lucide-react';
 import { getStatusColor } from '../utils/algorithm';
+import { useStore } from '../store';
 
 // Chart.js imports
 import {
@@ -18,10 +19,13 @@ ChartJS.register(LinearScale, PointElement, LineElement, Tooltip, Legend);
 
 interface Props {
   data: Notebook[];
+  onNavigate?: (view: string) => void;
 }
 
-export const QuadrantChart: React.FC<Props> = ({ data }) => {
+export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
+  const { setFocusedNotebookId } = useStore();
   const [viewMode, setViewMode] = useState<'heatmap' | 'scatter'>('heatmap');
+  const [selectedCell, setSelectedCell] = useState<{ notebooks: Notebook[], title: string } | null>(null);
 
   // --- HEATMAP LOGIC ---
   const weights = [Weight.MUITO_ALTO, Weight.ALTO, Weight.MEDIO, Weight.BAIXO];
@@ -61,6 +65,21 @@ export const QuadrantChart: React.FC<Props> = ({ data }) => {
     if (avgAcc >= 85) return <CheckCircle2 size={14} />;
     if (avgAcc >= 60) return <Minus size={14} />;
     return <AlertTriangle size={14} />;
+  };
+
+  const handleCellClick = (w: Weight, r: Relevance, cellData: { notebooks: Notebook[], count: number }) => {
+      if (cellData.count > 0) {
+          setSelectedCell({
+              notebooks: cellData.notebooks,
+              title: `${w} • ${r}`
+          });
+      }
+  };
+
+  const handleNotebookClick = (id: string) => {
+      setFocusedNotebookId(id);
+      setSelectedCell(null);
+      onNavigate?.('library');
   };
 
   // --- SCATTER PLOT LOGIC (Chart.js) ---
@@ -127,7 +146,7 @@ export const QuadrantChart: React.FC<Props> = ({ data }) => {
   };
 
   return (
-    <div className="w-full bg-slate-900 rounded-xl border border-slate-800 p-6 flex flex-col h-[480px]">
+    <div className="w-full bg-slate-900 rounded-xl border border-slate-800 p-6 flex flex-col h-[480px] relative">
       <div className="flex justify-between items-start mb-6">
         <div>
            <h3 className="text-white font-bold text-lg flex items-center gap-2">
@@ -180,9 +199,11 @@ export const QuadrantChart: React.FC<Props> = ({ data }) => {
                                 return (
                                     <div 
                                         key={`${w}-${r}`}
+                                        onClick={() => handleCellClick(w, r, cellData)}
                                         className={`
-                                            rounded-lg border flex flex-col items-center justify-center transition-all cursor-default group relative
+                                            rounded-lg border flex flex-col items-center justify-center transition-all group relative
                                             ${getCellColor(cellData.count, avgAcc)}
+                                            ${cellData.count > 0 ? 'cursor-pointer hover:brightness-110 active:scale-95' : 'cursor-default'}
                                         `}
                                     >
                                         {cellData.count > 0 ? (
@@ -195,20 +216,9 @@ export const QuadrantChart: React.FC<Props> = ({ data }) => {
                                                     {cellData.count} {cellData.count === 1 ? 'Item' : 'Itens'}
                                                 </span>
                                                 
-                                                {/* Hover Tooltip */}
-                                                <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 bg-slate-950 border border-slate-700 rounded-lg p-3 shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50">
-                                                    <p className="text-xs font-bold text-white mb-2 border-b border-slate-800 pb-1">
-                                                        {w} • {r}
-                                                    </p>
-                                                    <ul className="text-[10px] space-y-1 text-slate-400">
-                                                        {cellData.notebooks.slice(0, 5).map(nb => (
-                                                            <li key={nb.id} className="truncate flex justify-between">
-                                                                <span>{nb.discipline.substring(0, 15)}...</span>
-                                                                <span className={nb.accuracy < 60 ? 'text-red-400' : 'text-emerald-400'}>{nb.accuracy}%</span>
-                                                            </li>
-                                                        ))}
-                                                        {cellData.count > 5 && <li className="italic text-center pt-1">+ {cellData.count - 5} outros</li>}
-                                                    </ul>
+                                                {/* Hover Hint */}
+                                                <div className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-50 transition-opacity">
+                                                    <ExternalLink size={10} />
                                                 </div>
                                             </>
                                         ) : (
@@ -250,6 +260,43 @@ export const QuadrantChart: React.FC<Props> = ({ data }) => {
         )}
 
       </div>
+
+      {/* POPUP LIST MODAL */}
+      {selectedCell && (
+          <div className="absolute inset-0 z-50 bg-slate-900/95 backdrop-blur-sm flex items-center justify-center rounded-xl p-4 animate-in fade-in zoom-in duration-200">
+              <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-xl shadow-2xl flex flex-col max-h-full">
+                  <div className="flex justify-between items-center p-4 border-b border-slate-800">
+                      <div>
+                          <h4 className="text-white font-bold text-sm uppercase tracking-wide">Quadrante Selecionado</h4>
+                          <p className="text-emerald-500 text-xs font-bold mt-0.5">{selectedCell.title}</p>
+                      </div>
+                      <button onClick={() => setSelectedCell(null)} className="text-slate-500 hover:text-white transition-colors">
+                          <X size={18} />
+                      </button>
+                  </div>
+                  <div className="overflow-y-auto p-2 custom-scrollbar">
+                      {selectedCell.notebooks.map(nb => (
+                          <button 
+                            key={nb.id}
+                            onClick={() => handleNotebookClick(nb.id)}
+                            className="w-full text-left p-3 hover:bg-slate-800 rounded-lg flex justify-between items-center group transition-colors"
+                          >
+                              <div className="min-w-0 pr-2">
+                                  <p className="text-xs font-bold text-slate-200 truncate">{nb.discipline}</p>
+                                  <p className="text-[10px] text-slate-500 truncate">{nb.name}</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                  <span className={`text-xs font-bold px-1.5 py-0.5 rounded border ${nb.accuracy < 60 ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
+                                      {nb.accuracy}%
+                                  </span>
+                                  <ExternalLink size={12} className="text-slate-600 group-hover:text-white" />
+                              </div>
+                          </button>
+                      ))}
+                  </div>
+              </div>
+          </div>
+      )}
     </div>
   );
 };
