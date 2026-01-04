@@ -249,7 +249,31 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
                         <div className={`text-xs font-mono px-3 py-1 rounded-full border ${isBalanced ? 'bg-emerald-900/20 text-emerald-400 border-emerald-500/30' : 'bg-slate-800 text-white'}`}>Alocado: <strong>{totalAllocated}</strong> / {paceTarget.blocks}</div>
                     </div>
                  </div>
+
+                 {/* ADD DISCIPLINE FORM */}
+                 <form onSubmit={handleAddDiscipline} className="p-3 border-b border-slate-800/50 bg-slate-900/50 flex gap-2">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-2.5 text-slate-500" size={14} />
+                        <input 
+                            type="text" 
+                            value={newDiscName}
+                            onChange={(e) => setNewDiscName(e.target.value)}
+                            placeholder="Adicionar disciplina ao ciclo (ex: Direito Civil)..." 
+                            className="w-full bg-slate-950 border border-slate-700 rounded-lg py-2 pl-9 pr-3 text-xs text-white focus:border-emerald-500 outline-none"
+                        />
+                    </div>
+                    <button type="submit" disabled={!newDiscName.trim()} className="px-4 py-2 bg-slate-800 hover:bg-emerald-600 text-slate-300 hover:text-white rounded-lg text-xs font-bold transition-all disabled:opacity-50">
+                        <Plus size={14} />
+                    </button>
+                 </form>
+
                  <div className="flex-1 overflow-y-auto custom-scrollbar divide-y divide-slate-800/50">
+                    {availableDisciplines.length === 0 && (
+                        <div className="flex flex-col items-center justify-center h-48 text-slate-500 opacity-50">
+                            <ListPlus size={32} className="mb-2"/>
+                            <p className="text-xs">Lista vazia. Adicione disciplinas acima.</p>
+                        </div>
+                    )}
                     {availableDisciplines.map(d => {
                         const isSelected = selectedDiscs.has(d);
                         const dist = distribution.find(x => x.name === d);

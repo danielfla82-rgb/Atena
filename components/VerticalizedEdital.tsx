@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { useStore } from '../store';
 import { createAIClient } from '../utils/ai';
 import { Type } from "@google/genai";
-import { CheckSquare, Square, AlertCircle, ArrowUpCircle, CheckCircle2, ListChecks, Search, BrainCircuit, Loader2, Sparkles, ChevronDown, ChevronUp, FileWarning, ExternalLink, Plus, BookOpen, X, FileText } from 'lucide-react';
+import { CheckSquare, Square, AlertCircle, ArrowUpCircle, CheckCircle2, ListChecks, Search, BrainCircuit, Loader2, Sparkles, ChevronDown, ChevronUp, FileWarning, ExternalLink, Plus, BookOpen, X, FileText, Calendar, Target, TrendingUp, Clock } from 'lucide-react';
 import { EditalDiscipline, EditalTopic, Weight, Relevance, Trend } from '../types';
 
 interface Props {
@@ -28,6 +28,38 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
       setLocalEditalText(config.editalText || '');
       setShowReprocessModal(true);
   };
+
+  // --- STATS CALCULATION ---
+  const stats = useMemo(() => {
+      if (!config.structuredEdital) return null;
+
+      let totalTopics = 0;
+      let completedTopics = 0;
+
+      config.structuredEdital.forEach(d => {
+          totalTopics += d.topics.length;
+          completedTopics += d.topics.filter(t => t.checked).length;
+      });
+
+      const pendingTopics = totalTopics - completedTopics;
+      let daysRemaining = 0;
+      let pace = 0; // Topics per day
+
+      if (config.examDate) {
+          const today = new Date();
+          today.setHours(0,0,0,0);
+          const exam = new Date(config.examDate);
+          
+          const diffTime = exam.getTime() - today.getTime();
+          daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+          if (daysRemaining > 0 && pendingTopics > 0) {
+              pace = Number((pendingTopics / daysRemaining).toFixed(1));
+          }
+      }
+
+      return { totalTopics, completedTopics, pendingTopics, daysRemaining, pace };
+  }, [config.structuredEdital, config.examDate]);
 
   // --- AI PROCESSING ---
   const processEditalWithAI = async () => {
@@ -315,6 +347,51 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
              </button>
         </div>
       </div>
+
+      {/* --- INTELLIGENCE PANEL (STATS) --- */}
+      {stats && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-2">
+              <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden">
+                  <div className="p-3 bg-slate-800 rounded-lg text-slate-400"><BookOpen size={20} /></div>
+                  <div>
+                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Total de Tópicos</p>
+                      <p className="text-2xl font-bold text-white">{stats.totalTopics}</p>
+                  </div>
+              </div>
+
+              <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden">
+                  <div className="p-3 bg-emerald-900/20 rounded-lg text-emerald-500"><CheckCircle2 size={20} /></div>
+                  <div>
+                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Concluídos</p>
+                      <p className="text-2xl font-bold text-emerald-400">{stats.completedTopics} <span className="text-xs text-slate-500 font-normal">({Math.round((stats.completedTopics/stats.totalTopics)*100)}%)</span></p>
+                  </div>
+                  <div className="absolute bottom-0 left-0 h-1 bg-emerald-500 transition-all duration-1000" style={{ width: `${(stats.completedTopics/stats.totalTopics)*100}%` }}></div>
+              </div>
+
+              <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden">
+                  <div className="p-3 bg-blue-900/20 rounded-lg text-blue-500"><Calendar size={20} /></div>
+                  <div>
+                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Dias Restantes</p>
+                      <p className="text-2xl font-bold text-blue-400">{stats.daysRemaining > 0 ? stats.daysRemaining : '--'}</p>
+                  </div>
+              </div>
+
+              <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-emerald-500/30 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden shadow-lg shadow-emerald-900/10">
+                  <div className="p-3 bg-emerald-500 rounded-lg text-white shadow-md"><TrendingUp size={20} /></div>
+                  <div>
+                      <p className="text-[10px] text-emerald-300 font-bold uppercase tracking-wider">Meta Diária</p>
+                      <p className="text-2xl font-bold text-white">
+                          {stats.pace > 0 ? stats.pace : '?'} <span className="text-xs text-slate-400 font-normal">tópicos/dia</span>
+                      </p>
+                  </div>
+                  {!config.examDate && (
+                      <div className="absolute inset-0 bg-slate-950/80 flex items-center justify-center text-xs text-slate-400 backdrop-blur-[1px]">
+                          Configure a data da prova
+                      </div>
+                  )}
+              </div>
+          </div>
+      )}
 
       <div className="space-y-4 flex-1 overflow-y-auto custom-scrollbar pr-2">
           {displayData.map((discipline) => {
