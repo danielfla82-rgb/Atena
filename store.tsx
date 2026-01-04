@@ -299,10 +299,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   ...n,
                   // Ensure mandatory fields have fallbacks
                   name: n.name || "Tópico Sem Nome", 
-                  subtitle: n.subtitle || "", // Fallback para evitar null no input value
+                  subtitle: n.subtitle || "", 
                   tecLink: n.tec_link,
+                  errorNotebookLink: n.error_notebook_link, // Mapped
+                  favoriteQuestionsLink: n.favorite_questions_link, // Mapped
                   lawLink: n.law_link,
                   obsidianLink: n.obsidian_link,
+                  geminiLink1: n.gemini_link_1, // Mapped
+                  geminiLink2: n.gemini_link_2, // Mapped
                   targetAccuracy: n.target_accuracy,
                   lastPractice: n.last_practice,
                   nextReview: n.next_review,
@@ -514,8 +518,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   name: newNotebook.name,
                   subtitle: newNotebook.subtitle || "",
                   tec_link: newNotebook.tecLink || null,
+                  error_notebook_link: newNotebook.errorNotebookLink || null,
+                  favorite_questions_link: newNotebook.favoriteQuestionsLink || null,
                   law_link: newNotebook.lawLink || null,
                   obsidian_link: newNotebook.obsidianLink || null,
+                  gemini_link_1: newNotebook.geminiLink1 || null,
+                  gemini_link_2: newNotebook.geminiLink2 || null,
                   weight: newNotebook.weight,
                   relevance: newNotebook.relevance,
                   trend: newNotebook.trend,
@@ -556,8 +564,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               if(updates.name !== undefined) dbUpdates.name = updates.name;
               if(updates.discipline !== undefined) dbUpdates.discipline = updates.discipline;
               if(updates.tecLink !== undefined) dbUpdates.tec_link = updates.tecLink || null;
+              if(updates.errorNotebookLink !== undefined) dbUpdates.error_notebook_link = updates.errorNotebookLink || null;
+              if(updates.favoriteQuestionsLink !== undefined) dbUpdates.favorite_questions_link = updates.favoriteQuestionsLink || null;
               if(updates.lawLink !== undefined) dbUpdates.law_link = updates.lawLink || null;
               if(updates.obsidianLink !== undefined) dbUpdates.obsidian_link = updates.obsidianLink || null;
+              if(updates.geminiLink1 !== undefined) dbUpdates.gemini_link_1 = updates.geminiLink1 || null;
+              if(updates.geminiLink2 !== undefined) dbUpdates.gemini_link_2 = updates.geminiLink2 || null;
               if(updates.targetAccuracy !== undefined) dbUpdates.target_accuracy = updates.targetAccuracy;
               if(updates.accuracy !== undefined) dbUpdates.accuracy = updates.accuracy;
               if(updates.lastPractice !== undefined) dbUpdates.last_practice = updates.lastPractice || null;
@@ -569,7 +581,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               if(updates.notes !== undefined) dbUpdates.notes = updates.notes || null;
               if(updates.accuracyHistory !== undefined) dbUpdates.accuracy_history = updates.accuracyHistory;
               
-              if(updates.subtitle !== undefined) dbUpdates.subtitle = updates.subtitle || ""; // Explicitly handle subtitle updates
+              if(updates.subtitle !== undefined) dbUpdates.subtitle = updates.subtitle || ""; 
 
               if(updates.images !== undefined) {
                   dbUpdates.images = updates.images || [];

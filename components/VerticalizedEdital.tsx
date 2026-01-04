@@ -3,14 +3,14 @@ import { useStore } from '../store';
 import { createAIClient } from '../utils/ai';
 import { Type } from "@google/genai";
 import { CheckSquare, Square, AlertCircle, ArrowUpCircle, CheckCircle2, ListChecks, Search, BrainCircuit, Loader2, Sparkles, ChevronDown, ChevronUp, FileWarning, ExternalLink, Plus, BookOpen, X, FileText, Calendar, Target, TrendingUp, Clock } from 'lucide-react';
-import { EditalDiscipline, EditalTopic, Weight, Relevance, Trend } from '../types';
+import { EditalDiscipline, EditalTopic, Weight, Relevance, Trend, ScheduleItem } from '../types';
 
 interface Props {
     onNavigate: (view: string) => void;
 }
 
 export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
-  const { notebooks, config, updateConfig, setFocusedNotebookId, setPendingCreateData } = useStore();
+  const { notebooks, config, updateConfig, setFocusedNotebookId, setPendingCreateData, activeCycleId, cycles } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [expandedDiscipline, setExpandedDiscipline] = useState<string | null>(null);
@@ -235,12 +235,12 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
 
   }, [notebooks]);
 
-  // --- MATCHING LOGIC ---
+  // --- MATCHING LOGIC (SCHEDULE AWARE) ---
   const getTopicStatus = useCallback((topicName: string, disciplineName: string) => {
       const normTopic = normalize(topicName);
       const normDisc = normalize(disciplineName);
 
-      // Find notebooks that match this topic
+      // 1. Find notebooks that match this topic
       const matches = notebooks.filter(nb => {
           const nbDisc = normalize(nb.discipline);
           const discMatch = nbDisc.includes(normDisc) || normDisc.includes(nbDisc);
@@ -250,9 +250,34 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
           return nbName.includes(normTopic) || normTopic.includes(nbName) || (nbSub && normTopic.includes(nbSub));
       });
 
-      const inCycle = matches.some(nb => !!nb.weekId);
-      const blocksCount = matches.filter(nb => !!nb.weekId).length; 
+      // 2. Find Schedule Data
+      const activeCycle = cycles.find(c => c.id === activeCycleId);
+      const scheduledWeeks = new Set<string>();
       
+      if (activeCycle?.schedule) {
+          Object.entries(activeCycle.schedule).forEach(([weekId, slots]) => {
+              // Check if any matched notebook is in this week's slots
+              const typedSlots = slots as ScheduleItem[];
+              const isScheduledInWeek = typedSlots.some(slot => matches.some(m => m.id === slot.notebookId));
+              if (isScheduledInWeek) {
+                  scheduledWeeks.add(weekId); // e.g., "week-1"
+              }
+          });
+      } else {
+          // Legacy Fallback
+          matches.forEach(m => {
+              if (m.weekId) scheduledWeeks.add(m.weekId);
+          });
+      }
+
+      // Convert Set to readable string array (sorted)
+      const weeksArray = Array.from(scheduledWeeks).sort((a,b) => {
+          const numA = parseInt(a.replace('week-', '')) || 0;
+          const numB = parseInt(b.replace('week-', '')) || 0;
+          return numA - numB;
+      }).map(w => w.replace('week-', 'Sem ')); // "Sem 1", "Sem 2"
+
+      // Stats for Header
       const disciplineBlocks = notebooks.filter(nb => {
           const nbDisc = normalize(nb.discipline);
           return (nbDisc.includes(normDisc) || normDisc.includes(nbDisc)) && !!nb.weekId;
@@ -260,13 +285,13 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
 
       // Return the ID of the first match if any, to allow linking
       return { 
-          inCycle, 
-          blocksCount, 
+          weeksLabel: weeksArray.length > 0 ? weeksArray.join(', ') : null,
+          isScheduled: weeksArray.length > 0,
           disciplineBlocks, 
           matchesCount: matches.length,
           matchedId: matches.length > 0 ? matches[0].id : undefined 
       };
-  }, [notebooks]);
+  }, [notebooks, activeCycleId, cycles]);
 
   // --- FILTERING ---
   const displayData = useMemo(() => {
@@ -441,7 +466,7 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
                                               <th className="p-4 w-16 text-center">Status</th>
                                               <th className="p-4">Tópico</th>
                                               <th className="p-4 w-40 text-center">Probabilidade (Score)</th>
-                                              <th className="p-4 w-32 text-center">No Ciclo?</th>
+                                              <th className="p-4 w-32 text-center">Planejamento</th>
                                               <th className="p-4 w-32 text-center">Ação</th>
                                           </tr>
                                       </thead>
@@ -472,12 +497,12 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
                                                           </div>
                                                       </td>
                                                       <td className="p-4 text-center">
-                                                          {stats.inCycle ? (
-                                                              <span className="flex items-center justify-center gap-1 text-emerald-400 font-bold text-xs">
-                                                                  <CheckCircle2 size={14} /> Sim
+                                                          {stats.isScheduled ? (
+                                                              <span className="flex items-center justify-center gap-1 text-emerald-400 font-bold text-xs bg-emerald-900/10 border border-emerald-500/20 px-2 py-1 rounded">
+                                                                  <Calendar size={12} /> {stats.weeksLabel}
                                                               </span>
                                                           ) : (
-                                                              <span className="text-slate-600 text-xs">Não</span>
+                                                              <span className="text-slate-600 text-xs italic">Não alocado</span>
                                                           )}
                                                       </td>
                                                       <td className="p-4 text-center">

@@ -11,11 +11,11 @@ export const Documentation: React.FC = () => {
           <h1 className="text-3xl font-bold text-white flex items-center gap-3">
             <Book className="text-emerald-500" /> Documentação Técnica
           </h1>
-          <p className="text-slate-400 mt-2 text-lg">Projeto Atena (GurujaApp)</p>
+          <p className="text-slate-400 mt-2 text-lg">Projeto Atena v7.0 (Intelligence Edition)</p>
         </div>
         <div className="text-right hidden md:block">
-            <p className="text-xs text-slate-500 uppercase font-bold tracking-widest">Última Atualização</p>
-            <p className="text-slate-300 font-mono">Hoje</p>
+            <p className="text-xs text-slate-500 uppercase font-bold tracking-widest">Versão</p>
+            <p className="text-slate-300 font-mono">v7.0.0 (Gold)</p>
         </div>
       </div>
 
@@ -60,8 +60,7 @@ export const Documentation: React.FC = () => {
                     O <strong>Projeto Atena (GurujaApp)</strong> é uma plataforma SaaS de alta performance projetada especificamente para "concurseiros de elite".
                  </p>
                  <p className="mb-4">
-                    Diferente de gerenciadores de tarefas convencionais (como Trello ou Notion), o Atena integra um 
-                    <strong> Sistema de Revisão Espaçada (SRS)</strong> proprietário, ajustado dinamicamente por Inteligência Artificial (Gemini 2.0).
+                    A versão <strong>7.0 Intelligence</strong> integra um <strong>Sistema de Revisão Espaçada (SRS)</strong> proprietário com Inteligência Artificial Generativa (Gemini 2.0) para criar um ecossistema de aprendizado adaptativo.
                  </p>
                  <p>
                     A plataforma resolve o problema da "Curva de Esquecimento" através de uma matriz estratégica que pondera não apenas a data da última revisão, 
@@ -83,10 +82,10 @@ export const Documentation: React.FC = () => {
                         <Code size={18} className="text-blue-400"/> Frontend Core
                     </h3>
                     <ul className="space-y-2">
-                       <TechItem label="React 19" desc="Hooks, Context API, Suspense" />
+                       <TechItem label="React 19" desc="Hooks, Context API, Suspense, Concurrent Mode" />
                        <TechItem label="Vite" desc="Build Tooling ultra-rápido (Static Replacement)" />
                        <TechItem label="TypeScript" desc="Tipagem estrita e interfaces compartilhadas" />
-                       <TechItem label="Tailwind CSS" desc="Estilização utilitária e Design System Dark" />
+                       <TechItem label="Chart.js" desc="Visualização de dados performática (Canvas)" />
                     </ul>
                  </div>
 
@@ -96,8 +95,8 @@ export const Documentation: React.FC = () => {
                     </h3>
                     <ul className="space-y-2">
                        <TechItem label="Supabase" desc="PostgreSQL, Auth, Row Level Security (RLS)" />
-                       <TechItem label="Google Gemini" desc="IA Generativa (Diagnósticos, Nietzsche, Tips)" />
-                       <TechItem label="LocalStorage" desc="Persistência offline (Modo Visitante)" />
+                       <TechItem label="Google Gemini" desc="IA Generativa (Edital Verticalizado, Diagnósticos)" />
+                       <TechItem label="LocalStorage" desc="Persistência offline híbrida (Modo Visitante)" />
                     </ul>
                  </div>
               </div>
@@ -152,23 +151,24 @@ Ajuste Fino (Multiplicadores):
               <div className="space-y-4">
                  <DataEntity 
                     title="Notebook (Caderno)"
-                    desc="A unidade atômica de estudo. Representa um tópico específico de uma disciplina."
+                    desc="A unidade atômica de estudo. Representa um tópico específico de uma disciplina. Na v7.0, inclui links para ferramentas externas (TEC, Gemini, Obsidian)."
                     fields={[
                         { name: "id", type: "UUID" },
                         { name: "discipline", type: "string" },
                         { name: "accuracy", type: "number (0-100)" },
                         { name: "weight", type: "Enum (Baixo...Muito Alto)" },
-                        { name: "images", type: "string[] (Base64)" }
+                        { name: "geminiLink1", type: "string (URL)" },
+                        { name: "errorNotebookLink", type: "string (URL)" }
                     ]}
                  />
                  
                  <DataEntity 
                     title="Cycle (Ciclo)"
-                    desc="Um contêiner de planejamento tático. Permite que o usuário gerencie múltiplos editais (ex: PF e Receita) simultaneamente, reutilizando o mesmo banco de cadernos."
+                    desc="Um contêiner de planejamento tático. Permite que o usuário gerencie múltiplos editais. Suporta agendamento múltiplo por semana (Slots)."
                     fields={[
                         { name: "id", type: "UUID" },
                         { name: "config", type: "JSONB (AthensConfig)" },
-                        { name: "planning", type: "JSONB (Map<NotebookID, WeekID>)" },
+                        { name: "schedule", type: "JSONB (Map<WeekID, ScheduleItem[]>)" },
                         { name: "weeklyCompletion", type: "JSONB (Map<NotebookID, boolean>)" }
                     ]}
                  />

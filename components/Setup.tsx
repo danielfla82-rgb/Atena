@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, Relevance, Trend, NotebookStatus, ScheduleItem } from '../types';
-import { Plus, Search, Copy, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2, TrendingUp, History, ListPlus, Minus, AlertTriangle, CheckCircle2, RotateCw, Zap, Activity, Info, Clock, Archive, Cloud, CloudOff, Download, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { Plus, Search, Copy, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2, TrendingUp, History, ListPlus, Minus, AlertTriangle, CheckCircle2, RotateCw, Zap, Activity, Info, Clock, Archive, Cloud, CloudOff, Download, PanelLeftClose, PanelLeftOpen, Sparkles, XCircle } from 'lucide-react';
 import { calculateNextReview, getStatusColor } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 
@@ -302,6 +302,7 @@ export const Setup: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showStats, setShowStats] = useState(false);
   const [libraryFilter, setLibraryFilter] = useState<'all' | 'unallocated' | 'overdue'>('all');
+  const [disciplineFilter, setDisciplineFilter] = useState<string>(''); // NOVO: Filtro por disciplina
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -309,7 +310,11 @@ export const Setup: React.FC = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
   const initialFormState = {
-    discipline: '', name: '', subtitle: '', tecLink: '', lawLink: '', obsidianLink: '', accuracy: 0, targetAccuracy: 90,
+    discipline: '', name: '', subtitle: '', 
+    tecLink: '', errorNotebookLink: '', favoriteQuestionsLink: '', // NOVOS
+    lawLink: '', obsidianLink: '', 
+    geminiLink1: '', geminiLink2: '', // NOVOS
+    accuracy: 0, targetAccuracy: 90,
     weight: Weight.MEDIO, relevance: Relevance.MEDIA, trend: Trend.ESTAVEL, notes: '', images: [] as string[], accuracyHistory: [] as { date: string, accuracy: number }[]
   };
   
@@ -352,7 +357,7 @@ export const Setup: React.FC = () => {
   }, [notebooks, activeCycleId, cycles]);
 
   const normalizeText = useCallback((text: string) => {
-      return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\n\r]/g, " ").replace(/\s+/g, " ").replace(/[^a-z0-9\s]/g, "");
+      return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\n\r]/g, " ").replace(/[^a-z0-9\s]/g, "");
   }, []);
 
   const libraryNotebooks = useMemo(() => {
@@ -369,6 +374,10 @@ export const Setup: React.FC = () => {
         return matchesSearch;
     });
 
+    if (disciplineFilter) {
+        result = result.filter(nb => nb.discipline === disciplineFilter);
+    }
+
     if (libraryFilter === 'unallocated') {
         result = result.filter(nb => !nb.weekId);
     } else if (libraryFilter === 'overdue') {
@@ -377,7 +386,7 @@ export const Setup: React.FC = () => {
 
     result.sort((a, b) => a.discipline.localeCompare(b.discipline) || a.name.localeCompare(b.name));
     return result;
-  }, [notebooks, searchTerm, libraryFilter, normalizeText]);
+  }, [notebooks, searchTerm, libraryFilter, disciplineFilter, normalizeText]);
 
   const existingDisciplines = useMemo(() => {
     return Array.from(new Set(notebooks.map(n => n.discipline))).sort();
@@ -451,7 +460,9 @@ export const Setup: React.FC = () => {
     if (currentImages.length === 0 && notebook.image) currentImages = [notebook.image];
     setFormData({
       discipline: notebook.discipline, name: notebook.name, subtitle: notebook.subtitle,
-      tecLink: notebook.tecLink || '', lawLink: notebook.lawLink || '', obsidianLink: notebook.obsidianLink || '',
+      tecLink: notebook.tecLink || '', errorNotebookLink: notebook.errorNotebookLink || '', favoriteQuestionsLink: notebook.favoriteQuestionsLink || '',
+      lawLink: notebook.lawLink || '', obsidianLink: notebook.obsidianLink || '',
+      geminiLink1: notebook.geminiLink1 || '', geminiLink2: notebook.geminiLink2 || '',
       accuracy: notebook.accuracy, targetAccuracy: notebook.targetAccuracy, weight: notebook.weight,
       relevance: notebook.relevance, trend: notebook.trend, notes: notebook.notes || '',
       images: currentImages, accuracyHistory: notebook.accuracyHistory || []
@@ -519,6 +530,11 @@ export const Setup: React.FC = () => {
 
   const activeCycle = cycles.find(c => c.id === activeCycleId);
 
+  // Count Unallocated
+  const pendingCount = useMemo(() => {
+      return notebooks.filter(nb => !nb.weekId && nb.discipline !== 'Revisão Geral').length;
+  }, [notebooks]);
+
   return (
     <div className="flex h-[calc(100vh-64px)] overflow-hidden bg-slate-950">
       
@@ -541,7 +557,10 @@ export const Setup: React.FC = () => {
       <aside className={`flex-shrink-0 border-r border-slate-800 bg-slate-900/30 flex flex-col z-20 hidden md:flex transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'w-14' : 'w-80'}`}>
           <div className={`p-4 border-b border-slate-800 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
             {!isSidebarCollapsed && (
-                <h2 className="text-xs font-bold text-slate-400 flex items-center gap-2 uppercase tracking-wider"><Layout size={14} className="text-emerald-500" /> Banco de Disciplinas</h2>
+                <div className="flex items-center gap-2">
+                    <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider"><Layout size={14} className="text-emerald-500 inline mr-1" /> Banco</h2>
+                    {pendingCount > 0 && <span className="bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded text-[9px] font-bold border border-blue-500/30" title="Pendentes">{pendingCount}</span>}
+                </div>
             )}
             <button 
                 onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
@@ -568,6 +587,21 @@ export const Setup: React.FC = () => {
           {!isSidebarCollapsed && (
               <>
                 <div className="px-4 pb-4 space-y-3 pt-2">
+                    {/* FILTRO DE DISCIPLINA (Dropdown) */}
+                    <div className="relative">
+                        <select 
+                            value={disciplineFilter} 
+                            onChange={(e) => setDisciplineFilter(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-800 rounded-lg py-2 pl-3 pr-8 text-xs text-white focus:border-emerald-500 outline-none appearance-none cursor-pointer hover:bg-slate-900"
+                        >
+                            <option value="">Filtrar por Disciplina (Todas)</option>
+                            {existingDisciplines.map(d => (
+                                <option key={d} value={d}>{d}</option>
+                            ))}
+                        </select>
+                        <div className="absolute right-3 top-2.5 pointer-events-none text-slate-500"><ChevronDown size={12} /></div>
+                    </div>
+
                     <div className="flex gap-2">
                         <button onClick={() => setLibraryFilter('all')} className={`flex-1 py-1.5 text-[10px] rounded border font-bold ${libraryFilter === 'all' ? 'bg-slate-800 border-slate-600 text-white' : 'bg-transparent border-slate-800 text-slate-500'}`}>Todos</button>
                         <button onClick={() => setLibraryFilter('unallocated')} className={`flex-1 py-1.5 text-[10px] rounded border font-bold ${libraryFilter === 'unallocated' ? 'bg-blue-900/20 border-blue-500/30 text-blue-400' : 'bg-transparent border-slate-800 text-slate-500'}`}>Pendentes</button>
@@ -753,8 +787,17 @@ export const Setup: React.FC = () => {
                         const isWeekFullyDone = blocksCount > 0 && blocksCompleted === blocksCount;
                         const isLate = week.isPast && !isWeekFullyDone;
                         
+                        // NEW: Daily Avg Calculation
+                        const dailyAvg = (blocksCount / 7).toFixed(1);
+
                         return (
                             <div key={week.id} className={`w-80 flex-shrink-0 flex flex-col rounded-2xl border transition-all duration-300 relative h-full max-h-full ${week.isPast ? 'bg-slate-900/30 border-slate-800/50 opacity-90' : 'bg-slate-900 border-slate-800 shadow-2xl hover:border-slate-700'}`} onDragOver={week.isPast ? undefined : onDragOver} onDrop={(e) => onDrop(e, week.id, week.isPast)}>
+                            
+                            {/* DAILY AVG BADGE (NEW) */}
+                            <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-950 px-2 py-0.5 rounded border border-slate-800 shadow-sm z-20">
+                                ~{dailyAvg} / dia
+                            </div>
+
                             <div className={`p-4 rounded-t-2xl border-b flex flex-col gap-3 z-10 relative ${week.isPast ? 'bg-slate-950/30 border-slate-800/50 text-slate-600' : 'bg-slate-900 border-slate-700 text-slate-200'}`}>
                                 <div className="flex justify-between items-start">
                                     <div><span className="font-black block text-base flex items-center gap-2 text-white">SEMANA {week.index} {week.isPast && <Lock size={14} />}</span><span className={`text-[10px] font-bold uppercase tracking-widest ${week.isPast ? 'line-through decoration-slate-600 opacity-50' : 'text-slate-500'}`}>{week.label}</span></div>
@@ -851,9 +894,22 @@ export const Setup: React.FC = () => {
                     <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Disciplina</label><input required list="disciplines" value={formData.discipline} onChange={e => handleChange('discipline', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /><datalist id="disciplines">{existingDisciplines.map(d => <option key={d} value={d} />)}</datalist></div>
                     <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Nome do Tópico</label><input required value={formData.name} onChange={e => handleChange('name', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /></div>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Subtópico / Foco</label><input value={formData.subtitle} onChange={e => handleChange('subtitle', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /></div>
-                    <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Link do Caderno</label><div className="relative"><LinkIcon className="absolute left-3 top-3.5 text-slate-500" size={16} /><input type="url" value={formData.tecLink} onChange={e => handleChange('tecLink', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 pl-10 text-white outline-none focus:border-emerald-500" /></div></div>
+                  <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Subtópico / Foco</label><input value={formData.subtitle} onChange={e => handleChange('subtitle', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /></div>
+                  
+                  {/* NOVOS CAMPOS: TEC + ERROS + FAVORITAS */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Caderno TEC</label>
+                        <div className="relative"><LinkIcon className="absolute left-3 top-3 text-slate-500" size={14} /><input type="url" value={formData.tecLink} onChange={e => handleChange('tecLink', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-white outline-none focus:border-emerald-500" placeholder="https://tecconcursos..." /></div>
+                    </div>
+                    <div>
+                        <label className="block text-[10px] font-bold text-red-400 mb-1 uppercase tracking-wider">Caderno de Erros</label>
+                        <div className="relative"><XCircle className="absolute left-3 top-3 text-red-500" size={14} /><input type="url" value={formData.errorNotebookLink} onChange={e => handleChange('errorNotebookLink', e.target.value)} className="w-full bg-slate-800 border border-red-500/20 rounded-lg py-2.5 pl-9 text-xs text-white outline-none focus:border-red-500 placeholder-red-900/50" placeholder="Link de Erros..." /></div>
+                    </div>
+                    <div>
+                        <label className="block text-[10px] font-bold text-yellow-400 mb-1 uppercase tracking-wider">Questões Favoritas</label>
+                        <div className="relative"><Star className="absolute left-3 top-3 text-yellow-500" size={14} /><input type="url" value={formData.favoriteQuestionsLink} onChange={e => handleChange('favoriteQuestionsLink', e.target.value)} className="w-full bg-slate-800 border border-yellow-500/20 rounded-lg py-2.5 pl-9 text-xs text-white outline-none focus:border-yellow-500 placeholder-yellow-900/50" placeholder="Link Favoritas..." /></div>
+                    </div>
                   </div>
               </div>
               <div className="space-y-4 pt-2">
@@ -901,6 +957,19 @@ export const Setup: React.FC = () => {
               </div>
               <div className="space-y-4 pt-2">
                 <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">3. Rascunhos & Anotações</h4>
+                
+                {/* GEMINI LINKS SECTION */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-indigo-900/10 p-3 rounded-xl border border-indigo-500/20">
+                    <div>
+                        <label className="block text-[10px] font-bold text-indigo-300 mb-1 uppercase tracking-wider flex items-center gap-1"><Sparkles size={10}/> Link Gemini (Contexto 1)</label>
+                        <input type="url" value={formData.geminiLink1} onChange={e => handleChange('geminiLink1', e.target.value)} className="w-full bg-slate-900 border border-indigo-500/30 rounded-lg p-2.5 text-xs text-white outline-none focus:border-indigo-500 placeholder-indigo-300/30" placeholder="https://gemini.google.com/..." />
+                    </div>
+                    <div>
+                        <label className="block text-[10px] font-bold text-indigo-300 mb-1 uppercase tracking-wider flex items-center gap-1"><Sparkles size={10}/> Link Gemini (Contexto 2)</label>
+                        <input type="url" value={formData.geminiLink2} onChange={e => handleChange('geminiLink2', e.target.value)} className="w-full bg-slate-900 border border-indigo-500/30 rounded-lg p-2.5 text-xs text-white outline-none focus:border-indigo-500 placeholder-indigo-300/30" placeholder="https://gemini.google.com/..." />
+                    </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Texto de Lei</label>

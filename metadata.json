@@ -1,6 +1,6 @@
 {
-  "name": "Projeto Atena v6.0",
-  "description": "Plataforma SaaS de alta performance. v6.0: [RELEASE] Versão Oficial Gold. UX Refinada, Radiografia Tática e Algoritmo Neural de Agendamento.",
+  "name": "Projeto Atena v7.0",
+  "description": "Plataforma SaaS de alta performance. v7.0: [RELEASE] Intelligence Edition. Painéis HUD, Auditoria de Edital em Tempo Real e Cálculo de Ritmo Neural.",
   "requestFramePermissions": [
     "microphone"
   ]

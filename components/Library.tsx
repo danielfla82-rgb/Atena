@@ -1,11 +1,11 @@
-
 import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import { useStore } from '../store';
 import { 
     Trash2, Plus, Search, X, Link as LinkIcon, Pencil, RefreshCw, 
     ChevronRight, ChevronLeft, Layers, Square, CheckSquare, 
     Circle, BookOpen, CheckCircle2, Siren, Star, Clock, Sparkles,
-    Maximize2, FileCode, CalendarClock, ZoomIn, Flag, Save, Inbox, ScanSearch, Scale, Loader2, ArrowRight
+    Maximize2, FileCode, CalendarClock, ZoomIn, Flag, Save, Inbox, ScanSearch, Scale, Loader2, ArrowRight, XCircle,
+    LayoutGrid, Book
 } from 'lucide-react';
 import { Weight, Relevance, Trend, Notebook, NotebookStatus } from '../types';
 import { calculateNextReview } from '../utils/algorithm';
@@ -24,6 +24,20 @@ const StatusBadge = ({ status }: { status: NotebookStatus }) => {
         default: return null;
     }
 };
+
+// --- SUB-COMPONENT: HUD Card ---
+const HUDCard = ({ icon, label, value, subtext, color = "text-white" }: any) => (
+    <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4 hover:border-slate-700 transition-colors">
+        <div className={`p-3 rounded-lg bg-slate-950 border border-slate-800 ${color}`}>
+            {icon}
+        </div>
+        <div>
+            <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">{label}</p>
+            <p className="text-2xl font-bold text-white leading-none mt-1">{value}</p>
+            {subtext && <p className="text-[10px] text-slate-400 mt-1">{subtext}</p>}
+        </div>
+    </div>
+);
 
 const AlgorithmProjection = ({ accuracy, relevance, trend, config }: any) => {
     const nextDate = calculateNextReview(accuracy, relevance, trend, config.algorithm);
@@ -192,7 +206,11 @@ export const Library: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   
   const initialFormState = {
-    discipline: '', name: '', subtitle: '', tecLink: '', lawLink: '', obsidianLink: '', accuracy: 0, targetAccuracy: 90, 
+    discipline: '', name: '', subtitle: '', 
+    tecLink: '', errorNotebookLink: '', favoriteQuestionsLink: '', 
+    lawLink: '', obsidianLink: '', 
+    geminiLink1: '', geminiLink2: '',
+    accuracy: 0, targetAccuracy: 90, 
     weight: Weight.MEDIO, relevance: Relevance.MEDIA, trend: Trend.ESTAVEL, 
     status: NotebookStatus.NOT_STARTED, notes: '', images: [] as string[],
     lastPractice: new Date().toISOString().split('T')[0],
@@ -230,8 +248,12 @@ export const Library: React.FC = () => {
                   name: target.name,
                   subtitle: target.subtitle,
                   tecLink: target.tecLink || '',
+                  errorNotebookLink: target.errorNotebookLink || '',
+                  favoriteQuestionsLink: target.favoriteQuestionsLink || '',
                   lawLink: target.lawLink || '',
                   obsidianLink: target.obsidianLink || '',
+                  geminiLink1: target.geminiLink1 || '',
+                  geminiLink2: target.geminiLink2 || '',
                   accuracy: target.accuracy,
                   targetAccuracy: target.targetAccuracy,
                   weight: target.weight,
@@ -343,6 +365,20 @@ export const Library: React.FC = () => {
       const sortedKeys = Object.keys(groups).sort();
       return { groups, stats, sortedKeys };
   }, [filteredNotebooks]);
+
+  // --- HUD METRICS CALCULATION ---
+  const hudMetrics = useMemo(() => {
+      const totalNotebooks = notebooks.length;
+      const validNotebooks = notebooks.filter(n => n.discipline !== 'Revisão Geral');
+      const uniqueDisciplines = new Set(validNotebooks.map(n => n.discipline)).size;
+      const activeNotebooks = validNotebooks.filter(n => n.accuracy > 0);
+      const avgAccuracy = activeNotebooks.length > 0 
+          ? Math.round(activeNotebooks.reduce((acc, n) => acc + n.accuracy, 0) / activeNotebooks.length)
+          : 0;
+      const masteredCount = validNotebooks.filter(n => n.accuracy >= 90).length;
+
+      return { totalNotebooks, uniqueDisciplines, avgAccuracy, masteredCount };
+  }, [notebooks]);
   
   // --- HANDLERS ---
   const toggleDiscipline = useCallback((discipline: string) => {
@@ -489,8 +525,12 @@ export const Library: React.FC = () => {
           name: nb.name,
           subtitle: nb.subtitle,
           tecLink: nb.tecLink || '',
+          errorNotebookLink: nb.errorNotebookLink || '',
+          favoriteQuestionsLink: nb.favoriteQuestionsLink || '',
           lawLink: nb.lawLink || '',
           obsidianLink: nb.obsidianLink || '',
+          geminiLink1: nb.geminiLink1 || '',
+          geminiLink2: nb.geminiLink2 || '',
           accuracy: nb.accuracy,
           targetAccuracy: nb.targetAccuracy,
           weight: nb.weight,
@@ -560,6 +600,35 @@ export const Library: React.FC = () => {
         >
           <Plus size={18} /> Novo Caderno
         </button>
+      </div>
+
+      {/* STATS HUD - RESUMO DE DADOS */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
+          <HUDCard 
+            icon={<Book size={20} className="text-indigo-400" />} 
+            label="Total de Cadernos" 
+            value={hudMetrics.totalNotebooks} 
+            color="text-indigo-400"
+          />
+          <HUDCard 
+            icon={<Layers size={20} className="text-purple-400" />} 
+            label="Disciplinas" 
+            value={hudMetrics.uniqueDisciplines} 
+            color="text-purple-400"
+          />
+          <HUDCard 
+            icon={<CheckCircle2 size={20} className="text-emerald-400" />} 
+            label="Tópicos Dominados" 
+            value={hudMetrics.masteredCount} 
+            subtext={`${hudMetrics.totalNotebooks > 0 ? Math.round((hudMetrics.masteredCount / hudMetrics.totalNotebooks) * 100) : 0}% do banco`}
+            color="text-emerald-400"
+          />
+          <HUDCard 
+            icon={<LayoutGrid size={20} className="text-cyan-400" />} 
+            label="Acurácia Global" 
+            value={`${hudMetrics.avgAccuracy}%`} 
+            color="text-cyan-400"
+          />
       </div>
 
       {/* FILTER & SEARCH BAR */}
@@ -688,9 +757,22 @@ export const Library: React.FC = () => {
                     <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Disciplina</label><input required list="disciplines" value={formData.discipline} onChange={e => handleChange('discipline', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /><datalist id="disciplines">{existingDisciplines.map(d => <option key={d} value={d} />)}</datalist></div>
                     <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Nome do Tópico</label><input required value={formData.name} onChange={e => handleChange('name', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /></div>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Subtópico / Foco</label><input value={formData.subtitle} onChange={e => handleChange('subtitle', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /></div>
-                    <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Link do Caderno</label><div className="relative"><LinkIcon className="absolute left-3 top-3.5 text-slate-500" size={16} /><input type="url" value={formData.tecLink} onChange={e => handleChange('tecLink', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 pl-10 text-white outline-none focus:border-emerald-500" /></div></div>
+                  <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Subtópico / Foco</label><input value={formData.subtitle} onChange={e => handleChange('subtitle', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /></div>
+                  
+                  {/* NOVOS CAMPOS: TEC + ERROS + FAVORITAS */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Caderno TEC</label>
+                        <div className="relative"><LinkIcon className="absolute left-3 top-3 text-slate-500" size={14} /><input type="url" value={formData.tecLink} onChange={e => handleChange('tecLink', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-white outline-none focus:border-emerald-500" placeholder="https://tecconcursos..." /></div>
+                    </div>
+                    <div>
+                        <label className="block text-[10px] font-bold text-red-400 mb-1 uppercase tracking-wider">Caderno de Erros</label>
+                        <div className="relative"><XCircle className="absolute left-3 top-3 text-red-500" size={14} /><input type="url" value={formData.errorNotebookLink} onChange={e => handleChange('errorNotebookLink', e.target.value)} className="w-full bg-slate-800 border border-red-500/20 rounded-lg py-2.5 pl-9 text-xs text-white outline-none focus:border-red-500 placeholder-red-900/50" placeholder="Link de Erros..." /></div>
+                    </div>
+                    <div>
+                        <label className="block text-[10px] font-bold text-yellow-400 mb-1 uppercase tracking-wider">Questões Favoritas</label>
+                        <div className="relative"><Star className="absolute left-3 top-3 text-yellow-500" size={14} /><input type="url" value={formData.favoriteQuestionsLink} onChange={e => handleChange('favoriteQuestionsLink', e.target.value)} className="w-full bg-slate-800 border border-yellow-500/20 rounded-lg py-2.5 pl-9 text-xs text-white outline-none focus:border-yellow-500 placeholder-yellow-900/50" placeholder="Link Favoritas..." /></div>
+                    </div>
                   </div>
               </div>
               <div className="space-y-4 pt-2">
@@ -736,6 +818,19 @@ export const Library: React.FC = () => {
               </div>
               <div className="space-y-4 pt-2">
                 <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">3. Rascunhos & Anotações</h4>
+                
+                {/* GEMINI LINKS SECTION */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-indigo-900/10 p-3 rounded-xl border border-indigo-500/20">
+                    <div>
+                        <label className="block text-[10px] font-bold text-indigo-300 mb-1 uppercase tracking-wider flex items-center gap-1"><Sparkles size={10}/> Link Gemini (Contexto 1)</label>
+                        <input type="url" value={formData.geminiLink1} onChange={e => handleChange('geminiLink1', e.target.value)} className="w-full bg-slate-900 border border-indigo-500/30 rounded-lg p-2.5 text-xs text-white outline-none focus:border-indigo-500 placeholder-indigo-300/30" placeholder="https://gemini.google.com/..." />
+                    </div>
+                    <div>
+                        <label className="block text-[10px] font-bold text-indigo-300 mb-1 uppercase tracking-wider flex items-center gap-1"><Sparkles size={10}/> Link Gemini (Contexto 2)</label>
+                        <input type="url" value={formData.geminiLink2} onChange={e => handleChange('geminiLink2', e.target.value)} className="w-full bg-slate-900 border border-indigo-500/30 rounded-lg p-2.5 text-xs text-white outline-none focus:border-indigo-500 placeholder-indigo-300/30" placeholder="https://gemini.google.com/..." />
+                    </div>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Texto de Lei</label>

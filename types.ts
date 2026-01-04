@@ -1,15 +1,16 @@
 
 /**
- * DOCUMENTAÇÃO TÉCNICA - PROJETO ATENA V6.0.0
+ * DOCUMENTAÇÃO TÉCNICA - PROJETO ATENA V7.0.0
  * ============================================
  * Data Model e Tipagem do Sistema.
  * 
- * STATUS: STABLE / GOLD EDITION
+ * STATUS: STABLE / INTELLIGENCE EDITION
  * 
- * CHANGELOG V6.0.0:
- * - [RELEASE] Lançamento Oficial.
- * - [CORE] Estabilização do Algoritmo de Agendamento Neural.
- * - [UI] Refinamento visual completo (Dark Mode Elite).
+ * CHANGELOG V7.0.0:
+ * - [FEATURE] Painel HUD Estatístico na Biblioteca.
+ * - [FEATURE] Cálculo de Carga Diária (Pace) no Planejador.
+ * - [CORE] Rastreamento Granular de Semanas no Edital Verticalizado.
+ * - [UI] Refinamento visual final para lançamento.
  * 
  * PRINCIPAIS ENTIDADES:
  * 1. Notebook (Caderno): A unidade atômica de estudo.
@@ -63,10 +64,18 @@ export interface Notebook {
   subtitle: string;
   /** Link externo para caderno de questões (Tec/QConcursos) */
   tecLink?: string;
+  /** Link para Caderno de Erros (Novo V6.1) */
+  errorNotebookLink?: string;
+  /** Link para Questões Favoritas (Novo V6.1) */
+  favoriteQuestionsLink?: string;
   /** Link externo para texto de lei ou legislação */
   lawLink?: string;
   /** Link externo para anotações (Obsidian/Notion) - NOVO */
   obsidianLink?: string;
+  /** Link Gemini Contexto 1 (Novo V6.1) */
+  geminiLink1?: string;
+  /** Link Gemini Contexto 2 (Novo V6.1) */
+  geminiLink2?: string;
   /** Acurácia atual em % (0-100) */
   accuracy: number;
   /** Histórico de acurácia (Últimos 3 registros para tendência) */
