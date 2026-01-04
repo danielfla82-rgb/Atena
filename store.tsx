@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Notebook, AthensConfig, Weight, Relevance, Trend, SavedReport, ProtocolItem, NotebookStatus, Cycle, FrameworkData, Note, ScheduleItem } from './types';
 import { calculateNextReview } from './utils/algorithm';
@@ -298,6 +297,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (results[0].status === 'fulfilled' && results[0].value.data) {
               const formattedNotebooks = results[0].value.data.map((n: any) => ({
                   ...n,
+                  // Ensure mandatory fields have fallbacks
+                  name: n.name || "Tópico Sem Nome", 
+                  subtitle: n.subtitle || "", // Fallback para evitar null no input value
                   tecLink: n.tec_link,
                   lawLink: n.law_link,
                   obsidianLink: n.obsidian_link,
@@ -567,6 +569,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               if(updates.notes !== undefined) dbUpdates.notes = updates.notes || null;
               if(updates.accuracyHistory !== undefined) dbUpdates.accuracy_history = updates.accuracyHistory;
               
+              if(updates.subtitle !== undefined) dbUpdates.subtitle = updates.subtitle || ""; // Explicitly handle subtitle updates
+
               if(updates.images !== undefined) {
                   dbUpdates.images = updates.images || [];
                   dbUpdates.image = updates.images?.[0] || null;
@@ -574,12 +578,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               
               if(Object.keys(dbUpdates).length > 0) {
                   const { error } = await supabase.from('notebooks').update(dbUpdates).eq('id', id);
-                  if (error) throw error;
+                  if (error) {
+                      console.error("Supabase Update Error:", error);
+                      throw error;
+                  }
               }
           } catch (err: any) {
               console.error("Critical: Failed to update notebook", err);
+              // Revert UI if sync fails
               setNotebooks(prev => prev.map(n => n.id === id ? prevNotebook : n));
-              alert("Falha de conexão. Alterações não salvas.");
+              alert("Falha ao salvar no banco de dados. Verifique a conexão e se as colunas existem.");
           } finally {
               setIsSyncing(false);
           }
