@@ -108,6 +108,7 @@ interface StoreContextType {
   moveNotebookToWeek: (notebookId: string, weekId: string | null) => Promise<void>;
   toggleSlotCompletion: (instanceId: string, weekId: string) => void;
   removeSlotFromWeek: (instanceId: string, weekId: string) => void;
+  reorderSlotInWeek: (weekId: string, fromIndex: number, toIndex: number) => void;
 
   getWildcardNotebook: () => Notebook | null;
   addNotebook: (notebook: Omit<Notebook, 'id'>) => Promise<void>;
@@ -465,6 +466,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       await syncCycleData(activeCycleId, { schedule: newSchedule });
   };
 
+  const reorderSlotInWeek = async (weekId: string, fromIndex: number, toIndex: number) => {
+      if (!activeCycleId) return;
+      const cycle = cycles.find(c => c.id === activeCycleId);
+      if (!cycle || !cycle.schedule || !cycle.schedule[weekId]) return;
+
+      const weekList = [...cycle.schedule[weekId]];
+      const [movedItem] = weekList.splice(fromIndex, 1);
+      weekList.splice(toIndex, 0, movedItem);
+
+      const newSchedule = { ...cycle.schedule, [weekId]: weekList };
+      
+      setCycles(prev => prev.map(c => c.id === activeCycleId ? { ...c, schedule: newSchedule } : c));
+      await syncCycleData(activeCycleId, { schedule: newSchedule });
+  };
+
   const toggleSlotCompletion = async (instanceId: string, weekId: string) => {
       if (!activeCycleId) return;
       const cycle = cycles.find(c => c.id === activeCycleId);
@@ -477,11 +493,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const slot = newSchedule[weekId][slotIndex];
           newSchedule[weekId][slotIndex] = { ...slot, completed: !slot.completed };
           
-          // Also update last practice on the notebook itself if completed
-          if (!slot.completed) { // Was false, now true
-             // Update logic...
-          }
-
           setCycles(prev => prev.map(c => c.id === activeCycleId ? { ...c, schedule: newSchedule } : c));
           await syncCycleData(activeCycleId, { schedule: newSchedule });
       }
@@ -497,9 +508,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       setCycles(prev => prev.map(c => c.id === activeCycleId ? { ...c, schedule: newSchedule } : c));
       await syncCycleData(activeCycleId, { schedule: newSchedule });
-      
-      // Check if notebook has any other slots left, if not, update visual flag
-      // (This is implicitly handled by the AllocationMap effect in StoreProvider)
   };
 
   // --- PERSISTENCE ACTIONS (LEGACY & NEW) ---
@@ -748,7 +756,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       notebooks, config, reports, protocol, cycles, activeCycleId, framework, notes, loading, isSyncing, user, isGuest,
       focusedNotebookId, setFocusedNotebookId, pendingCreateData, setPendingCreateData,
       enterGuestMode, exportDatabase, createCycle, selectCycle, deleteCycle, updateConfig, updateNotebookAccuracy, 
-      moveNotebookToWeek, toggleSlotCompletion, removeSlotFromWeek,
+      moveNotebookToWeek, toggleSlotCompletion, removeSlotFromWeek, reorderSlotInWeek,
       getWildcardNotebook, addNotebook, editNotebook, deleteNotebook, bulkUpdateNotebooks, saveReport, deleteReport,
       addProtocolItem, toggleProtocolItem, deleteProtocolItem, updateFramework, addNote, updateNote, deleteNote
     }}>
