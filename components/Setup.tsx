@@ -298,7 +298,7 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
                 <p className="text-slate-400 text-sm max-w-xl mx-auto">Defina os pesos estratégicos. O algoritmo Atena distribuirá sua carga de <strong className="text-white">{paceTarget.blocks} blocos/semana (Ritmo Padrão)</strong>.</p>
             </div>
             
-            {/* --- SMART PROJECTION ENGINE --- */}
+            {/* --- SMART PROJECTION ENGINE (UX FIXED HERE) --- */}
             {projection && (
                 <div className={`mb-8 border rounded-xl p-6 relative overflow-hidden transition-all duration-500 ${
                     projection.status === 'danger' ? 'bg-red-950/20 border-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.1)]' : 
@@ -309,9 +309,8 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
                         <TrendingUp size={120} />
                     </div>
 
-                    {/* Adjusted Layout for Better UX/Alignment */}
                     <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start relative z-10">
-                        {/* LEFT: Weeks & Date */}
+                        {/* LEFT: Weeks & Date - FIXED TYPOGRAPHY & ALIGNMENT */}
                         <div className="flex-1 min-w-0 w-full">
                             <h3 className={`text-sm font-bold uppercase tracking-widest mb-2 flex items-center gap-2 ${
                                 projection.status === 'danger' ? 'text-red-400' : 
@@ -319,18 +318,21 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
                             }`}>
                                 <Activity size={16} /> Projeção Tática (1ª Passagem)
                             </h3>
-                            <div className="flex items-baseline gap-2 mb-2">
-                                <span className="text-4xl font-black text-white">{projection.weeks}</span>
-                                <span className="text-slate-400 font-medium">Semanas estimadas</span>
+                            
+                            <div className="flex items-baseline gap-2 mb-3 pt-1">
+                                {/* Leading-none prevents cut-off on top/bottom */}
+                                <span className="text-5xl font-black text-white leading-none">{projection.weeks}</span>
+                                <span className="text-slate-400 font-medium text-sm pb-1">Semanas estimadas</span>
                             </div>
-                            <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-950/50 w-fit px-3 py-1.5 rounded-lg border border-slate-800">
+                            
+                            <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-950/50 w-fit px-3 py-2 rounded-lg border border-slate-800">
                                 <CalendarClock size={12} />
                                 Conclusão Teórica: <strong className="text-slate-200">{projection.date.toLocaleDateString()}</strong>
                             </div>
                         </div>
 
-                        {/* Divider - Adaptive height and visible on mobile */}
-                        <div className="w-full h-px md:w-px md:h-auto md:self-stretch bg-slate-800 md:bg-slate-700/50 my-2 md:my-0 flex-shrink-0"></div>
+                        {/* Divider - Adaptive height and flexible */}
+                        <div className="w-full h-px md:w-px md:self-stretch bg-slate-800 md:bg-slate-700/50 my-4 md:my-0 flex-shrink-0 min-h-[80px]"></div>
 
                         {/* RIGHT: Progress Bar & Details */}
                         <div className="flex-1 space-y-3 w-full min-w-0">
@@ -351,7 +353,7 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
                             
                             <div className="flex items-start gap-2 mt-2 bg-slate-950/30 p-2 rounded-lg border border-slate-800/50">
                                 <Info size={14} className="text-slate-500 flex-shrink-0 mt-0.5"/>
-                                <p className="text-[10px] text-slate-400 leading-relaxed break-words">
+                                <p className="text-[10px] text-slate-400 leading-relaxed break-words whitespace-normal">
                                     O sistema desconta automaticamente <strong>0.2 blocos (10min)</strong> da sua capacidade semanal para cada revisão acumulada de tópicos já estudados ({projection.totalItems} itens no radar).
                                 </p>
                             </div>
