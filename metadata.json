@@ -1,6 +1,6 @@
 {
-  "name": "Projeto Atena v7.5",
-  "description": "Plataforma SaaS de alta performance. v7.5: [RELEASE] Intelligence Edition. Matriz Estratégica Interativa, Projeção de Revisão e Auditoria de Edital.",
+  "name": "Projeto Atena v7.6",
+  "description": "Plataforma SaaS de alta performance. v7.6: [RC] Release Candidate. Estabilidade Mobile, Matriz Estratégica e Core Algorithm ajustados.",
   "requestFramePermissions": [
     "microphone"
   ]

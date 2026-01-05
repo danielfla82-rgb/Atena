@@ -11,11 +11,11 @@ export const Documentation: React.FC = () => {
           <h1 className="text-3xl font-bold text-white flex items-center gap-3">
             <Book className="text-emerald-500" /> Documentação Técnica
           </h1>
-          <p className="text-slate-400 mt-2 text-lg">Projeto Atena v7.5 (Intelligence Edition)</p>
+          <p className="text-slate-400 mt-2 text-lg">Projeto Atena v7.6 (Release Candidate)</p>
         </div>
         <div className="text-right hidden md:block">
             <p className="text-xs text-slate-500 uppercase font-bold tracking-widest">Versão</p>
-            <p className="text-slate-300 font-mono">v7.5.0 (Stable)</p>
+            <p className="text-slate-300 font-mono">v7.6.0 (RC)</p>
         </div>
       </div>
 
@@ -60,7 +60,7 @@ export const Documentation: React.FC = () => {
                     O <strong>Projeto Atena (GurujaApp)</strong> é uma plataforma SaaS de alta performance projetada especificamente para "concurseiros de elite".
                  </p>
                  <p className="mb-4">
-                    A versão <strong>7.5 Intelligence</strong> integra um <strong>Sistema de Revisão Espaçada (SRS)</strong> proprietário com Inteligência Artificial Generativa (Gemini 2.0) para criar um ecossistema de aprendizado adaptativo.
+                    A versão <strong>7.6 Release Candidate</strong> traz estabilidade total para dispositivos móveis, integra um <strong>Sistema de Revisão Espaçada (SRS)</strong> proprietário com IA Generativa (Gemini 2.0) e corrige fluxos de navegação na Matriz Estratégica.
                  </p>
                  <p>
                     A plataforma resolve o problema da "Curva de Esquecimento" através de uma matriz estratégica que pondera não apenas a data da última revisão, 

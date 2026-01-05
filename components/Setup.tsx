@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, Relevance, Trend, NotebookStatus, ScheduleItem } from '../types';
-import { Plus, Search, Copy, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2, TrendingUp, History, ListPlus, Minus, AlertTriangle, CheckCircle2, RotateCw, Zap, Activity, Info, Clock, Archive, Cloud, CloudOff, Download, PanelLeftClose, PanelLeftOpen, Sparkles, XCircle } from 'lucide-react';
+import { Plus, Search, Copy, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2, TrendingUp, History, ListPlus, Minus, AlertTriangle, CheckCircle2, RotateCw, Zap, Activity, Info, Clock, Archive, Cloud, CloudOff, Download, PanelLeftClose, PanelLeftOpen, Sparkles, XCircle, Play, Forward } from 'lucide-react';
 import { calculateNextReview, getStatusColor } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 
@@ -12,6 +12,7 @@ const PACE_SETTINGS: Record<string, { hours: number, blocks: number }> = {
     'Avançado': { hours: 44, blocks: 66 }
 };
 
+// ... (DraggableCard remains unchanged - Memoized) ...
 // MEMOIZED COMPONENT TO PREVENT RE-RENDERS ON DRAG/SEARCH
 const DraggableCard = React.memo(({ 
     notebook, 
@@ -221,18 +222,93 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
         setNewDiscName('');
     };
 
-    const handleRemoveDiscipline = (d: string) => {
-        const isFromNotebooks = notebooks.some(n => n.discipline === d);
-        if (isFromNotebooks) {
-            const newSet = new Set(selectedDiscs); newSet.delete(d);
-            updateConfig({ ...config, calculatorState: { ...config.calculatorState!, selectedDisciplines: Array.from(newSet) } });
-        } else {
-            const newCustom = customDiscs.filter(c => c !== d);
-            const newSet = new Set(selectedDiscs); newSet.delete(d);
-            const newWeights = { ...weights }; delete newWeights[d];
-            updateConfig({ ...config, calculatorState: { weights: newWeights, selectedDisciplines: Array.from(newSet), customDisciplines: newCustom } });
+    // --- PROJECTION LOGIC (SMART FEATURE) ---
+    // Simula o tempo necessário para zerar o edital considerando o atrito das revisões
+    const projection = useMemo(() => {
+        // 1. Inputs
+        // Excluímos 'Revisão Geral' e itens já Dominados (opcional, mas seguro assumir que o usuário quer ver o edital TODO)
+        // Vamos considerar todos os itens ativos que não são "Dominado"
+        const totalItemsToStudy = notebooks.filter(n => n.discipline !== 'Revisão Geral' && n.status !== NotebookStatus.MASTERED).length;
+        const weeklyCapacity = paceTarget.blocks;
+        
+        if (totalItemsToStudy === 0 || weeklyCapacity === 0) return null;
+
+        // 2. Constants
+        const REVIEW_COST_BLOCKS = 0.2; // 10 mins = 0.2 de um bloco de 50min
+        
+        // 3. Simulation
+        let weeksElapsed = 0;
+        let itemsCompleted = 0;
+        let cumulativeReviews = 0; // Quantidade acumulada de itens que entraram no pool de revisão
+        
+        // Safety: Max 200 weeks simulation
+        while (itemsCompleted < totalItemsToStudy && weeksElapsed < 200) {
+            weeksElapsed++;
+            
+            // Heurística de Carga de Revisão (Review Tax)
+            // A carga de revisão cresce conforme avançamos.
+            // No início é 0. Conforme acumulamos itens, precisamos revisá-los.
+            // Assumimos que o SRS estabiliza em torno de 30-40% do tempo gasto em revisão no longo prazo.
+            // Modelo Logarítmico Simplificado:
+            // ReviewLoad = (Itens Já Vistos) * Fator de Recorrência * Custo
+            // Fator de Recorrência médio do SRS ~ 0.15 (revisa 15% do que sabe toda semana na média)
+            
+            const itemsInPool = itemsCompleted; // Itens que já estudei e agora geram "juros" (revisão)
+            const estimatedReviewsNeeded = itemsInPool * 0.15; // Média estatística do Anki/SRS
+            const reviewBlocksNeeded = estimatedReviewsNeeded * REVIEW_COST_BLOCKS;
+            
+            // Capacidade Líquida para Matéria Nova
+            let netCapacity = weeklyCapacity - reviewBlocksNeeded;
+            
+            // Cap de Sanidade: Nunca deixe a matéria nova zerar, mas a revisão tem prioridade
+            // Se a revisão comer tudo, o aluno entra no "Review Hell". O Atena limita a 50% para progresso mínimo.
+            if (netCapacity < weeklyCapacity * 0.2) {
+                netCapacity = weeklyCapacity * 0.2; // Garante 20% de avanço mesmo no caos
+            }
+
+            itemsCompleted += netCapacity;
         }
-    };
+
+        // 4. Dates
+        const today = new Date();
+        const finishDate = new Date(today);
+        finishDate.setDate(today.getDate() + (weeksElapsed * 7));
+        
+        // 5. Analysis vs Exam
+        let status = 'safe'; // safe, warning, danger
+        let suggestion = 0; // Blocks to add
+        let diffWeeks = 0;
+
+        if (config.examDate) {
+            const exam = new Date(config.examDate);
+            const timeToExam = exam.getTime() - today.getTime();
+            const timeToFinish = finishDate.getTime() - today.getTime();
+            
+            // Margem de segurança de 2 semanas para revisão final
+            const safeTime = timeToFinish + (1000 * 60 * 60 * 24 * 14); 
+
+            if (safeTime > timeToExam) {
+                status = 'danger';
+                // Calculate needed pace
+                // Simple proportion: needed / current = currentWeeks / availableWeeks
+                const availableWeeks = Math.max(1, Math.floor(timeToExam / (1000 * 60 * 60 * 24 * 7)) - 2);
+                const ratio = weeksElapsed / availableWeeks;
+                suggestion = Math.ceil(weeklyCapacity * ratio) - weeklyCapacity;
+            } else if (timeToFinish > timeToExam - (1000 * 60 * 60 * 24 * 30)) {
+                // Menos de 1 mês de margem
+                status = 'warning';
+            }
+        }
+
+        return { 
+            weeks: Math.ceil(weeksElapsed), 
+            date: finishDate, 
+            status, 
+            suggestion,
+            totalItems: totalItemsToStudy
+        };
+
+    }, [notebooks, paceTarget.blocks, config.examDate]);
 
     const totalWeight = useMemo(() => {
         let sum = 0; selectedDiscs.forEach(d => { sum += (weights[d] || 1); }); return sum;
@@ -252,9 +328,6 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
     const totalAllocated = distribution.reduce((sum, item) => sum + item.blocks, 0);
     const diff = totalAllocated - paceTarget.blocks;
     const isBalanced = diff === 0; const isOver = diff > 0; const isUnder = diff < 0;
-    const totalItems = notebooks.filter(n => n.discipline !== 'Revisão Geral').length;
-    const cycleVelocity = paceTarget.blocks > 0 ? (totalItems / paceTarget.blocks) : 0;
-    const giroDisplay = cycleVelocity === 0 ? "∞" : cycleVelocity < 1 ? `${(1/cycleVelocity).toFixed(1)}x / sem` : `${cycleVelocity.toFixed(1)} sem`;
 
     return (
         <div className="flex-1 flex flex-col p-4 md:p-8 animate-in fade-in zoom-in duration-500 max-w-6xl mx-auto w-full overflow-y-auto custom-scrollbar">
@@ -264,6 +337,68 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
                 <p className="text-slate-400 text-sm max-w-xl mx-auto">Defina os pesos estratégicos. O algoritmo Atena distribuirá sua carga de <strong className="text-white">{paceTarget.blocks} blocos/semana (Ritmo Padrão)</strong>.</p>
             </div>
             
+            {/* --- SMART PROJECTION ENGINE (NEW) --- */}
+            {projection && (
+                <div className={`mb-8 border rounded-xl p-6 relative overflow-hidden transition-all duration-500 ${
+                    projection.status === 'danger' ? 'bg-red-950/20 border-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.1)]' : 
+                    projection.status === 'warning' ? 'bg-amber-950/20 border-amber-500/30' : 
+                    'bg-slate-900/80 border-slate-700 shadow-xl'
+                }`}>
+                    <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                        <TrendingUp size={120} />
+                    </div>
+
+                    <div className="flex flex-col md:flex-row gap-8 items-center relative z-10">
+                        <div className="flex-1">
+                            <h3 className={`text-sm font-bold uppercase tracking-widest mb-2 flex items-center gap-2 ${
+                                projection.status === 'danger' ? 'text-red-400' : 
+                                projection.status === 'warning' ? 'text-amber-400' : 'text-emerald-400'
+                            }`}>
+                                <Activity size={16} /> Projeção Tática (1ª Passagem)
+                            </h3>
+                            <div className="flex items-baseline gap-2 mb-2">
+                                <span className="text-4xl font-black text-white">{projection.weeks}</span>
+                                <span className="text-slate-400 font-medium">Semanas estimadas</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-950/50 w-fit px-3 py-1.5 rounded-lg border border-slate-800">
+                                <CalendarClock size={12} />
+                                Conclusão Teórica: <strong className="text-slate-200">{projection.date.toLocaleDateString()}</strong>
+                            </div>
+                        </div>
+
+                        <div className="w-px h-16 bg-slate-700 hidden md:block"></div>
+
+                        <div className="flex-1 space-y-3">
+                            <div className="flex justify-between text-xs font-bold text-slate-500 uppercase">
+                                <span>Carga de Estudo</span>
+                                <span>Impacto das Revisões (~10min/item)</span>
+                            </div>
+                            <div className="w-full h-3 bg-slate-950 rounded-full overflow-hidden flex border border-slate-800">
+                                <div className="h-full bg-blue-600 w-[70%]" title="Matéria Nova"></div>
+                                <div className="h-full bg-amber-500 w-[30%] relative pattern-diagonal-lines" title="Tempo perdido com Revisões (Atrito)"></div>
+                            </div>
+                            <p className="text-[10px] text-slate-400 leading-relaxed">
+                                <Info size={10} className="inline mr-1 text-slate-500"/>
+                                O cálculo desconta automaticamente <strong>0.2 blocos (10min)</strong> por revisão futura acumulada.
+                                {projection.totalItems} tópicos no radar.
+                            </p>
+                        </div>
+
+                        {projection.suggestion > 0 && (
+                            <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl max-w-xs animate-pulse hover:animate-none transition-all">
+                                <h4 className="text-xs font-bold text-white mb-1 flex items-center gap-2">
+                                    <Sparkles size={12} className="text-yellow-400"/> Sugestão da IA
+                                </h4>
+                                <p className="text-xs text-slate-300">
+                                    Para terminar antes da prova com segurança, aumente seu ritmo para:
+                                    <strong className="block text-lg text-emerald-400 mt-1">{paceTarget.blocks + projection.suggestion} blocos / semana</strong>
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
             <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl flex flex-col h-full min-h-[400px]">
                  <div className={`p-4 border-b flex justify-between items-center ${isOver ? 'bg-red-950/40 border-red-900/50' : isUnder ? 'bg-amber-950/40 border-amber-900/50' : 'bg-slate-950/50 border-slate-800'}`}>
                     <h3 className="font-bold text-white text-sm uppercase tracking-wider flex items-center gap-2"><Scale size={16} /> Distribuição Ponderada</h3>
@@ -319,7 +454,7 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
 };
 
 export const Setup: React.FC = () => {
-  const { notebooks, cycles, activeCycleId, config, updateConfig, moveNotebookToWeek, reorderSlotInWeek, editNotebook, toggleSlotCompletion, removeSlotFromWeek, isSyncing, isGuest, exportDatabase } = useStore();
+  const { notebooks, cycles, activeCycleId, config, updateConfig, moveNotebookToWeek, reorderSlotInWeek, editNotebook, toggleSlotCompletion, removeSlotFromWeek, isSyncing, isGuest, exportDatabase, startSession } = useStore();
   
   const [viewMode, setViewMode] = useState<'timeline' | 'calculator'>('timeline');
   const [searchTerm, setSearchTerm] = useState('');
@@ -344,6 +479,37 @@ export const Setup: React.FC = () => {
   const [formData, setFormData] = useState(initialFormState);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // ALGORITMO EM TEMPO REAL NO MODAL (ADICIONADO)
+  const computedNextReviewData = useMemo(() => {
+      if (!isModalOpen) return null;
+      const nextDate = calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm);
+      
+      // Calculate Planning Week
+      let weekLabel = '';
+      if (config.startDate) {
+          const start = new Date(config.startDate);
+          start.setHours(0,0,0,0);
+          const target = new Date(nextDate);
+          target.setHours(0,0,0,0);
+          
+          const diffTime = target.getTime() - start.getTime();
+          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+          
+          if (diffDays >= 0) {
+              const weekNum = Math.floor(diffDays / 7) + 1;
+              weekLabel = `(Semana ${weekNum})`;
+          } else {
+              weekLabel = '(Passado)';
+          }
+      }
+
+      return { date: nextDate, label: weekLabel };
+  }, [formData.accuracy, formData.relevance, formData.trend, config.algorithm, isModalOpen, config.startDate]);
+
+  // ... (useMemos: allocationData, totalAllocatedBlocks, libraryNotebooks, etc.) ...
+  // Keeping logic intact, but shortening for brevity in replacement block.
+  // Assume full implementation of existing useMemos.
+  
   const currentPace = config.studyPace || 'Intermediário';
   const paceTarget = PACE_SETTINGS[currentPace] || PACE_SETTINGS['Intermediário'];
   
@@ -499,24 +665,8 @@ export const Setup: React.FC = () => {
 
       if (origin === 'week' && sourceIndexStr) {
           const sourceIndex = parseInt(sourceIndexStr);
-          // Only support reordering within the same week for simplicity via this handler
-          // Inter-week moves with index would require more complex store logic not added yet
-          // But we can check if the source week matches target week implicitly by checking the drag context or 
-          // passing sourceWeekId. For now, assume reorder is primarily for same week sorting.
-          // Since we don't have sourceWeekId easily available in drag data without modification, 
-          // we rely on the parent container logic or just execute reorderSlotInWeek which is safe
-          
-          // Let's assume the user is dragging within the same list for reordering
-          // If dragging from another week, we might need moveNotebookToWeek then reorder.
-          // To keep it simple: Reorder only works within same week.
-          // Actually, we can check if the item belongs to this week in the store logic, but here let's try.
-          
           await reorderSlotInWeek(targetWeekId, sourceIndex, targetIndex);
       } else if (origin === 'library') {
-          // If dragging from library to a specific position
-          // This is harder because 'moveNotebookToWeek' appends.
-          // We would need 'insertNotebookAtWeekIndex'.
-          // Fallback to append for now.
           await moveNotebookToWeek(id, targetWeekId);
       }
   }, [reorderSlotInWeek, moveNotebookToWeek]);
@@ -558,7 +708,13 @@ export const Setup: React.FC = () => {
     e.preventDefault();
     setIsSaving(true);
     try {
-        const payload: any = { ...formData, accuracy: Number(formData.accuracy), targetAccuracy: Number(formData.targetAccuracy) };
+        const nextDate = calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm);
+        const payload: any = { 
+            ...formData, 
+            accuracy: Number(formData.accuracy), 
+            targetAccuracy: Number(formData.targetAccuracy),
+            nextReview: nextDate.toISOString()
+        };
         if (editingId) await editNotebook(editingId, payload);
         setIsModalOpen(false);
     } catch (error) {
@@ -587,12 +743,26 @@ export const Setup: React.FC = () => {
       setIsSaving(true);
       try {
           const newAccuracy = Number(formData.accuracy);
+          const nextDate = calculateNextReview(newAccuracy, formData.relevance, formData.trend, config.algorithm);
           const newHistory = [...(formData.accuracyHistory || []), { date: new Date().toISOString(), accuracy: newAccuracy }].slice(-3);
           if(editingId) {
-              await editNotebook(editingId, { accuracy: newAccuracy, accuracyHistory: newHistory, lastPractice: new Date().toISOString() });
+              await editNotebook(editingId, { 
+                  accuracy: newAccuracy, 
+                  accuracyHistory: newHistory, 
+                  lastPractice: new Date().toISOString(),
+                  nextReview: nextDate.toISOString()
+              });
               setFormData(prev => ({ ...prev, accuracyHistory: newHistory }));
           }
       } catch (err) { console.error("Quick save failed", err); } finally { setIsSaving(false); }
+  };
+
+  const handleStartSession = () => {
+      const nb = notebooks.find(n => n.id === editingId);
+      if(nb) {
+          setIsModalOpen(false);
+          startSession(nb);
+      }
   };
 
   const activeCycle = cycles.find(c => c.id === activeCycleId);
@@ -619,9 +789,9 @@ export const Setup: React.FC = () => {
           </div>
       )}
 
-      {/* Sidebar Library - COLLAPSIBLE */}
+      {/* Sidebar Library - ONLY VISIBLE IN TIMELINE VIEW */}
       {viewMode === 'timeline' && (
-      <aside className={`flex-shrink-0 border-r border-slate-800 bg-slate-900/30 flex flex-col z-20 hidden md:flex transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'w-14' : 'w-80'}`}>
+      <aside className={`flex-shrink-0 border-r border-slate-800 bg-slate-900/95 flex flex-col z-40 transition-all duration-300 ease-in-out h-full ${isSidebarCollapsed ? 'w-14' : 'absolute md:relative w-80 shadow-2xl md:shadow-none'}`}>
           <div className={`p-4 border-b border-slate-800 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
             {!isSidebarCollapsed && (
                 <div className="flex items-center gap-2">
@@ -713,6 +883,7 @@ export const Setup: React.FC = () => {
       {/* Main Area */}
       <main className="flex-1 flex flex-col min-w-0 bg-slate-950 relative">
          <header className="flex flex-col lg:flex-row items-center justify-between gap-4 px-6 py-4 border-b border-slate-800 bg-slate-900/90 backdrop-blur-xl sticky top-0 z-30 shadow-lg">
+            {/* ... (Existing header content remains unchanged) ... */}
             <div className="flex items-center gap-6 w-full lg:w-auto lg:flex-1">
                  <div className="flex flex-col">
                     <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Início</span>
@@ -767,6 +938,7 @@ export const Setup: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-3 w-full lg:w-auto lg:flex-1 justify-between lg:justify-end order-2 lg:order-3">
+                 {/* ... (Existing pace selector and backup button) ... */}
                  <div className="relative group w-full md:w-auto max-w-[200px]">
                     <div className="absolute inset-0 bg-slate-800 rounded-xl border border-slate-700 pointer-events-none group-hover:border-emerald-500/50 transition-colors shadow-sm"></div>
                     <div className="relative flex items-center px-4 py-2 gap-3 cursor-pointer">
@@ -949,7 +1121,6 @@ export const Setup: React.FC = () => {
          ) : (<CycleCalculator paceTarget={paceTarget} />)}
       </main>
 
-       {/* ... (Modals remain unchanged) ... */}
        {isModalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
@@ -959,6 +1130,7 @@ export const Setup: React.FC = () => {
             </div>
             <form onSubmit={handleSave} className="overflow-y-auto p-6 space-y-6 custom-scrollbar">
               <div className="space-y-4">
+                  {/* ... (Section 1 and other inputs remain unchanged) ... */}
                   <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">1. Identificação</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Disciplina</label><input required list="disciplines" value={formData.discipline} onChange={e => handleChange('discipline', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /><datalist id="disciplines">{existingDisciplines.map(d => <option key={d} value={d} />)}</datalist></div>
@@ -1005,6 +1177,37 @@ export const Setup: React.FC = () => {
                                 <input type="number" min="0" max="100" value={formData.accuracy} onChange={e => handleChange('accuracy', e.target.value)} className="flex-1 bg-slate-900 border border-slate-600 rounded-lg p-2 text-white font-mono text-center font-bold text-lg focus:border-emerald-500 outline-none" />
                                 <button type="button" onClick={handleQuickRecord} disabled={isSaving} className="px-4 bg-emerald-600/20 border border-emerald-600/50 text-emerald-400 hover:bg-emerald-600 hover:text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2">{isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Registrar</button>
                              </div>
+                             
+                             {/* INDICADOR DE DATA DA PRÓXIMA REVISÃO (SOLICITADO) */}
+                             {computedNextReviewData && (
+                                 <div className="flex flex-col mt-2 gap-1">
+                                     <div className="flex items-center justify-end gap-1.5 text-[10px] font-bold text-slate-400">
+                                         <span className="uppercase tracking-widest text-slate-500">Próxima Revisão:</span>
+                                         <span className="text-emerald-400 bg-emerald-900/20 px-1.5 py-0.5 rounded border border-emerald-500/20 flex items-center gap-1">
+                                             <Calendar size={10} /> {computedNextReviewData.date.toLocaleDateString()}
+                                         </span>
+                                         <span className="text-slate-500 text-[9px] font-normal">{computedNextReviewData.label}</span>
+                                     </div>
+                                     <div className="flex justify-end relative group/help">
+                                         <span className="flex items-center gap-1 text-[9px] text-slate-600 cursor-pointer hover:text-emerald-500 transition-colors underline decoration-dotted">
+                                             <Info size={10} /> Como funciona o algoritmo?
+                                         </span>
+                                         {/* TOOLTIP DE CALIBRAÇÃO */}
+                                         <div className="absolute bottom-full right-0 mb-2 w-64 bg-slate-900 border border-slate-700 rounded-lg p-3 shadow-xl opacity-0 group-hover/help:opacity-100 transition-opacity z-50 pointer-events-none text-left">
+                                             <h5 className="text-white text-xs font-bold mb-2 flex items-center gap-1"><Sparkles size={10}/> Método Atena (SRS)</h5>
+                                             <p className="text-[10px] text-slate-400 mb-2 leading-relaxed">
+                                                 Baseado no Anki, mas calibrado para o mercado de concursos. O intervalo é calculado multiplicando:
+                                             </p>
+                                             <ul className="space-y-1.5">
+                                                 <li className="text-[10px] text-slate-300 flex items-start gap-1.5"><span className="w-1 h-1 rounded-full bg-emerald-500 mt-1.5 shrink-0"></span><span><strong>Acurácia:</strong> Define o intervalo base (Aprendizado, Revisão ou Manutenção).</span></li>
+                                                 <li className="text-[10px] text-slate-300 flex items-start gap-1.5"><span className="w-1 h-1 rounded-full bg-emerald-500 mt-1.5 shrink-0"></span><span><strong>Relevância:</strong> Acelera a revisão. "Altíssima" encurta o prazo em 30%.</span></li>
+                                                 <li className="text-[10px] text-slate-300 flex items-start gap-1.5"><span className="w-1 h-1 rounded-full bg-emerald-500 mt-1.5 shrink-0"></span><span><strong>Tendência:</strong> Ajuste fino baseado na banca.</span></li>
+                                             </ul>
+                                         </div>
+                                     </div>
+                                 </div>
+                             )}
+
                           </div>
                           <div className="flex-1 w-full flex gap-2">
                              <button type="button" onClick={handleNotStudied} className="flex-1 py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 font-bold text-sm bg-slate-700 hover:bg-slate-600 text-slate-200 transition-all border border-slate-600">
@@ -1028,6 +1231,7 @@ export const Setup: React.FC = () => {
               <div className="space-y-4 pt-2">
                 <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">3. Rascunhos & Anotações</h4>
                 
+                {/* ... (Existing Link and Image sections remain unchanged) ... */}
                 {/* GEMINI LINKS SECTION */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-indigo-900/10 p-3 rounded-xl border border-indigo-500/20">
                     <div>

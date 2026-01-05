@@ -5,7 +5,7 @@ import {
     ChevronRight, ChevronLeft, Layers, Square, CheckSquare, 
     Circle, BookOpen, CheckCircle2, Siren, Star, Clock, Sparkles,
     Maximize2, FileCode, CalendarClock, ZoomIn, Flag, Save, Inbox, ScanSearch, Scale, Loader2, ArrowRight, XCircle,
-    LayoutGrid, Book, Calendar, History, TrendingUp
+    LayoutGrid, Book, Calendar, History, TrendingUp, Play, Info
 } from 'lucide-react';
 import { Weight, Relevance, Trend, Notebook, NotebookStatus } from '../types';
 import { calculateNextReview } from '../utils/algorithm';
@@ -40,70 +40,34 @@ const StatusBadge = ({ nb }: { nb: Notebook }) => {
     }
 };
 
-// --- SUB-COMPONENT: HUD Card ---
-const HUDCard = ({ icon, label, value, subtext, color = "text-white" }: any) => (
-    <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4 hover:border-slate-700 transition-colors">
-        <div className={`p-3 rounded-lg bg-slate-950 border border-slate-800 ${color}`}>
+const HUDCard = ({ icon, label, value, subtext, color }: { icon: React.ReactNode, label: string, value: string | number, subtext?: string, color?: string }) => (
+    <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden group hover:border-slate-700 transition-all">
+        <div className={`p-3 rounded-lg bg-slate-950 border border-slate-800`}>
             {icon}
         </div>
         <div>
-            <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">{label}</p>
-            <p className="text-2xl font-bold text-white leading-none mt-1">{value}</p>
-            {subtext && <p className="text-[10px] text-slate-400 mt-1">{subtext}</p>}
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{label}</p>
+            <p className={`text-2xl font-bold ${color || 'text-white'}`}>{value}</p>
+            {subtext && <p className="text-[10px] text-slate-500">{subtext}</p>}
         </div>
     </div>
 );
 
-const AlgorithmProjection = ({ accuracy, relevance, trend, config }: any) => {
-    const nextDate = calculateNextReview(accuracy, relevance, trend, config.algorithm);
-    const today = new Date();
-    const diffTime = nextDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+const FilterButton = ({ active, onClick, icon, label, color = "emerald" }: { active: boolean, onClick: () => void, icon: React.ReactNode, label: string, color?: string }) => {
+    const colorClasses: Record<string, string> = {
+        emerald: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50',
+        red: 'bg-red-500/20 text-red-400 border-red-500/50',
+        blue: 'bg-blue-500/20 text-blue-400 border-blue-500/50',
+        amber: 'bg-amber-500/20 text-amber-400 border-amber-500/50',
+        purple: 'bg-purple-500/20 text-purple-400 border-purple-500/50'
+    };
 
-    return (
-        <div className="bg-slate-950 border border-slate-800 rounded-lg p-3 flex flex-col gap-2 mt-4 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-2 opacity-10 pointer-events-none"><Clock size={40} /></div>
-            <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1"><RefreshCw size={10} /> Próxima Revisão (Algoritmo)</h5>
-            <div className="flex items-center gap-3">
-                <span className="text-2xl font-bold text-emerald-400">+{diffDays} dias</span>
-                <ArrowRight size={14} className="text-slate-600" />
-                <span className="text-sm font-mono text-slate-300">{nextDate.toLocaleDateString()}</span>
-            </div>
-            <div className="flex gap-2 text-[9px] text-slate-500 mt-1">
-                <span className="bg-slate-900 px-1.5 py-0.5 rounded">Acc: {accuracy}%</span>
-                <span className="bg-slate-900 px-1.5 py-0.5 rounded">Rel: {relevance}</span>
-                <span className="bg-slate-900 px-1.5 py-0.5 rounded">Trend: {trend}</span>
-            </div>
-        </div>
-    );
-};
-
-const FilterButton = ({ 
-    active, 
-    onClick, 
-    icon, 
-    label, 
-    color = 'emerald' 
-}: { 
-    active: boolean; 
-    onClick: () => void; 
-    icon: React.ReactNode; 
-    label: string; 
-    color?: string; 
-}) => {
-    let activeStyle = '';
-    switch (color) {
-        case 'red': activeStyle = 'bg-red-600 text-white border-red-500/50 shadow-lg shadow-red-900/20'; break;
-        case 'blue': activeStyle = 'bg-blue-600 text-white border-blue-500/50 shadow-lg shadow-blue-900/20'; break;
-        case 'amber': activeStyle = 'bg-amber-600 text-white border-amber-500/50 shadow-lg shadow-amber-900/20'; break;
-        case 'purple': activeStyle = 'bg-purple-600 text-white border-purple-500/50 shadow-lg shadow-purple-900/20'; break;
-        default: activeStyle = 'bg-emerald-600 text-white border-emerald-500/50 shadow-lg shadow-emerald-900/20'; break;
-    }
+    const activeClass = active ? (colorClasses[color] || colorClasses.emerald) : 'bg-slate-900 text-slate-500 border-slate-800 hover:text-slate-300 hover:bg-slate-800';
 
     return (
         <button 
             onClick={onClick}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all border ${active ? activeStyle : 'bg-slate-900 text-slate-500 border-slate-800 hover:text-white hover:bg-slate-800/80'}`}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all border ${activeClass}`}
         >
             {icon} {label}
         </button>
@@ -238,10 +202,31 @@ export const Library: React.FC = () => {
   const [newHistoryAccuracy, setNewHistoryAccuracy] = useState(0);
 
   // ALGORITMO EM TEMPO REAL NO MODAL
-  const computedNextReview = useMemo(() => {
+  const computedNextReviewData = useMemo(() => {
       if (!isModalOpen) return null;
-      return calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm);
-  }, [formData.accuracy, formData.relevance, formData.trend, config.algorithm, isModalOpen]);
+      const nextDate = calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm);
+      
+      // Calculate Planning Week
+      let weekLabel = '';
+      if (config.startDate) {
+          const start = new Date(config.startDate);
+          start.setHours(0,0,0,0);
+          const target = new Date(nextDate);
+          target.setHours(0,0,0,0);
+          
+          const diffTime = target.getTime() - start.getTime();
+          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+          
+          if (diffDays >= 0) {
+              const weekNum = Math.floor(diffDays / 7) + 1;
+              weekLabel = `(Semana ${weekNum})`;
+          } else {
+              weekLabel = '(Passado)';
+          }
+      }
+
+      return { date: nextDate, label: weekLabel };
+  }, [formData.accuracy, formData.relevance, formData.trend, config.algorithm, isModalOpen, config.startDate]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -852,12 +837,32 @@ export const Library: React.FC = () => {
                              </div>
                              
                              {/* INDICADOR DE DATA DA PRÓXIMA REVISÃO (SOLICITADO) */}
-                             {computedNextReview && (
-                                 <div className="flex items-center justify-end gap-1.5 mt-2 text-[10px] font-bold text-slate-400">
-                                     <span className="uppercase tracking-widest text-slate-500">Próxima Revisão:</span>
-                                     <span className="text-emerald-400 bg-emerald-900/20 px-1.5 py-0.5 rounded border border-emerald-500/20 flex items-center gap-1">
-                                         <Calendar size={10} /> {computedNextReview.toLocaleDateString()}
-                                     </span>
+                             {computedNextReviewData && (
+                                 <div className="flex flex-col mt-2 gap-1">
+                                     <div className="flex items-center justify-end gap-1.5 text-[10px] font-bold text-slate-400">
+                                         <span className="uppercase tracking-widest text-slate-500">Próxima Revisão:</span>
+                                         <span className="text-emerald-400 bg-emerald-900/20 px-1.5 py-0.5 rounded border border-emerald-500/20 flex items-center gap-1">
+                                             <Calendar size={10} /> {computedNextReviewData.date.toLocaleDateString()}
+                                         </span>
+                                         <span className="text-slate-500 text-[9px] font-normal">{computedNextReviewData.label}</span>
+                                     </div>
+                                     <div className="flex justify-end relative group/help">
+                                         <span className="flex items-center gap-1 text-[9px] text-slate-600 cursor-pointer hover:text-emerald-500 transition-colors underline decoration-dotted">
+                                             <Info size={10} /> Como funciona o algoritmo?
+                                         </span>
+                                         {/* TOOLTIP DE CALIBRAÇÃO */}
+                                         <div className="absolute bottom-full right-0 mb-2 w-64 bg-slate-900 border border-slate-700 rounded-lg p-3 shadow-xl opacity-0 group-hover/help:opacity-100 transition-opacity z-50 pointer-events-none text-left">
+                                             <h5 className="text-white text-xs font-bold mb-2 flex items-center gap-1"><Sparkles size={10}/> Método Atena (SRS)</h5>
+                                             <p className="text-[10px] text-slate-400 mb-2 leading-relaxed">
+                                                 Baseado no Anki, mas calibrado para o mercado de concursos. O intervalo é calculado multiplicando:
+                                             </p>
+                                             <ul className="space-y-1.5">
+                                                 <li className="text-[10px] text-slate-300 flex items-start gap-1.5"><span className="w-1 h-1 rounded-full bg-emerald-500 mt-1.5 shrink-0"></span><span><strong>Acurácia:</strong> Define o intervalo base (Aprendizado, Revisão ou Manutenção).</span></li>
+                                                 <li className="text-[10px] text-slate-300 flex items-start gap-1.5"><span className="w-1 h-1 rounded-full bg-emerald-500 mt-1.5 shrink-0"></span><span><strong>Relevância:</strong> Acelera a revisão. "Altíssima" encurta o prazo em 30%.</span></li>
+                                                 <li className="text-[10px] text-slate-300 flex items-start gap-1.5"><span className="w-1 h-1 rounded-full bg-emerald-500 mt-1.5 shrink-0"></span><span><strong>Tendência:</strong> Ajuste fino baseado na banca.</span></li>
+                                             </ul>
+                                         </div>
+                                     </div>
                                  </div>
                              )}
 

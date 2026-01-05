@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useStore } from '../store';
 import { QuadrantChart } from './QuadrantChart';
-import { StudySession } from './StudySession';
 import { LiquidityGauge } from './LiquidityGauge';
 import { Notebook, WEIGHT_SCORE, RELEVANCE_SCORE, Weight } from '../types';
+import { DEFAULT_ALGO_CONFIG } from '../utils/algorithm';
 import { 
   Target, Settings, TrendingUp,
   PieChart as PieChartIcon, Activity, Layers, Siren, ArrowRight, CheckCircle2,
@@ -105,8 +105,7 @@ interface Props {
 }
 
 export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
-  const { notebooks, config, updateConfig, getWildcardNotebook, setFocusedNotebookId, cycles, activeCycleId } = useStore();
-  const [selectedSession, setSelectedSession] = useState<Notebook | null>(null);
+  const { notebooks, config, updateConfig, getWildcardNotebook, setFocusedNotebookId, cycles, activeCycleId, startSession } = useStore();
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [localConfig, setLocalConfig] = useState(config);
 
@@ -114,6 +113,34 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       e.preventDefault();
       updateConfig(localConfig);
       setIsConfigOpen(false);
+  };
+
+  const handleUpdateAlgoInterval = (key: string, value: number) => {
+      setLocalConfig(prev => ({
+          ...prev,
+          algorithm: {
+              ...prev.algorithm,
+              baseIntervals: {
+                  ...(prev.algorithm?.baseIntervals || DEFAULT_ALGO_CONFIG.baseIntervals),
+                  [key]: value
+              },
+              multipliers: prev.algorithm?.multipliers || DEFAULT_ALGO_CONFIG.multipliers
+          }
+      }));
+  };
+
+  const handleUpdateAlgoMultiplier = (key: string, value: number) => {
+      setLocalConfig(prev => ({
+          ...prev,
+          algorithm: {
+              ...prev.algorithm,
+              baseIntervals: prev.algorithm?.baseIntervals || DEFAULT_ALGO_CONFIG.baseIntervals,
+              multipliers: {
+                  ...(prev.algorithm?.multipliers || DEFAULT_ALGO_CONFIG.multipliers),
+                  [key]: value
+              }
+          }
+      }));
   };
 
   const today = new Date().toISOString().split('T')[0];
@@ -365,6 +392,10 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
     return null;
   }, [notebooks]);
 
+  // Safe Default accessors for UI rendering
+  const currentIntervals = localConfig.algorithm?.baseIntervals || DEFAULT_ALGO_CONFIG.baseIntervals;
+  const currentMultipliers = localConfig.algorithm?.multipliers || DEFAULT_ALGO_CONFIG.multipliers;
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8 pb-20 relative">
       
@@ -489,7 +520,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${nb.accuracy >= nb.targetAccuracy ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : 'text-amber-400 border-amber-500/30 bg-amber-500/10'}`}>{nb.accuracy}%</span>
                        </div>
                        <div className="flex items-center justify-between mt-1">
-                           <button onClick={() => { if (nb.discipline === 'Revisão Geral') { const wc = getWildcardNotebook(); if(wc) setSelectedSession(wc); } else setSelectedSession(nb); }} className={`px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-all bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-900/20`}>
+                           <button onClick={() => { if (nb.discipline === 'Revisão Geral') { const wc = getWildcardNotebook(); if(wc) startSession(wc); } else startSession(nb); }} className={`px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-all bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-900/20`}>
                              Revisar
                            </button>
                        </div>
@@ -701,8 +732,6 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
          </div>
       </DashboardSection>
 
-      {selectedSession && <StudySession notebook={selectedSession} onClose={() => setSelectedSession(null)} />}
-
       {/* Config Modal */}
       {isConfigOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -749,6 +778,54 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                             placeholder="Cole aqui o conteúdo programático do edital para a IA processar..."
                         />
                         <p className="text-[10px] text-slate-500 mt-1">Este texto é usado pela IA para gerar o "Edital Verticalizado".</p>
+                    </div>
+
+                    {/* ALGORITHM CALIBRATION SECTION */}
+                    <div className="border-t border-slate-800 pt-4 mt-4">
+                        <h4 className="text-sm font-bold text-emerald-500 mb-4 flex items-center gap-2 uppercase tracking-wide">
+                            <BrainCircuit size={16}/> Calibragem do Algoritmo (SRS)
+                        </h4>
+                        
+                        <div className="mb-4">
+                            <label className="block text-xs font-bold text-slate-400 mb-2 uppercase">Intervalos Base (Dias)</label>
+                            <div className="grid grid-cols-4 gap-2">
+                                <div>
+                                    <span className="block text-[9px] text-red-400 mb-1">Learning {'<'}60%</span>
+                                    <input type="number" min="1" value={currentIntervals.learning} onChange={e => handleUpdateAlgoInterval('learning', Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white text-xs text-center" />
+                                </div>
+                                <div>
+                                    <span className="block text-[9px] text-amber-400 mb-1">Review 60-79%</span>
+                                    <input type="number" min="1" value={currentIntervals.reviewing} onChange={e => handleUpdateAlgoInterval('reviewing', Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white text-xs text-center" />
+                                </div>
+                                <div>
+                                    <span className="block text-[9px] text-emerald-400 mb-1">Master 80-89%</span>
+                                    <input type="number" min="1" value={currentIntervals.mastering} onChange={e => handleUpdateAlgoInterval('mastering', Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white text-xs text-center" />
+                                </div>
+                                <div>
+                                    <span className="block text-[9px] text-blue-400 mb-1">Elite {'>'}90%</span>
+                                    <input type="number" min="1" value={currentIntervals.maintaining} onChange={e => handleUpdateAlgoInterval('maintaining', Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white text-xs text-center" />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 mb-2 uppercase">Multiplicadores de Pressão</label>
+                            <div className="grid grid-cols-3 gap-2">
+                                <div>
+                                    <span className="block text-[9px] text-slate-500 mb-1">Relev. Alta</span>
+                                    <input type="number" step="0.1" min="0.1" max="1.5" value={currentMultipliers.relevanceHigh} onChange={e => handleUpdateAlgoMultiplier('relevanceHigh', Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white text-xs text-center" />
+                                </div>
+                                <div>
+                                    <span className="block text-[9px] text-slate-500 mb-1">Relev. Extrema</span>
+                                    <input type="number" step="0.1" min="0.1" max="1.5" value={currentMultipliers.relevanceExtreme} onChange={e => handleUpdateAlgoMultiplier('relevanceExtreme', Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white text-xs text-center" />
+                                </div>
+                                <div>
+                                    <span className="block text-[9px] text-slate-500 mb-1">Tend. Alta</span>
+                                    <input type="number" step="0.1" min="0.1" max="1.5" value={currentMultipliers.trendHigh} onChange={e => handleUpdateAlgoMultiplier('trendHigh', Number(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded p-1.5 text-white text-xs text-center" />
+                                </div>
+                            </div>
+                            <p className="text-[10px] text-slate-500 mt-2 italic">Valores menores que 1.0 encurtam o tempo de revisão (aumentam a frequência).</p>
+                        </div>
                     </div>
 
                     <button onClick={handleSaveConfig} className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl flex items-center justify-center gap-2 font-bold transition-all shadow-lg shadow-emerald-900/20">

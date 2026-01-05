@@ -94,6 +94,11 @@ interface StoreContextType {
   pendingCreateData: Partial<Notebook> | null;
   setPendingCreateData: (data: Partial<Notebook> | null) => void;
   
+  // Global Study Session State
+  activeSession: Notebook | null;
+  startSession: (notebook: Notebook) => void;
+  endSession: () => void;
+  
   enterGuestMode: () => void;
   exportDatabase: () => void; // NOVO: Backup Manual
 
@@ -153,6 +158,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Navigation State
   const [focusedNotebookId, setFocusedNotebookId] = useState<string | null>(null);
   const [pendingCreateData, setPendingCreateData] = useState<Partial<Notebook> | null>(null);
+  const [activeSession, setActiveSession] = useState<Notebook | null>(null);
   
   // Cycle Management
   const [cycles, setCycles] = useState<Cycle[]>([]);
@@ -374,6 +380,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [activeCycleId, cycles, isGuest, user]);
 
   // --- ACTIONS ---
+  const startSession = (notebook: Notebook) => setActiveSession(notebook);
+  const endSession = () => setActiveSession(null);
+
   const updateFramework = async (data: FrameworkData) => {
       setFramework(data);
       if(user && !isGuest) {
@@ -755,6 +764,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     <StoreContext.Provider value={{ 
       notebooks, config, reports, protocol, cycles, activeCycleId, framework, notes, loading, isSyncing, user, isGuest,
       focusedNotebookId, setFocusedNotebookId, pendingCreateData, setPendingCreateData,
+      activeSession, startSession, endSession,
       enterGuestMode, exportDatabase, createCycle, selectCycle, deleteCycle, updateConfig, updateNotebookAccuracy, 
       moveNotebookToWeek, toggleSlotCompletion, removeSlotFromWeek, reorderSlotInWeek,
       getWildcardNotebook, addNotebook, editNotebook, deleteNotebook, bulkUpdateNotebooks, saveReport, deleteReport,

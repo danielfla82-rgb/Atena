@@ -16,6 +16,7 @@ import { Documentation } from './Documentation';
 import { VerticalizedEdital } from './VerticalizedEdital';
 import { Notes } from './Notes';
 import { About } from './About';
+import { StudySession } from './StudySession';
 import { 
   LayoutDashboard, Layers, Menu, X, Library as LibraryIcon, 
   Activity, Lightbulb, Flame, Brain, Newspaper, Pill, Pyramid, Book, ListChecks, Shield, StickyNote, Command, LogOut, ChevronDown
@@ -34,7 +35,7 @@ const AppContent: React.FC = () => {
   const [intelligenceMenuOpen, setIntelligenceMenuOpen] = useState(true);
   const [mentalMenuOpen, setMentalMenuOpen] = useState(false);
   
-  const { user } = useStore();
+  const { user, activeSession, endSession } = useStore();
 
   // Efeito: Abre o menu automaticamente se estiver navegando em um de seus sub-itens
   useEffect(() => {
@@ -62,6 +63,9 @@ const AppContent: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col md:flex-row text-slate-100 font-sans">
       
+      {/* Global Study Session Overlay */}
+      {activeSession && <StudySession notebook={activeSession} onClose={endSession} />}
+
       {/* --- Mobile Header --- */}
       <div className="md:hidden bg-slate-900 p-4 border-b border-slate-800 flex justify-between items-center sticky top-0 z-40">
         <div className="flex items-center gap-2">

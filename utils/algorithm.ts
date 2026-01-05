@@ -1,4 +1,3 @@
-
 import { Relevance, Trend, AlgorithmConfig } from '../types';
 
 /**
@@ -29,7 +28,7 @@ import { Relevance, Trend, AlgorithmConfig } from '../types';
  * com um limite mínimo de 1 dia.
  */
 
-const DEFAULT_ALGO_CONFIG: AlgorithmConfig = {
+export const DEFAULT_ALGO_CONFIG: AlgorithmConfig = {
     baseIntervals: {
         learning: 1,
         reviewing: 3,
