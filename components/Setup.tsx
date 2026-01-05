@@ -49,11 +49,11 @@ const DraggableCard = React.memo(({
     // --- LÓGICA DE CORES POR DESEMPENHO ---
     const target = notebook.targetAccuracy || 90;
     const accuracy = notebook.accuracy || 0;
-    const criticalThreshold = target * 0.75; // 75% da meta (ex: se meta é 90, critico é < 67.5)
+    const criticalThreshold = target * 0.75; // 75% da meta
 
     let buttonClass = 'border-slate-600 bg-slate-700 text-slate-300 group-hover/check:border-slate-500 hover:bg-slate-600';
     let textClass = isCompleted && isWeek ? 'text-slate-600 line-through' : 'text-slate-200';
-    let percentColorClass = notebook.accuracy < 60 ? 'text-red-400' : 'text-emerald-400'; // Default
+    let percentColorClass = notebook.accuracy < 60 ? 'text-red-400' : 'text-emerald-400';
     let tooltipText = "Pendente: Clique para marcar como concluído.";
 
     if (isCompleted) {
@@ -708,6 +708,12 @@ export const Setup: React.FC = () => {
       } catch (err) { console.error("Quick save failed", err); } finally { setIsSaving(false); }
   };
 
+  const removeHistoryItem = (index: number) => {
+      const newHistory = [...(formData.accuracyHistory || [])];
+      newHistory.splice(index, 1);
+      setFormData(prev => ({ ...prev, accuracyHistory: newHistory }));
+  };
+
   const pendingCount = useMemo(() => notebooks.filter(nb => !nb.weekId && nb.discipline !== 'Revisão Geral').length, [notebooks]);
 
   return (
@@ -833,22 +839,6 @@ export const Setup: React.FC = () => {
                         <Flag size={14} className="text-emerald-500" />
                         <span className="text-xs text-white font-medium">
                             {config.examDate ? new Date(config.examDate).toLocaleDateString('pt-BR', {timeZone: 'UTC'}) : 'ND'}
-                        </span>
-                    </div>
-                 </div>
-                 
-                 <div className="flex flex-col">
-                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Status</span>
-                    <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 min-w-[120px]">
-                        {isSyncing ? (
-                            <Loader2 size={14} className="text-amber-500 animate-spin" />
-                        ) : isGuest ? (
-                            <CloudOff size={14} className="text-slate-500" />
-                        ) : (
-                            <Cloud size={14} className="text-emerald-500" />
-                        )}
-                        <span className={`text-xs font-bold ${isSyncing ? 'text-amber-500' : isGuest ? 'text-slate-500' : 'text-emerald-500'}`}>
-                            {isSyncing ? "Salvando..." : isGuest ? "Local (Visitante)" : "Sincronizado"}
                         </span>
                     </div>
                  </div>
@@ -1157,9 +1147,17 @@ export const Setup: React.FC = () => {
                           </div>
                       </div>
                       {formData.accuracyHistory && formData.accuracyHistory.length > 0 && (
-                          <div className="border-t border-slate-700/50 pt-2 flex gap-2 overflow-x-auto pb-1">
+                          <div className="border-t border-slate-700/50 pt-2 flex gap-2 overflow-x-auto pb-1 min-h-[45px]">
                               {formData.accuracyHistory.map((h, i) => (
-                                  <div key={i} className="flex flex-col items-center bg-slate-900 px-2 py-1 rounded border border-slate-800 min-w-[60px]">
+                                  <div key={i} className="group relative flex flex-col items-center bg-slate-900 px-2 py-1 rounded border border-slate-800 min-w-[60px]">
+                                      <button 
+                                        type="button"
+                                        onClick={() => removeHistoryItem(i)}
+                                        className="absolute -top-1.5 -right-1.5 bg-red-600 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110 z-10 cursor-pointer shadow-sm"
+                                        title="Excluir registro"
+                                      >
+                                          <X size={8} strokeWidth={3} />
+                                      </button>
                                       <span className="text-[10px] text-slate-500 font-mono">{new Date(h.date).toLocaleDateString(undefined, {day:'2-digit', month:'2-digit'})}</span>
                                       <span className={`text-xs font-bold ${h.accuracy >= formData.targetAccuracy ? 'text-emerald-400' : h.accuracy < 60 ? 'text-red-400' : 'text-amber-400'}`}>{h.accuracy}%</span>
                                   </div>

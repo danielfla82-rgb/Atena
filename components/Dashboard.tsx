@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useStore } from '../store';
 import { QuadrantChart } from './QuadrantChart';
-import { LiquidityGauge } from './LiquidityGauge';
+import { WeeklyProgress } from './WeeklyProgress';
 import { Notebook, WEIGHT_SCORE, RELEVANCE_SCORE, Weight } from '../types';
 import { DEFAULT_ALGO_CONFIG } from '../utils/algorithm';
 import { 
@@ -573,13 +573,13 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       </div>
 
       {/* RADIOGRAFIA TÁTICA */}
-      <DashboardSection title="Radiografia Tática" subtitle="Matriz Estratégica & Liquidez" icon={<Target size={20} />} defaultOpen={true}>
+      <DashboardSection title="Radiografia Tática" subtitle="Matriz Estratégica & Meta Semanal" icon={<Target size={20} />} defaultOpen={true}>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 order-1 lg:order-1">
                   <QuadrantChart data={quadrantData} onNavigate={onNavigate} />
               </div>
               <div className="lg:col-span-1 order-2 lg:order-2">
-                  <LiquidityGauge notebooks={notebooks} />
+                  <WeeklyProgress />
               </div>
           </div>
       </DashboardSection>

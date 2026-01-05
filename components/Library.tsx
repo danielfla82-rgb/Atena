@@ -1,257 +1,88 @@
-import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { useStore } from '../store';
+import { Notebook, Weight, Relevance, Trend, NotebookStatus } from '../types';
+import { calculateNextReview } from '../utils/algorithm';
 import { 
-    Trash2, Plus, Search, X, Link as LinkIcon, Pencil, RefreshCw, 
-    ChevronRight, ChevronLeft, Layers, Square, CheckSquare, 
-    Circle, BookOpen, CheckCircle2, Siren, Star, Clock, Sparkles,
-    Maximize2, FileCode, CalendarClock, ZoomIn, Flag, Save, Inbox, ScanSearch, Scale, Loader2, ArrowRight, XCircle,
-    LayoutGrid, Book, Calendar, History, TrendingUp, Play, Info,
-    Activity, AlertTriangle, Thermometer
+    Search, Plus, Trash2, Edit2, Square, ChevronRight, ChevronDown, 
+    BookOpen, Layers, CheckCircle2, LayoutGrid, Clock, AlertTriangle, Star, 
+    History, Sparkles, X, Save, Maximize2, Thermometer,
+    Pencil, Link as LinkIcon, XCircle, ZoomIn, ChevronLeft, Calendar, Loader2, TrendingUp, Info, Scale, FileCode, Flag
 } from 'lucide-react';
-import { Weight, Relevance, Trend, Notebook, NotebookStatus } from '../types';
-import { calculateNextReview, calculateUrgencyScore, calculateConsistency, calculateMemoryStrength } from '../utils/algorithm';
-
-// --- SUB-COMPONENT: Status Badge (ATUALIZADO V7.1) ---
-const StatusBadge = ({ nb }: { nb: Notebook }) => {
-    // 1. Prioridade: Dominado
-    if (nb.status === NotebookStatus.MASTERED || nb.accuracy >= 95) {
-        return <span className="flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20"><CheckCircle2 size={10} /> Dominado</span>;
-    }
-
-    // 2. Prioridade: Em Andamento Real (Tem acurácia > 0)
-    if (nb.accuracy > 0) {
-         return <span className="flex items-center gap-1 text-[10px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20"><BookOpen size={10} /> Em Andamento ({nb.accuracy}%)</span>;
-    }
-
-    // 3. Prioridade: Planejado (Está no Ciclo)
-    if (nb.weekId) {
-        return <span className="flex items-center gap-1 text-[10px] text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20"><Calendar size={10} /> Planejado</span>;
-    }
-
-    // 4. Fallback: Status do Banco
-    switch(nb.status) {
-        case NotebookStatus.THEORY_DONE: 
-          return <span className="flex items-center gap-1 text-[10px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20"><BookOpen size={10} /> Teoria OK</span>;
-        case NotebookStatus.REVIEWING: 
-          return <span className="flex items-center gap-1 text-[10px] text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20"><RefreshCw size={10} /> Revisando</span>;
-        default: 
-          return <span className="flex items-center gap-1 text-[10px] text-slate-500 bg-slate-800 px-2 py-0.5 rounded border border-slate-700"><Circle size={8} className="border border-slate-500 rounded-full" /> Não Iniciado</span>;
-    }
-};
-
-const HUDCard = ({ icon, label, value, subtext, color }: { icon: React.ReactNode, label: string, value: string | number, subtext?: string, color?: string }) => (
-    <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden group hover:border-slate-700 transition-all">
-        <div className={`p-3 rounded-lg bg-slate-950 border border-slate-800`}>
-            {icon}
-        </div>
-        <div>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{label}</p>
-            <p className={`text-2xl font-bold ${color || 'text-white'}`}>{value}</p>
-            {subtext && <p className="text-[10px] text-slate-500">{subtext}</p>}
-        </div>
-    </div>
-);
-
-const FilterButton = ({ active, onClick, icon, label, color = "emerald" }: { active: boolean, onClick: () => void, icon: React.ReactNode, label: string, color?: string }) => {
-    const colorClasses: Record<string, string> = {
-        emerald: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50',
-        red: 'bg-red-500/20 text-red-400 border-red-500/50',
-        blue: 'bg-blue-500/20 text-blue-400 border-blue-500/50',
-        amber: 'bg-amber-500/20 text-amber-400 border-amber-500/50',
-        purple: 'bg-purple-500/20 text-purple-400 border-purple-500/50'
-    };
-
-    const activeClass = active ? (colorClasses[color] || colorClasses.emerald) : 'bg-slate-900 text-slate-500 border-slate-800 hover:text-slate-300 hover:bg-slate-800';
-
-    return (
-        <button 
-            onClick={onClick}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all border ${activeClass}`}
-        >
-            {icon} {label}
-        </button>
-    );
-};
-
-// --- OPTIMIZATION: Memoized List Item ---
-const LibraryItem = React.memo(({ 
-    nb, 
-    isSelected, 
-    isExpanded, 
-    onToggleSelection, 
-    onToggleDetails, 
-    onEdit, 
-    onDelete,
-    showDate 
-}: { 
-    nb: Notebook; 
-    isSelected: boolean; 
-    isExpanded: boolean; 
-    onToggleSelection: (id: string) => void; 
-    onToggleDetails: (id: string) => void; 
-    onEdit: (nb: Notebook) => void;
-    onDelete: (id: string) => void;
-    showDate: boolean;
-}) => {
-    // V7.6 Calculations
-    const urgency = calculateUrgencyScore(nb.weight, nb.trend, nb.accuracy, nb.targetAccuracy);
-    const consistency = calculateConsistency(nb.accuracyHistory || []);
-    const memoryStrength = calculateMemoryStrength(nb.lastPractice, nb.nextReview);
-
-    // Visual Decay Logic (Ebbinghaus Active Style)
-    // Se memoryStrength < 0.1 (Critico/Overdue), fica BOLD e com borda vermelha.
-    // Se memoryStrength < 0.5 (Fading), perde opacidade e saturação.
-    const isCriticalMemory = memoryStrength <= 0.1;
-    const containerStyle = isCriticalMemory 
-        ? { opacity: 1, borderLeft: '4px solid #ef4444' } // Bold/Alert
-        : { opacity: Math.max(0.4, memoryStrength), filter: `grayscale(${1 - memoryStrength})` }; // Fading
-
-    return (
-        <div 
-          style={containerStyle}
-          className={`
-              p-3 pl-12 border-b border-slate-800/50 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:bg-slate-800/20
-              ${isSelected ? 'bg-emerald-900/10' : ''}
-              ${isCriticalMemory ? 'bg-red-900/5' : ''}
-          `}
-        >
-            <div className="flex items-center gap-3 flex-1">
-                <button 
-                  onClick={() => onToggleSelection(nb.id)}
-                  className="text-slate-600 hover:text-emerald-500 transition-colors"
-                >
-                    {isSelected ? <CheckSquare size={16} className="text-emerald-500"/> : <Square size={16}/>}
-                </button>
-                <div>
-                    <div className="flex items-center gap-2">
-                        <h4 className={`text-sm font-medium ${isCriticalMemory ? 'text-red-300 font-bold' : 'text-slate-300'}`}>{nb.name}</h4>
-                        {nb.subtitle && <span className="text-xs text-slate-500 hidden lg:inline-block">• {nb.subtitle}</span>}
-                        
-                        {/* URGENCY BADGE */}
-                        {urgency > 6 && (
-                            <span className={`text-[9px] font-bold px-1.5 rounded flex items-center gap-1 ${urgency >= 8 ? 'bg-red-500 text-white' : 'bg-amber-500 text-slate-900'}`} title="Score de Urgência (0-10)">
-                                <Siren size={8} /> {urgency}
-                            </span>
-                        )}
-                    </div>
-                    
-                    {isExpanded && (
-                        <div className="mt-3 text-xs text-slate-500 flex flex-wrap gap-4 animate-in slide-in-from-top-1 items-center bg-slate-950/30 p-2 rounded-lg border border-slate-800/50">
-                            <span className="flex items-center gap-1"><Scale size={10} /> Peso: <strong className="text-slate-300">{nb.weight}</strong></span>
-                            <span className="flex items-center gap-1"><TrendingUp size={10} /> Tendência: <strong className="text-slate-300">{nb.trend}</strong></span>
-                            
-                            {/* CONSISTENCY STAT */}
-                            <span className={`flex items-center gap-1 ${consistency.status === 'Volátil' ? 'text-red-400' : consistency.status === 'Oscilante' ? 'text-amber-400' : 'text-emerald-400'}`} title={`Desvio Padrão: ${consistency.sd}%`}>
-                                <Activity size={10} /> {consistency.status} (±{consistency.sd}%)
-                            </span>
-
-                            <span>Última: <strong className="text-slate-300">{nb.lastPractice ? new Date(nb.lastPractice).toLocaleDateString() : '-'}</strong></span>
-                            {nb.nextReview && <span className={isCriticalMemory ? 'text-red-400 font-bold' : 'text-emerald-400'}>Próx: <strong>{new Date(nb.nextReview).toLocaleDateString()}</strong></span>}
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            <div className="flex items-center gap-3 pl-8 md:pl-0">
-                {/* ACTIVE FORGETTING CURVE INDICATOR (Icon based) */}
-                {isCriticalMemory && (
-                    <div className="text-red-500 animate-pulse" title="Memória Crítica! Revisão Atrasada.">
-                        <Thermometer size={16} />
-                    </div>
-                )}
-
-                {showDate && nb.nextReview && (
-                    <span className="text-xs font-mono text-emerald-500 bg-emerald-900/10 px-2 py-0.5 rounded">
-                        {new Date(nb.nextReview).toLocaleDateString()}
-                    </span>
-                )}
-                {/* STATUS BADGE ATUALIZADO */}
-                <StatusBadge nb={nb} />
-                
-                <div className={`text-xs font-bold px-2 py-0.5 rounded border min-w-[3rem] text-center ${nb.accuracy < 60 ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
-                    {nb.accuracy}%
-                </div>
-                
-                <div className="flex items-center gap-1 border-l border-slate-800 pl-3 ml-2">
-                    <button onClick={() => onToggleDetails(nb.id)} className={`p-1.5 rounded hover:bg-slate-800 ${isExpanded ? 'text-emerald-400' : 'text-slate-500 hover:text-white'}`} title="Ver Detalhes">
-                        <Maximize2 size={14} />
-                    </button>
-                    <button onClick={() => onEdit(nb)} className="p-1.5 text-slate-500 hover:text-emerald-400 rounded hover:bg-slate-800" title="Editar">
-                        <Pencil size={14} />
-                    </button>
-                    <button 
-                        type="button"
-                        onClick={(e) => { 
-                            e.preventDefault();
-                            e.stopPropagation(); 
-                            onDelete(nb.id); 
-                        }} 
-                        className="p-1.5 text-slate-500 hover:text-red-500 rounded hover:bg-slate-800 relative z-10" 
-                        title="Excluir Caderno"
-                    >
-                        <Trash2 size={14} />
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-});
 
 export const Library: React.FC = () => {
-  // ... (Hooks, States, and Modal Logic remains mostly the same, ensuring imports are correct)
-  const { notebooks, deleteNotebook, addNotebook, editNotebook, bulkUpdateNotebooks, config, focusedNotebookId, setFocusedNotebookId, pendingCreateData, setPendingCreateData, loading } = useStore();
-  
-  // UI State
+  const { 
+    notebooks, 
+    config, 
+    addNotebook, 
+    editNotebook, 
+    deleteNotebook, 
+    pendingCreateData, 
+    setPendingCreateData,
+    focusedNotebookId,
+    setFocusedNotebookId,
+    startSession
+  } = useStore();
+
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'ALL' | 'CRITICAL' | 'NEW' | 'OVERDUE' | 'HIGH_WEIGHT'>('ALL');
-  const [sortByReview, setSortByReview] = useState(false);
-  const [expandedDisciplines, setExpandedDisciplines] = useState<Set<string>>(new Set());
-  
-  // Detail Expansion State
-  const [expandedDetailsId, setExpandedDetailsId] = useState<string | null>(null);
-
-  // Bulk Selection State
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  
-  // Gallery State (Lightbox)
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-
-  // Create/Edit Modal State
+  const [activeFilter, setActiveFilter] = useState<string>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   
+  // Estado para controlar quais disciplinas (pastas) estão abertas
+  // Inicia vazio ou com todas abertas dependendo da preferência.
+  const [expandedDisciplines, setExpandedDisciplines] = useState<Record<string, boolean>>({});
+
+  // --- FORM STATE (IDÊNTICO AO SETUP.TSX) ---
   const initialFormState = {
     discipline: '', name: '', subtitle: '', 
-    tecLink: '', errorNotebookLink: '', favoriteQuestionsLink: '', 
+    tecLink: '', errorNotebookLink: '', favoriteQuestionsLink: '',
     lawLink: '', obsidianLink: '', 
     geminiLink1: '', geminiLink2: '',
-    accuracy: 0, targetAccuracy: 90, 
-    weight: Weight.MEDIO, relevance: Relevance.MEDIA, trend: Trend.ESTAVEL, 
-    status: NotebookStatus.NOT_STARTED, notes: '', images: [] as string[],
-    lastPractice: new Date().toISOString().split('T')[0],
-    accuracyHistory: [] as { date: string, accuracy: number }[]
+    accuracy: 0, targetAccuracy: 90,
+    weight: Weight.MEDIO, relevance: Relevance.MEDIA, trend: Trend.ESTAVEL, notes: '', images: [] as string[], accuracyHistory: [] as { date: string, accuracy: number }[]
   };
 
   const [formData, setFormData] = useState(initialFormState);
-  const [newHistoryDate, setNewHistoryDate] = useState(new Date().toISOString().split('T')[0]);
-  const [newHistoryAccuracy, setNewHistoryAccuracy] = useState(0);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ALGORITMO EM TEMPO REAL NO MODAL
+  // --- EFFECTS ---
+  React.useEffect(() => {
+      if (pendingCreateData) {
+          setFormData({ ...initialFormState, ...pendingCreateData });
+          setEditingId(null);
+          setIsModalOpen(true);
+          setPendingCreateData(null);
+      }
+  }, [pendingCreateData]);
+
+  React.useEffect(() => {
+      if (focusedNotebookId) {
+          const nb = notebooks.find(n => n.id === focusedNotebookId);
+          if (nb) {
+              setSearchTerm(nb.name);
+              // Força a abertura da pasta da disciplina do item focado
+              setExpandedDisciplines(prev => ({...prev, [nb.discipline]: true}));
+          }
+          setFocusedNotebookId(null);
+      }
+  }, [focusedNotebookId, notebooks]);
+
+  // --- CALCULATED DATA ---
+  const existingDisciplines = useMemo(() => Array.from(new Set(notebooks.map(n => n.discipline))).sort(), [notebooks]);
+
   const computedNextReviewData = useMemo(() => {
       if (!isModalOpen) return null;
       const nextDate = calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm);
-      
-      // Calculate Planning Week
       let weekLabel = '';
       if (config.startDate) {
           const start = new Date(config.startDate);
           start.setHours(0,0,0,0);
           const target = new Date(nextDate);
           target.setHours(0,0,0,0);
-          
           const diffTime = target.getTime() - start.getTime();
           const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-          
           if (diffDays >= 0) {
               const weekNum = Math.floor(diffDays / 7) + 1;
               weekLabel = `(Semana ${weekNum})`;
@@ -259,373 +90,172 @@ export const Library: React.FC = () => {
               weekLabel = '(Passado)';
           }
       }
-
       return { date: nextDate, label: weekLabel };
   }, [formData.accuracy, formData.relevance, formData.trend, config.algorithm, isModalOpen, config.startDate]);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // --- AUTO-FOCUS LOGIC (Robust Implementation) ---
-  useEffect(() => {
-      // Only proceed if not loading and we have a focused ID
-      if (!loading && focusedNotebookId) {
-          const target = notebooks.find(n => n.id === focusedNotebookId);
-          if (target) {
-              setSearchTerm(target.name);
-              setExpandedDisciplines(new Set([target.discipline]));
-              setActiveFilter('ALL');
-              
-              // Open modal
-              setEditingId(target.id);
-              let safeDate = new Date().toISOString().split('T')[0];
-              if (target.lastPractice) {
-                  const check = new Date(target.lastPractice);
-                  if (!isNaN(check.getTime())) safeDate = target.lastPractice.split('T')[0];
-              }
-              let currentImages = target.images || [];
-              if (currentImages.length === 0 && target.image) currentImages = [target.image];
-
-              setFormData({
-                  discipline: target.discipline,
-                  name: target.name,
-                  subtitle: target.subtitle,
-                  tecLink: target.tecLink || '',
-                  errorNotebookLink: target.errorNotebookLink || '',
-                  favoriteQuestionsLink: target.favoriteQuestionsLink || '',
-                  lawLink: target.lawLink || '',
-                  obsidianLink: target.obsidianLink || '',
-                  geminiLink1: target.geminiLink1 || '',
-                  geminiLink2: target.geminiLink2 || '',
-                  accuracy: target.accuracy,
-                  targetAccuracy: target.targetAccuracy,
-                  weight: target.weight,
-                  relevance: target.relevance,
-                  trend: target.trend,
-                  status: target.status || NotebookStatus.NOT_STARTED,
-                  notes: target.notes || '',
-                  images: currentImages,
-                  lastPractice: safeDate,
-                  accuracyHistory: target.accuracyHistory || []
-              });
-              
-              setIsModalOpen(true);
-              // Clear focus AFTER successfully opening
-              setFocusedNotebookId(null);
-          } else if (notebooks.length > 0) {
-              // If notebooks are loaded but ID not found, clear it
-              setFocusedNotebookId(null);
-          }
-      }
-  }, [focusedNotebookId, notebooks, loading, setFocusedNotebookId]);
-
-  // --- PENDING CREATE LOGIC (From Verticalized Edital) ---
-  useEffect(() => {
-      if (pendingCreateData && !loading) {
-          setEditingId(null);
-          setFormData({
-              ...initialFormState,
-              name: pendingCreateData.name || '',
-              discipline: pendingCreateData.discipline || '',
-          });
-          setIsModalOpen(true);
-          setPendingCreateData(null);
-      }
-  }, [pendingCreateData, loading, setPendingCreateData]);
-
-  // --- FILTER LOGIC ---
-  const filteredNotebooks = useMemo(() => {
-    let result = notebooks.filter(nb => nb.discipline !== 'Revisão Geral'); 
-
-    // 1. Text Search
-    if (searchTerm) {
-        result = result.filter(nb => 
-            nb.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-            nb.discipline.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            nb.subtitle.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-    }
-
-    // 2. Tactical Chips
-    const today = new Date().toISOString().split('T')[0];
-    switch (activeFilter) {
-        case 'CRITICAL':
-            result = result.filter(nb => (nb.weight === Weight.ALTO || nb.weight === Weight.MUITO_ALTO) && nb.accuracy < 60 && nb.accuracy > 0);
-            break;
-        case 'NEW':
-            result = result.filter(nb => nb.status === NotebookStatus.NOT_STARTED || nb.accuracy === 0);
-            break;
-        case 'OVERDUE':
-            result = result.filter(nb => nb.nextReview && nb.nextReview.split('T')[0] < today);
-            break;
-        case 'HIGH_WEIGHT':
-            result = result.filter(nb => nb.weight === Weight.MUITO_ALTO);
-            break;
-    }
-
-    // 3. Sorting by Review Date
-    if (sortByReview) {
-        result.sort((a, b) => {
-            const dateA = a.nextReview ? new Date(a.nextReview).getTime() : Infinity;
-            const dateB = b.nextReview ? new Date(b.nextReview).getTime() : Infinity;
-            return dateA - dateB;
-        });
-    } else {
-        // Default Sort: Discipline then Name
-        result.sort((a, b) => a.discipline.localeCompare(b.discipline) || a.name.localeCompare(b.name));
-    }
-
-    return result;
-  }, [notebooks, searchTerm, activeFilter, sortByReview]);
-
-  const existingDisciplines = useMemo(() => {
-    return Array.from(new Set(notebooks.map(n => n.discipline))).sort();
-  }, [notebooks]);
-
-  // --- GROUPING LOGIC (HIERARCHY) ---
-  const groupedData = useMemo(() => {
-      const groups: Record<string, Notebook[]> = {};
-      const stats: Record<string, { total: number, done: number, avgAcc: number }> = {};
-
-      filteredNotebooks.forEach(nb => {
-          if (!groups[nb.discipline]) {
-              groups[nb.discipline] = [];
-              stats[nb.discipline] = { total: 0, done: 0, avgAcc: 0 };
-          }
-          groups[nb.discipline].push(nb);
-          
-          // Stats Calc
-          stats[nb.discipline].total += 1;
-          if (nb.status === NotebookStatus.MASTERED || nb.accuracy >= 90) stats[nb.discipline].done += 1;
-          stats[nb.discipline].avgAcc += nb.accuracy;
-      });
-
-      // Normalize averages
-      Object.keys(stats).forEach(d => {
-          stats[d].avgAcc = Math.round(stats[d].avgAcc / stats[d].total);
-      });
-
-      const sortedKeys = Object.keys(groups).sort();
-      return { groups, stats, sortedKeys };
-  }, [filteredNotebooks]);
-
-  // --- HUD METRICS CALCULATION ---
-  const hudMetrics = useMemo(() => {
-      const totalNotebooks = notebooks.length;
+  const stats = useMemo(() => {
       const validNotebooks = notebooks.filter(n => n.discipline !== 'Revisão Geral');
-      const uniqueDisciplines = new Set(validNotebooks.map(n => n.discipline)).size;
-      const activeNotebooks = validNotebooks.filter(n => n.accuracy > 0);
-      const avgAccuracy = activeNotebooks.length > 0 
-          ? Math.round(activeNotebooks.reduce((acc, n) => acc + n.accuracy, 0) / activeNotebooks.length)
-          : 0;
-      const masteredCount = validNotebooks.filter(n => n.accuracy >= 90).length;
-
-      return { totalNotebooks, uniqueDisciplines, avgAccuracy, masteredCount };
+      const total = validNotebooks.length;
+      const disciplines = new Set(validNotebooks.map(n => n.discipline)).size;
+      const mastered = validNotebooks.filter(n => n.accuracy >= n.targetAccuracy).length;
+      const globalAcc = total > 0 ? Math.round(validNotebooks.reduce((acc, n) => acc + n.accuracy, 0) / total) : 0;
+      return { total, disciplines, mastered, globalAcc };
   }, [notebooks]);
+
+  // Agrupamento por Disciplina (Lógica de Pastas)
+  const groupedData = useMemo(() => {
+      // 1. Filtragem
+      const filtered = notebooks.filter(nb => {
+          if (nb.discipline === 'Revisão Geral') return false; // Ocultar cards técnicos
+
+          const searchLower = searchTerm.toLowerCase();
+          const matchesSearch = 
+              nb.name.toLowerCase().includes(searchLower) || 
+              nb.discipline.toLowerCase().includes(searchLower) ||
+              (nb.subtitle && nb.subtitle.toLowerCase().includes(searchLower));
+
+          if (!matchesSearch) return false;
+
+          switch (activeFilter) {
+              case 'review': return nb.status === NotebookStatus.REVIEWING;
+              case 'critical': return nb.accuracy < 60 && nb.accuracy > 0;
+              case 'new': return nb.accuracy === 0;
+              case 'late': 
+                  if (!nb.nextReview) return false;
+                  return new Date(nb.nextReview).toISOString().split('T')[0] < new Date().toISOString().split('T')[0];
+              case 'heavy': return nb.weight === Weight.MUITO_ALTO || nb.weight === Weight.ALTO;
+              default: return true;
+          }
+      });
+
+      // 2. Agrupamento
+      const groups: Record<string, Notebook[]> = {};
+      filtered.forEach(nb => {
+          if (!groups[nb.discipline]) groups[nb.discipline] = [];
+          groups[nb.discipline].push(nb);
+      });
+
+      // 3. Ordenação
+      const sortedKeys = Object.keys(groups).sort();
+      sortedKeys.forEach(key => {
+          groups[key].sort((a, b) => a.name.localeCompare(b.name));
+      });
+
+      return { groups, sortedKeys };
+  }, [notebooks, searchTerm, activeFilter]);
+
+  // --- ACTIONS ---
+  const toggleDiscipline = (discipline: string) => {
+      setExpandedDisciplines(prev => ({ ...prev, [discipline]: !prev[discipline] }));
+  };
+
+  const handleOpenCreate = () => {
+      setEditingId(null);
+      setFormData(initialFormState);
+      setIsModalOpen(true);
+  };
+
+  const handleOpenEdit = (nb: Notebook, e?: React.MouseEvent) => {
+      e?.stopPropagation();
+      setEditingId(nb.id);
+      let currentImages = nb.images || [];
+      if (currentImages.length === 0 && nb.image) currentImages = [nb.image];
+      
+      setFormData({
+          discipline: nb.discipline, name: nb.name, subtitle: nb.subtitle || '',
+          tecLink: nb.tecLink || '', errorNotebookLink: nb.errorNotebookLink || '', favoriteQuestionsLink: nb.favoriteQuestionsLink || '',
+          lawLink: nb.lawLink || '', obsidianLink: nb.obsidianLink || '',
+          geminiLink1: nb.geminiLink1 || '', geminiLink2: nb.geminiLink2 || '',
+          accuracy: nb.accuracy, targetAccuracy: nb.targetAccuracy,
+          weight: nb.weight, relevance: nb.relevance, trend: nb.trend,
+          notes: nb.notes || '', images: currentImages,
+          accuracyHistory: nb.accuracyHistory || []
+      });
+      setIsModalOpen(true);
+  };
+
+  const handleDelete = async (id: string, e?: React.MouseEvent) => {
+      e?.stopPropagation();
+      if (window.confirm("Tem certeza que deseja excluir este caderno do banco de dados? Isso afetará o planejamento.")) await deleteNotebook(id);
+  };
+
+  // --- FORM FIELD HANDLERS ---
+  const handleChange = (field: keyof typeof initialFormState, value: any) => setFormData(prev => ({ ...prev, [field]: value }));
   
-  // --- HANDLERS (toggleDiscipline, toggleDetails, etc... SAME AS BEFORE) ---
-  const toggleDiscipline = useCallback((discipline: string) => {
-      setExpandedDisciplines(prev => {
-          const newSet = new Set(prev);
-          if (newSet.has(discipline)) newSet.delete(discipline);
-          else newSet.add(discipline);
-          return newSet;
-      });
-  }, []);
-
-  const toggleDetails = useCallback((id: string) => {
-      setExpandedDetailsId(prev => prev === id ? null : id);
-  }, []);
-
-  const toggleSelection = useCallback((id: string) => {
-      setSelectedIds(prev => {
-          const newSet = new Set(prev);
-          if (newSet.has(id)) newSet.delete(id);
-          else newSet.add(id);
-          return newSet;
-      });
-  }, []);
-
-  const toggleGroupSelection = useCallback((discipline: string) => {
-      const groupIds = groupedData.groups[discipline]?.map(n => n.id) || [];
-      setSelectedIds(prev => {
-          const allSelected = groupIds.every(id => prev.has(id));
-          const newSet = new Set(prev);
-          if (allSelected) {
-              groupIds.forEach(id => newSet.delete(id));
-          } else {
-              groupIds.forEach(id => newSet.add(id));
-          }
-          return newSet;
-      });
-  }, [groupedData]);
-
-  // --- DELETE HANDLERS ---
-  const handleDeleteNotebook = useCallback(async (id: string) => {
-      setTimeout(async () => {
-          if (window.confirm("Tem certeza que deseja excluir este caderno? Essa ação não pode ser desfeita.")) {
-              await deleteNotebook(id);
-          }
-      }, 50);
-  }, [deleteNotebook]);
-
-  const handleDeleteDisciplineGroup = useCallback(async (discipline: string) => {
-      const allDisciplineNotebooks = notebooks.filter(n => n.discipline === discipline);
-      const idsToDelete = allDisciplineNotebooks.map(n => n.id);
-
-      if (idsToDelete.length === 0) return;
-
-      setTimeout(async () => {
-          if (window.confirm(`ATENÇÃO: Você está prestes a excluir a disciplina "${discipline}" do banco de dados.\n\nIsso apagará TODOS os ${idsToDelete.length} cadernos associados, inclusive os que não estão visíveis no filtro atual.\n\nTem certeza absoluta?`)) {
-              await bulkUpdateNotebooks(idsToDelete, 'DELETE');
-          }
-      }, 50);
-  }, [notebooks, bulkUpdateNotebooks]);
-
-  // --- MODAL HANDLERS (Same as before) ---
-  const handleChange = (field: string, value: any) => setFormData(prev => ({ ...prev, [field]: value }));
-
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
       (Array.from(files) as File[]).forEach(file => {
           if (file.size > 2 * 1024 * 1024) { alert("Imagem muito grande (>2MB)."); return; }
           const reader = new FileReader();
-          reader.onloadend = () => {
-            if(reader.result) setFormData(prev => ({ ...prev, images: [...prev.images, reader.result as string] }));
-          };
+          reader.onloadend = () => { if(reader.result) setFormData(prev => ({ ...prev, images: [...prev.images, reader.result as string] })); };
           reader.readAsDataURL(file);
       });
     }
   };
-
-  const removeImage = (index: number) => {
-      setFormData(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== index) }));
-  };
-
-  const handleNotStudied = () => {
-     setFormData(prev => ({ ...prev, accuracy: 0, status: NotebookStatus.NOT_STARTED }));
-  };
-
-  const addHistoryItem = () => {
-      if (!newHistoryDate) return;
-      const newEntry = { date: newHistoryDate, accuracy: Number(newHistoryAccuracy) };
-      const sortedHistory = [...formData.accuracyHistory, newEntry].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-      const latest = sortedHistory[sortedHistory.length - 1];
-      setFormData(prev => ({
-          ...prev,
-          accuracyHistory: sortedHistory,
-          accuracy: latest.accuracy, 
-          lastPractice: latest.date
-      }));
-      setNewHistoryAccuracy(0);
-  };
-
-  const removeHistoryItem = (index: number) => {
-      const newHistory = formData.accuracyHistory.filter((_, i) => i !== index);
-      const sortedHistory = newHistory.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-      let updates: any = { accuracyHistory: sortedHistory };
-      if (sortedHistory.length > 0) {
-          const latest = sortedHistory[sortedHistory.length - 1];
-          updates.accuracy = latest.accuracy;
-          updates.lastPractice = latest.date;
-      }
-      setFormData(prev => ({ ...prev, ...updates }));
-  };
-
+  
+  const removeImage = (index: number) => { setFormData(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== index) })); };
+  
   const navigateLightbox = (direction: 'next' | 'prev') => {
       if (lightboxIndex === null) return;
       if (direction === 'next') setLightboxIndex((lightboxIndex + 1) % formData.images.length);
       else setLightboxIndex((lightboxIndex - 1 + formData.images.length) % formData.images.length);
   };
 
-  const openCreateModal = () => { setEditingId(null); setFormData(initialFormState); setIsModalOpen(true); };
-  
-  const openEditModal = useCallback((nb: Notebook) => {
-      setEditingId(nb.id);
-      let safeDate = new Date().toISOString().split('T')[0];
-      if (nb.lastPractice) {
-          const check = new Date(nb.lastPractice);
-          if (!isNaN(check.getTime())) safeDate = nb.lastPractice.split('T')[0];
-      }
-      let currentImages = nb.images || [];
-      if (currentImages.length === 0 && nb.image) currentImages = [nb.image];
-
-      setFormData({
-          discipline: nb.discipline,
-          name: nb.name,
-          subtitle: nb.subtitle,
-          tecLink: nb.tecLink || '',
-          errorNotebookLink: nb.errorNotebookLink || '',
-          favoriteQuestionsLink: nb.favoriteQuestionsLink || '',
-          lawLink: nb.lawLink || '',
-          obsidianLink: nb.obsidianLink || '',
-          geminiLink1: nb.geminiLink1 || '',
-          geminiLink2: nb.geminiLink2 || '',
-          accuracy: nb.accuracy,
-          targetAccuracy: nb.targetAccuracy,
-          weight: nb.weight,
-          relevance: nb.relevance,
-          trend: nb.trend,
-          status: nb.status || NotebookStatus.NOT_STARTED,
-          notes: nb.notes || '',
-          images: currentImages,
-          lastPractice: safeDate,
-          accuracyHistory: nb.accuracyHistory || []
-      });
-      setIsModalOpen(true);
-  }, []);
-  
-  const handleSave = (e: React.FormEvent) => {
-      e.preventDefault();
-      const nextDate = calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm);
-      
-      const payload: any = { 
-          ...formData, 
-          accuracy: Number(formData.accuracy), 
-          targetAccuracy: Number(formData.targetAccuracy),
-          lastPractice: new Date(formData.lastPractice).toISOString(),
-          nextReview: nextDate.toISOString() 
-      };
-
-      if (editingId) editNotebook(editingId, payload);
-      else addNotebook({ ...payload, weekId: null });
-      setIsModalOpen(false);
+  const handleQuickRecord = () => {
+      const newAccuracy = Number(formData.accuracy);
+      const newHistory = [...(formData.accuracyHistory || []), { date: new Date().toISOString(), accuracy: newAccuracy }].slice(-3);
+      setFormData(prev => ({ ...prev, accuracyHistory: newHistory }));
   };
 
-  const handleQuickRecord = async () => {
+  const removeHistoryItem = (index: number) => {
+      const newHistory = [...(formData.accuracyHistory || [])];
+      newHistory.splice(index, 1);
+      setFormData(prev => ({ ...prev, accuracyHistory: newHistory }));
+  };
+
+  const handleNotStudied = () => { setFormData(prev => ({ ...prev, accuracy: 0, status: NotebookStatus.NOT_STARTED as any })); };
+
+  const handleSave = async (e: React.FormEvent) => {
+      e.preventDefault();
       setIsSaving(true);
       try {
-          const newAccuracy = Number(formData.accuracy);
-          const nextDate = calculateNextReview(newAccuracy, formData.relevance, formData.trend, config.algorithm);
-          const newHistory = [...(formData.accuracyHistory || []), { date: new Date().toISOString(), accuracy: newAccuracy }].slice(-3);
-          
-          if(editingId) {
-              await editNotebook(editingId, { 
-                  accuracy: newAccuracy, 
-                  accuracyHistory: newHistory, 
-                  lastPractice: new Date().toISOString(),
-                  nextReview: nextDate.toISOString()
-              });
-              setFormData(prev => ({ 
-                  ...prev, 
-                  accuracyHistory: newHistory,
-                  lastPractice: new Date().toISOString().split('T')[0]
-              }));
-          }
-      } catch (err) { 
-          console.error("Quick save failed", err); 
-          alert("Erro ao salvar registro rápido.");
-      } finally { 
-          setIsSaving(false); 
+          const nextDate = calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm);
+          const payload: any = { 
+              ...formData, 
+              accuracy: Number(formData.accuracy), 
+              targetAccuracy: Number(formData.targetAccuracy),
+              nextReview: nextDate.toISOString(),
+              status: Number(formData.accuracy) > 0 ? NotebookStatus.REVIEWING : NotebookStatus.NOT_STARTED 
+          };
+          if (editingId) await editNotebook(editingId, payload);
+          else await addNotebook(payload);
+          setIsModalOpen(false);
+      } catch (error) {
+          console.error("Failed to save:", error);
+          alert("Erro ao salvar.");
+      } finally {
+          setIsSaving(false);
       }
   };
 
-  const [isSaving, setIsSaving] = useState(false);
+  const getBadgeColor = (disc: string) => {
+      const colors = [
+          'bg-emerald-900/50 text-emerald-400 border-emerald-500/30', 
+          'bg-cyan-900/50 text-cyan-400 border-cyan-500/30', 
+          'bg-blue-900/50 text-blue-400 border-blue-500/30', 
+          'bg-purple-900/50 text-purple-400 border-purple-500/30',
+          'bg-pink-900/50 text-pink-400 border-pink-500/30',
+          'bg-amber-900/50 text-amber-400 border-amber-500/30'
+      ];
+      const index = disc.length % colors.length;
+      return colors[index];
+  };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6 h-[calc(100vh-80px)] flex flex-col relative">
+    <div className="p-6 max-w-7xl mx-auto space-y-6 pb-20 h-full flex flex-col relative">
       
-      {/* LIGHTBOX */}
+      {/* Lightbox for Images */}
       {lightboxIndex !== null && (
           <div className="fixed inset-0 z-[60] bg-slate-950/95 flex items-center justify-center p-4 backdrop-blur-sm">
              <button onClick={() => setLightboxIndex(null)} className="absolute top-4 right-4 text-white hover:text-emerald-500 z-50"><X size={32} /></button>
@@ -636,177 +266,217 @@ export const Library: React.FC = () => {
                  </>
              )}
              <img src={formData.images[lightboxIndex]} className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" />
-             <div className="absolute bottom-4 bg-black/50 px-4 py-1 rounded-full text-white text-sm">
-                 {lightboxIndex + 1} / {formData.images.length}
-             </div>
+             <div className="absolute bottom-4 bg-black/50 px-4 py-1 rounded-full text-white text-sm">{lightboxIndex + 1} / {formData.images.length}</div>
           </div>
       )}
 
-      {/* HEADER */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Banco de Disciplinas</h1>
-          <p className="text-slate-400 text-sm">Gerencie seu conhecimento tático.</p>
-        </div>
-        <button 
-          onClick={openCreateModal}
-          className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors font-bold shadow-lg shadow-emerald-900/20 text-sm"
-        >
-          <Plus size={18} /> Novo Caderno
-        </button>
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center pb-2 gap-4">
+          <div>
+              <h1 className="text-2xl font-bold text-white mb-1">Banco de Disciplinas</h1>
+              <p className="text-slate-400 text-sm">Gerencie seu conhecimento tático.</p>
+          </div>
+          <button onClick={handleOpenCreate} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-all shadow-lg shadow-emerald-900/20 w-full md:w-auto justify-center">
+              <Plus size={18} /> Novo Caderno
+          </button>
       </div>
 
-      {/* STATS HUD - RESUMO DE DADOS */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
-          <HUDCard 
-            icon={<Book size={20} className="text-indigo-400" />} 
-            label="Total de Cadernos" 
-            value={hudMetrics.totalNotebooks} 
-            color="text-indigo-400"
-          />
-          <HUDCard 
-            icon={<Layers size={20} className="text-purple-400" />} 
-            label="Disciplinas" 
-            value={hudMetrics.uniqueDisciplines} 
-            color="text-purple-400"
-          />
-          <HUDCard 
-            icon={<CheckCircle2 size={20} className="text-emerald-400" />} 
-            label="Tópicos Dominados" 
-            value={hudMetrics.masteredCount} 
-            subtext={`${hudMetrics.totalNotebooks > 0 ? Math.round((hudMetrics.masteredCount / hudMetrics.totalNotebooks) * 100) : 0}% do banco`}
-            color="text-emerald-400"
-          />
-          <HUDCard 
-            icon={<LayoutGrid size={20} className="text-cyan-400" />} 
-            label="Acurácia Global" 
-            value={`${hudMetrics.avgAccuracy}%`} 
-            color="text-cyan-400"
-          />
-      </div>
-
-      {/* FILTER & SEARCH BAR */}
-      <div className="space-y-4">
-          <div className="flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
-              <div className="relative flex-1 min-w-[200px]">
-                  <Search className="absolute left-3 top-2.5 text-slate-500" size={16} />
-                  <input 
-                      type="text" 
-                      placeholder="Buscar tópico..." 
-                      className="w-full bg-slate-900 border border-slate-800 rounded-lg py-2 pl-9 pr-3 text-sm text-white focus:border-emerald-500 outline-none"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                  />
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4">
+              <div className="p-3 bg-slate-800 rounded-lg text-slate-400 hidden md:block"><BookOpen size={20} /></div>
+              <div>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Total de Cadernos</p>
+                  <p className="text-2xl font-bold text-blue-400">{stats.total}</p>
               </div>
-              
-              <button 
-                onClick={() => setSortByReview(!sortByReview)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all border ${sortByReview ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/50' : 'bg-slate-900 text-slate-500 border-slate-800'}`}
-                title="Ordenar por data de revisão"
-              >
-                  <CalendarClock size={14} /> Revisão
-              </button>
-
-              <FilterButton active={activeFilter === 'ALL'} onClick={() => setActiveFilter('ALL')} icon={<Layers size={14}/>} label="Tudo" />
-              <FilterButton active={activeFilter === 'CRITICAL'} onClick={() => setActiveFilter('CRITICAL')} icon={<Siren size={14}/>} label="Críticos" color="red" />
-              <FilterButton active={activeFilter === 'NEW'} onClick={() => setActiveFilter('NEW')} icon={<Sparkles size={14}/>} label="Nunca Vistos" color="blue" />
-              <FilterButton active={activeFilter === 'OVERDUE'} onClick={() => setActiveFilter('OVERDUE')} icon={<Clock size={14}/>} label="Atrasados" color="amber" />
-              <FilterButton active={activeFilter === 'HIGH_WEIGHT'} onClick={() => setActiveFilter('HIGH_WEIGHT')} icon={<Star size={14}/>} label="Peso Alto" color="purple" />
+          </div>
+          <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4">
+              <div className="p-3 bg-slate-800 rounded-lg text-slate-400 hidden md:block"><Layers size={20} /></div>
+              <div>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Disciplinas</p>
+                  <p className="text-2xl font-bold text-purple-400">{stats.disciplines}</p>
+              </div>
+          </div>
+          <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4">
+              <div className="p-3 bg-emerald-900/20 rounded-lg text-emerald-500 hidden md:block"><CheckCircle2 size={20} /></div>
+              <div>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Dominados</p>
+                  <p className="text-2xl font-bold text-emerald-400">{stats.mastered} <span className="text-[10px] text-slate-500 font-normal">top</span></p>
+              </div>
+          </div>
+          <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4">
+              <div className="p-3 bg-slate-800 rounded-lg text-slate-400 hidden md:block"><LayoutGrid size={20} /></div>
+              <div>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Acurácia Global</p>
+                  <p className="text-2xl font-bold text-cyan-400">{stats.globalAcc}%</p>
+              </div>
           </div>
       </div>
 
-      {/* LIST AREA */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pb-20">
-          {groupedData.sortedKeys.map(discipline => {
-              const stats = groupedData.stats[discipline];
-              const progress = Math.round((stats.done / stats.total) * 100);
-              const isExpanded = expandedDisciplines.has(discipline) || sortByReview; 
-              
-              return (
-                  <div key={discipline} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden transition-all">
-                      {/* Accordion Header */}
-                      <div 
-                        className={`p-4 flex items-center justify-between cursor-pointer hover:bg-slate-800/50 transition-colors ${isExpanded ? 'bg-slate-800/30' : ''}`}
-                        onClick={() => toggleDiscipline(discipline)}
-                      >
-                          <div className="flex items-center gap-3">
-                              <button 
-                                onClick={(e) => { e.stopPropagation(); toggleGroupSelection(discipline); }}
-                                className={`text-slate-500 hover:text-emerald-500 transition-colors`}
-                              >
-                                  <Square size={18} />
-                              </button>
-                              
-                              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-500 font-bold text-xs border border-emerald-500/20">
-                                  {discipline.charAt(0)}
+      {/* Toolbar */}
+      <div className="flex flex-col md:flex-row gap-4 items-center bg-slate-900/50 p-2 rounded-xl border border-slate-800/50">
+          <div className="relative flex-1 w-full">
+              <Search className="absolute left-3 top-2.5 text-slate-500" size={16} />
+              <input 
+                  type="text" 
+                  placeholder="Buscar tópico..." 
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg py-2 pl-9 pr-3 text-sm text-white focus:border-emerald-500 outline-none"
+              />
+          </div>
+          <div className="flex gap-2 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 custom-scrollbar">
+              {[
+                  { id: 'all', label: 'Tudo', icon: null },
+                  { id: 'review', label: 'Revisão', icon: <History size={12}/> },
+                  { id: 'critical', label: 'Críticos', icon: <AlertTriangle size={12}/> },
+                  { id: 'new', label: 'Nunca Vistos', icon: <Sparkles size={12}/> },
+                  { id: 'late', label: 'Atrasados', icon: <Clock size={12}/> },
+                  { id: 'heavy', label: 'Peso Alto', icon: <Star size={12}/> },
+              ].map(f => (
+                  <button 
+                      key={f.id}
+                      onClick={() => setActiveFilter(f.id)}
+                      className={`
+                          px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-all border
+                          ${activeFilter === f.id 
+                              ? 'bg-emerald-600 text-white border-emerald-500' 
+                              : 'bg-slate-900 text-slate-400 border-slate-700 hover:bg-slate-800'}
+                      `}
+                  >
+                      {f.icon} {f.label}
+                  </button>
+              ))}
+          </div>
+      </div>
+
+      {/* LIST VIEW (GROUPED ACCORDION) */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4 pb-10">
+          {groupedData.sortedKeys.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-slate-600 opacity-50">
+                  <BookOpen size={48} className="mb-4" />
+                  <p>Nenhum caderno encontrado com estes filtros.</p>
+              </div>
+          ) : (
+              groupedData.sortedKeys.map(discipline => {
+                  const items = groupedData.groups[discipline];
+                  const avgAcc = Math.round(items.reduce((acc, i) => acc + i.accuracy, 0) / items.length);
+                  const isExpanded = expandedDisciplines[discipline] !== false; // Default true se quiser
+
+                  return (
+                      <div key={discipline} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden transition-all shadow-sm hover:shadow-md hover:border-slate-700">
+                          {/* Discipline Header Row */}
+                          <div 
+                            className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-800/50 transition-colors group select-none"
+                            onClick={() => toggleDiscipline(discipline)}
+                          >
+                              <div className="flex items-center gap-4 min-w-0">
+                                  <div className="text-slate-600 group-hover:text-white transition-colors">
+                                      <Square size={20} />
+                                  </div>
+                                  <div className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center font-bold text-sm border ${getBadgeColor(discipline)}`}>
+                                      {discipline.charAt(0).toUpperCase()}
+                                  </div>
+                                  <div className="min-w-0">
+                                      <h3 className="text-white font-bold text-sm truncate">{discipline}</h3>
+                                      <p className="text-xs text-slate-500 mt-0.5 truncate">{items.length} itens • <span className={avgAcc < 60 ? 'text-red-400' : 'text-emerald-400'}>{avgAcc}% acerto médio</span></p>
+                                  </div>
                               </div>
-                              <div>
-                                  <h3 className="font-bold text-slate-200 text-sm">{discipline}</h3>
-                                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                                      <span>{stats.total} itens</span>
-                                      <span>•</span>
-                                      <span className={stats.avgAcc < 60 ? 'text-red-400' : 'text-emerald-400'}>{stats.avgAcc}% acerto médio</span>
+                              <div className="flex items-center gap-4 flex-shrink-0">
+                                  <div className="w-24 h-1.5 bg-slate-800 rounded-full overflow-hidden hidden sm:block">
+                                      <div className={`h-full ${avgAcc < 60 ? 'bg-red-500' : 'bg-emerald-500'}`} style={{ width: `${avgAcc}%` }}></div>
+                                  </div>
+                                  <span className="text-xs font-mono text-slate-500 hidden sm:block">{avgAcc}%</span>
+                                  <div className="p-2 text-slate-600 hover:text-white rounded-lg transition-colors">
+                                      {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                                   </div>
                               </div>
                           </div>
-                          
-                          <div className="flex items-center gap-4">
-                              <div className="w-24 h-2 bg-slate-800 rounded-full overflow-hidden hidden md:block">
-                                  <div className="h-full bg-emerald-500 transition-all duration-500" style={{width: `${progress}%`}}></div>
+
+                          {/* Notebook Items (Accordion Body) */}
+                          {isExpanded && (
+                              <div className="bg-slate-950/30 border-t border-slate-800/50 divide-y divide-slate-800/30">
+                                  {items.map(nb => {
+                                      const isCritical = nb.weight === Weight.MUITO_ALTO && nb.accuracy < 60;
+                                      
+                                      return (
+                                          <div key={nb.id} className={`group relative flex items-center justify-between p-3 pl-4 hover:bg-slate-900/80 transition-colors ${isCritical ? 'border-l-[3px] border-l-red-500 bg-red-900/5' : 'border-l-[3px] border-l-transparent'}`}>
+                                              
+                                              <div className="flex items-center gap-4 min-w-0 cursor-pointer flex-1" onClick={(e) => handleOpenEdit(nb, e)}>
+                                                  <div className="text-slate-700 group-hover:text-emerald-500 transition-colors">
+                                                      <Square size={18} />
+                                                  </div>
+                                                  
+                                                  <div className="min-w-0 pr-4">
+                                                      <h4 className={`text-sm font-medium truncate ${isCritical ? 'text-white' : 'text-slate-300'}`}>
+                                                          {nb.name}
+                                                      </h4>
+                                                      {nb.subtitle && <p className="text-xs text-slate-500 truncate">{nb.subtitle}</p>}
+                                                  </div>
+                                              </div>
+
+                                              <div className="flex items-center gap-3 flex-shrink-0">
+                                                  {isCritical && (
+                                                      <Thermometer size={14} className="text-red-500 hidden sm:block" />
+                                                  )}
+                                                  
+                                                  <div className={`hidden md:flex items-center gap-2 px-2 py-1 rounded text-[10px] font-bold border ${nb.accuracy > 0 ? 'bg-blue-900/20 text-blue-400 border-blue-500/30' : 'bg-slate-800 text-slate-500 border-slate-700'}`}>
+                                                      {nb.accuracy > 0 ? `Em Andamento (${nb.accuracy}%)` : 'Não Iniciado'}
+                                                  </div>
+
+                                                  <div className={`flex items-center justify-center px-2 py-1 rounded text-xs font-mono font-bold w-12 border ${nb.accuracy >= nb.targetAccuracy ? 'bg-emerald-900/20 text-emerald-400 border-emerald-500/30' : nb.accuracy < 60 ? 'bg-red-900/20 text-red-400 border-red-500/30' : 'bg-amber-900/20 text-amber-400 border-amber-500/30'}`}>
+                                                      {nb.accuracy}%
+                                                  </div>
+
+                                                  <div className="flex items-center gap-1">
+                                                      <button 
+                                                          onClick={() => startSession(nb)}
+                                                          className="p-2 text-slate-500 hover:text-emerald-400 hover:bg-slate-800 rounded transition-colors" 
+                                                          title="Estudar / Maximizar"
+                                                      >
+                                                          <Maximize2 size={14} />
+                                                      </button>
+                                                      <button 
+                                                          onClick={(e) => handleOpenEdit(nb, e)}
+                                                          className="p-2 text-slate-500 hover:text-blue-400 hover:bg-slate-800 rounded transition-colors"
+                                                          title="Editar"
+                                                      >
+                                                          <Edit2 size={14} />
+                                                      </button>
+                                                      <button 
+                                                          onClick={(e) => handleDelete(nb.id, e)}
+                                                          className="p-2 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded transition-colors"
+                                                          title="Excluir"
+                                                      >
+                                                          <Trash2 size={14} />
+                                                      </button>
+                                                  </div>
+                                              </div>
+                                          </div>
+                                      );
+                                  })}
                               </div>
-                              <span className="text-xs font-bold text-slate-500 w-8 text-right hidden md:block">{progress}%</span>
-                              
-                              <button 
-                                type="button"
-                                onClick={(e) => { 
-                                    e.preventDefault();
-                                    e.stopPropagation(); 
-                                    handleDeleteDisciplineGroup(discipline); 
-                                }}
-                                className="text-slate-600 hover:text-red-500 transition-colors p-1.5 rounded hover:bg-slate-800 relative z-10"
-                                title="Excluir Disciplina inteira"
-                              >
-                                  <Trash2 size={16} />
-                              </button>
-
-                              <ChevronRight size={18} className={`text-slate-500 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
-                          </div>
+                          )}
                       </div>
-
-                      {/* Items List (Memoized via LibraryItem) */}
-                      {isExpanded && (
-                          <div className="border-t border-slate-800">
-                              {groupedData.groups[discipline].map(nb => (
-                                  <LibraryItem 
-                                    key={nb.id} 
-                                    nb={nb}
-                                    isSelected={selectedIds.has(nb.id)}
-                                    isExpanded={expandedDetailsId === nb.id}
-                                    onToggleSelection={toggleSelection}
-                                    onToggleDetails={toggleDetails}
-                                    onEdit={openEditModal}
-                                    onDelete={handleDeleteNotebook}
-                                    showDate={sortByReview}
-                                  />
-                              ))}
-                          </div>
-                      )}
-                  </div>
-              );
-          })}
+                  );
+              })
+          )}
       </div>
 
-       {isModalOpen && (
+      {/* RICH MODAL (IDENTICAL TO SETUP.TSX) */}
+      {isModalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] animate-in fade-in zoom-in duration-200">
             <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900">
-                <h3 className="text-xl font-bold text-white flex items-center gap-2"><Pencil size={20} className="text-emerald-500"/> {editingId ? "Editar Caderno" : "Novo Caderno"}</h3>
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                    {editingId ? <Pencil size={20} className="text-blue-500"/> : <Plus size={20} className="text-emerald-500"/>}
+                    {editingId ? 'Editar Caderno' : 'Novo Caderno'}
+                </h3>
                 <button onClick={() => !isSaving && setIsModalOpen(false)} className="text-slate-400 hover:text-white" disabled={isSaving}><X size={24} /></button>
             </div>
-            {/* ... Form Content (Reuse existing JSX structure) ... */}
+            
             <form onSubmit={handleSave} className="overflow-y-auto p-6 space-y-6 custom-scrollbar">
               <div className="space-y-4">
-                  {/* ... (Existing form inputs for identification, etc.) ... */}
                   <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">1. Identificação</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Disciplina</label><input required list="disciplines" value={formData.discipline} onChange={e => handleChange('discipline', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /><datalist id="disciplines">{existingDisciplines.map(d => <option key={d} value={d} />)}</datalist></div>
@@ -814,7 +484,6 @@ export const Library: React.FC = () => {
                   </div>
                   <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Subtópico / Foco</label><input value={formData.subtitle} onChange={e => handleChange('subtitle', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /></div>
                   
-                  {/* ... (Existing links inputs) ... */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Caderno TEC</label>
@@ -839,7 +508,6 @@ export const Library: React.FC = () => {
                       <div><label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Meta (%)</label><input type="number" min="0" max="100" value={formData.targetAccuracy} onChange={e => handleChange('targetAccuracy', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm text-center font-bold" /></div>
                   </div>
                   <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex flex-col items-stretch gap-4">
-                      {/* ... (Quick Record Section remains same) ... */}
                       <div className="flex flex-col md:flex-row gap-4 items-end">
                           <div className="flex-1 w-full">
                              <div className="flex justify-between mb-1">
@@ -855,7 +523,6 @@ export const Library: React.FC = () => {
                                 <button type="button" onClick={handleQuickRecord} disabled={isSaving} className="px-4 bg-emerald-600/20 border border-emerald-600/50 text-emerald-400 hover:bg-emerald-600 hover:text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2">{isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Registrar</button>
                              </div>
                              
-                             {/* INDICADOR DE DATA DA PRÓXIMA REVISÃO (SOLICITADO) */}
                              {computedNextReviewData && (
                                  <div className="flex flex-col mt-2 gap-1">
                                      <div className="flex items-center justify-end gap-1.5 text-[10px] font-bold text-slate-400">
@@ -869,7 +536,6 @@ export const Library: React.FC = () => {
                                          <span className="flex items-center gap-1 text-[9px] text-slate-600 cursor-pointer hover:text-emerald-500 transition-colors underline decoration-dotted">
                                              <Info size={10} /> Como funciona o algoritmo?
                                          </span>
-                                         {/* TOOLTIP DE CALIBRAÇÃO */}
                                          <div className="absolute bottom-full right-0 mb-2 w-64 bg-slate-900 border border-slate-700 rounded-lg p-3 shadow-xl opacity-0 group-hover/help:opacity-100 transition-opacity z-50 pointer-events-none text-left">
                                              <h5 className="text-white text-xs font-bold mb-2 flex items-center gap-1"><Sparkles size={10}/> Método Atena (SRS)</h5>
                                              <p className="text-[10px] text-slate-400 mb-2 leading-relaxed">
@@ -892,11 +558,18 @@ export const Library: React.FC = () => {
                              </button>
                           </div>
                       </div>
-                      {/* ... (History list remains same) ... */}
                       {formData.accuracyHistory && formData.accuracyHistory.length > 0 && (
-                          <div className="border-t border-slate-700/50 pt-2 flex gap-2 overflow-x-auto pb-1">
+                          <div className="border-t border-slate-700/50 pt-2 flex gap-2 overflow-x-auto pb-1 min-h-[45px]">
                               {formData.accuracyHistory.map((h, i) => (
-                                  <div key={i} className="flex flex-col items-center bg-slate-900 px-2 py-1 rounded border border-slate-800 min-w-[60px]">
+                                  <div key={i} className="group relative flex flex-col items-center bg-slate-900 px-2 py-1 rounded border border-slate-800 min-w-[60px]">
+                                      <button 
+                                        type="button"
+                                        onClick={() => removeHistoryItem(i)}
+                                        className="absolute -top-1.5 -right-1.5 bg-red-600 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110 z-10 cursor-pointer shadow-sm"
+                                        title="Excluir registro"
+                                      >
+                                          <X size={8} strokeWidth={3} />
+                                      </button>
                                       <span className="text-[10px] text-slate-500 font-mono">{new Date(h.date).toLocaleDateString(undefined, {day:'2-digit', month:'2-digit'})}</span>
                                       <span className={`text-xs font-bold ${h.accuracy >= formData.targetAccuracy ? 'text-emerald-400' : h.accuracy < 60 ? 'text-red-400' : 'text-amber-400'}`}>{h.accuracy}%</span>
                                   </div>
@@ -909,7 +582,6 @@ export const Library: React.FC = () => {
               <div className="space-y-4 pt-2">
                 <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">3. Rascunhos & Anotações</h4>
                 
-                {/* GEMINI LINKS SECTION */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-indigo-900/10 p-3 rounded-xl border border-indigo-500/20">
                     <div>
                         <label className="block text-[10px] font-bold text-indigo-300 mb-1 uppercase tracking-wider flex items-center gap-1"><Sparkles size={10}/> Link Gemini (Contexto 1)</label>
@@ -963,7 +635,6 @@ export const Library: React.FC = () => {
           </div>
         </div>
       )}
-
     </div>
   );
 };
