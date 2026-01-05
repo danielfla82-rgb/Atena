@@ -349,7 +349,7 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
                     </div>
 
                     <div className="flex flex-col md:flex-row gap-8 items-center relative z-10">
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                             <h3 className={`text-sm font-bold uppercase tracking-widest mb-2 flex items-center gap-2 ${
                                 projection.status === 'danger' ? 'text-red-400' : 
                                 projection.status === 'warning' ? 'text-amber-400' : 'text-emerald-400'
@@ -368,20 +368,27 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
 
                         <div className="w-px h-16 bg-slate-700 hidden md:block"></div>
 
-                        <div className="flex-1 space-y-3">
-                            <div className="flex justify-between text-xs font-bold text-slate-500 uppercase">
-                                <span>Carga de Estudo</span>
-                                <span>Impacto das Revisões (~10min/item)</span>
+                        <div className="flex-1 space-y-3 w-full min-w-0">
+                            <div className="flex flex-col sm:flex-row sm:justify-between text-xs font-bold text-slate-500 uppercase gap-1 sm:gap-4">
+                                <span className="whitespace-nowrap flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+                                    Matéria Nova
+                                </span>
+                                <span className="flex items-center gap-2 sm:text-right">
+                                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                                    Impacto Revisões (Atrito)
+                                </span>
                             </div>
-                            <div className="w-full h-3 bg-slate-950 rounded-full overflow-hidden flex border border-slate-800">
+                            <div className="w-full h-4 bg-slate-950 rounded-full overflow-hidden flex border border-slate-800">
                                 <div className="h-full bg-blue-600 w-[70%]" title="Matéria Nova"></div>
-                                <div className="h-full bg-amber-500 w-[30%] relative pattern-diagonal-lines" title="Tempo perdido com Revisões (Atrito)"></div>
+                                <div className="h-full bg-amber-500 w-[30%] relative" style={{backgroundImage: 'linear-gradient(45deg,rgba(0,0,0,0.1) 25%,transparent 25%,transparent 50%,rgba(0,0,0,0.1) 50%,rgba(0,0,0,0.1) 75%,transparent 75%,transparent)', backgroundSize: '10px 10px'}} title="Tempo perdido com Revisões (Atrito)"></div>
                             </div>
-                            <p className="text-[10px] text-slate-400 leading-relaxed">
-                                <Info size={10} className="inline mr-1 text-slate-500"/>
-                                O cálculo desconta automaticamente <strong>0.2 blocos (10min)</strong> por revisão futura acumulada.
-                                {projection.totalItems} tópicos no radar.
-                            </p>
+                            <div className="flex items-start gap-2 mt-2">
+                                <Info size={12} className="text-slate-500 flex-shrink-0 mt-0.5"/>
+                                <p className="text-[10px] text-slate-400 leading-relaxed">
+                                    O sistema desconta automaticamente <strong>0.2 blocos (10min)</strong> da sua capacidade semanal para cada revisão acumulada de tópicos já estudados ({projection.totalItems} itens no radar).
+                                </p>
+                            </div>
                         </div>
 
                         {projection.suggestion > 0 && (
