@@ -309,7 +309,9 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
                         <TrendingUp size={120} />
                     </div>
 
+                    {/* Adjusted Layout for Better UX/Alignment */}
                     <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start relative z-10">
+                        {/* LEFT: Weeks & Date */}
                         <div className="flex-1 min-w-0 w-full">
                             <h3 className={`text-sm font-bold uppercase tracking-widest mb-2 flex items-center gap-2 ${
                                 projection.status === 'danger' ? 'text-red-400' : 
@@ -327,8 +329,10 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
                             </div>
                         </div>
 
-                        <div className="w-full h-px md:w-px md:h-auto md:self-stretch bg-slate-800 md:bg-slate-700/50"></div>
+                        {/* Divider - Adaptive height and visible on mobile */}
+                        <div className="w-full h-px md:w-px md:h-auto md:self-stretch bg-slate-800 md:bg-slate-700/50 my-2 md:my-0 flex-shrink-0"></div>
 
+                        {/* RIGHT: Progress Bar & Details */}
                         <div className="flex-1 space-y-3 w-full min-w-0">
                             <div className="flex flex-wrap justify-between gap-2 text-xs font-bold text-slate-500 uppercase">
                                 <span className="whitespace-nowrap flex items-center gap-2">
@@ -340,14 +344,14 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
                                     Impacto Revisões (Atrito)
                                 </span>
                             </div>
-                            <div className="w-full h-4 bg-slate-950 rounded-full overflow-hidden flex border border-slate-800">
+                            <div className="w-full h-4 bg-slate-950 rounded-full overflow-hidden flex border border-slate-800 flex-shrink-0">
                                 <div className="h-full bg-blue-600 w-[70%]" title="Matéria Nova"></div>
                                 <div className="h-full bg-amber-500 w-[30%] relative" style={{backgroundImage: 'linear-gradient(45deg,rgba(0,0,0,0.1) 25%,transparent 25%,transparent 50%,rgba(0,0,0,0.1) 50%,rgba(0,0,0,0.1) 75%,transparent 75%,transparent)', backgroundSize: '10px 10px'}} title="Tempo perdido com Revisões (Atrito)"></div>
                             </div>
                             
                             <div className="flex items-start gap-2 mt-2 bg-slate-950/30 p-2 rounded-lg border border-slate-800/50">
                                 <Info size={14} className="text-slate-500 flex-shrink-0 mt-0.5"/>
-                                <p className="text-[10px] text-slate-400 leading-relaxed">
+                                <p className="text-[10px] text-slate-400 leading-relaxed break-words">
                                     O sistema desconta automaticamente <strong>0.2 blocos (10min)</strong> da sua capacidade semanal para cada revisão acumulada de tópicos já estudados ({projection.totalItems} itens no radar).
                                 </p>
                             </div>
@@ -358,7 +362,7 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
                                 <h4 className="text-xs font-bold text-white mb-1 flex items-center gap-2">
                                     <Sparkles size={12} className="text-yellow-400"/> Sugestão da IA
                                 </h4>
-                                <p className="text-[10px] text-slate-300 leading-snug">
+                                <p className="text-[10px] text-slate-300 leading-snug break-words">
                                     Para terminar antes da prova com segurança, aumente seu ritmo para:
                                     <strong className="block text-base text-emerald-400 mt-1">{paceTarget.blocks + projection.suggestion} blocos / semana</strong>
                                 </p>
@@ -584,8 +588,6 @@ export const Setup: React.FC = () => {
     if (isPast) { alert("Você não pode alterar o planejamento de semanas que já passaram."); return; }
     const id = e.dataTransfer.getData("notebookId");
     if (!id || !targetWeekId) return;
-    
-    // Check duplication if needed or allowed
     await moveNotebookToWeek(id, targetWeekId);
   };
 
@@ -1093,6 +1095,7 @@ export const Setup: React.FC = () => {
                                          <span className="flex items-center gap-1 text-[9px] text-slate-600 cursor-pointer hover:text-emerald-500 transition-colors underline decoration-dotted">
                                              <Info size={10} /> Como funciona o algoritmo?
                                          </span>
+                                         {/* TOOLTIP DE CALIBRAÇÃO */}
                                          <div className="absolute bottom-full right-0 mb-2 w-64 bg-slate-900 border border-slate-700 rounded-lg p-3 shadow-xl opacity-0 group-hover/help:opacity-100 transition-opacity z-50 pointer-events-none text-left">
                                              <h5 className="text-white text-xs font-bold mb-2 flex items-center gap-1"><Sparkles size={10}/> Método Atena (SRS)</h5>
                                              <p className="text-[10px] text-slate-400 mb-2 leading-relaxed">
@@ -1131,6 +1134,7 @@ export const Setup: React.FC = () => {
               <div className="space-y-4 pt-2">
                 <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">3. Rascunhos & Anotações</h4>
                 
+                {/* GEMINI LINKS SECTION */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-indigo-900/10 p-3 rounded-xl border border-indigo-500/20">
                     <div>
                         <label className="block text-[10px] font-bold text-indigo-300 mb-1 uppercase tracking-wider flex items-center gap-1"><Sparkles size={10}/> Link Gemini (Contexto 1)</label>
