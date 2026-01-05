@@ -45,13 +45,38 @@ const DraggableCard = React.memo(({
     const statusColor = getStatusColor(notebook.accuracy, notebook.targetAccuracy);
     const isLibrary = origin === 'library';
     const isWeek = origin === 'week';
-    const isTargetMet = notebook.accuracy >= notebook.targetAccuracy;
+    
+    // --- LÓGICA DE CORES POR DESEMPENHO ---
+    const target = notebook.targetAccuracy || 90;
+    const accuracy = notebook.accuracy || 0;
+    const criticalThreshold = target * 0.75; // 75% da meta (ex: se meta é 90, critico é < 67.5)
 
-    const getStatusTooltip = () => {
-        if (!isCompleted) return "Pendente: Clique para marcar como concluído.";
-        if (isTargetMet) return "Desempenho de Elite: Meta de acurácia atingida!";
-        return "Concluído com Ressalvas: Meta de acurácia não atingida. Requer revisão.";
-    };
+    let buttonClass = 'border-slate-600 bg-slate-700 text-slate-300 group-hover/check:border-slate-500 hover:bg-slate-600';
+    let textClass = isCompleted && isWeek ? 'text-slate-600 line-through' : 'text-slate-200';
+    let percentColorClass = notebook.accuracy < 60 ? 'text-red-400' : 'text-emerald-400'; // Default
+    let tooltipText = "Pendente: Clique para marcar como concluído.";
+
+    if (isCompleted) {
+        if (accuracy >= target) {
+            // Meta Batida -> Verde
+            buttonClass = 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-900/20';
+            textClass = 'text-emerald-400 line-through decoration-emerald-500/30';
+            percentColorClass = 'text-emerald-400';
+            tooltipText = "Desempenho de Elite: Meta atingida!";
+        } else if (accuracy < criticalThreshold) {
+            // Desempenho Crítico (<75% da meta) -> Vermelho
+            buttonClass = 'bg-red-500 border-red-500 text-white shadow-lg shadow-red-900/20';
+            textClass = 'text-red-400 line-through decoration-red-500/30';
+            percentColorClass = 'text-red-400';
+            tooltipText = `Crítico: Acurácia muito abaixo da meta (${target}%).`;
+        } else {
+            // Atenção (Entre Crítico e Meta) -> Laranja
+            buttonClass = 'bg-amber-500 border-amber-500 text-white shadow-lg shadow-amber-900/20';
+            textClass = 'text-amber-400 line-through decoration-amber-500/30';
+            percentColorClass = 'text-amber-400';
+            tooltipText = "Atenção: Meta não atingida. Reforce a revisão.";
+        }
+    }
 
     return (
         <div 
@@ -93,7 +118,7 @@ const DraggableCard = React.memo(({
                             style={{ backgroundColor: statusColor }} 
                             title={`Acurácia: ${notebook.accuracy}%`}
                          />
-                        <h4 className={`font-bold truncate leading-tight max-w-[140px] ${isCompleted && isWeek ? 'text-emerald-400 line-through' : 'text-slate-200'}`}>
+                        <h4 className={`font-bold truncate leading-tight max-w-[140px] ${isWeek ? textClass : 'text-slate-200'}`}>
                             {notebook.discipline}
                         </h4>
                         
@@ -104,12 +129,12 @@ const DraggableCard = React.memo(({
                             </span>
                         ) : null}
                     </div>
-                    <p className={`truncate mb-1 leading-tight font-medium ${isCompleted && isWeek ? 'text-slate-600' : 'text-slate-400'}`} title={notebook.name}>{notebook.name}</p>
+                    <p className={`truncate mb-1 leading-tight font-medium ${isWeek ? (isCompleted ? 'text-slate-600' : 'text-slate-400') : 'text-slate-400'}`} title={notebook.name}>{notebook.name}</p>
                     {notebook.subtitle && <p className="text-slate-500 text-[10px] truncate">{notebook.subtitle}</p>}
                 </div>
                 
                 <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                     <span className={`font-mono font-bold text-xs ${notebook.accuracy < 60 ? 'text-red-400' : 'text-emerald-400'}`}>
+                     <span className={`font-mono font-bold text-xs ${percentColorClass}`}>
                          {notebook.accuracy}%
                      </span>
                      <div className="flex gap-1">
@@ -129,11 +154,7 @@ const DraggableCard = React.memo(({
                     <label className="flex items-center gap-2 cursor-pointer group/check w-full">
                         <div className={`
                             w-full py-1.5 px-3 rounded-lg border flex items-center justify-center gap-2 transition-all font-bold text-[10px] uppercase tracking-wider relative
-                            ${isCompleted 
-                                ? (isTargetMet 
-                                    ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-900/20' 
-                                    : 'bg-amber-500 border-amber-500 text-white shadow-lg shadow-amber-900/20')
-                                : 'border-slate-600 bg-slate-700 text-slate-300 group-hover/check:border-slate-500 hover:bg-slate-600'}
+                            ${buttonClass}
                         `}>
                              {isCompleted ? <><Check size={12} strokeWidth={4} /> Concluído</> : "Em Andamento"}
                         </div>
@@ -146,7 +167,7 @@ const DraggableCard = React.memo(({
                     </label>
 
                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-slate-900 text-slate-200 text-[10px] p-2 rounded-lg border border-slate-700 shadow-xl opacity-0 group-hover/tooltip:opacity-100 transition-opacity pointer-events-none z-[60] text-center">
-                        {getStatusTooltip()}
+                        {tooltipText}
                         <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-700"></div>
                     </div>
                 </div>
@@ -926,6 +947,7 @@ export const Setup: React.FC = () => {
 
                         const blocksCount = weekSlots.length;
                         const blocksCompleted = weekSlots.filter(s => s.completed).length;
+                        const blocksRemaining = blocksCount - blocksCompleted;
                         
                         const weekPaceName = getWeekPace(week.id);
                         const weekTarget = PACE_SETTINGS[weekPaceName] || paceTarget;
@@ -949,10 +971,24 @@ export const Setup: React.FC = () => {
                                 <div className="flex justify-between items-start">
                                     <div><span className="font-black block text-base flex items-center gap-2 text-white">SEMANA {week.index} {week.isPast && <Lock size={14} />}</span><span className={`text-[10px] font-bold uppercase tracking-widest ${week.isPast ? 'line-through decoration-slate-600 opacity-50' : 'text-slate-500'}`}>{week.label}</span></div>
                                     <div className="flex flex-col items-end">
-                                        <span className={`text-lg font-black ${isOverloaded ? 'text-red-400' : isAllocated ? 'text-emerald-400' : 'text-white'}`}>
-                                            {blocksCount}
+                                        <div className="flex items-baseline gap-1">
+                                            <span className={`text-lg font-black ${blocksCompleted === blocksCount && blocksCount > 0 ? 'text-emerald-400' : 'text-white'}`}>
+                                                {blocksCompleted}
+                                            </span>
+                                            <span className="text-sm font-medium text-slate-600">/</span>
+                                            <span className={`text-lg font-black ${isOverloaded ? 'text-red-400' : isAllocated ? 'text-emerald-400' : 'text-white'}`}>
+                                                {blocksCount}
+                                            </span>
+                                        </div>
+                                        <span className="text-[9px] text-slate-500 uppercase font-bold flex items-center gap-1">
+                                            {blocksRemaining > 0 ? (
+                                                <span className="text-amber-500">{blocksRemaining} Restantes</span>
+                                            ) : blocksCount > 0 ? (
+                                                <span className="text-emerald-500 flex items-center gap-1"><Check size={8}/> Feito</span>
+                                            ) : (
+                                                "Vazio"
+                                            )}
                                         </span>
-                                        <span className="text-[9px] text-slate-500 uppercase font-bold">blocos</span>
                                     </div>
                                 </div>
                                 {!week.isPast && (
