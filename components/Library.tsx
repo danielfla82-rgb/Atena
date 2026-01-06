@@ -6,7 +6,7 @@ import {
     Search, Plus, Trash2, Edit2, Square, ChevronRight, ChevronDown, 
     BookOpen, Layers, CheckCircle2, LayoutGrid, Clock, AlertTriangle, Star, 
     History, Sparkles, X, Save, Maximize2, Thermometer,
-    Pencil, Link as LinkIcon, XCircle, ZoomIn, ChevronLeft, Calendar, Loader2, TrendingUp, Info, Scale, FileCode, Flag
+    Pencil, Link as LinkIcon, XCircle, ZoomIn, ChevronLeft, Calendar, Loader2, TrendingUp, Info, Scale, FileCode, Flag, List, Book, Brain
 } from 'lucide-react';
 
 export const Library: React.FC = () => {
@@ -27,18 +27,19 @@ export const Library: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'discipline' | 'status'>('discipline');
   
-  // Estado para controlar quais disciplinas (pastas) estão abertas
-  const [expandedDisciplines, setExpandedDisciplines] = useState<Record<string, boolean>>({});
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
-  // --- FORM STATE (COMPLETO) ---
   const initialFormState = {
     discipline: '', name: '', subtitle: '', 
     tecLink: '', errorNotebookLink: '', favoriteQuestionsLink: '',
     lawLink: '', obsidianLink: '', 
     geminiLink1: '', geminiLink2: '',
     accuracy: 0, targetAccuracy: 90,
-    weight: Weight.MEDIO, relevance: Relevance.MEDIA, trend: Trend.ESTAVEL, notes: '', images: [] as string[], accuracyHistory: [] as { date: string, accuracy: number }[]
+    weight: Weight.MEDIO, relevance: Relevance.MEDIA, trend: Trend.ESTAVEL, 
+    status: NotebookStatus.NOT_STARTED,
+    notes: '', images: [] as string[], accuracyHistory: [] as { date: string, accuracy: number }[]
   };
 
   const [formData, setFormData] = useState(initialFormState);
@@ -46,7 +47,6 @@ export const Library: React.FC = () => {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // --- EFFECTS ---
   React.useEffect(() => {
       if (pendingCreateData) {
           setFormData({ ...initialFormState, ...pendingCreateData });
@@ -61,14 +61,13 @@ export const Library: React.FC = () => {
           const nb = notebooks.find(n => n.id === focusedNotebookId);
           if (nb) {
               setSearchTerm(nb.name);
-              // Força a abertura da pasta da disciplina do item focado
-              setExpandedDisciplines(prev => ({...prev, [nb.discipline]: true}));
+              const groupKey = viewMode === 'discipline' ? nb.discipline : nb.status;
+              setExpandedGroups(prev => ({...prev, [groupKey]: true}));
           }
           setFocusedNotebookId(null);
       }
-  }, [focusedNotebookId, notebooks]);
+  }, [focusedNotebookId, notebooks, viewMode]);
 
-  // --- CALCULATED DATA ---
   const existingDisciplines = useMemo(() => Array.from(new Set(notebooks.map(n => n.discipline))).sort(), [notebooks]);
 
   const computedNextReviewData = useMemo(() => {
@@ -101,11 +100,9 @@ export const Library: React.FC = () => {
       return { total, disciplines, mastered, globalAcc };
   }, [notebooks]);
 
-  // Agrupamento por Disciplina (Lógica de Pastas)
   const groupedData = useMemo(() => {
-      // 1. Filtragem
       const filtered = notebooks.filter(nb => {
-          if (nb.discipline === 'Revisão Geral') return false; // Ocultar cards técnicos
+          if (nb.discipline === 'Revisão Geral') return false; 
 
           const searchLower = searchTerm.toLowerCase();
           const matchesSearch = 
@@ -127,25 +124,40 @@ export const Library: React.FC = () => {
           }
       });
 
-      // 2. Agrupamento
       const groups: Record<string, Notebook[]> = {};
       filtered.forEach(nb => {
-          if (!groups[nb.discipline]) groups[nb.discipline] = [];
-          groups[nb.discipline].push(nb);
+          let key = '';
+          if (viewMode === 'discipline') {
+              key = nb.discipline;
+          } else {
+              if (nb.accuracy >= nb.targetAccuracy) key = 'Concluídos (Meta Batida)';
+              else if (nb.accuracy > 0) key = 'Em Andamento';
+              else key = 'Não Iniciados';
+          }
+          
+          if (!groups[key]) groups[key] = [];
+          groups[key].push(nb);
       });
 
-      // 3. Ordenação
       const sortedKeys = Object.keys(groups).sort();
+      if (viewMode === 'status') {
+          const priority = ['Em Andamento', 'Não Iniciados', 'Concluídos (Meta Batida)'];
+          sortedKeys.sort((a,b) => {
+              const idxA = priority.indexOf(a);
+              const idxB = priority.indexOf(b);
+              return (idxA === -1 ? 99 : idxA) - (idxB === -1 ? 99 : idxB);
+          });
+      }
+
       sortedKeys.forEach(key => {
           groups[key].sort((a, b) => a.name.localeCompare(b.name));
       });
 
       return { groups, sortedKeys };
-  }, [notebooks, searchTerm, activeFilter]);
+  }, [notebooks, searchTerm, activeFilter, viewMode]);
 
-  // --- ACTIONS ---
-  const toggleDiscipline = (discipline: string) => {
-      setExpandedDisciplines(prev => ({ ...prev, [discipline]: !prev[discipline] }));
+  const toggleGroup = (key: string) => {
+      setExpandedGroups(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
   const handleOpenCreate = () => {
@@ -165,6 +177,7 @@ export const Library: React.FC = () => {
           geminiLink1: notebook.geminiLink1 || '', geminiLink2: notebook.geminiLink2 || '',
           accuracy: notebook.accuracy, targetAccuracy: notebook.targetAccuracy, weight: notebook.weight,
           relevance: notebook.relevance, trend: notebook.trend, notes: notebook.notes || '',
+          status: notebook.status,
           images: currentImages, accuracyHistory: notebook.accuracyHistory || []
       });
       setIsModalOpen(true);
@@ -290,6 +303,17 @@ export const Library: React.FC = () => {
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg py-2 pl-9 pr-3 text-sm text-white focus:border-emerald-500 outline-none"
                 />
              </div>
+             
+             {/* View Toggle */}
+             <div className="flex bg-slate-900 p-1 rounded-lg border border-slate-700">
+                 <button onClick={() => setViewMode('discipline')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${viewMode === 'discipline' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-white'}`}>
+                     Por Disciplina
+                 </button>
+                 <button onClick={() => setViewMode('status')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${viewMode === 'status' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}>
+                     Por Status
+                 </button>
+             </div>
+
              <button onClick={handleOpenCreate} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-sm transition-colors shadow-lg shadow-emerald-900/20 whitespace-nowrap justify-center">
                  <Plus size={16} /> Novo Caderno
              </button>
@@ -338,23 +362,23 @@ export const Library: React.FC = () => {
 
       {/* Main List (Grouped) */}
       <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-4">
-          {groupedData.sortedKeys.map(discipline => {
-              const items = groupedData.groups[discipline];
-              const isExpanded = expandedDisciplines[discipline];
+          {groupedData.sortedKeys.map(groupKey => {
+              const items = groupedData.groups[groupKey];
+              const isExpanded = expandedGroups[groupKey];
               const avgAcc = Math.round(items.reduce((acc, i) => acc + i.accuracy, 0) / items.length);
               
               return (
-                  <div key={discipline} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden transition-all">
+                  <div key={groupKey} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden transition-all">
                       <div 
-                        onClick={() => toggleDiscipline(discipline)}
+                        onClick={() => toggleGroup(groupKey)}
                         className="px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-slate-800/50 transition-colors"
                       >
                           <div className="flex items-center gap-4">
-                              <div className="bg-slate-800 p-2 rounded-lg text-slate-400">
+                              <div className={`p-2 rounded-lg ${viewMode === 'status' ? 'text-white' : 'text-slate-400'} ${viewMode === 'status' && groupKey.includes('Concluídos') ? 'bg-emerald-500' : viewMode === 'status' && groupKey.includes('Andamento') ? 'bg-blue-500' : viewMode === 'status' ? 'bg-slate-700' : 'bg-slate-800'}`}>
                                   {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                               </div>
                               <div>
-                                  <h3 className="font-bold text-white text-sm md:text-base">{discipline}</h3>
+                                  <h3 className="font-bold text-white text-sm md:text-base">{groupKey}</h3>
                                   <p className="text-xs text-slate-500">{items.length} tópicos</p>
                               </div>
                           </div>
@@ -373,6 +397,7 @@ export const Library: React.FC = () => {
                                           <div className="flex items-center gap-2 mb-1">
                                               <h4 className="font-bold text-slate-200 text-sm truncate">{nb.name}</h4>
                                               {nb.weight === Weight.MUITO_ALTO && <span className="text-[9px] bg-red-500/10 text-red-400 border border-red-500/20 px-1.5 rounded uppercase font-bold">Peso Max</span>}
+                                              {viewMode === 'status' && <span className="text-[9px] text-slate-500 border border-slate-700 px-1.5 rounded uppercase font-bold">{nb.discipline}</span>}
                                           </div>
                                           <p className="text-xs text-slate-500 truncate">{nb.subtitle}</p>
                                       </div>
@@ -417,7 +442,7 @@ export const Library: React.FC = () => {
           )}
       </div>
 
-      {/* Edit/Create Modal - REUSED FROM SETUP.TSX FOR CONSISTENCY */}
+      {/* Edit/Create Modal (REUSED FROM SETUP) */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
@@ -448,6 +473,22 @@ export const Library: React.FC = () => {
                         <div className="relative"><Star className="absolute left-3 top-3 text-yellow-500" size={14} /><input type="url" value={formData.favoriteQuestionsLink} onChange={e => handleChange('favoriteQuestionsLink', e.target.value)} className="w-full bg-slate-800 border border-yellow-500/20 rounded-lg py-2.5 pl-9 text-xs text-white outline-none focus:border-yellow-500 placeholder-yellow-900/50" placeholder="Link Favoritas..." /></div>
                     </div>
                   </div>
+
+                  {/* ADDITIONAL LINKS ROW (RESTORED) */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Lei Seca</label>
+                        <div className="relative"><Book className="absolute left-3 top-3 text-slate-500" size={14} /><input type="url" value={formData.lawLink} onChange={e => handleChange('lawLink', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-white outline-none focus:border-emerald-500" placeholder="Planalto..." /></div>
+                    </div>
+                    <div>
+                        <label className="block text-[10px] font-bold text-purple-400 mb-1 uppercase tracking-wider">Obsidian / Notion</label>
+                        <div className="relative"><FileCode className="absolute left-3 top-3 text-purple-500" size={14} /><input type="url" value={formData.obsidianLink} onChange={e => handleChange('obsidianLink', e.target.value)} className="w-full bg-slate-800 border border-purple-500/20 rounded-lg py-2.5 pl-9 text-xs text-white outline-none focus:border-purple-500 placeholder-purple-900/50" placeholder="Link anotações..." /></div>
+                    </div>
+                    <div>
+                        <label className="block text-[10px] font-bold text-cyan-400 mb-1 uppercase tracking-wider">Gemini Contexto</label>
+                        <div className="relative"><Brain className="absolute left-3 top-3 text-cyan-500" size={14} /><input type="url" value={formData.geminiLink1} onChange={e => handleChange('geminiLink1', e.target.value)} className="w-full bg-slate-800 border border-cyan-500/20 rounded-lg py-2.5 pl-9 text-xs text-white outline-none focus:border-cyan-500 placeholder-cyan-900/50" placeholder="Link Chat..." /></div>
+                    </div>
+                  </div>
               </div>
               <div className="space-y-4 pt-2">
                   <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">2. Estratégia & Performance</h4>
@@ -457,6 +498,21 @@ export const Library: React.FC = () => {
                       <div><label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Tendência</label><select value={formData.trend} onChange={(e) => handleChange('trend', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm">{Object.values(Trend).map(t => <option key={t} value={t}>{t}</option>)}</select></div>
                       <div><label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Meta (%)</label><input type="number" min="0" max="100" value={formData.targetAccuracy} onChange={e => handleChange('targetAccuracy', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm text-center font-bold" /></div>
                   </div>
+
+                  {/* Status Selector */}
+                  <div>
+                      <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Status do Caderno</label>
+                      <select 
+                          value={formData.status} 
+                          onChange={(e) => handleChange('status', e.target.value)} 
+                          className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm"
+                      >
+                          <option value={NotebookStatus.NOT_STARTED}>Não Iniciado</option>
+                          <option value={NotebookStatus.REVIEWING}>Em Andamento</option>
+                          <option value={NotebookStatus.MASTERED}>Concluído</option>
+                      </select>
+                  </div>
+
                   <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex flex-col items-stretch gap-4">
                       <div className="flex flex-col md:flex-row gap-4 items-end">
                           <div className="flex-1 w-full">
@@ -487,8 +543,8 @@ export const Library: React.FC = () => {
 
                           </div>
                           <div className="flex-1 w-full flex gap-2">
-                             <button type="button" onClick={handleNotStudied} className="flex-1 py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 font-bold text-sm bg-slate-700 hover:bg-slate-600 text-slate-200 transition-all border border-slate-600">
-                                <Flag size={16} /> Não estudei
+                             <button type="button" onClick={handleNotStudied} disabled={isSaving} className="flex-1 py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 font-bold text-sm bg-slate-700 hover:bg-slate-600 text-slate-200 transition-all border border-slate-600">
+                                {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Flag size={16} />} Não estudei
                              </button>
                           </div>
                       </div>
@@ -516,28 +572,8 @@ export const Library: React.FC = () => {
               <div className="space-y-4 pt-2">
                 <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">3. Rascunhos & Anotações</h4>
                 
-                {/* GEMINI LINKS SECTION */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-indigo-900/10 p-3 rounded-xl border border-indigo-500/20">
-                    <div>
-                        <label className="block text-[10px] font-bold text-indigo-300 mb-1 uppercase tracking-wider flex items-center gap-1"><Sparkles size={10}/> Link Gemini (Contexto 1)</label>
-                        <input type="url" value={formData.geminiLink1} onChange={e => handleChange('geminiLink1', e.target.value)} className="w-full bg-slate-900 border border-indigo-500/30 rounded-lg p-2.5 text-xs text-white outline-none focus:border-indigo-500 placeholder-indigo-300/30" placeholder="https://gemini.google.com/..." />
-                    </div>
-                    <div>
-                        <label className="block text-[10px] font-bold text-indigo-300 mb-1 uppercase tracking-wider flex items-center gap-1"><Sparkles size={10}/> Link Gemini (Contexto 2)</label>
-                        <input type="url" value={formData.geminiLink2} onChange={e => handleChange('geminiLink2', e.target.value)} className="w-full bg-slate-900 border border-indigo-500/30 rounded-lg p-2.5 text-xs text-white outline-none focus:border-indigo-500 placeholder-indigo-300/30" placeholder="https://gemini.google.com/..." />
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Texto de Lei</label>
-                        <div className="relative"><Scale className="absolute left-3 top-3.5 text-slate-500" size={16} /><input type="url" value={formData.lawLink} onChange={e => handleChange('lawLink', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 pl-10 text-white outline-none focus:border-emerald-500" placeholder="https://planalto.gov.br..." /></div>
-                    </div>
-                    <div>
-                        <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Obsidian / Notion</label>
-                        <div className="relative"><FileCode className="absolute left-3 top-3.5 text-slate-500" size={16} /><input type="url" value={formData.obsidianLink} onChange={e => handleChange('obsidianLink', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 pl-10 text-white outline-none focus:border-emerald-500" placeholder="obsidian://open?vault=..." /></div>
-                    </div>
-                </div>
+                {/* ... (Existing links inputs) ... */}
+                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Anotações / Resumo</label><textarea value={formData.notes} onChange={e => handleChange('notes', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500 transition-all min-h-[200px] resize-none text-sm" placeholder="Mnemônicos..." /></div>
                     <div className="flex flex-col h-full">

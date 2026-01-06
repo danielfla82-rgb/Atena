@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, Relevance, Trend, NotebookStatus, ScheduleItem } from '../types';
-import { Plus, Search, Copy, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2, TrendingUp, History, ListPlus, Minus, AlertTriangle, CheckCircle2, RotateCw, Zap, Activity, Info, Clock, Archive, Cloud, CloudOff, Download, PanelLeftClose, PanelLeftOpen, Sparkles, XCircle, Play, Forward } from 'lucide-react';
+import { Plus, Search, Copy, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2, TrendingUp, History, ListPlus, Minus, AlertTriangle, CheckCircle2, RotateCw, Zap, Activity, Info, Clock, Archive, Cloud, CloudOff, Download, PanelLeftClose, PanelLeftOpen, Sparkles, XCircle, Play, Forward, Book, Brain } from 'lucide-react';
 import { calculateNextReview, getStatusColor } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 
@@ -49,7 +49,7 @@ const DraggableCard = React.memo(({
     // --- LÓGICA DE CORES POR DESEMPENHO ---
     const target = notebook.targetAccuracy || 90;
     const accuracy = notebook.accuracy || 0;
-    const criticalThreshold = target * 0.75; // 75% da meta
+    const criticalThreshold = target * 0.75; 
 
     let buttonClass = 'border-slate-600 bg-slate-700 text-slate-300 group-hover/check:border-slate-500 hover:bg-slate-600';
     let textClass = isCompleted && isWeek ? 'text-slate-600 line-through' : 'text-slate-200';
@@ -58,19 +58,16 @@ const DraggableCard = React.memo(({
 
     if (isCompleted) {
         if (accuracy >= target) {
-            // Meta Batida -> Verde
             buttonClass = 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-900/20';
             textClass = 'text-emerald-400 line-through decoration-emerald-500/30';
             percentColorClass = 'text-emerald-400';
             tooltipText = "Desempenho de Elite: Meta atingida!";
         } else if (accuracy < criticalThreshold) {
-            // Desempenho Crítico (<75% da meta) -> Vermelho
             buttonClass = 'bg-red-500 border-red-500 text-white shadow-lg shadow-red-900/20';
             textClass = 'text-red-400 line-through decoration-red-500/30';
             percentColorClass = 'text-red-400';
             tooltipText = `Crítico: Acurácia muito abaixo da meta (${target}%).`;
         } else {
-            // Atenção (Entre Crítico e Meta) -> Laranja
             buttonClass = 'bg-amber-500 border-amber-500 text-white shadow-lg shadow-amber-900/20';
             textClass = 'text-amber-400 line-through decoration-amber-500/30';
             percentColorClass = 'text-amber-400';
@@ -180,18 +177,26 @@ const DraggableCard = React.memo(({
 const normalizeStr = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
 const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: number } }) => {
+    // ... (Existing CycleCalculator logic preserved)
     const { notebooks, config, updateConfig } = useStore();
     const [newDiscName, setNewDiscName] = useState('');
     
     // --- PERSISTENT STATE MANAGEMENT ---
     const availableDisciplines = useMemo<string[]>(() => {
         const set = new Set<string>();
-        notebooks.forEach(n => {
+        const safeNotebooks: Notebook[] = notebooks || [];
+        safeNotebooks.forEach(n => {
             if (n.discipline !== 'Revisão Geral') set.add(n.discipline);
         });
-        (config.calculatorState?.customDisciplines || []).forEach(d => set.add(d));
+        
+        // Ensure customList is treated as string array
+        const customList = config.calculatorState?.customDisciplines;
+        if (Array.isArray(customList)) {
+            const list = customList as string[];
+            list.forEach((d) => set.add(d));
+        }
         return Array.from(set).sort();
-    }, [notebooks, config.calculatorState?.customDisciplines]);
+    }, [notebooks, config.calculatorState?.customDisciplines]); 
 
     useEffect(() => {
         if (!config.calculatorState) {
@@ -318,133 +323,94 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
                 <h2 className="text-2xl font-bold text-white mb-2">Planejamento de Ciclo</h2>
                 <p className="text-slate-400 text-sm max-w-xl mx-auto">Defina os pesos estratégicos. O algoritmo Atena distribuirá sua carga de <strong className="text-white">{paceTarget.blocks} blocos/semana (Ritmo Padrão)</strong>.</p>
             </div>
-            
-            {/* --- SMART PROJECTION ENGINE (UX FIXED HERE) --- */}
-            {projection && (
-                <div className={`mb-8 border rounded-xl p-6 relative overflow-hidden transition-all duration-500 ${
-                    projection.status === 'danger' ? 'bg-red-950/20 border-red-500/30 shadow-[0_0_30px_rgba(239,68,68,0.1)]' : 
-                    projection.status === 'warning' ? 'bg-amber-950/20 border-amber-500/30' : 
-                    'bg-slate-900/80 border-slate-700 shadow-xl'
-                }`}>
-                    <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-                        <TrendingUp size={120} />
-                    </div>
 
-                    <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-start relative z-10">
-                        {/* LEFT: Weeks & Date - FIXED TYPOGRAPHY & ALIGNMENT */}
-                        <div className="flex-1 min-w-0 w-full">
-                            <h3 className={`text-sm font-bold uppercase tracking-widest mb-2 flex items-center gap-2 ${
-                                projection.status === 'danger' ? 'text-red-400' : 
-                                projection.status === 'warning' ? 'text-amber-400' : 'text-emerald-400'
-                            }`}>
-                                <Activity size={16} /> Projeção Tática (1ª Passagem)
-                            </h3>
-                            
-                            <div className="flex items-baseline gap-2 mb-3 pt-1">
-                                {/* Leading-none prevents cut-off on top/bottom */}
-                                <span className="text-5xl font-black text-white leading-none">{projection.weeks}</span>
-                                <span className="text-slate-400 font-medium text-sm pb-1">Semanas estimadas</span>
-                            </div>
-                            
-                            <div className="flex items-center gap-2 text-xs text-slate-400 bg-slate-950/50 w-fit px-3 py-2 rounded-lg border border-slate-800">
-                                <CalendarClock size={12} />
-                                Conclusão Teórica: <strong className="text-slate-200">{projection.date.toLocaleDateString()}</strong>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2 space-y-6">
+                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-bold text-white flex items-center gap-2"><Settings2 size={18} className="text-slate-400"/> Distribuição de Pesos</h3>
+                            <div className="text-xs font-bold text-slate-500 bg-slate-950 px-3 py-1 rounded-full border border-slate-800">Total: {totalWeight.toFixed(1)} pts</div>
+                        </div>
+                        <div className="space-y-3">
+                            {availableDisciplines.map(d => (
+                                <div key={d} className={`flex items-center gap-4 p-3 rounded-lg border transition-all ${selectedDiscs.has(d) ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-950/30 border-slate-800 opacity-60'}`}>
+                                    <input type="checkbox" checked={selectedDiscs.has(d)} onChange={() => toggleDisc(d)} className="w-4 h-4 rounded border-slate-600 text-emerald-600 focus:ring-offset-0 focus:ring-0 cursor-pointer accent-emerald-500" />
+                                    <div className="flex-1 min-w-0">
+                                        <div className="font-bold text-sm text-slate-200 truncate">{d}</div>
+                                        {selectedDiscs.has(d) && <div className="text-[10px] text-emerald-500 font-mono mt-0.5">{weights[d] || 1} pts • {((weights[d] || 1) / totalWeight * 100).toFixed(1)}%</div>}
+                                    </div>
+                                    {selectedDiscs.has(d) && (
+                                        <div className="flex items-center gap-2">
+                                            <input type="range" min="0.5" max="5" step="0.5" value={weights[d] || 1} onChange={(e) => updateWeight(d, parseFloat(e.target.value))} className="w-24 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500" />
+                                            <span className="text-xs font-bold w-6 text-center text-white">{weights[d] || 1}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                            <div className="pt-2 flex gap-2">
+                                <input type="text" value={newDiscName} onChange={(e) => setNewDiscName(e.target.value)} placeholder="Nova Disciplina..." className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-emerald-500" />
+                                <button onClick={handleAddDiscipline} disabled={!newDiscName} className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition-colors disabled:opacity-50"><Plus size={14} /></button>
                             </div>
                         </div>
-
-                        {/* Divider - Adaptive height and flexible */}
-                        <div className="w-full h-px md:w-px md:self-stretch bg-slate-800 md:bg-slate-700/50 my-4 md:my-0 flex-shrink-0 min-h-[80px]"></div>
-
-                        {/* RIGHT: Progress Bar & Details */}
-                        <div className="flex-1 space-y-3 w-full min-w-0">
-                            <div className="flex flex-wrap justify-between gap-2 text-xs font-bold text-slate-500 uppercase">
-                                <span className="whitespace-nowrap flex items-center gap-2">
-                                    <span className="w-2 h-2 rounded-full bg-blue-600"></span>
-                                    Matéria Nova
-                                </span>
-                                <span className="flex items-center gap-2 whitespace-nowrap">
-                                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                                    Impacto Revisões (Atrito)
-                                </span>
-                            </div>
-                            <div className="w-full h-4 bg-slate-950 rounded-full overflow-hidden flex border border-slate-800 flex-shrink-0">
-                                <div className="h-full bg-blue-600 w-[70%]" title="Matéria Nova"></div>
-                                <div className="h-full bg-amber-500 w-[30%] relative" style={{backgroundImage: 'linear-gradient(45deg,rgba(0,0,0,0.1) 25%,transparent 25%,transparent 50%,rgba(0,0,0,0.1) 50%,rgba(0,0,0,0.1) 75%,transparent 75%,transparent)', backgroundSize: '10px 10px'}} title="Tempo perdido com Revisões (Atrito)"></div>
-                            </div>
-                            
-                            <div className="flex items-start gap-2 mt-2 bg-slate-950/30 p-2 rounded-lg border border-slate-800/50">
-                                <Info size={14} className="text-slate-500 flex-shrink-0 mt-0.5"/>
-                                <p className="text-[10px] text-slate-400 leading-relaxed break-words whitespace-normal">
-                                    O sistema desconta automaticamente <strong>0.2 blocos (10min)</strong> da sua capacidade semanal para cada revisão acumulada de tópicos já estudados ({projection.totalItems} itens no radar).
-                                </p>
-                            </div>
-                        </div>
-
-                        {projection.suggestion > 0 && (
-                            <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl w-full md:max-w-[200px] flex-shrink-0 animate-pulse hover:animate-none transition-all">
-                                <h4 className="text-xs font-bold text-white mb-1 flex items-center gap-2">
-                                    <Sparkles size={12} className="text-yellow-400"/> Sugestão da IA
-                                </h4>
-                                <p className="text-[10px] text-slate-300 leading-snug break-words">
-                                    Para terminar antes da prova com segurança, aumente seu ritmo para:
-                                    <strong className="block text-base text-emerald-400 mt-1">{paceTarget.blocks + projection.suggestion} blocos / semana</strong>
-                                </p>
-                            </div>
-                        )}
                     </div>
                 </div>
-            )}
 
-            <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl flex flex-col h-full min-h-[400px]">
-                 {/* ... (Existing Calculator UI code preserved) ... */}
-                 <div className={`p-4 border-b flex justify-between items-center ${isOver ? 'bg-red-950/40 border-red-900/50' : isUnder ? 'bg-amber-950/40 border-amber-900/50' : 'bg-slate-950/50 border-slate-800'}`}>
-                    <h3 className="font-bold text-white text-sm uppercase tracking-wider flex items-center gap-2"><Scale size={16} /> Distribuição Ponderada</h3>
-                    <div className="flex items-center gap-4">
-                        {!isBalanced && <span className={`text-xs font-bold ${isOver ? 'text-red-400' : 'text-amber-400'}`}>{isOver ? `Remova ${Math.abs(diff)} blocos` : `Aloque +${Math.abs(diff)} blocos`}</span>}
-                        <div className={`text-xs font-mono px-3 py-1 rounded-full border ${isBalanced ? 'bg-emerald-900/20 text-emerald-400 border-emerald-500/30' : 'bg-slate-800 text-white'}`}>Alocado: <strong>{totalAllocated}</strong> / {paceTarget.blocks}</div>
-                    </div>
-                 </div>
-
-                 <form onSubmit={handleAddDiscipline} className="p-3 border-b border-slate-800/50 bg-slate-900/50 flex gap-2">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-2.5 text-slate-500" size={14} />
-                        <input 
-                            type="text" 
-                            value={newDiscName}
-                            onChange={(e) => setNewDiscName(e.target.value)}
-                            placeholder="Adicionar disciplina ao ciclo (ex: Direito Civil)..." 
-                            className="w-full bg-slate-950 border border-slate-700 rounded-lg py-2 pl-9 pr-3 text-xs text-white focus:border-emerald-500 outline-none"
-                        />
-                    </div>
-                    <button type="submit" disabled={!newDiscName.trim()} className="px-4 py-2 bg-slate-800 hover:bg-emerald-600 text-slate-300 hover:text-white rounded-lg text-xs font-bold transition-all disabled:opacity-50">
-                        <Plus size={14} />
-                    </button>
-                 </form>
-
-                 <div className="flex-1 overflow-y-auto custom-scrollbar divide-y divide-slate-800/50">
-                    {availableDisciplines.map(d => {
-                        const isSelected = selectedDiscs.has(d);
-                        const dist = distribution.find(x => x.name === d);
-                        const blocks = dist?.blocks || 0;
-                        const percent = dist ? Math.round(dist.percentage * 100) : 0;
-                        const currentWeight = weights[d] || 1;
-                        return (
-                            <div key={d} className={`flex items-center p-4 ${isSelected ? '' : 'opacity-60 bg-slate-950/50 grayscale'}`}>
-                                <div className="w-12 flex justify-center"><input type="checkbox" checked={isSelected} onChange={() => toggleDisc(d)} className="w-5 h-5 rounded bg-slate-800 text-emerald-600 cursor-pointer" /></div>
-                                <div className="flex-1 px-2 font-medium text-sm text-slate-200">{d}</div>
-                                <div className="w-36 flex justify-center"><div className="flex items-center bg-slate-950 border border-slate-700 rounded-lg overflow-hidden"><button onClick={() => updateWeight(d, currentWeight - 0.5)} className="w-8 h-8 flex items-center justify-center hover:bg-slate-800 text-slate-400"><Minus size={14} /></button><div className="w-10 text-center text-sm font-bold text-white bg-slate-900 h-8 flex items-center justify-center">{currentWeight}</div><button onClick={() => updateWeight(d, currentWeight + 0.5)} className="w-8 h-8 flex items-center justify-center hover:bg-slate-800 text-slate-400"><Plus size={14} /></button></div></div>
-                                <div className="w-40 px-4"><div className="flex items-center gap-2 mb-1"><span className="text-lg font-black text-emerald-400">{blocks}</span></div><div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden"><div className="h-full bg-emerald-500 transition-all" style={{ width: isSelected ? `${percent}%` : '0%' }}></div></div></div>
+                <div className="space-y-6">
+                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-4 opacity-10"><Calculator size={64} /></div>
+                        <h3 className="font-bold text-white mb-4 text-sm uppercase tracking-wide">Projeção do Ciclo</h3>
+                        
+                        <div className="space-y-4 relative z-10">
+                            <div className="flex justify-between items-center pb-2 border-b border-slate-800">
+                                <span className="text-xs text-slate-400">Capacidade Semanal</span>
+                                <span className="text-sm font-bold text-white">{paceTarget.blocks} Blocos</span>
                             </div>
-                        )
-                    })}
-                 </div>
+                            <div className="flex justify-between items-center pb-2 border-b border-slate-800">
+                                <span className="text-xs text-slate-400">Total Alocado</span>
+                                <span className={`text-sm font-bold ${isBalanced ? 'text-emerald-400' : isOver ? 'text-red-400' : 'text-amber-400'}`}>{totalAllocated} Blocos</span>
+                            </div>
+                            
+                            {!isBalanced && (
+                                <div className={`p-3 rounded-lg text-xs flex items-start gap-2 ${isOver ? 'bg-red-900/20 text-red-300 border border-red-500/20' : 'bg-amber-900/20 text-amber-300 border border-amber-500/20'}`}>
+                                    <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />
+                                    {isOver ? `Você alocou ${diff} blocos a mais que sua capacidade.` : `Você ainda tem ${Math.abs(diff)} blocos livres.`}
+                                </div>
+                            )}
+
+                            {projection && (
+                                <div className="pt-2">
+                                    <div className="text-[10px] text-slate-500 font-bold uppercase mb-2">Estimativa de Conclusão</div>
+                                    <div className="text-2xl font-bold text-white mb-1">{projection.weeks} Semanas</div>
+                                    <div className="text-xs text-slate-400">Data Prevista: <span className="text-emerald-400">{projection.date.toLocaleDateString()}</span></div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                        <h3 className="font-bold text-white mb-4 text-sm uppercase tracking-wide">Distribuição Final</h3>
+                        <div className="space-y-2 max-h-[300px] overflow-y-auto custom-scrollbar pr-1">
+                            {distribution.map(item => (
+                                <div key={item.name} className="flex justify-between items-center text-xs">
+                                    <span className="text-slate-300 truncate max-w-[120px]" title={item.name}>{item.name}</span>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                                            <div className="h-full bg-emerald-500" style={{ width: `${item.percentage * 100}%` }}></div>
+                                        </div>
+                                        <span className="font-mono font-bold text-emerald-400 w-6 text-right">{item.blocks}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );
 };
 
 export const Setup: React.FC = () => {
-  const { notebooks, cycles, activeCycleId, config, updateConfig, moveNotebookToWeek, reorderSlotInWeek, editNotebook, toggleSlotCompletion, removeSlotFromWeek, isSyncing, isGuest, exportDatabase, startSession } = useStore();
+  const { notebooks, cycles, activeCycleId, config, updateConfig, moveNotebookToWeek, reorderSlotInWeek, editNotebook, toggleSlotCompletion, removeSlotFromWeek, isSyncing, isGuest, exportDatabase, startSession, addNotebook } = useStore();
   
   const [viewMode, setViewMode] = useState<'timeline' | 'calculator'>('timeline');
   const [searchTerm, setSearchTerm] = useState('');
@@ -463,11 +429,28 @@ export const Setup: React.FC = () => {
     lawLink: '', obsidianLink: '', 
     geminiLink1: '', geminiLink2: '',
     accuracy: 0, targetAccuracy: 90,
-    weight: Weight.MEDIO, relevance: Relevance.MEDIA, trend: Trend.ESTAVEL, notes: '', images: [] as string[], accuracyHistory: [] as { date: string, accuracy: number }[]
+    weight: Weight.MEDIO, relevance: Relevance.MEDIA, trend: Trend.ESTAVEL, 
+    status: NotebookStatus.NOT_STARTED,
+    notes: '', images: [] as string[], accuracyHistory: [] as { date: string, accuracy: number }[]
   };
   
   const [formData, setFormData] = useState(initialFormState);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const pendingCount = useMemo(() => {
+      if (!activeCycleId) return notebooks.filter(n => n.discipline !== 'Revisão Geral' && !n.weekId).length;
+      const cycle = cycles.find(c => c.id === activeCycleId);
+      if(!cycle?.schedule) return 0;
+      
+      const scheduledIds = new Set<string>();
+      Object.values(cycle.schedule).forEach((slots) => {
+          slots.forEach(slot => scheduledIds.add(slot.notebookId));
+      });
+      return notebooks.filter(n => n.discipline !== 'Revisão Geral' && !scheduledIds.has(n.id)).length;
+  }, [notebooks, activeCycleId, cycles]);
+
+  // ... (useMemos and effects same as before)
+  const existingDisciplines = useMemo(() => Array.from(new Set(notebooks.map(n => n.discipline))).sort(), [notebooks]);
 
   const computedNextReviewData = useMemo(() => {
       if (!isModalOpen) return null;
@@ -548,8 +531,6 @@ export const Setup: React.FC = () => {
     result.sort((a, b) => a.discipline.localeCompare(b.discipline) || a.name.localeCompare(b.name));
     return result;
   }, [notebooks, searchTerm, libraryFilter, disciplineFilter]);
-
-  const existingDisciplines = useMemo(() => Array.from(new Set(notebooks.map(n => n.discipline))).sort(), [notebooks]);
 
   const daysRemaining = useMemo(() => {
       if (!config.examDate) return null;
@@ -639,6 +620,7 @@ export const Setup: React.FC = () => {
       geminiLink1: notebook.geminiLink1 || '', geminiLink2: notebook.geminiLink2 || '',
       accuracy: notebook.accuracy, targetAccuracy: notebook.targetAccuracy, weight: notebook.weight,
       relevance: notebook.relevance, trend: notebook.trend, notes: notebook.notes || '',
+      status: notebook.status,
       images: currentImages, accuracyHistory: notebook.accuracyHistory || []
     });
     setIsModalOpen(true);
@@ -657,7 +639,25 @@ export const Setup: React.FC = () => {
     }
   };
   const removeImage = (index: number) => { setFormData(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== index) })); };
-  const handleNotStudied = () => { setFormData(prev => ({ ...prev, accuracy: 0, status: NotebookStatus.NOT_STARTED })); };
+  
+  const handleNotStudied = async () => { 
+      setIsSaving(true);
+      try {
+          if (editingId) {
+              await editNotebook(editingId, { 
+                  accuracy: 0, 
+                  status: NotebookStatus.NOT_STARTED 
+              });
+              setIsModalOpen(false); 
+          } else {
+              setFormData(prev => ({ ...prev, accuracy: 0, status: NotebookStatus.NOT_STARTED }));
+          }
+      } catch (e) {
+          console.error("Error setting not studied", e);
+      } finally {
+          setIsSaving(false);
+      }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -671,6 +671,7 @@ export const Setup: React.FC = () => {
             nextReview: nextDate.toISOString()
         };
         if (editingId) await editNotebook(editingId, payload);
+        else await addNotebook(payload); // Added logic to support create new
         setIsModalOpen(false);
     } catch (error) {
         console.error("Failed to save:", error);
@@ -714,11 +715,10 @@ export const Setup: React.FC = () => {
       setFormData(prev => ({ ...prev, accuracyHistory: newHistory }));
   };
 
-  const pendingCount = useMemo(() => notebooks.filter(nb => !nb.weekId && nb.discipline !== 'Revisão Geral').length, [notebooks]);
-
   return (
     <div className="flex flex-row h-full w-full overflow-hidden relative">
       
+      {/* Lightbox */}
       {lightboxIndex !== null && (
           <div className="fixed inset-0 z-[60] bg-slate-950/95 flex items-center justify-center p-4 backdrop-blur-sm">
              <button onClick={() => setLightboxIndex(null)} className="absolute top-4 right-4 text-white hover:text-emerald-500 z-50"><X size={32} /></button>
@@ -733,8 +733,7 @@ export const Setup: React.FC = () => {
           </div>
       )}
 
-      {/* Sidebar Library - ONLY VISIBLE IN TIMELINE VIEW */}
-      {viewMode === 'timeline' && (
+      {/* Sidebar - Always visible for quick drag & reference, just lighter in calculator mode if needed */}
       <aside className={`flex-shrink-0 border-r border-slate-800 bg-slate-900/95 flex flex-col z-40 transition-all duration-300 ease-in-out h-full ${isSidebarCollapsed ? 'w-14' : 'absolute md:relative w-80 shadow-2xl md:shadow-none'}`}>
           <div className={`p-4 border-b border-slate-800 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
             {!isSidebarCollapsed && (
@@ -819,7 +818,6 @@ export const Setup: React.FC = () => {
               </>
           )}
       </aside>
-      )}
 
       {/* Main Area */}
       <main className="flex-1 flex flex-col min-w-0 bg-slate-950 relative">
@@ -1059,10 +1057,10 @@ export const Setup: React.FC = () => {
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
             <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900">
-                <h3 className="text-xl font-bold text-white flex items-center gap-2"><Pencil size={20} className="text-emerald-500"/> Editar Caderno (Rápido)</h3>
+                <h3 className="text-xl font-bold text-white flex items-center gap-2"><Pencil size={20} className="text-emerald-500"/> {editingId ? 'Editar Caderno' : 'Novo Caderno'}</h3>
                 <button onClick={() => !isSaving && setIsModalOpen(false)} className="text-slate-400 hover:text-white" disabled={isSaving}><X size={24} /></button>
             </div>
-            <form onSubmit={handleSave} className="overflow-y-auto p-6 space-y-6 custom-scrollbar">
+            <form onSubmit={handleSave} className="overflow-y-auto p-6 space-y-6 custom-scrollbar flex-1">
               <div className="space-y-4">
                   <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">1. Identificação</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1084,6 +1082,18 @@ export const Setup: React.FC = () => {
                         <label className="block text-[10px] font-bold text-yellow-400 mb-1 uppercase tracking-wider">Questões Favoritas</label>
                         <div className="relative"><Star className="absolute left-3 top-3 text-yellow-500" size={14} /><input type="url" value={formData.favoriteQuestionsLink} onChange={e => handleChange('favoriteQuestionsLink', e.target.value)} className="w-full bg-slate-800 border border-yellow-500/20 rounded-lg py-2.5 pl-9 text-xs text-white outline-none focus:border-yellow-500 placeholder-yellow-900/50" placeholder="Link Favoritas..." /></div>
                     </div>
+                    <div>
+                        <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Lei Seca</label>
+                        <div className="relative"><Book className="absolute left-3 top-3 text-slate-500" size={14} /><input type="url" value={formData.lawLink} onChange={e => handleChange('lawLink', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-white outline-none focus:border-emerald-500" placeholder="Planalto..." /></div>
+                    </div>
+                    <div>
+                        <label className="block text-[10px] font-bold text-purple-400 mb-1 uppercase tracking-wider">Obsidian / Notion</label>
+                        <div className="relative"><FileCode className="absolute left-3 top-3 text-purple-500" size={14} /><input type="url" value={formData.obsidianLink} onChange={e => handleChange('obsidianLink', e.target.value)} className="w-full bg-slate-800 border border-purple-500/20 rounded-lg py-2.5 pl-9 text-xs text-white outline-none focus:border-purple-500 placeholder-purple-900/50" placeholder="Link anotações..." /></div>
+                    </div>
+                    <div>
+                        <label className="block text-[10px] font-bold text-cyan-400 mb-1 uppercase tracking-wider">Gemini Contexto</label>
+                        <div className="relative"><Brain className="absolute left-3 top-3 text-cyan-500" size={14} /><input type="url" value={formData.geminiLink1} onChange={e => handleChange('geminiLink1', e.target.value)} className="w-full bg-slate-800 border border-cyan-500/20 rounded-lg py-2.5 pl-9 text-xs text-white outline-none focus:border-cyan-500 placeholder-cyan-900/50" placeholder="Link Chat..." /></div>
+                    </div>
                   </div>
               </div>
               <div className="space-y-4 pt-2">
@@ -1094,6 +1104,21 @@ export const Setup: React.FC = () => {
                       <div><label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Tendência</label><select value={formData.trend} onChange={(e) => handleChange('trend', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm">{Object.values(Trend).map(t => <option key={t} value={t}>{t}</option>)}</select></div>
                       <div><label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Meta (%)</label><input type="number" min="0" max="100" value={formData.targetAccuracy} onChange={e => handleChange('targetAccuracy', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm text-center font-bold" /></div>
                   </div>
+                  
+                  {/* Status Selector */}
+                  <div>
+                      <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Status do Caderno</label>
+                      <select 
+                          value={formData.status} 
+                          onChange={(e) => handleChange('status', e.target.value)} 
+                          className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm"
+                      >
+                          <option value={NotebookStatus.NOT_STARTED}>Não Iniciado</option>
+                          <option value={NotebookStatus.REVIEWING}>Em Andamento</option>
+                          <option value={NotebookStatus.MASTERED}>Concluído</option>
+                      </select>
+                  </div>
+
                   <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex flex-col items-stretch gap-4">
                       <div className="flex flex-col md:flex-row gap-4 items-end">
                           <div className="flex-1 w-full">
@@ -1119,30 +1144,13 @@ export const Setup: React.FC = () => {
                                          </span>
                                          <span className="text-slate-500 text-[9px] font-normal">{computedNextReviewData.label}</span>
                                      </div>
-                                     <div className="flex justify-end relative group/help">
-                                         <span className="flex items-center gap-1 text-[9px] text-slate-600 cursor-pointer hover:text-emerald-500 transition-colors underline decoration-dotted">
-                                             <Info size={10} /> Como funciona o algoritmo?
-                                         </span>
-                                         {/* TOOLTIP DE CALIBRAÇÃO */}
-                                         <div className="absolute bottom-full right-0 mb-2 w-64 bg-slate-900 border border-slate-700 rounded-lg p-3 shadow-xl opacity-0 group-hover/help:opacity-100 transition-opacity z-50 pointer-events-none text-left">
-                                             <h5 className="text-white text-xs font-bold mb-2 flex items-center gap-1"><Sparkles size={10}/> Método Atena (SRS)</h5>
-                                             <p className="text-[10px] text-slate-400 mb-2 leading-relaxed">
-                                                 Baseado no Anki, mas calibrado para o mercado de concursos. O intervalo é calculado multiplicando:
-                                             </p>
-                                             <ul className="space-y-1.5">
-                                                 <li className="text-[10px] text-slate-300 flex items-start gap-1.5"><span className="w-1 h-1 rounded-full bg-emerald-500 mt-1.5 shrink-0"></span><span><strong>Acurácia:</strong> Define o intervalo base (Aprendizado, Revisão ou Manutenção).</span></li>
-                                                 <li className="text-[10px] text-slate-300 flex items-start gap-1.5"><span className="w-1 h-1 rounded-full bg-emerald-500 mt-1.5 shrink-0"></span><span><strong>Relevância:</strong> Acelera a revisão. "Altíssima" encurta o prazo em 30%.</span></li>
-                                                 <li className="text-[10px] text-slate-300 flex items-start gap-1.5"><span className="w-1 h-1 rounded-full bg-emerald-500 mt-1.5 shrink-0"></span><span><strong>Tendência:</strong> Ajuste fino baseado na banca.</span></li>
-                                             </ul>
-                                         </div>
-                                     </div>
                                  </div>
                              )}
 
                           </div>
                           <div className="flex-1 w-full flex gap-2">
-                             <button type="button" onClick={handleNotStudied} className="flex-1 py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 font-bold text-sm bg-slate-700 hover:bg-slate-600 text-slate-200 transition-all border border-slate-600">
-                                <Flag size={16} /> Não estudei
+                             <button type="button" onClick={handleNotStudied} disabled={isSaving} className="flex-1 py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 font-bold text-sm bg-slate-700 hover:bg-slate-600 text-slate-200 transition-all border border-slate-600">
+                                {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Flag size={16} />} Não estudei
                              </button>
                           </div>
                       </div>
@@ -1170,30 +1178,8 @@ export const Setup: React.FC = () => {
               <div className="space-y-4 pt-2">
                 <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">3. Rascunhos & Anotações</h4>
                 
-                {/* GEMINI LINKS SECTION */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-indigo-900/10 p-3 rounded-xl border border-indigo-500/20">
-                    <div>
-                        <label className="block text-[10px] font-bold text-indigo-300 mb-1 uppercase tracking-wider flex items-center gap-1"><Sparkles size={10}/> Link Gemini (Contexto 1)</label>
-                        <input type="url" value={formData.geminiLink1} onChange={e => handleChange('geminiLink1', e.target.value)} className="w-full bg-slate-900 border border-indigo-500/30 rounded-lg p-2.5 text-xs text-white outline-none focus:border-indigo-500 placeholder-indigo-300/30" placeholder="https://gemini.google.com/..." />
-                    </div>
-                    <div>
-                        <label className="block text-[10px] font-bold text-indigo-300 mb-1 uppercase tracking-wider flex items-center gap-1"><Sparkles size={10}/> Link Gemini (Contexto 2)</label>
-                        <input type="url" value={formData.geminiLink2} onChange={e => handleChange('geminiLink2', e.target.value)} className="w-full bg-slate-900 border border-indigo-500/30 rounded-lg p-2.5 text-xs text-white outline-none focus:border-indigo-500 placeholder-indigo-300/30" placeholder="https://gemini.google.com/..." />
-                    </div>
-                </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Texto de Lei</label>
-                        <div className="relative"><Scale className="absolute left-3 top-3.5 text-slate-500" size={16} /><input type="url" value={formData.lawLink} onChange={e => handleChange('lawLink', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 pl-10 text-white outline-none focus:border-emerald-500" placeholder="https://planalto.gov.br..." /></div>
-                    </div>
-                    <div>
-                        <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Obsidian / Notion</label>
-                        <div className="relative"><FileCode className="absolute left-3 top-3.5 text-slate-500" size={16} /><input type="url" value={formData.obsidianLink} onChange={e => handleChange('obsidianLink', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 pl-10 text-white outline-none focus:border-emerald-500" placeholder="obsidian://open?vault=..." /></div>
-                    </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Anotações / Resumo</label><textarea value={formData.notes} onChange={e => handleChange('notes', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500 transition-all min-h-[200px] resize-none text-sm" placeholder="Mnemônicos..." /></div>
+                    <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Anotações / Resumo</label><textarea value={formData.notes} onChange={e => handleChange('notes', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500 transition-all min-h-[200px] resize-none text-sm custom-scrollbar" placeholder="Mnemônicos..." /></div>
                     <div className="flex flex-col h-full">
                         <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Galeria de Mapas Mentais</label>
                         <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 min-h-[200px] flex flex-col">
