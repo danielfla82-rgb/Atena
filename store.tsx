@@ -196,7 +196,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               supabase.from('frameworks').select('*').single()
           ]);
 
-          if (dbNotebooks) setNotebooks(dbNotebooks);
+          if (dbNotebooks) {
+              setNotebooks(dbNotebooks);
+              // DIAGNOSTIC LOG: Check if custom fields exist in DB
+              if (dbNotebooks.length > 0) {
+                  const sample = dbNotebooks[0];
+                  console.log("[DB Diagnostic] Sample Notebook Keys:", Object.keys(sample));
+                  if (!('tecLink' in sample) && !('tec_link' in sample)) {
+                      console.warn("[DB Warning] Coluna 'tecLink' não encontrada. Verifique se as colunas existem no Supabase.");
+                  }
+              }
+          }
           
           if (dbCycles && dbCycles.length > 0) {
               setCycles(dbCycles);

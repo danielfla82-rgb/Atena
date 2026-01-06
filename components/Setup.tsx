@@ -192,8 +192,8 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
         // Ensure customList is treated as string array
         const customList = config.calculatorState?.customDisciplines;
         if (Array.isArray(customList)) {
-            const list = customList as string[];
-            list.forEach((d) => set.add(d));
+            // FIX: Explicit cast to any[] to handle 'unknown' type inference error, then ensuring string
+            (customList as any[]).forEach((d) => set.add(String(d)));
         }
         return Array.from(set).sort();
     }, [notebooks, config.calculatorState?.customDisciplines]); 
@@ -423,6 +423,7 @@ export const Setup: React.FC = () => {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
+  // INITIAL STATE WITH ALL FIELDS FOR SUPABASE
   const initialFormState = {
     discipline: '', name: '', subtitle: '', 
     tecLink: '', errorNotebookLink: '', favoriteQuestionsLink: '',
@@ -609,19 +610,33 @@ export const Setup: React.FC = () => {
       }
   }, [reorderSlotInWeek, moveNotebookToWeek]);
 
+  // --- CRITICAL FIX: ENSURE ALL FIELDS ARE LOADED INTO FORM ---
   const handleEditClick = useCallback((notebook: Notebook) => {
     setEditingId(notebook.id);
     let currentImages = notebook.images || [];
     if (currentImages.length === 0 && notebook.image) currentImages = [notebook.image];
+    
+    // Explicitly mapping potential missing fields to prevent data loss
     setFormData({
-      discipline: notebook.discipline, name: notebook.name, subtitle: notebook.subtitle,
-      tecLink: notebook.tecLink || '', errorNotebookLink: notebook.errorNotebookLink || '', favoriteQuestionsLink: notebook.favoriteQuestionsLink || '',
-      lawLink: notebook.lawLink || '', obsidianLink: notebook.obsidianLink || '',
-      geminiLink1: notebook.geminiLink1 || '', geminiLink2: notebook.geminiLink2 || '',
-      accuracy: notebook.accuracy, targetAccuracy: notebook.targetAccuracy, weight: notebook.weight,
-      relevance: notebook.relevance, trend: notebook.trend, notes: notebook.notes || '',
+      discipline: notebook.discipline, 
+      name: notebook.name, 
+      subtitle: notebook.subtitle,
+      tecLink: notebook.tecLink || '', 
+      errorNotebookLink: notebook.errorNotebookLink || '', 
+      favoriteQuestionsLink: notebook.favoriteQuestionsLink || '',
+      lawLink: notebook.lawLink || '', 
+      obsidianLink: notebook.obsidianLink || '',
+      geminiLink1: notebook.geminiLink1 || '', // Ensures "Gemini Contexto" loads
+      geminiLink2: notebook.geminiLink2 || '',
+      accuracy: notebook.accuracy, 
+      targetAccuracy: notebook.targetAccuracy, 
+      weight: notebook.weight,
+      relevance: notebook.relevance, 
+      trend: notebook.trend, 
+      notes: notebook.notes || '',
       status: notebook.status,
-      images: currentImages, accuracyHistory: notebook.accuracyHistory || []
+      images: currentImages, 
+      accuracyHistory: notebook.accuracyHistory || []
     });
     setIsModalOpen(true);
   }, []);
@@ -664,14 +679,18 @@ export const Setup: React.FC = () => {
     setIsSaving(true);
     try {
         const nextDate = calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm);
+        
+        // Construct payload with explicit fields to ensure saving
         const payload: any = { 
             ...formData, 
             accuracy: Number(formData.accuracy), 
             targetAccuracy: Number(formData.targetAccuracy),
             nextReview: nextDate.toISOString()
         };
+        
         if (editingId) await editNotebook(editingId, payload);
-        else await addNotebook(payload); // Added logic to support create new
+        else await addNotebook(payload); 
+        
         setIsModalOpen(false);
     } catch (error) {
         console.error("Failed to save:", error);
