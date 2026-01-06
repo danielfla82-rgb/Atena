@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useStore } from '../store';
 import { createAIClient } from '../utils/ai';
 import { Type } from "@google/genai";
@@ -28,6 +28,48 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
       setLocalEditalText(config.editalText || '');
       setShowReprocessModal(true);
   };
+
+  // --- AUTO CHECK LOGIC (SYNC WITH SCHEDULE) ---
+  useEffect(() => {
+      const activeCycle = cycles.find(c => c.id === activeCycleId);
+      if (!activeCycle?.schedule || !config.structuredEdital) return;
+
+      // 1. Identify completed notebook IDs from the schedule
+      const completedNotebookIds = new Set<string>();
+      Object.values(activeCycle.schedule).flat().forEach((slot: any) => {
+          if (slot.completed) completedNotebookIds.add(slot.notebookId);
+      });
+
+      if (completedNotebookIds.size === 0) return;
+
+      // 2. Scan Edital and Auto-Check
+      let hasChanges = false;
+      const newEdital = config.structuredEdital.map(discipline => ({
+          ...discipline,
+          topics: discipline.topics.map(topic => {
+              // If already manually checked, skip
+              if (topic.checked) return topic;
+
+              const normTopic = normalize(topic.name);
+              
+              // Find if ANY completed notebook matches this topic name
+              const match = notebooks.find(nb => 
+                  completedNotebookIds.has(nb.id) && 
+                  (normalize(nb.name).includes(normTopic) || normTopic.includes(normalize(nb.name)))
+              );
+
+              if (match) {
+                  hasChanges = true;
+                  return { ...topic, checked: true };
+              }
+              return topic;
+          })
+      }));
+
+      if (hasChanges) {
+          updateConfig({ ...config, structuredEdital: newEdital });
+      }
+  }, [activeCycleId, cycles, notebooks, config.structuredEdital]); // config.structuredEdital dep is safe here as updateConfig creates new ref
 
   // --- STATS CALCULATION ---
   const stats = useMemo(() => {

@@ -29,10 +29,9 @@ export const Library: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   
   // Estado para controlar quais disciplinas (pastas) estão abertas
-  // Inicia vazio ou com todas abertas dependendo da preferência.
   const [expandedDisciplines, setExpandedDisciplines] = useState<Record<string, boolean>>({});
 
-  // --- FORM STATE (IDÊNTICO AO SETUP.TSX) ---
+  // --- FORM STATE (COMPLETO) ---
   const initialFormState = {
     discipline: '', name: '', subtitle: '', 
     tecLink: '', errorNotebookLink: '', favoriteQuestionsLink: '',
@@ -155,31 +154,28 @@ export const Library: React.FC = () => {
       setIsModalOpen(true);
   };
 
-  const handleOpenEdit = (nb: Notebook, e?: React.MouseEvent) => {
-      e?.stopPropagation();
-      setEditingId(nb.id);
-      let currentImages = nb.images || [];
-      if (currentImages.length === 0 && nb.image) currentImages = [nb.image];
-      
+  const handleEdit = (notebook: Notebook) => {
+      setEditingId(notebook.id);
+      let currentImages = notebook.images || [];
+      if (currentImages.length === 0 && notebook.image) currentImages = [notebook.image];
       setFormData({
-          discipline: nb.discipline, name: nb.name, subtitle: nb.subtitle || '',
-          tecLink: nb.tecLink || '', errorNotebookLink: nb.errorNotebookLink || '', favoriteQuestionsLink: nb.favoriteQuestionsLink || '',
-          lawLink: nb.lawLink || '', obsidianLink: nb.obsidianLink || '',
-          geminiLink1: nb.geminiLink1 || '', geminiLink2: nb.geminiLink2 || '',
-          accuracy: nb.accuracy, targetAccuracy: nb.targetAccuracy,
-          weight: nb.weight, relevance: nb.relevance, trend: nb.trend,
-          notes: nb.notes || '', images: currentImages,
-          accuracyHistory: nb.accuracyHistory || []
+          discipline: notebook.discipline, name: notebook.name, subtitle: notebook.subtitle,
+          tecLink: notebook.tecLink || '', errorNotebookLink: notebook.errorNotebookLink || '', favoriteQuestionsLink: notebook.favoriteQuestionsLink || '',
+          lawLink: notebook.lawLink || '', obsidianLink: notebook.obsidianLink || '',
+          geminiLink1: notebook.geminiLink1 || '', geminiLink2: notebook.geminiLink2 || '',
+          accuracy: notebook.accuracy, targetAccuracy: notebook.targetAccuracy, weight: notebook.weight,
+          relevance: notebook.relevance, trend: notebook.trend, notes: notebook.notes || '',
+          images: currentImages, accuracyHistory: notebook.accuracyHistory || []
       });
       setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: string, e?: React.MouseEvent) => {
-      e?.stopPropagation();
-      if (window.confirm("Tem certeza que deseja excluir este caderno do banco de dados? Isso afetará o planejamento.")) await deleteNotebook(id);
+  const handleDelete = async (id: string) => {
+      if (confirm('Tem certeza que deseja excluir este caderno?')) {
+          await deleteNotebook(id);
+      }
   };
 
-  // --- FORM FIELD HANDLERS ---
   const handleChange = (field: keyof typeof initialFormState, value: any) => setFormData(prev => ({ ...prev, [field]: value }));
   
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -196,16 +192,57 @@ export const Library: React.FC = () => {
   
   const removeImage = (index: number) => { setFormData(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== index) })); };
   
+  const handleNotStudied = () => { setFormData(prev => ({ ...prev, accuracy: 0, status: NotebookStatus.NOT_STARTED })); };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    try {
+        const nextDate = calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm);
+        const payload: any = { 
+            ...formData, 
+            accuracy: Number(formData.accuracy), 
+            targetAccuracy: Number(formData.targetAccuracy),
+            nextReview: nextDate.toISOString()
+        };
+        
+        if (editingId) {
+            await editNotebook(editingId, payload);
+        } else {
+            await addNotebook(payload);
+        }
+        setIsModalOpen(false);
+    } catch (error) {
+        console.error("Failed to save:", error);
+        alert("Erro ao salvar.");
+    } finally {
+        setIsSaving(false);
+    }
+  };
+
   const navigateLightbox = (direction: 'next' | 'prev') => {
       if (lightboxIndex === null) return;
       if (direction === 'next') setLightboxIndex((lightboxIndex + 1) % formData.images.length);
       else setLightboxIndex((lightboxIndex - 1 + formData.images.length) % formData.images.length);
   };
 
-  const handleQuickRecord = () => {
-      const newAccuracy = Number(formData.accuracy);
-      const newHistory = [...(formData.accuracyHistory || []), { date: new Date().toISOString(), accuracy: newAccuracy }].slice(-3);
-      setFormData(prev => ({ ...prev, accuracyHistory: newHistory }));
+  const handleQuickRecord = async () => {
+      setIsSaving(true);
+      try {
+          const newAccuracy = Number(formData.accuracy);
+          const nextDate = calculateNextReview(newAccuracy, formData.relevance, formData.trend, config.algorithm);
+          const newHistory = [...(formData.accuracyHistory || []), { date: new Date().toISOString(), accuracy: newAccuracy }].slice(-3);
+          
+          if(editingId) {
+              await editNotebook(editingId, { 
+                  accuracy: newAccuracy, 
+                  accuracyHistory: newHistory, 
+                  lastPractice: new Date().toISOString(),
+                  nextReview: nextDate.toISOString()
+              });
+              setFormData(prev => ({ ...prev, accuracyHistory: newHistory }));
+          }
+      } catch (err) { console.error("Quick save failed", err); } finally { setIsSaving(false); }
   };
 
   const removeHistoryItem = (index: number) => {
@@ -214,48 +251,10 @@ export const Library: React.FC = () => {
       setFormData(prev => ({ ...prev, accuracyHistory: newHistory }));
   };
 
-  const handleNotStudied = () => { setFormData(prev => ({ ...prev, accuracy: 0, status: NotebookStatus.NOT_STARTED as any })); };
-
-  const handleSave = async (e: React.FormEvent) => {
-      e.preventDefault();
-      setIsSaving(true);
-      try {
-          const nextDate = calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm);
-          const payload: any = { 
-              ...formData, 
-              accuracy: Number(formData.accuracy), 
-              targetAccuracy: Number(formData.targetAccuracy),
-              nextReview: nextDate.toISOString(),
-              status: Number(formData.accuracy) > 0 ? NotebookStatus.REVIEWING : NotebookStatus.NOT_STARTED 
-          };
-          if (editingId) await editNotebook(editingId, payload);
-          else await addNotebook(payload);
-          setIsModalOpen(false);
-      } catch (error) {
-          console.error("Failed to save:", error);
-          alert("Erro ao salvar.");
-      } finally {
-          setIsSaving(false);
-      }
-  };
-
-  const getBadgeColor = (disc: string) => {
-      const colors = [
-          'bg-emerald-900/50 text-emerald-400 border-emerald-500/30', 
-          'bg-cyan-900/50 text-cyan-400 border-cyan-500/30', 
-          'bg-blue-900/50 text-blue-400 border-blue-500/30', 
-          'bg-purple-900/50 text-purple-400 border-purple-500/30',
-          'bg-pink-900/50 text-pink-400 border-pink-500/30',
-          'bg-amber-900/50 text-amber-400 border-amber-500/30'
-      ];
-      const index = disc.length % colors.length;
-      return colors[index];
-  };
-
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6 pb-20 h-full flex flex-col relative">
+    <div className="p-6 max-w-7xl mx-auto space-y-6 pb-20 relative h-full flex flex-col">
       
-      {/* Lightbox for Images */}
+      {/* Lightbox */}
       {lightboxIndex !== null && (
           <div className="fixed inset-0 z-[60] bg-slate-950/95 flex items-center justify-center p-4 backdrop-blur-sm">
              <button onClick={() => setLightboxIndex(null)} className="absolute top-4 right-4 text-white hover:text-emerald-500 z-50"><X size={32} /></button>
@@ -271,210 +270,161 @@ export const Library: React.FC = () => {
       )}
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center pb-2 gap-4">
-          <div>
-              <h1 className="text-2xl font-bold text-white mb-1">Banco de Disciplinas</h1>
-              <p className="text-slate-400 text-sm">Gerencie seu conhecimento tático.</p>
-          </div>
-          <button onClick={handleOpenCreate} className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-all shadow-lg shadow-emerald-900/20 w-full md:w-auto justify-center">
-              <Plus size={18} /> Novo Caderno
-          </button>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-slate-800 pb-6 gap-4 flex-shrink-0">
+        <div>
+          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+            <LayoutGrid className="text-emerald-500" /> Banco de Disciplinas
+          </h1>
+          <p className="text-slate-400 mt-1 text-sm">
+            Gerencie seus cadernos e acompanhe o progresso por tópico.
+          </p>
+        </div>
+        <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+             <div className="relative flex-1 md:w-64">
+                <Search className="absolute left-3 top-2.5 text-slate-500" size={16} />
+                <input 
+                    type="text" 
+                    placeholder="Buscar tópicos..." 
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg py-2 pl-9 pr-3 text-sm text-white focus:border-emerald-500 outline-none"
+                />
+             </div>
+             <button onClick={handleOpenCreate} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-sm transition-colors shadow-lg shadow-emerald-900/20 whitespace-nowrap justify-center">
+                 <Plus size={16} /> Novo Caderno
+             </button>
+        </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4">
-              <div className="p-3 bg-slate-800 rounded-lg text-slate-400 hidden md:block"><BookOpen size={20} /></div>
-              <div>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Total de Cadernos</p>
-                  <p className="text-2xl font-bold text-blue-400">{stats.total}</p>
-              </div>
+      {/* Stats Bar */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-2 flex-shrink-0">
+          <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden">
+              <div className="p-3 bg-slate-800 rounded-lg text-slate-400"><BookOpen size={20} /></div>
+              <div><p className="text-[10px] text-slate-500 font-bold uppercase">Cadernos</p><p className="text-xl font-bold text-white">{stats.total}</p></div>
           </div>
-          <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4">
-              <div className="p-3 bg-slate-800 rounded-lg text-slate-400 hidden md:block"><Layers size={20} /></div>
-              <div>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Disciplinas</p>
-                  <p className="text-2xl font-bold text-purple-400">{stats.disciplines}</p>
-              </div>
+          <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden">
+              <div className="p-3 bg-slate-800 rounded-lg text-slate-400"><Layers size={20} /></div>
+              <div><p className="text-[10px] text-slate-500 font-bold uppercase">Disciplinas</p><p className="text-xl font-bold text-white">{stats.disciplines}</p></div>
           </div>
-          <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4">
-              <div className="p-3 bg-emerald-900/20 rounded-lg text-emerald-500 hidden md:block"><CheckCircle2 size={20} /></div>
-              <div>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Dominados</p>
-                  <p className="text-2xl font-bold text-emerald-400">{stats.mastered} <span className="text-[10px] text-slate-500 font-normal">top</span></p>
-              </div>
+          <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden">
+              <div className="p-3 bg-emerald-900/20 rounded-lg text-emerald-500"><CheckCircle2 size={20} /></div>
+              <div><p className="text-[10px] text-slate-500 font-bold uppercase">Dominados</p><p className="text-xl font-bold text-emerald-400">{stats.mastered}</p></div>
           </div>
-          <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4">
-              <div className="p-3 bg-slate-800 rounded-lg text-slate-400 hidden md:block"><LayoutGrid size={20} /></div>
-              <div>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Acurácia Global</p>
-                  <p className="text-2xl font-bold text-cyan-400">{stats.globalAcc}%</p>
-              </div>
-          </div>
-      </div>
-
-      {/* Toolbar */}
-      <div className="flex flex-col md:flex-row gap-4 items-center bg-slate-900/50 p-2 rounded-xl border border-slate-800/50">
-          <div className="relative flex-1 w-full">
-              <Search className="absolute left-3 top-2.5 text-slate-500" size={16} />
-              <input 
-                  type="text" 
-                  placeholder="Buscar tópico..." 
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg py-2 pl-9 pr-3 text-sm text-white focus:border-emerald-500 outline-none"
-              />
-          </div>
-          <div className="flex gap-2 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 custom-scrollbar">
-              {[
-                  { id: 'all', label: 'Tudo', icon: null },
-                  { id: 'review', label: 'Revisão', icon: <History size={12}/> },
-                  { id: 'critical', label: 'Críticos', icon: <AlertTriangle size={12}/> },
-                  { id: 'new', label: 'Nunca Vistos', icon: <Sparkles size={12}/> },
-                  { id: 'late', label: 'Atrasados', icon: <Clock size={12}/> },
-                  { id: 'heavy', label: 'Peso Alto', icon: <Star size={12}/> },
-              ].map(f => (
-                  <button 
-                      key={f.id}
-                      onClick={() => setActiveFilter(f.id)}
-                      className={`
-                          px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-all border
-                          ${activeFilter === f.id 
-                              ? 'bg-emerald-600 text-white border-emerald-500' 
-                              : 'bg-slate-900 text-slate-400 border-slate-700 hover:bg-slate-800'}
-                      `}
-                  >
-                      {f.icon} {f.label}
-                  </button>
-              ))}
+          <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden">
+              <div className="p-3 bg-indigo-900/20 rounded-lg text-indigo-500"><Thermometer size={20} /></div>
+              <div><p className="text-[10px] text-slate-500 font-bold uppercase">Acurácia Global</p><p className="text-xl font-bold text-indigo-400">{stats.globalAcc}%</p></div>
           </div>
       </div>
 
-      {/* LIST VIEW (GROUPED ACCORDION) */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4 pb-10">
-          {groupedData.sortedKeys.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-20 text-slate-600 opacity-50">
-                  <BookOpen size={48} className="mb-4" />
-                  <p>Nenhum caderno encontrado com estes filtros.</p>
-              </div>
-          ) : (
-              groupedData.sortedKeys.map(discipline => {
-                  const items = groupedData.groups[discipline];
-                  const avgAcc = Math.round(items.reduce((acc, i) => acc + i.accuracy, 0) / items.length);
-                  const isExpanded = expandedDisciplines[discipline] !== false; // Default true se quiser
+      {/* Filters */}
+      <div className="flex gap-2 overflow-x-auto pb-2 flex-shrink-0 custom-scrollbar">
+          {[
+              { id: 'all', label: 'Todos' },
+              { id: 'review', label: 'Em Revisão', icon: Clock },
+              { id: 'critical', label: 'Críticos (<60%)', icon: AlertTriangle },
+              { id: 'new', label: 'Novos', icon: Sparkles },
+              { id: 'late', label: 'Atrasados', icon: History },
+              { id: 'heavy', label: 'Peso Alto', icon: Star }
+          ].map(f => (
+              <button 
+                key={f.id} 
+                onClick={() => setActiveFilter(f.id)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-bold whitespace-nowrap transition-all ${activeFilter === f.id ? 'bg-slate-800 text-white border-slate-600' : 'bg-transparent text-slate-500 border-slate-800 hover:border-slate-700'}`}
+              >
+                  {f.icon && <f.icon size={12} />} {f.label}
+              </button>
+          ))}
+      </div>
 
-                  return (
-                      <div key={discipline} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden transition-all shadow-sm hover:shadow-md hover:border-slate-700">
-                          {/* Discipline Header Row */}
-                          <div 
-                            className="flex items-center justify-between p-4 cursor-pointer hover:bg-slate-800/50 transition-colors group select-none"
-                            onClick={() => toggleDiscipline(discipline)}
-                          >
-                              <div className="flex items-center gap-4 min-w-0">
-                                  <div className="text-slate-600 group-hover:text-white transition-colors">
-                                      <Square size={20} />
-                                  </div>
-                                  <div className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center font-bold text-sm border ${getBadgeColor(discipline)}`}>
-                                      {discipline.charAt(0).toUpperCase()}
-                                  </div>
-                                  <div className="min-w-0">
-                                      <h3 className="text-white font-bold text-sm truncate">{discipline}</h3>
-                                      <p className="text-xs text-slate-500 mt-0.5 truncate">{items.length} itens • <span className={avgAcc < 60 ? 'text-red-400' : 'text-emerald-400'}>{avgAcc}% acerto médio</span></p>
-                                  </div>
+      {/* Main List (Grouped) */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-4">
+          {groupedData.sortedKeys.map(discipline => {
+              const items = groupedData.groups[discipline];
+              const isExpanded = expandedDisciplines[discipline];
+              const avgAcc = Math.round(items.reduce((acc, i) => acc + i.accuracy, 0) / items.length);
+              
+              return (
+                  <div key={discipline} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden transition-all">
+                      <div 
+                        onClick={() => toggleDiscipline(discipline)}
+                        className="px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-slate-800/50 transition-colors"
+                      >
+                          <div className="flex items-center gap-4">
+                              <div className="bg-slate-800 p-2 rounded-lg text-slate-400">
+                                  {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                               </div>
-                              <div className="flex items-center gap-4 flex-shrink-0">
-                                  <div className="w-24 h-1.5 bg-slate-800 rounded-full overflow-hidden hidden sm:block">
-                                      <div className={`h-full ${avgAcc < 60 ? 'bg-red-500' : 'bg-emerald-500'}`} style={{ width: `${avgAcc}%` }}></div>
-                                  </div>
-                                  <span className="text-xs font-mono text-slate-500 hidden sm:block">{avgAcc}%</span>
-                                  <div className="p-2 text-slate-600 hover:text-white rounded-lg transition-colors">
-                                      {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                                  </div>
+                              <div>
+                                  <h3 className="font-bold text-white text-sm md:text-base">{discipline}</h3>
+                                  <p className="text-xs text-slate-500">{items.length} tópicos</p>
                               </div>
                           </div>
-
-                          {/* Notebook Items (Accordion Body) */}
-                          {isExpanded && (
-                              <div className="bg-slate-950/30 border-t border-slate-800/50 divide-y divide-slate-800/30">
-                                  {items.map(nb => {
-                                      const isCritical = nb.weight === Weight.MUITO_ALTO && nb.accuracy < 60;
-                                      
-                                      return (
-                                          <div key={nb.id} className={`group relative flex items-center justify-between p-3 pl-4 hover:bg-slate-900/80 transition-colors ${isCritical ? 'border-l-[3px] border-l-red-500 bg-red-900/5' : 'border-l-[3px] border-l-transparent'}`}>
-                                              
-                                              <div className="flex items-center gap-4 min-w-0 cursor-pointer flex-1" onClick={(e) => handleOpenEdit(nb, e)}>
-                                                  <div className="text-slate-700 group-hover:text-emerald-500 transition-colors">
-                                                      <Square size={18} />
-                                                  </div>
-                                                  
-                                                  <div className="min-w-0 pr-4">
-                                                      <h4 className={`text-sm font-medium truncate ${isCritical ? 'text-white' : 'text-slate-300'}`}>
-                                                          {nb.name}
-                                                      </h4>
-                                                      {nb.subtitle && <p className="text-xs text-slate-500 truncate">{nb.subtitle}</p>}
-                                                  </div>
-                                              </div>
-
-                                              <div className="flex items-center gap-3 flex-shrink-0">
-                                                  {isCritical && (
-                                                      <Thermometer size={14} className="text-red-500 hidden sm:block" />
-                                                  )}
-                                                  
-                                                  <div className={`hidden md:flex items-center gap-2 px-2 py-1 rounded text-[10px] font-bold border ${nb.accuracy > 0 ? 'bg-blue-900/20 text-blue-400 border-blue-500/30' : 'bg-slate-800 text-slate-500 border-slate-700'}`}>
-                                                      {nb.accuracy > 0 ? `Em Andamento (${nb.accuracy}%)` : 'Não Iniciado'}
-                                                  </div>
-
-                                                  <div className={`flex items-center justify-center px-2 py-1 rounded text-xs font-mono font-bold w-12 border ${nb.accuracy >= nb.targetAccuracy ? 'bg-emerald-900/20 text-emerald-400 border-emerald-500/30' : nb.accuracy < 60 ? 'bg-red-900/20 text-red-400 border-red-500/30' : 'bg-amber-900/20 text-amber-400 border-amber-500/30'}`}>
-                                                      {nb.accuracy}%
-                                                  </div>
-
-                                                  <div className="flex items-center gap-1">
-                                                      <button 
-                                                          onClick={() => startSession(nb)}
-                                                          className="p-2 text-slate-500 hover:text-emerald-400 hover:bg-slate-800 rounded transition-colors" 
-                                                          title="Estudar / Maximizar"
-                                                      >
-                                                          <Maximize2 size={14} />
-                                                      </button>
-                                                      <button 
-                                                          onClick={(e) => handleOpenEdit(nb, e)}
-                                                          className="p-2 text-slate-500 hover:text-blue-400 hover:bg-slate-800 rounded transition-colors"
-                                                          title="Editar"
-                                                      >
-                                                          <Edit2 size={14} />
-                                                      </button>
-                                                      <button 
-                                                          onClick={(e) => handleDelete(nb.id, e)}
-                                                          className="p-2 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded transition-colors"
-                                                          title="Excluir"
-                                                      >
-                                                          <Trash2 size={14} />
-                                                      </button>
-                                                  </div>
-                                              </div>
-                                          </div>
-                                      );
-                                  })}
+                          <div className="flex items-center gap-4">
+                              <div className={`px-2 py-1 rounded text-xs font-bold border ${avgAcc >= 90 ? 'bg-emerald-900/20 text-emerald-400 border-emerald-500/30' : avgAcc < 60 ? 'bg-red-900/20 text-red-400 border-red-500/30' : 'bg-amber-900/20 text-amber-400 border-amber-500/30'}`}>
+                                  Avg: {avgAcc}%
                               </div>
-                          )}
+                          </div>
                       </div>
-                  );
-              })
+
+                      {isExpanded && (
+                          <div className="border-t border-slate-800 divide-y divide-slate-800/50">
+                              {items.map(nb => (
+                                  <div key={nb.id} className="p-4 hover:bg-slate-800/20 transition-colors flex items-center justify-between group">
+                                      <div className="flex-1 min-w-0 pr-4 cursor-pointer" onClick={() => startSession(nb)}>
+                                          <div className="flex items-center gap-2 mb-1">
+                                              <h4 className="font-bold text-slate-200 text-sm truncate">{nb.name}</h4>
+                                              {nb.weight === Weight.MUITO_ALTO && <span className="text-[9px] bg-red-500/10 text-red-400 border border-red-500/20 px-1.5 rounded uppercase font-bold">Peso Max</span>}
+                                          </div>
+                                          <p className="text-xs text-slate-500 truncate">{nb.subtitle}</p>
+                                      </div>
+                                      
+                                      <div className="flex items-center gap-4 md:gap-8">
+                                          <div className="text-right hidden md:block">
+                                              <p className="text-[10px] text-slate-500 uppercase font-bold">Acurácia</p>
+                                              <p className={`font-mono font-bold text-sm ${nb.accuracy >= nb.targetAccuracy ? 'text-emerald-400' : nb.accuracy < 60 ? 'text-red-400' : 'text-amber-400'}`}>{nb.accuracy}%</p>
+                                          </div>
+                                          <div className="text-right hidden md:block">
+                                              <p className="text-[10px] text-slate-500 uppercase font-bold">Revisão</p>
+                                              <p className={`font-mono font-bold text-sm ${nb.nextReview && new Date(nb.nextReview) < new Date() ? 'text-red-400' : 'text-slate-300'}`}>
+                                                  {nb.nextReview ? new Date(nb.nextReview).toLocaleDateString(undefined, {day:'2-digit', month:'2-digit'}) : '--'}
+                                              </p>
+                                          </div>
+                                          
+                                          <div className="flex gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
+                                              <button onClick={() => startSession(nb)} className="p-2 bg-emerald-600/10 hover:bg-emerald-600 text-emerald-500 hover:text-white rounded-lg transition-colors" title="Iniciar Sessão">
+                                                  <Maximize2 size={16} />
+                                              </button>
+                                              <button onClick={() => handleEdit(nb)} className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg transition-colors" title="Editar">
+                                                  <Edit2 size={16} />
+                                              </button>
+                                              <button onClick={() => handleDelete(nb.id)} className="p-2 bg-slate-800 hover:bg-red-600 text-slate-400 hover:text-white rounded-lg transition-colors" title="Excluir">
+                                                  <Trash2 size={16} />
+                                              </button>
+                                          </div>
+                                      </div>
+                                  </div>
+                              ))}
+                          </div>
+                      )}
+                  </div>
+              );
+          })}
+          
+          {groupedData.sortedKeys.length === 0 && (
+              <div className="flex flex-col items-center justify-center h-64 text-slate-600">
+                  <BookOpen size={48} className="mb-4 opacity-50" />
+                  <p className="text-sm">Nenhum caderno encontrado com este filtro.</p>
+              </div>
           )}
       </div>
 
-      {/* RICH MODAL (IDENTICAL TO SETUP.TSX) */}
+      {/* Edit/Create Modal - REUSED FROM SETUP.TSX FOR CONSISTENCY */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh] animate-in fade-in zoom-in duration-200">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
             <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900">
-                <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                    {editingId ? <Pencil size={20} className="text-blue-500"/> : <Plus size={20} className="text-emerald-500"/>}
-                    {editingId ? 'Editar Caderno' : 'Novo Caderno'}
-                </h3>
+                <h3 className="text-xl font-bold text-white flex items-center gap-2"><Pencil size={20} className="text-emerald-500"/> {editingId ? 'Editar Caderno' : 'Novo Caderno'}</h3>
                 <button onClick={() => !isSaving && setIsModalOpen(false)} className="text-slate-400 hover:text-white" disabled={isSaving}><X size={24} /></button>
             </div>
-            
             <form onSubmit={handleSave} className="overflow-y-auto p-6 space-y-6 custom-scrollbar">
               <div className="space-y-4">
                   <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">1. Identificação</h4>
@@ -532,22 +482,6 @@ export const Library: React.FC = () => {
                                          </span>
                                          <span className="text-slate-500 text-[9px] font-normal">{computedNextReviewData.label}</span>
                                      </div>
-                                     <div className="flex justify-end relative group/help">
-                                         <span className="flex items-center gap-1 text-[9px] text-slate-600 cursor-pointer hover:text-emerald-500 transition-colors underline decoration-dotted">
-                                             <Info size={10} /> Como funciona o algoritmo?
-                                         </span>
-                                         <div className="absolute bottom-full right-0 mb-2 w-64 bg-slate-900 border border-slate-700 rounded-lg p-3 shadow-xl opacity-0 group-hover/help:opacity-100 transition-opacity z-50 pointer-events-none text-left">
-                                             <h5 className="text-white text-xs font-bold mb-2 flex items-center gap-1"><Sparkles size={10}/> Método Atena (SRS)</h5>
-                                             <p className="text-[10px] text-slate-400 mb-2 leading-relaxed">
-                                                 Baseado no Anki, mas calibrado para o mercado de concursos. O intervalo é calculado multiplicando:
-                                             </p>
-                                             <ul className="space-y-1.5">
-                                                 <li className="text-[10px] text-slate-300 flex items-start gap-1.5"><span className="w-1 h-1 rounded-full bg-emerald-500 mt-1.5 shrink-0"></span><span><strong>Acurácia:</strong> Define o intervalo base (Aprendizado, Revisão ou Manutenção).</span></li>
-                                                 <li className="text-[10px] text-slate-300 flex items-start gap-1.5"><span className="w-1 h-1 rounded-full bg-emerald-500 mt-1.5 shrink-0"></span><span><strong>Relevância:</strong> Acelera a revisão. "Altíssima" encurta o prazo em 30%.</span></li>
-                                                 <li className="text-[10px] text-slate-300 flex items-start gap-1.5"><span className="w-1 h-1 rounded-full bg-emerald-500 mt-1.5 shrink-0"></span><span><strong>Tendência:</strong> Ajuste fino baseado na banca.</span></li>
-                                             </ul>
-                                         </div>
-                                     </div>
                                  </div>
                              )}
 
@@ -582,6 +516,7 @@ export const Library: React.FC = () => {
               <div className="space-y-4 pt-2">
                 <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">3. Rascunhos & Anotações</h4>
                 
+                {/* GEMINI LINKS SECTION */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-indigo-900/10 p-3 rounded-xl border border-indigo-500/20">
                     <div>
                         <label className="block text-[10px] font-bold text-indigo-300 mb-1 uppercase tracking-wider flex items-center gap-1"><Sparkles size={10}/> Link Gemini (Contexto 1)</label>

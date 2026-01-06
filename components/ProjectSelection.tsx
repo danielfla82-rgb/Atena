@@ -8,7 +8,7 @@ interface Props {
 }
 
 export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
-  const { cycles, activeCycleId, createCycle, selectCycle, deleteCycle, loading } = useStore();
+  const { cycles, activeCycleId, createCycle, selectCycle, deleteCycle, loading, isGuest } = useStore();
   
   // State for creation modal
   const [isCreating, setIsCreating] = useState(false);
@@ -111,17 +111,19 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     
-                    {/* 1. Create New Card */}
-                    <button 
-                        onClick={() => setIsCreating(true)}
-                        className="group bg-slate-900/30 border-2 border-dashed border-slate-700 hover:border-emerald-500/50 p-8 rounded-2xl flex flex-col items-center justify-center text-center transition-all hover:bg-slate-900/60 min-h-[200px]"
-                    >
-                        <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center text-emerald-500 mb-4 group-hover:scale-110 transition-transform">
-                            <PlusCircle size={32} />
-                        </div>
-                        <h3 className="text-lg font-bold text-slate-200 group-hover:text-emerald-400">Iniciar Novo Ciclo</h3>
-                        <p className="text-sm text-slate-500 mt-2">Começar um planejamento do zero.</p>
-                    </button>
+                    {/* 1. Create New Card (HIDDEN IN GUEST MODE) */}
+                    {!isGuest && (
+                        <button 
+                            onClick={() => setIsCreating(true)}
+                            className="group bg-slate-900/30 border-2 border-dashed border-slate-700 hover:border-emerald-500/50 p-8 rounded-2xl flex flex-col items-center justify-center text-center transition-all hover:bg-slate-900/60 min-h-[200px]"
+                        >
+                            <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center text-emerald-500 mb-4 group-hover:scale-110 transition-transform">
+                                <PlusCircle size={32} />
+                            </div>
+                            <h3 className="text-lg font-bold text-slate-200 group-hover:text-emerald-400">Iniciar Novo Ciclo</h3>
+                            <p className="text-sm text-slate-500 mt-2">Começar um planejamento do zero.</p>
+                        </button>
+                    )}
 
                     {/* 2. Existing Cycles */}
                     {cycles.map((cycle) => (
@@ -134,23 +136,25 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
                                     : 'border-slate-800 hover:border-slate-600'}
                             `}
                         >
-                            {/* Double Safety Delete Button */}
-                            <button 
-                                onClick={(e) => handleDeleteClick(e, cycle.id)}
-                                className={`absolute top-4 right-4 p-2 rounded-lg transition-all z-20 flex items-center gap-2
-                                    ${deleteConfirmId === cycle.id 
-                                        ? 'bg-red-600 text-white opacity-100' 
-                                        : 'text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100'}
-                                `}
-                            >
-                                {deleteConfirmId === cycle.id ? (
-                                    <span className="text-xs font-bold flex items-center gap-1">
-                                        <AlertTriangle size={12} /> Confirmar?
-                                    </span>
-                                ) : (
-                                    <Trash2 size={16} />
-                                )}
-                            </button>
+                            {/* Double Safety Delete Button (HIDDEN IN GUEST MODE) */}
+                            {!isGuest && (
+                                <button 
+                                    onClick={(e) => handleDeleteClick(e, cycle.id)}
+                                    className={`absolute top-4 right-4 p-2 rounded-lg transition-all z-20 flex items-center gap-2
+                                        ${deleteConfirmId === cycle.id 
+                                            ? 'bg-red-600 text-white opacity-100' 
+                                            : 'text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100'}
+                                    `}
+                                >
+                                    {deleteConfirmId === cycle.id ? (
+                                        <span className="text-xs font-bold flex items-center gap-1">
+                                            <AlertTriangle size={12} /> Confirmar?
+                                        </span>
+                                    ) : (
+                                        <Trash2 size={16} />
+                                    )}
+                                </button>
+                            )}
 
                             <div>
                                 <div className="flex justify-between items-start mb-4">
@@ -193,7 +197,7 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
         </div>
 
         {/* === CREATE MODAL === */}
-        {isCreating && (
+        {isCreating && !isGuest && (
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
                 <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-6 shadow-2xl relative">
                     <button onClick={() => setIsCreating(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white">

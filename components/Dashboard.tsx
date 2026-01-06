@@ -1,18 +1,18 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useStore } from '../store';
 import { QuadrantChart } from './QuadrantChart';
 import { WeeklyProgress } from './WeeklyProgress';
-import { Notebook, WEIGHT_SCORE, RELEVANCE_SCORE, Weight } from '../types';
+import { Notebook, WEIGHT_SCORE, RELEVANCE_SCORE, TREND_SCORE, Weight } from '../types';
 import { DEFAULT_ALGO_CONFIG } from '../utils/algorithm';
 import { 
   Target, Settings, TrendingUp,
   PieChart as PieChartIcon, Activity, Layers, Siren, ArrowRight, CheckCircle2,
   Check, XCircle, Quote, ChevronDown, BarChart2,
-  RefreshCw, BrainCircuit, Crosshair, Scroll, Crown, Zap, Save, X, Calendar, FileText
+  RefreshCw, BrainCircuit, Crosshair, Scroll, Crown, Zap, Save, X, Calendar, FileText,
+  Map, FlagTriangleRight, Flame, AlertCircle, Scale, Anchor
 } from 'lucide-react';
 
-// --- CHART.JS IMPORTS & CONFIGURATION (CRITICAL FIX) ---
-// Replacing Recharts due to React 19 Concurrent Rendering Issues
+// --- CHART.JS IMPORTS & CONFIGURATION ---
 import {
   Chart as ChartJS,
   RadialLinearScale,
@@ -25,7 +25,8 @@ import {
   Tooltip as ChartTooltip,
   Legend,
   Filler,
-  ChartData
+  ChartData,
+  ScriptableContext
 } from 'chart.js';
 import { Radar, Line, Bar, Chart } from 'react-chartjs-2';
 
@@ -162,20 +163,17 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       const activeCycle = cycles.find(c => c.id === activeCycleId);
       if (!activeCycle) return [];
 
-      // 1. Determine Current Week ID
+      // Determine Current Week ID
       const start = config.startDate ? new Date(config.startDate) : new Date();
-      // Set hours to 0 to compare dates properly
       start.setHours(0,0,0,0);
       const now = new Date();
       now.setHours(0,0,0,0);
       
       const diffTime = now.getTime() - start.getTime();
-      // If start date is in the future, it's week 1
       const diffDays = diffTime < 0 ? 0 : Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       const currentWeekIndex = Math.floor(diffDays / 7) + 1;
       const currentWeekId = `week-${currentWeekIndex}`;
 
-      // 2. Get Pending Slots for THIS specific week
       const pendingDisciplines = new Set<string>();
 
       if (activeCycle.schedule && activeCycle.schedule[currentWeekId]) {
@@ -186,13 +184,11 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
               }
           });
       } else {
-          // Fallback logic if no schedule found or legacy mode: show overdue or high priority
-          // This ensures the box isn't empty if the user hasn't planned properly yet
           notebooks.filter(n => n.weight === Weight.MUITO_ALTO && n.accuracy < n.targetAccuracy)
                    .forEach(n => pendingDisciplines.add(n.discipline));
       }
 
-      return Array.from(pendingDisciplines).slice(0, 4); // Limit to 4 for UI fit
+      return Array.from(pendingDisciplines).slice(0, 4);
   }, [notebooks, activeCycleId, cycles, config.startDate]);
 
   const metrics = useMemo(() => {
@@ -222,7 +218,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       return { avgAccuracy, completedTopics, pendingTopics: totalTopics - completedTopics, progressPercent, dates, currentStreak };
   }, [notebooks]);
 
-  // --- CHART DATA PREPARATION (Chart.js Format) ---
+  // --- CHART DATA PREPARATION ---
   
   // 1. Radar Chart (Competência)
   const radarChartData = useMemo(() => {
@@ -234,10 +230,8 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
         grouped[nb.discipline].count += 1;
      });
      
-     // Ordenar por atividade para pegar as disciplinas mais relevantes
      const keys = Object.keys(grouped).sort((a,b) => grouped[b].count - grouped[a].count).slice(0, 6);
      
-     // Pad se tiver menos de 3 para o radar não quebrar
      const labels = [...keys];
      const dataPoints = keys.map(k => Math.round(grouped[k].total / grouped[k].count));
      
@@ -256,8 +250,8 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
          datasets: [{
              label: 'Acurácia Média',
              data: dataPoints,
-             backgroundColor: 'rgba(16, 185, 129, 0.2)', // Emerald-500 com opacidade
-             borderColor: '#10b981', // Emerald-500 sólido
+             backgroundColor: 'rgba(16, 185, 129, 0.2)',
+             borderColor: '#10b981',
              borderWidth: 2,
              pointBackgroundColor: '#fff',
              pointBorderColor: '#10b981',
@@ -271,15 +265,13 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
   const evolutionChartData = useMemo(() => {
     const weeks = Array.from({ length: 8 }, (_, i) => `S${i + 1}`);
     const dataPoints = weeks.map((_, index) => {
-        // Simulação inteligente baseada no histórico (se disponível) ou média
         const weekNotebooks = notebooks.filter(nb => nb.accuracyHistory && nb.accuracyHistory.length > index);
         const count = weekNotebooks.length;
-        if (count === 0) return null; // Chart.js trata null como gap ou ignora
+        if (count === 0) return null;
         const total = weekNotebooks.reduce((sum, nb) => sum + (nb.accuracyHistory?.[index]?.accuracy || nb.accuracy), 0);
         return Math.round(total / count);
     });
 
-    // Simple smooth fill for nulls to avoid broken lines
     let lastVal = 0;
     const filledData = dataPoints.map(val => {
         if (val !== null && val > 0) lastVal = val;
@@ -291,9 +283,9 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
         datasets: [{
             label: 'Evolução Global',
             data: filledData,
-            borderColor: '#3b82f6', // Blue-500
+            borderColor: '#3b82f6',
             backgroundColor: 'rgba(59, 130, 246, 0.1)',
-            tension: 0.4, // Curva suave
+            tension: 0.4,
             fill: true,
             pointRadius: 4,
             pointBackgroundColor: '#1e293b',
@@ -303,7 +295,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
     };
   }, [notebooks]);
 
-  // 3. Pareto Bar/Line Chart (Mixed)
+  // 3. Pareto Bar/Line Chart
   const paretoChartData: ChartData<'bar' | 'line', number[], string> = useMemo(() => {
       const items = notebooks.filter(n => n.discipline !== 'Revisão Geral').map(n => ({
             name: n.name.length > 15 ? n.name.substring(0,15) + '...' : n.name,
@@ -324,7 +316,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                   type: 'line' as const,
                   label: '% Acumulada',
                   data: cumulative,
-                  borderColor: '#f59e0b', // Amber-500
+                  borderColor: '#f59e0b',
                   borderWidth: 2,
                   yAxisID: 'y1',
                   tension: 0.1,
@@ -334,7 +326,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                   type: 'bar' as const,
                   label: 'Impacto (Peso x Relevância)',
                   data: items.map(i => i.score),
-                  backgroundColor: '#6366f1', // Indigo-500
+                  backgroundColor: '#6366f1',
                   borderRadius: 4,
                   yAxisID: 'y',
                   barPercentage: 0.6
@@ -343,7 +335,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       };
   }, [notebooks]);
 
-  // 4. Weight Hierarchy (Horizontal Bar - Replacement for unstable Treemap)
+  // 4. Weight Hierarchy
   const weightChartData = useMemo(() => {
       const grouped: Record<string, number> = {};
       notebooks.forEach(nb => {
@@ -359,7 +351,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           datasets: [{
               label: 'Pontos de Peso Estratégico',
               data: sorted.map(([,v]) => v),
-              backgroundColor: sorted.map((_, i) => i < 2 ? '#10b981' : '#334155'), // Top 2 verdes, resto slate
+              backgroundColor: sorted.map((_, i) => i < 2 ? '#10b981' : '#334155'),
               borderRadius: 4,
               indexAxis: 'y' as const,
               barPercentage: 0.7
@@ -367,9 +359,193 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       };
   }, [notebooks]);
 
+  // 5. Strategic Curve (Ideal vs Real)
+  const strategicCurveData = useMemo(() => {
+      // Timeline setup
+      const today = new Date();
+      const start = config.startDate ? new Date(config.startDate) : new Date();
+      const exam = config.examDate ? new Date(config.examDate) : new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000);
+      
+      let totalDays = Math.ceil((exam.getTime() - start.getTime()) / (1000 * 3600 * 24));
+      if (totalDays <= 0) totalDays = 90;
+
+      const points = 30;
+      const interval = Math.ceil(totalDays / points);
+      
+      const labels = Array.from({length: points}, (_, i) => {
+          const d = new Date(start.getTime() + (i * interval * 24 * 60 * 60 * 1000));
+          return d.toLocaleDateString(undefined, {day: '2-digit', month: '2-digit'});
+      });
+
+      const phase1End = Math.floor(points * 0.33);
+      const phase2End = Math.floor(points * 0.66);
+
+      // --- CALCULATE REAL METRICS (SNAPSHOT) ---
+      let currentAttackScore = 0;
+      let currentMaintScore = 0;
+      let totalAttackPotential = 0;
+      let totalMaintPotential = 0;
+
+      notebooks.forEach(n => {
+          if (n.discipline !== 'Revisão Geral') {
+              const weight = WEIGHT_SCORE[n.weight];
+              const relevance = RELEVANCE_SCORE[n.relevance];
+              const trend = TREND_SCORE?.[n.trend] || 2;
+              
+              // Attack Score (Yellow): High Weight, Low Accuracy matters more
+              const attackFactor = weight * relevance * trend;
+              const attackValue = attackFactor * ((100 - n.accuracy) / 100);
+              currentAttackScore += attackValue;
+              totalAttackPotential += attackFactor; // Max possible if accuracy was 0
+
+              // Maintenance Score (Green): High Coverage matters
+              if (n.accuracy >= 80) {
+                  currentMaintScore += weight; // Accumulated completed weight
+              }
+              totalMaintPotential += weight;
+          }
+      });
+
+      // Normalize Real Scores to 0-100 scale for charting
+      const normalizedRealAttack = totalAttackPotential > 0 ? (currentAttackScore / totalAttackPotential) * 100 : 0;
+      const normalizedRealMaint = totalMaintPotential > 0 ? (currentMaintScore / totalMaintPotential) * 100 : 0;
+
+      // --- CURVE GENERATION ---
+      
+      // 1. Ideal Attack (Yellow Dotted): Starts high (learning), dips (mastery), small spike (final review)
+      const dataIdealYellow = labels.map((_, i) => {
+          if (i <= phase1End) return 80 + (Math.sin(i * 0.5) * 5); // Phase 1: High
+          else if (i <= phase2End) {
+              const rel = i - phase1End;
+              return Math.max(30, 80 - (rel * 3)); // Phase 2: Drop as mastery increases
+          } else {
+              const rel = i - phase2End;
+              return Math.min(60, 30 + (rel * 2)); // Phase 3: Final review spike
+          }
+      });
+
+      // 2. Ideal Maintenance (Green Dotted): Starts low, rises steadily
+      const dataIdealGreen = labels.map((_, i) => {
+          return Math.min(90, 10 + (i * (80 / points))); // Linear climb to 90%
+      });
+
+      // 3. Real Attack (Yellow Solid): Simulated curve ending at current Actual
+      const currentPointIndex = Math.floor((Math.max(0, today.getTime() - start.getTime()) / (exam.getTime() - start.getTime())) * points);
+      const dataRealYellow = labels.map((_, i) => {
+          if (i > currentPointIndex) return null; // Future is unknown
+          // Simulate a "Real" curve that converges to the calculated snapshot
+          // This is a visual approximation since we don't have daily snapshots in DB
+          const ideal = dataIdealYellow[i];
+          const deviation = normalizedRealAttack - (dataIdealYellow[currentPointIndex] || 50);
+          // Apply deviation progressively
+          const progress = i / (currentPointIndex || 1);
+          return ideal + (deviation * progress);
+      });
+
+      // 4. Real Maintenance (Green Solid)
+      const dataRealGreen = labels.map((_, i) => {
+          if (i > currentPointIndex) return null;
+          const ideal = dataIdealGreen[i];
+          const deviation = normalizedRealMaint - (dataIdealGreen[currentPointIndex] || 50);
+          const progress = i / (currentPointIndex || 1);
+          return Math.max(0, ideal + (deviation * progress));
+      });
+
+      return {
+          labels,
+          currentPointIndex,
+          idealAttackNow: dataIdealYellow[currentPointIndex] || 0,
+          realAttackNow: normalizedRealAttack,
+          idealMaintNow: dataIdealGreen[currentPointIndex] || 0,
+          realMaintNow: normalizedRealMaint,
+          datasets: [
+              {
+                  label: 'Ideal FOCC (Simulado)',
+                  data: dataIdealYellow,
+                  borderColor: '#fbbf24', // Amber-400
+                  borderDash: [5, 5],
+                  borderWidth: 2,
+                  pointRadius: 0,
+                  tension: 0.4
+              },
+              {
+                  label: 'Real FOCC (Você)',
+                  data: dataRealYellow,
+                  borderColor: '#f59e0b', // Amber-500
+                  backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                  borderWidth: 3,
+                  pointRadius: 0,
+                  fill: true,
+                  tension: 0.4
+              },
+              {
+                  label: 'Ideal Manutenção (Simulado)',
+                  data: dataIdealGreen,
+                  borderColor: '#34d399', // Emerald-400
+                  borderDash: [5, 5],
+                  borderWidth: 2,
+                  pointRadius: 0,
+                  tension: 0.4
+              },
+              {
+                  label: 'Real Manutenção (Você)',
+                  data: dataRealGreen,
+                  borderColor: '#10b981', // Emerald-500
+                  backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                  borderWidth: 3,
+                  pointRadius: 0,
+                  fill: true,
+                  tension: 0.4
+              }
+          ]
+      };
+  }, [config.startDate, config.examDate, notebooks]);
+
+  // --- STRATEGIC ADVICE (Organization vs Study) ---
+  const strategicAdvice = useMemo(() => {
+      const curve = strategicCurveData;
+      const attackGap = curve.realAttackNow - curve.idealAttackNow; // Positive = Bad (Too much error/weight left)
+      const maintGap = curve.realMaintNow - curve.idealMaintNow; // Negative = Bad (Not enough mastered)
+
+      let title = "Calibragem Tática";
+      let status = "Neutro";
+      let advice = "";
+      let icon = <Scale size={20} className="text-slate-400"/>;
+      let colorClass = "border-slate-700 bg-slate-900/50";
+
+      // Logic Hierarchy: Attack Gap is critical
+      if (attackGap > 15) {
+          title = "Alerta: Sobrecarga Cognitiva";
+          status = "Dispersão Alta";
+          icon = <Siren size={20} className="text-red-500 animate-pulse"/>;
+          colorClass = "border-red-500/30 bg-red-950/20";
+          advice = "Sua carga de 'Ataque' (Matéria Nova + Erros) está muito acima do ideal. Você está acumulando conteúdo sem consolidar. AÇÃO: Pare matérias novas por 3 dias. Faça um 'Ciclo de Travamento' focado apenas em revisão de erros e questões antigas.";
+      } else if (maintGap < -15) {
+          title = "Risco: Erosão de Memória";
+          status = "Manutenção Baixa";
+          icon = <Anchor size={20} className="text-amber-500"/>;
+          colorClass = "border-amber-500/30 bg-amber-950/20";
+          advice = "Sua curva de manutenção está abaixo do planejado. Você está avançando, mas deixando rastros de esquecimento. AÇÃO: Aumente a proporção de Revisão Ativa no seu ciclo (de 20% para 40%) na próxima semana. Use Flashcards.";
+      } else if (attackGap < -10 && maintGap > -5) {
+          title = "Oportunidade: Aceleração";
+          status = "Subutilizado";
+          icon = <Zap size={20} className="text-cyan-400"/>;
+          colorClass = "border-cyan-500/30 bg-cyan-950/20";
+          advice = "Você está confortável demais. A curva real de ataque está abaixo da ideal, indicando que você domina o material atual. AÇÃO: Aumente o volume de matérias novas ou suba o nível das questões (ex: Área Fiscal/Controle) para forçar a evolução.";
+      } else {
+          title = "Alinhamento Estratégico";
+          status = "No Trilho";
+          icon = <CheckCircle2 size={20} className="text-emerald-500"/>;
+          colorClass = "border-emerald-500/30 bg-emerald-950/20";
+          advice = "Sua dispersão é mínima. O planejamento real reflete a simulação ideal. AÇÃO: Mantenha a constância. Não altere o método agora. O foco é apenas cumprir a carga horária estabelecida.";
+      }
+
+      return { title, status, advice, icon, colorClass, attackGap, maintGap };
+  }, [strategicCurveData]);
+
   const quadrantData = useMemo(() => notebooks.filter(n => n.discipline !== 'Revisão Geral'), [notebooks]);
 
-  // --- RECOMMENDATION ENGINE ---
+  // --- RECOMMENDATION ENGINE (Keeping logic for specific notebook suggestion in side panel) ---
   const athenaRecommendation = useMemo(() => {
     const candidates = notebooks.filter(n => n.discipline !== 'Revisão Geral');
     if (candidates.length === 0) return null;
@@ -531,44 +707,24 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           </div>
       </div>
 
-      {/* NIETZSCHE BLOCK (REDESIGNED: COMPACT & RECTANGULAR) */}
+      {/* NIETZSCHE BLOCK */}
       <div className="w-full bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl relative overflow-hidden group flex flex-col md:flex-row min-h-[240px]">
-          
-          {/* Left Content */}
           <div className="flex-1 p-6 md:p-8 flex flex-col justify-center relative z-10">
               <div className="absolute top-0 right-0 p-6 opacity-10 pointer-events-none md:hidden"><Quote size={80} /></div>
-              
               <div className="inline-flex items-center gap-2 mb-4 px-2 py-1 bg-emerald-950/30 border border-emerald-500/20 rounded text-emerald-400 text-[10px] font-bold uppercase tracking-widest w-fit">
                   <Crown size={12} /> Oráculo de Elite
               </div>
-
-              <h3 className="text-xl md:text-2xl font-serif text-slate-100 italic leading-relaxed mb-4 max-w-2xl">
-                  "{nietzscheItem.quote}"
-              </h3>
-
+              <h3 className="text-xl md:text-2xl font-serif text-slate-100 italic leading-relaxed mb-4 max-w-2xl">"{nietzscheItem.quote}"</h3>
               <div className="flex items-center gap-3 text-slate-500 text-xs font-bold mb-6">
-                  <Scroll size={14} className="text-slate-600"/> 
-                  <span className="uppercase tracking-wider">{nietzscheItem.source}</span>
+                  <Scroll size={14} className="text-slate-600"/> <span className="uppercase tracking-wider">{nietzscheItem.source}</span>
               </div>
-
               <div className="bg-slate-950/50 border-l-2 border-emerald-500/50 pl-4 py-2 rounded-r-lg max-w-xl">
-                  <p className="text-slate-400 text-xs leading-relaxed">
-                      <strong className="text-emerald-500 block mb-1 uppercase text-[9px] tracking-wider">Estratégia:</strong>
-                      {nietzscheItem.context}
-                  </p>
+                  <p className="text-slate-400 text-xs leading-relaxed"><strong className="text-emerald-500 block mb-1 uppercase text-[9px] tracking-wider">Estratégia:</strong>{nietzscheItem.context}</p>
               </div>
           </div>
-
-          {/* Right Image (Rectangular Cover) */}
           <div className="w-full md:w-1/3 lg:w-1/4 relative min-h-[200px] md:min-h-full">
-              {/* Gradient Overlay for blending */}
               <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-slate-900 via-slate-900/20 to-transparent z-10"></div>
-              
-              <img 
-                src="https://i.postimg.cc/rFFwpKjm/Gemini-Generated-Image-tchb4stchb4stchb.png" 
-                className="w-full h-full object-cover object-top grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700" 
-                alt="Friedrich Nietzsche" 
-              />
+              <img src="https://i.postimg.cc/rFFwpKjm/Gemini-Generated-Image-tchb4stchb4stchb.png" className="w-full h-full object-cover object-top grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700" alt="Friedrich Nietzsche" />
           </div>
       </div>
 
@@ -584,85 +740,33 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           </div>
       </DashboardSection>
 
-      {/* ...rest of the component (Evolution, Pareto, etc.) remains unchanged... */}
-      {/* Keeping existing chart sections for brevity as they don't change */}
-      
-      {/* === EVOLUTION & COMPETENCE (CHART.JS MIGRATION) === */}
+      {/* === EVOLUTION & COMPETENCE === */}
       <DashboardSection title="Evolução & Competência" subtitle="Histórico de Desempenho e Equilíbrio de Matérias" icon={<Activity size={20} />} defaultOpen={true}>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-               
-               {/* Radar Chart (Chart.js) */}
                <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col">
-                  <h3 className="text-white font-bold mb-4 flex items-center gap-2 text-sm">
-                     <Activity size={16} className="text-purple-500"/> Radar de Competência
-                  </h3>
+                  <h3 className="text-white font-bold mb-4 flex items-center gap-2 text-sm"><Activity size={16} className="text-purple-500"/> Radar de Competência</h3>
                   <div className="w-full h-[320px] flex items-center justify-center">
                       <Radar 
                         data={radarChartData} 
-                        options={{
-                            maintainAspectRatio: false,
-                            responsive: true,
-                            scales: {
-                                r: {
-                                    angleLines: { color: '#334155' },
-                                    grid: { color: '#334155' },
-                                    pointLabels: { color: '#94a3b8', font: { size: 10 } },
-                                    ticks: { display: false, backdropColor: 'transparent' },
-                                    suggestedMin: 0,
-                                    suggestedMax: 100
-                                }
-                            },
-                            plugins: { legend: { display: false } }
-                        }} 
+                        options={{ maintainAspectRatio: false, responsive: true, scales: { r: { angleLines: { color: '#334155' }, grid: { color: '#334155' }, pointLabels: { color: '#94a3b8', font: { size: 10 } }, ticks: { display: false, backdropColor: 'transparent' }, suggestedMin: 0, suggestedMax: 100 } }, plugins: { legend: { display: false } } }} 
                       />
                   </div>
                </div>
-
-               {/* Evolution Chart (Chart.js) */}
                <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 flex flex-col">
-                 <h3 className="text-slate-100 font-bold text-sm mb-4 flex items-center gap-2">
-                   <TrendingUp size={16} className="text-cyan-400"/> Evolução Semanal
-                 </h3>
+                 <h3 className="text-slate-100 font-bold text-sm mb-4 flex items-center gap-2"><TrendingUp size={16} className="text-cyan-400"/> Evolução Semanal</h3>
                  <div className="w-full h-[320px]">
                     <Line 
                         data={evolutionChartData}
-                        options={{
-                            maintainAspectRatio: false,
-                            responsive: true,
-                            scales: {
-                                y: {
-                                    beginAtZero: true,
-                                    max: 100,
-                                    grid: { color: '#334155' },
-                                    ticks: { color: '#94a3b8', font: { size: 10 } }
-                                },
-                                x: {
-                                    grid: { display: false },
-                                    ticks: { color: '#94a3b8', font: { size: 10 } }
-                                }
-                            },
-                            plugins: {
-                                legend: { display: false },
-                                tooltip: { 
-                                    backgroundColor: '#0f172a',
-                                    titleColor: '#fff',
-                                    bodyColor: '#cbd5e1',
-                                    borderColor: '#334155',
-                                    borderWidth: 1
-                                }
-                            }
-                        }}
+                        options={{ maintainAspectRatio: false, responsive: true, scales: { y: { beginAtZero: true, max: 100, grid: { color: '#334155' }, ticks: { color: '#94a3b8', font: { size: 10 } }, type: 'linear' }, x: { grid: { display: false }, ticks: { color: '#94a3b8', font: { size: 10 } }, type: 'category' } }, plugins: { legend: { display: false } } }}
                     />
                  </div>
               </div>
           </div>
       </DashboardSection>
 
-      {/* === DEPTH ANALYSIS (CHART.JS MIGRATION) === */}
+      {/* === DEPTH ANALYSIS === */}
       <DashboardSection title="Análise de Profundidade (Elite)" subtitle="Pareto 80/20 e Hierarquia de Pesos" icon={<Layers size={20} />} defaultOpen={true}>
          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-             
-             {/* Pareto Chart (Mixed Bar/Line) */}
              <div className="bg-slate-950 border border-slate-800 rounded-xl p-6 flex flex-col">
                 <div className="mb-4">
                     <h3 className="text-white font-bold flex items-center gap-2"><PieChartIcon size={18} className="text-amber-500"/> Diagrama de Pareto (80/20)</h3>
@@ -671,39 +775,10 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                     <Chart 
                         type='bar'
                         data={paretoChartData}
-                        options={{
-                            maintainAspectRatio: false,
-                            responsive: true,
-                            interaction: { mode: 'index', intersect: false },
-                            scales: {
-                                y: {
-                                    type: 'linear',
-                                    display: true,
-                                    position: 'left',
-                                    grid: { color: '#334155' }
-                                },
-                                y1: {
-                                    type: 'linear',
-                                    display: true,
-                                    position: 'right',
-                                    grid: { display: false },
-                                    max: 100,
-                                    ticks: { callback: (val) => val + '%' }
-                                },
-                                x: {
-                                    grid: { display: false },
-                                    ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 45 }
-                                }
-                            },
-                            plugins: {
-                                legend: { labels: { color: '#94a3b8', font: { size: 10 } } }
-                            }
-                        }}
+                        options={{ maintainAspectRatio: false, responsive: true, interaction: { mode: 'index', intersect: false }, scales: { y: { type: 'linear', display: true, position: 'left', grid: { color: '#334155' } }, y1: { type: 'linear', display: true, position: 'right', grid: { display: false }, max: 100, ticks: { callback: (val) => val + '%' } }, x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 45 } } }, plugins: { legend: { labels: { color: '#94a3b8', font: { size: 10 } } } } }}
                     />
                 </div>
              </div>
-
-             {/* Weights Distribution (Horizontal Bar - Replacement for Treemap) */}
              <div className="bg-slate-950 border border-slate-800 rounded-xl p-6 flex flex-col">
                 <div className="mb-4">
                     <h3 className="text-white font-bold flex items-center gap-2"><BarChart2 size={18} className="text-emerald-500"/> Hierarquia de Pesos</h3>
@@ -711,31 +786,114 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                 <div className="w-full h-[320px]">
                     <Bar 
                         data={weightChartData}
-                        options={{
-                            indexAxis: 'y', // Horizontal
-                            maintainAspectRatio: false,
-                            responsive: true,
-                            scales: {
-                                x: { grid: { color: '#334155' } },
-                                y: { 
-                                    grid: { display: false },
-                                    ticks: { color: '#e2e8f0', font: { weight: 'bold' } }
-                                }
-                            },
-                            plugins: {
-                                legend: { display: false }
-                            }
-                        }}
+                        options={{ indexAxis: 'y', maintainAspectRatio: false, responsive: true, scales: { x: { grid: { color: '#334155' } }, y: { grid: { display: false }, ticks: { color: '#e2e8f0', font: { weight: 'bold' } } } }, plugins: { legend: { display: false } } }}
                     />
                 </div>
              </div>
          </div>
       </DashboardSection>
 
-      {/* Config Modal */}
+      {/* === STRATEGIC CURVE (UPDATED) === */}
+      <DashboardSection title="Planejamento Estratégico: Curva de Carga" subtitle="Simulação Ideal vs. Execução Real" icon={<Map size={20} />} defaultOpen={true}>
+          <div className="bg-slate-950 border border-slate-800 rounded-xl p-6 relative">
+              
+              {/* Overlay Metrics */}
+              <div className="absolute top-6 left-6 z-10 hidden md:block">
+                  <div className="flex flex-col gap-1 bg-slate-900/80 p-3 rounded-lg border border-slate-700 backdrop-blur-sm">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Métrica Atual</span>
+                      <span className="text-white font-bold text-sm">Peso x Taxa de Erro</span>
+                  </div>
+              </div>
+
+              {/* Phases Legend */}
+              <div className="flex justify-between items-center px-4 mb-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 border-b border-slate-800/50 pb-2">
+                  <span className="text-amber-500 flex items-center gap-1"><FlagTriangleRight size={10} fill="currentColor"/> FASE 1: Ataque (33%)</span>
+                  <span className="text-emerald-500 flex items-center gap-1"><FlagTriangleRight size={10} fill="currentColor"/> FASE 2: Consolidação (33%)</span>
+                  <span className="text-yellow-400 flex items-center gap-1"><FlagTriangleRight size={10} fill="currentColor"/> FASE 3: Sprint (33%)</span>
+              </div>
+
+              <div className="w-full h-[320px]">
+                  <Line 
+                      data={strategicCurveData}
+                      options={{
+                          maintainAspectRatio: false,
+                          responsive: true,
+                          scales: {
+                              x: { 
+                                  grid: { display: false, color: '#334155' },
+                                  ticks: { 
+                                      maxTicksLimit: 8,
+                                      color: '#64748b',
+                                      font: { size: 10 }
+                                  }
+                              },
+                              y: { 
+                                  display: false,
+                                  min: 0
+                              }
+                          },
+                          plugins: {
+                              legend: { display: false },
+                              tooltip: { 
+                                  mode: 'index', 
+                                  intersect: false,
+                                  backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                                  borderColor: 'rgba(52, 211, 153, 0.3)',
+                                  borderWidth: 1
+                              }
+                          },
+                          elements: {
+                              point: { radius: 0 }
+                          }
+                      }}
+                  />
+              </div>
+              
+              {/* Vertical Phase Dividers (Visual - Auto-calculated) */}
+              <div className="absolute top-[60px] bottom-[40px] left-[33%] w-px bg-slate-800 border-l border-dashed border-slate-700 pointer-events-none"></div>
+              <div className="absolute top-[60px] bottom-[40px] left-[66%] w-px bg-slate-800 border-l border-dashed border-slate-700 pointer-events-none"></div>
+          </div>
+
+          {/* STRATEGIC ADVICE PANEL (New Logic) */}
+          <div className={`mt-6 rounded-xl border p-5 flex items-start gap-4 transition-all duration-500 ${strategicAdvice.colorClass}`}>
+              <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 flex-shrink-0 shadow-lg">
+                  {strategicAdvice.icon}
+              </div>
+              <div>
+                  <div className="flex items-center gap-3 mb-1">
+                      <h4 className="text-sm font-bold text-white uppercase tracking-wider">{strategicAdvice.title}</h4>
+                      <span className="text-[10px] bg-slate-900/50 px-2 py-0.5 rounded border border-slate-700/50 font-mono text-slate-300">
+                          {strategicAdvice.status}
+                      </span>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed font-light">
+                      {strategicAdvice.advice}
+                  </p>
+                  
+                  {/* Mini Stats for Context */}
+                  <div className="flex gap-4 mt-3 pt-3 border-t border-slate-800/30 text-[10px]">
+                      <div className="flex flex-col">
+                          <span className="text-slate-500 font-bold uppercase">Gap de Ataque</span>
+                          <span className={`font-mono font-bold ${strategicAdvice.attackGap > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+                              {strategicAdvice.attackGap > 0 ? '+' : ''}{Math.round(strategicAdvice.attackGap)}pts
+                          </span>
+                      </div>
+                      <div className="flex flex-col">
+                          <span className="text-slate-500 font-bold uppercase">Gap Manutenção</span>
+                          <span className={`font-mono font-bold ${strategicAdvice.maintGap < 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                              {strategicAdvice.maintGap > 0 ? '+' : ''}{Math.round(strategicAdvice.maintGap)}pts
+                          </span>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      </DashboardSection>
+
+      {/* Config Modal (Keeping Existing) */}
       {isConfigOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl p-6 max-h-[90vh] overflow-y-auto custom-scrollbar">
+                {/* ... (Existing Modal Content Preserved) ... */}
                 <div className="flex justify-between mb-4 border-b border-slate-800 pb-4">
                     <div>
                         <h3 className="text-white font-bold text-lg">Configuração do Ciclo</h3>
@@ -780,7 +938,6 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                         <p className="text-[10px] text-slate-500 mt-1">Este texto é usado pela IA para gerar o "Edital Verticalizado".</p>
                     </div>
 
-                    {/* ALGORITHM CALIBRATION SECTION */}
                     <div className="border-t border-slate-800 pt-4 mt-4">
                         <h4 className="text-sm font-bold text-emerald-500 mb-4 flex items-center gap-2 uppercase tracking-wide">
                             <BrainCircuit size={16}/> Calibragem do Algoritmo (SRS)

@@ -1,4 +1,5 @@
 
+
 /**
  * DOCUMENTAÇÃO TÉCNICA - PROJETO ATENA V7.5.0
  * ============================================
@@ -261,4 +262,10 @@ export const RELEVANCE_SCORE: Record<Relevance, number> = {
   [Relevance.MEDIA]: 2,
   [Relevance.ALTA]: 3,
   [Relevance.ALTISSIMA]: 4,
+};
+
+export const TREND_SCORE: Record<Trend, number> = {
+  [Trend.BAIXA]: 1,
+  [Trend.ESTAVEL]: 2,
+  [Trend.ALTA]: 3,
 };
