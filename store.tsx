@@ -174,6 +174,52 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // Derived Config
   const config = cycles.find(c => c.id === activeCycleId)?.config || DEFAULT_CONFIG;
 
+  // --- CLOUD SYNC LOGIC ---
+  const fetchCloudData = async () => {
+      setLoading(true);
+      try {
+          console.log("[System] Sincronizando dados da nuvem...");
+          const [
+              { data: dbNotebooks },
+              { data: dbCycles },
+              { data: dbReports },
+              { data: dbProtocol },
+              { data: dbNotes },
+              { data: dbFramework }
+          ] = await Promise.all([
+              supabase.from('notebooks').select('*'),
+              supabase.from('cycles').select('*'),
+              supabase.from('reports').select('*'),
+              supabase.from('protocol').select('*'),
+              supabase.from('notes').select('*'),
+              supabase.from('frameworks').select('*').single()
+          ]);
+
+          if (dbNotebooks) setNotebooks(dbNotebooks);
+          
+          if (dbCycles && dbCycles.length > 0) {
+              setCycles(dbCycles);
+              // Auto-select most recently accessed cycle
+              const sorted = [...dbCycles].sort((a, b) => new Date(b.lastAccess).getTime() - new Date(a.lastAccess).getTime());
+              setActiveCycleId(sorted[0].id);
+          } else {
+              setCycles([]);
+              setActiveCycleId(null);
+          }
+
+          if (dbReports) setReports(dbReports);
+          if (dbProtocol) setProtocol(dbProtocol);
+          if (dbNotes) setNotes(dbNotes);
+          if (dbFramework) setFramework(dbFramework);
+
+          console.log("[System] Dados carregados com sucesso.");
+      } catch (error) {
+          console.error("[System] Erro ao buscar dados da nuvem:", error);
+      } finally {
+          setLoading(false);
+      }
+  };
+
   // Initialize: Load Supabase or Migrated IndexedDB Data
   useEffect(() => {
     const init = async () => {
@@ -181,19 +227,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         try {
             // 1. Check Supabase
             const { data: { session } } = await supabase.auth.getSession();
-            setUser(session?.user ?? null);
-
-            // 2. If no user, check Local Storage (Guest)
-            if (!session?.user) {
-                // Try IndexedDB first (The new High Capacity Storage)
+            
+            if (session?.user) {
+                setUser(session.user);
+                setIsGuest(false);
+                await fetchCloudData();
+            } else {
+                // 2. If no user, check Local Storage (Guest)
                 const idbData = await get('athena_guest_db');
-                
                 if (idbData) {
-                    // Data found in High Capacity Storage
                     setIsGuest(true);
                     restoreState(idbData);
                 } else {
-                    // Fallback: Check for legacy LocalStorage data to migrate
                     const lsData = localStorage.getItem('athena_guest_db');
                     if (lsData) {
                         console.log("[System] Migrando dados para armazenamento ilimitado (IndexedDB)...");
@@ -201,9 +246,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                         const parsed = JSON.parse(lsData);
                         restoreState(parsed);
                         await set('athena_guest_db', parsed);
-                    } else {
-                        // NO DATA FOUND? THIS IS A NEW GUEST. DO NOT LOAD YET.
-                        // Wait for explicit "Enter Guest Mode"
                     }
                 }
             }
@@ -218,6 +260,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+          setIsGuest(false);
+          fetchCloudData(); // Trigger fetch on explicit login
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -238,7 +284,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
       if (isGuest && !loading) {
           const guestData = { notebooks, reports, protocol, framework, cycles, activeCycleId, notes };
-          // Save async to IndexedDB (No 5MB limit)
           set('athena_guest_db', guestData).catch(e => {
               console.error("[System] Falha ao salvar no disco:", e);
           });
