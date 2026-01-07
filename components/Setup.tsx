@@ -184,16 +184,18 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
     // --- PERSISTENT STATE MANAGEMENT ---
     const availableDisciplines = useMemo<string[]>(() => {
         const set = new Set<string>();
-        const safeNotebooks: Notebook[] = notebooks || [];
-        safeNotebooks.forEach(n => {
-            if (n.discipline !== 'Revisão Geral') set.add(n.discipline);
-        });
+        // Fix: Explicit cast to Notebook[] to avoid 'unknown' issues
+        const safeNotebooks = (notebooks || []) as Notebook[];
+        if (Array.isArray(safeNotebooks)) {
+             safeNotebooks.forEach(n => {
+                if (n.discipline !== 'Revisão Geral') set.add(n.discipline);
+             });
+        }
         
         // Ensure customList is treated as string array
         const customList = config.calculatorState?.customDisciplines;
         if (Array.isArray(customList)) {
-            // FIX: Explicit cast to any[] to handle 'unknown' type inference error, then ensuring string
-            (customList as any[]).forEach((d) => set.add(String(d)));
+            (customList as any[]).forEach((d: any) => set.add(String(d)));
         }
         return Array.from(set).sort();
     }, [notebooks, config.calculatorState?.customDisciplines]); 
