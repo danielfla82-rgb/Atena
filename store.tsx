@@ -40,7 +40,7 @@ const mapNotebookFromDB = (db: any): Notebook => ({
     lastPractice: db.last_practice || db.lastPractice,
     nextReview: db.next_review || db.nextReview,
     accuracyHistory: db.accuracy_history || db.accuracyHistory || [],
-    images: db.images || [] // Pode vir vazio no select parcial
+    images: db.images || [] 
 });
 
 // Adapta dados da Aplicação (camelCase) para o Banco (snake_case)
@@ -217,7 +217,7 @@ interface StoreContextType {
   editNotebook: (id: string, data: Partial<Notebook>) => Promise<void>;
   deleteNotebook: (id: string) => Promise<void>;
   updateNotebookAccuracy: (id: string, accuracy: number) => Promise<void>;
-  fetchNotebookImages: (id: string) => Promise<string[]>; // NEW LAZY LOAD FUNCTION
+  fetchNotebookImages: (id: string) => Promise<string[]>; 
   
   moveNotebookToWeek: (notebookId: string, weekId: string) => Promise<void>;
   reorderSlotInWeek: (weekId: string, oldIndex: number, newIndex: number) => Promise<void>;
@@ -273,16 +273,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const fetchCloudData = async () => {
       setLoading(true);
       try {
-          console.log("[System] Sincronizando dados da nuvem (Modo Otimizado)...");
+          console.log("[System] Sincronizando dados da nuvem...");
           
-          // SELECT FILTERING: Trazemos todas as colunas MENOS 'images'.
-          const notebookColumns = `
-            id, discipline, name, subtitle, 
-            tec_link, error_notebook_link, favorite_questions_link, law_link, obsidian_link, gemini_link_1, gemini_link_2,
-            accuracy, target_accuracy, weight, relevance, trend, status, 
-            last_practice, next_review, notes, week_id, is_week_completed, accuracy_history
-          `;
-
           const [
               { data: dbNotebooks },
               { data: dbCycles },
@@ -291,12 +283,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               { data: dbNotes },
               { data: dbFramework }
           ] = await Promise.all([
-              supabase.from('notebooks').select(notebookColumns),
+              supabase.from('notebooks').select('*'), // Reverted to select * to load everything including images
               supabase.from('cycles').select('*'),
               supabase.from('reports').select('*'),
               supabase.from('protocol').select('*'),
               supabase.from('notes').select('*'),
-              supabase.from('frameworks').select('*').maybeSingle() // Use maybeSingle to handle empty table gracefully
+              supabase.from('frameworks').select('*').maybeSingle()
           ]);
 
           if (dbNotebooks) {
@@ -329,14 +321,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
   };
 
-  // --- LAZY LOAD IMAGES ---
+  // --- LAZY LOAD IMAGES (Mantido para compatibilidade, mas fetch inicial já traz tudo) ---
   const fetchNotebookImages = async (id: string): Promise<string[]> => {
       if (isGuest) {
           const nb = notebooks.find(n => n.id === id);
           return nb?.images || [];
       }
 
-      console.log(`[System] Buscando imagens sob demanda para ID: ${id}`);
+      // Se já carregou no select *, retorna do estado
+      const currentNb = notebooks.find(n => n.id === id);
+      if (currentNb && currentNb.images && currentNb.images.length > 0) {
+          return currentNb.images;
+      }
+
+      console.log(`[System] Buscando imagens (fallback) para ID: ${id}`);
       const { data, error } = await supabase
           .from('notebooks')
           .select('images')
@@ -344,7 +342,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           .single();
       
       if (error) {
-          console.error("Erro ao buscar imagens:", error);
           return [];
       }
 
@@ -626,18 +623,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (!isGuest && user) { try { await supabase.from('protocol').delete().eq('id', id); } catch(e) { setProtocol(previousProtocol); } }
   };
 
-  // --- UPDATED FRAMEWORK LOGIC (SAFE) ---
   const updateFramework = async (data: FrameworkData) => {
       const previousFramework = { ...framework };
       setFramework(data);
       if (!isGuest && user) {
           try {
-              // Use maybeSingle to safely check existence
               const { data: existing } = await supabase.from('frameworks').select('id').maybeSingle();
               if (existing) {
                   await supabase.from('frameworks').update(data).eq('id', existing.id);
               } else {
-                  // INJECT USER_ID TO ENSURE INSERT WORKS WITH RLS
                   await supabase.from('frameworks').insert({ ...data, user_id: user.id });
               }
           } catch (e) {
