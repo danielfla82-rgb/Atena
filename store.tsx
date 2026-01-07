@@ -79,43 +79,6 @@ const mapNotebookToDB = (nb: Partial<Notebook>) => {
     return payload;
 };
 
-// Adapta dados de Ciclo
-const mapCycleFromDB = (db: any): Cycle => ({
-    ...db,
-    createdAt: db.created_at || db.createdAt,
-    lastAccess: db.last_access || db.lastAccess,
-    weeklyCompletion: db.weekly_completion || db.weeklyCompletion,
-});
-
-const mapCycleToDB = (cycle: Partial<Cycle>) => {
-    const payload: any = { ...cycle };
-    if (cycle.createdAt !== undefined) payload.created_at = cycle.createdAt;
-    if (cycle.lastAccess !== undefined) payload.last_access = cycle.lastAccess;
-    if (cycle.weeklyCompletion !== undefined) payload.weekly_completion = cycle.weeklyCompletion;
-    
-    delete payload.createdAt;
-    delete payload.lastAccess;
-    delete payload.weeklyCompletion;
-    return payload;
-};
-
-// Adapta dados de Notas
-const mapNoteFromDB = (db: any): Note => ({
-    ...db,
-    createdAt: db.created_at || db.createdAt,
-    updatedAt: db.updated_at || db.updatedAt,
-});
-
-const mapNoteToDB = (note: Partial<Note>) => {
-    const payload: any = { ...note };
-    if (note.createdAt !== undefined) payload.created_at = note.createdAt;
-    if (note.updatedAt !== undefined) payload.updated_at = note.updatedAt;
-    
-    delete payload.createdAt;
-    delete payload.updatedAt;
-    return payload;
-};
-
 // --- GUEST SEED DATA (DEMO) ---
 const TODAY_ISO = new Date().toISOString();
 const PAST_7_DAYS = new Date(Date.now() - 7 * 86400000).toISOString();
@@ -297,12 +260,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
           
           if (dbCycles && dbCycles.length > 0) {
-              // Apply Adapter: DB (snake_case) -> App (camelCase)
-              const mappedCycles = dbCycles.map(mapCycleFromDB);
-              setCycles(mappedCycles);
+              setCycles(dbCycles);
               // Auto-select most recently accessed cycle if none selected
               if (!activeCycleId) {
-                  const sorted = [...mappedCycles].sort((a, b) => new Date(b.lastAccess).getTime() - new Date(a.lastAccess).getTime());
+                  const sorted = [...dbCycles].sort((a, b) => new Date(b.lastAccess).getTime() - new Date(a.lastAccess).getTime());
                   setActiveCycleId(sorted[0].id);
               }
           } else {
@@ -312,10 +273,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
           if (dbReports) setReports(dbReports);
           if (dbProtocol) setProtocol(dbProtocol);
-          if (dbNotes) {
-              // Apply Adapter for Notes
-              setNotes(dbNotes.map(mapNoteFromDB));
-          }
+          if (dbNotes) setNotes(dbNotes);
           if (dbFramework) setFramework(dbFramework);
 
           console.log("[System] Dados carregados com sucesso.");
@@ -441,8 +399,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       if (!isGuest && user) {
           try {
-              const payload = mapCycleToDB(newCycle);
-              const { error } = await supabase.from('cycles').insert(payload);
+              const { error } = await supabase.from('cycles').insert(newCycle);
               if (error) throw error;
           } catch (e) {
               console.error("DB Error: Create Cycle", e);
@@ -458,8 +415,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setCycles(prev => prev.map(c => c.id === id ? { ...c, lastAccess: now } : c));
 
       if (!isGuest && user) {
-          // Fix: update using snake_case 'last_access'
-          supabase.from('cycles').update({ last_access: now }).eq('id', id).then(({error}) => {
+          supabase.from('cycles').update({ lastAccess: now }).eq('id', id).then(({error}) => {
               if (error) console.error("Falha ao atualizar acesso do ciclo", error);
           });
       }
@@ -826,8 +782,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       
       if (!isGuest && user) {
           try {
-              const payload = mapNoteToDB(newNote);
-              const { error } = await supabase.from('notes').insert(payload);
+              const { error } = await supabase.from('notes').insert(newNote);
               if (error) throw error;
           } catch (e) {
               console.error("DB Error: Add Note", e);
@@ -850,15 +805,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (!isGuest && user) {
           const payload: any = { content, updatedAt: now };
           if (color) payload.color = color;
-          
           try {
-              const dbPayload = mapNoteToDB(payload);
-              // Note: mapNoteToDB handles keys like createdAt/updatedAt but 'content' and 'color' are usually fine.
-              // However, check if 'updatedAt' becomes 'updated_at' via mapper.
-              const { error } = await supabase.from('notes').update(dbPayload).eq('id', id);
+              const { error } = await supabase.from('notes').update(payload).eq('id', id);
               if (error) throw error;
           } catch(e) {
               console.error("DB Error: Update Note", e);
+              // Optionally rollback, but for notes real-time typing might be aggressive to rollback on every char. 
+              // Leaving as warn for now or could implement debounced sync properly.
           }
       }
   };
