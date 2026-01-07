@@ -444,7 +444,8 @@ export const Setup: React.FC = () => {
       if(!cycle?.schedule) return 0;
       
       const scheduledIds = new Set<string>();
-      Object.values(cycle.schedule).forEach((slots) => {
+      const schedule = cycle.schedule as Record<string, ScheduleItem[]>;
+      Object.values(schedule).forEach((slots) => {
           slots.forEach(slot => scheduledIds.add(slot.notebookId));
       });
       return notebooks.filter(n => n.discipline !== 'Revisão Geral' && !scheduledIds.has(n.id)).length;
@@ -482,7 +483,8 @@ export const Setup: React.FC = () => {
   const allocationData = useMemo(() => {
     const data: Record<string, number> = {};
     if (activeCycle?.schedule) {
-        Object.values(activeCycle.schedule).forEach((slots: ScheduleItem[]) => {
+        const schedule = activeCycle.schedule as Record<string, ScheduleItem[]>;
+        Object.values(schedule).forEach((slots) => {
             slots.forEach(slot => {
                 const nb = notebooks.find(n => n.id === slot.notebookId);
                 if (nb && nb.discipline !== 'Revisão Geral') {
@@ -501,7 +503,8 @@ export const Setup: React.FC = () => {
   const totalAllocatedBlocks = useMemo(() => {
       if (activeCycle?.schedule) {
           let count = 0;
-          Object.values(activeCycle.schedule).forEach((slots: ScheduleItem[]) => count += slots.length);
+          const schedule = activeCycle.schedule as Record<string, ScheduleItem[]>;
+          Object.values(schedule).forEach((slots) => count += slots.length);
           return count;
       }
       return notebooks.filter(n => n.weekId && n.weekId.startsWith('week-')).length;
