@@ -1,8 +1,7 @@
-
 import React, { useState } from 'react';
 import { useStore } from '../store';
 import { FrameworkData } from '../types';
-import { Pyramid, Save, X, Info, Zap, Target, BookOpen, Heart, Anchor, Pencil } from 'lucide-react';
+import { Pyramid, Save, X, Info, Zap, Target, BookOpen, Heart, Anchor, Pencil, Trophy } from 'lucide-react';
 
 export const Framework: React.FC = () => {
   const { framework, updateFramework } = useStore();
@@ -11,12 +10,12 @@ export const Framework: React.FC = () => {
 
   const layers: { key: keyof FrameworkData; label: string; width: string; color: string; icon: React.ReactNode, hint: string }[] = [
     { 
-        key: 'habit', 
-        label: 'HÁBITO', 
-        width: 'w-1/5', 
-        color: 'bg-emerald-500', 
-        icon: <BookOpen size={18} className="text-emerald-900" />,
-        hint: "O que você fará repetidamente? Ex: [Café da manhã] -> [Revisar Flashcards]. Contiguidade + Dopamina."
+        key: 'habit', // Mantido 'habit' internamente para integridade do DB
+        label: 'RESULTADO', // UX atualizada
+        width: 'w-1/3 md:w-1/4', // Aumentado de w-1/5 para caber "RESULTADO" e "APROVAÇÃO" sem quebrar
+        color: 'bg-emerald-400', 
+        icon: <Trophy size={18} className="text-emerald-950" />,
+        hint: "A consequência inevitável da constância. A Aprovação, a Posse, a mudança de vida."
     },
     { 
         key: 'action', 
@@ -102,7 +101,7 @@ export const Framework: React.FC = () => {
                               {layer.icon} {layer.label}
                           </div>
                           
-                          <div className="font-medium text-white text-sm md:text-base line-clamp-2 md:line-clamp-3 w-full px-4">
+                          <div className="font-medium text-white text-sm md:text-base line-clamp-2 md:line-clamp-3 w-full px-2 md:px-4">
                               {framework[layer.key] || <span className="italic opacity-40">Clique para definir...</span>}
                           </div>
 
