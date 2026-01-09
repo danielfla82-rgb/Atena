@@ -29,7 +29,7 @@ const StickyNoteItem: React.FC<{ note: Note }> = ({ note }) => {
     const contentRef = useRef(content);
     useEffect(() => { contentRef.current = content; }, [content]);
 
-    // Auto-save logic (Debounce)
+    // Auto-save logic (Debounce) for CONTENT only
     useEffect(() => {
         const timer = setTimeout(() => {
             if (content !== note.content) {
@@ -40,6 +40,7 @@ const StickyNoteItem: React.FC<{ note: Note }> = ({ note }) => {
     }, [content, note.id, note.content, updateNote]);
 
     const handleColorChange = (color: Note['color']) => {
+        // Pass current local content to avoid overwriting with stale props
         updateNote(note.id, content, color);
     };
 
@@ -50,13 +51,13 @@ const StickyNoteItem: React.FC<{ note: Note }> = ({ note }) => {
     };
 
     return (
-        <div className={`aspect-square rounded-xl p-4 shadow-lg transition-all hover:scale-[1.02] flex flex-col group relative border-2 ${COLORS[note.color] || COLORS.yellow}`}>
+        <div className={`min-h-[250px] w-full rounded-xl p-4 shadow-lg transition-all hover:scale-[1.02] flex flex-col group relative border-2 ${COLORS[note.color] || COLORS.yellow}`}>
             <textarea 
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 onBlur={handleBlur}
                 placeholder="Digite sua anotação..."
-                className="w-full h-full bg-transparent border-none resize-none outline-none text-sm font-medium leading-relaxed custom-scrollbar"
+                className="w-full h-full bg-transparent border-none resize-none outline-none text-sm font-medium leading-relaxed custom-scrollbar flex-1"
             />
             
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
@@ -64,12 +65,12 @@ const StickyNoteItem: React.FC<{ note: Note }> = ({ note }) => {
                     <button className="p-1.5 bg-black/10 rounded-full hover:bg-black/20 text-current transition-colors">
                         <Palette size={14} />
                     </button>
-                    <div className="absolute right-0 top-full mt-2 bg-white rounded-lg shadow-xl p-2 flex gap-1 z-10 hidden group-hover/palette:flex w-[120px] flex-wrap justify-end">
+                    <div className="absolute right-0 top-full mt-2 bg-white rounded-lg shadow-xl p-2 flex gap-1 z-10 hidden group-hover/palette:flex w-[120px] flex-wrap justify-end border border-slate-200">
                         {(Object.keys(COLORS) as Note['color'][]).map(c => (
                             <button 
                                 key={c}
-                                onClick={() => handleColorChange(c)}
-                                className={`w-5 h-5 rounded-full border border-slate-300 ${COLOR_MAP[c] || 'bg-gray-200'}`}
+                                onClick={(e) => { e.stopPropagation(); handleColorChange(c); }}
+                                className={`w-5 h-5 rounded-full border border-slate-300 ${COLOR_MAP[c] || 'bg-gray-200'} hover:scale-110 transition-transform`}
                                 title={c}
                             />
                         ))}

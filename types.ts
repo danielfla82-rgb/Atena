@@ -1,17 +1,9 @@
 
 
 /**
- * DOCUMENTAÇÃO TÉCNICA - PROJETO ATENA V7.5.0
- * ============================================
+ * DOCUMENTAÇÃO TÉCNICA - PROJETO ATENA V2.0.0
+ * ===========================================
  * Data Model e Tipagem do Sistema.
- * 
- * STATUS: STABLE / INTELLIGENCE EDITION
- * 
- * CHANGELOG V7.5.0:
- * - [FEATURE] Matriz Estratégica Interativa (Drill-down nos quadrantes).
- * - [FEATURE] Projeção de Data de Revisão em tempo real no formulário.
- * - [UX] Indicador visual de "Em Dia" na dashboard quando não há revisões.
- * - [CORE] Estabilização do React 19 e Chart.js.
  * 
  * PRINCIPAIS ENTIDADES:
  * 1. Notebook (Caderno): A unidade atômica de estudo.

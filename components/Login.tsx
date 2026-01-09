@@ -107,7 +107,7 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
         </h1>
         
         <p className="text-slate-400 mb-8 text-lg font-light tracking-wide">
-          Plataforma de planejamento para concurseiros de elite.
+          Plataforma de planejamento para concurseiros de elite
         </p>
 
         <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm">

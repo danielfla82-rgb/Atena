@@ -68,6 +68,9 @@ export const calculateNextReview = (
   // Arredondamento e Garantia Mínima de 1 dia
   finalDays = Math.max(1, Math.round(finalDays));
 
+  // Validação extra para NaN (Persistence Safety)
+  if (isNaN(finalDays)) finalDays = 1;
+
   const nextDate = new Date();
   nextDate.setDate(nextDate.getDate() + finalDays);
   

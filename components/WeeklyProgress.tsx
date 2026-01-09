@@ -24,7 +24,11 @@ export const WeeklyProgress: React.FC = () => {
         const weekId = `week-${weekIndex}`;
         
         // Get Schedule for this week
-        const slots = cycle.schedule?.[weekId] || [];
+        const rawSlots = cycle.schedule?.[weekId] || [];
+        
+        // FIX: Ensure filtered slots are valid objects
+        const slots = rawSlots.filter(s => !!s && typeof s === 'object');
+        
         const total = slots.length;
         const completed = slots.filter(s => s.completed).length;
         const percent = total > 0 ? Math.round((completed / total) * 100) : 0;

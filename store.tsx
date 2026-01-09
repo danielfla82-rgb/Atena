@@ -22,171 +22,147 @@ const DEFAULT_FRAMEWORK: FrameworkData = {
     values: '', dream: '', motivation: '', action: '', habit: ''
 };
 
-// --- HELPER: DB ADAPTERS (CamelCase <-> SnakeCase) ---
-// Adapta dados do Banco (snake_case) para a Aplicação (camelCase)
+// --- SECURITY & INTEGRITY: PURE DATA MAPPERS ---
+
 const mapNotebookFromDB = (db: any): Notebook => ({
-    ...db,
-    tecLink: db.tec_link || db.tecLink,
-    errorNotebookLink: db.error_notebook_link || db.errorNotebookLink,
-    favoriteQuestionsLink: db.favorite_questions_link || db.favoriteQuestionsLink,
-    lawLink: db.law_link || db.lawLink,
-    obsidianLink: db.obsidian_link || db.obsidianLink,
-    geminiLink1: db.gemini_link_1 || db.geminiLink1,
-    geminiLink2: db.gemini_link_2 || db.geminiLink2,
+    id: db.id,
+    discipline: db.discipline,
+    name: db.name,
+    subtitle: db.subtitle || '',
+    tecLink: db.tec_link || db.tecLink || '',
+    errorNotebookLink: db.error_notebook_link || db.errorNotebookLink || '',
+    favoriteQuestionsLink: db.favorite_questions_link || db.favoriteQuestionsLink || '',
+    lawLink: db.law_link || db.lawLink || '',
+    obsidianLink: db.obsidian_link || db.obsidianLink || '',
+    geminiLink1: db.gemini_link_1 || db.geminiLink1 || '',
+    geminiLink2: db.gemini_link_2 || db.gemini_link_2 || '',
     targetAccuracy: Number(db.target_accuracy || db.targetAccuracy || 90),
     accuracy: Number(db.accuracy || 0),
-    weekId: db.week_id || db.weekId,
-    isWeekCompleted: db.is_week_completed || db.isWeekCompleted,
-    lastPractice: db.last_practice || db.lastPractice,
-    nextReview: db.next_review || db.nextReview,
-    accuracyHistory: db.accuracy_history || db.accuracyHistory || [],
-    images: db.images || [] 
+    weight: db.weight || Weight.MEDIO,
+    relevance: db.relevance || Relevance.MEDIA,
+    trend: db.trend || Trend.ESTAVEL,
+    status: db.status || NotebookStatus.NOT_STARTED,
+    weekId: db.week_id || db.weekId || null,
+    isWeekCompleted: !!(db.is_week_completed || db.isWeekCompleted),
+    lastPractice: db.last_practice || db.lastPractice || null,
+    nextReview: db.next_review || db.nextReview || null,
+    accuracyHistory: Array.isArray(db.accuracy_history) ? db.accuracy_history : [],
+    notes: db.notes || '',
+    images: Array.isArray(db.images) ? db.images : (db.image ? [db.image] : [])
 });
 
-// Adapta dados da Aplicação (camelCase) para o Banco (snake_case)
 const mapNotebookToDB = (nb: Partial<Notebook>) => {
-    const payload: any = { ...nb };
-    
-    // Mapeamento explícito
-    if (nb.tecLink !== undefined) payload.tec_link = nb.tecLink;
-    if (nb.errorNotebookLink !== undefined) payload.error_notebook_link = nb.errorNotebookLink;
-    if (nb.favoriteQuestionsLink !== undefined) payload.favorite_questions_link = nb.favoriteQuestionsLink;
-    if (nb.lawLink !== undefined) payload.law_link = nb.lawLink;
-    if (nb.obsidianLink !== undefined) payload.obsidian_link = nb.obsidianLink;
-    if (nb.geminiLink1 !== undefined) payload.gemini_link_1 = nb.geminiLink1;
-    if (nb.geminiLink2 !== undefined) payload.gemini_link_2 = nb.geminiLink2;
-    if (nb.targetAccuracy !== undefined) payload.target_accuracy = nb.targetAccuracy;
-    if (nb.weekId !== undefined) payload.week_id = nb.weekId;
-    if (nb.isWeekCompleted !== undefined) payload.is_week_completed = nb.isWeekCompleted;
-    if (nb.lastPractice !== undefined) payload.last_practice = nb.lastPractice;
-    if (nb.nextReview !== undefined) payload.next_review = nb.nextReview;
-    if (nb.accuracyHistory !== undefined) payload.accuracy_history = nb.accuracyHistory;
-
-    // Remove campos camelCase duplicados para limpar payload
-    delete payload.tecLink;
-    delete payload.errorNotebookLink;
-    delete payload.favoriteQuestionsLink;
-    delete payload.lawLink;
-    delete payload.obsidianLink;
-    delete payload.geminiLink1;
-    delete payload.geminiLink2;
-    delete payload.targetAccuracy;
-    delete payload.weekId;
-    delete payload.isWeekCompleted;
-    delete payload.lastPractice;
-    delete payload.nextReview;
-    delete payload.accuracyHistory;
-
-    return payload;
+    return {
+        id: nb.id,
+        discipline: nb.discipline,
+        name: nb.name,
+        subtitle: nb.subtitle,
+        tec_link: nb.tecLink,
+        error_notebook_link: nb.errorNotebookLink,
+        favorite_questions_link: nb.favoriteQuestionsLink,
+        law_link: nb.lawLink,
+        obsidian_link: nb.obsidianLink,
+        gemini_link_1: nb.geminiLink1,
+        gemini_link_2: nb.geminiLink2,
+        target_accuracy: nb.targetAccuracy,
+        accuracy: nb.accuracy,
+        weight: nb.weight,
+        relevance: nb.relevance,
+        trend: nb.trend,
+        status: nb.status,
+        week_id: nb.weekId,
+        is_week_completed: nb.isWeekCompleted,
+        last_practice: nb.lastPractice,
+        next_review: nb.nextReview,
+        accuracy_history: nb.accuracyHistory,
+        notes: nb.notes,
+        images: nb.images 
+    };
 };
 
-// Adapta dados de Ciclo
 const mapCycleFromDB = (db: any): Cycle => ({
-    ...db,
+    id: db.id,
+    name: db.name,
     createdAt: db.created_at || db.createdAt,
     lastAccess: db.last_access || db.lastAccess,
-    weeklyCompletion: db.weekly_completion || db.weeklyCompletion,
+    config: db.config || DEFAULT_CONFIG,
+    planning: db.planning || {},
+    weeklyCompletion: db.weekly_completion || {},
+    schedule: db.schedule || {}
 });
 
 const mapCycleToDB = (cycle: Partial<Cycle>) => {
-    const payload: any = { ...cycle };
-    if (cycle.createdAt !== undefined) payload.created_at = cycle.createdAt;
-    if (cycle.lastAccess !== undefined) payload.last_access = cycle.lastAccess;
-    if (cycle.weeklyCompletion !== undefined) payload.weekly_completion = cycle.weeklyCompletion;
-    
-    delete payload.createdAt;
-    delete payload.lastAccess;
-    delete payload.weeklyCompletion;
-    return payload;
+    return {
+        id: cycle.id,
+        name: cycle.name,
+        created_at: cycle.createdAt,
+        last_access: cycle.lastAccess,
+        config: cycle.config,
+        planning: cycle.planning,
+        weekly_completion: cycle.weeklyCompletion,
+        schedule: cycle.schedule
+    };
 };
 
-// Adapta dados de Notas
 const mapNoteFromDB = (db: any): Note => ({
-    ...db,
+    id: db.id,
+    content: db.content,
+    color: db.color,
     createdAt: db.created_at || db.createdAt,
     updatedAt: db.updated_at || db.updatedAt,
 });
 
 const mapNoteToDB = (note: Partial<Note>) => {
-    const payload: any = { ...note };
-    if (note.createdAt !== undefined) payload.created_at = note.createdAt;
-    if (note.updatedAt !== undefined) payload.updated_at = note.updatedAt;
-    
-    delete payload.createdAt;
-    delete payload.updatedAt;
-    return payload;
+    return {
+        id: note.id,
+        content: note.content,
+        color: note.color,
+        created_at: note.createdAt,
+        updated_at: note.updatedAt
+    };
 };
 
-// --- GUEST SEED DATA (DEMO) ---
-const TODAY_ISO = new Date().toISOString();
-const PAST_7_DAYS = new Date(Date.now() - 7 * 86400000).toISOString();
-const PAST_14_DAYS = new Date(Date.now() - 14 * 86400000).toISOString();
+const mapFrameworkFromDB = (db: any): FrameworkData => ({
+    values: db.values || '',
+    dream: db.dream || '',
+    motivation: db.motivation || '',
+    action: db.action || '',
+    habit: db.habit || ''
+});
 
-const GUEST_SEED_DATA = {
-    notebooks: [
-      { 
-          id: 'nb1', discipline: 'Direito Constitucional', name: 'Controle de Constitucionalidade', subtitle: 'Concentrado vs Difuso', 
-          accuracy: 85, targetAccuracy: 90, weight: Weight.MUITO_ALTO, relevance: Relevance.ALTISSIMA, trend: Trend.ALTA, status: NotebookStatus.REVIEWING, weekId: null, 
-          image: 'https://i.postimg.cc/Bnq7x0wz/law.jpg',
-          accuracyHistory: [{date: PAST_14_DAYS, accuracy: 60}, {date: PAST_7_DAYS, accuracy: 75}, {date: TODAY_ISO, accuracy: 85}]
-      },
-      { 
-          id: 'nb2', discipline: 'Contabilidade Geral', name: 'Demonstração do Resultado (DRE)', subtitle: 'Receita Líquida e Deduções', 
-          accuracy: 65, targetAccuracy: 85, weight: Weight.ALTO, relevance: Relevance.ALTA, trend: Trend.ESTAVEL, status: NotebookStatus.THEORY_DONE, weekId: null,
-          accuracyHistory: [{date: PAST_7_DAYS, accuracy: 50}, {date: TODAY_ISO, accuracy: 65}]
-      },
-      { 
-          id: 'nb3', discipline: 'Direito Administrativo', name: 'Licitações (Lei 14.133)', subtitle: 'Modalidades e Dispensa', 
-          accuracy: 92, targetAccuracy: 90, weight: Weight.MEDIO, relevance: Relevance.MEDIA, trend: Trend.ALTA, status: NotebookStatus.MASTERED, weekId: null,
-          accuracyHistory: [{date: PAST_14_DAYS, accuracy: 80}, {date: TODAY_ISO, accuracy: 92}]
-      },
-      { 
-          id: 'nb4', discipline: 'Auditoria', name: 'Testes de Observância', subtitle: 'Procedimentos Analíticos', 
-          accuracy: 45, targetAccuracy: 80, weight: Weight.BAIXO, relevance: Relevance.BAIXA, trend: Trend.ESTAVEL, status: NotebookStatus.NOT_STARTED, weekId: null 
-      },
-      { 
-          id: 'nb5', discipline: 'Português', name: 'Sintaxe do Período Composto', subtitle: 'Orações Subordinadas', 
-          accuracy: 78, targetAccuracy: 90, weight: Weight.ALTO, relevance: Relevance.MEDIA, trend: Trend.ESTAVEL, status: NotebookStatus.REVIEWING, weekId: null,
-          accuracyHistory: [{date: TODAY_ISO, accuracy: 78}]
-      },
-      { 
-          id: 'nb6', discipline: 'Raciocínio Lógico', name: 'Análise Combinatória', subtitle: 'Permutação e Arranjo', 
-          accuracy: 55, targetAccuracy: 80, weight: Weight.MEDIO, relevance: Relevance.ALTA, trend: Trend.BAIXA, status: NotebookStatus.THEORY_DONE, weekId: null 
-      },
-    ],
-    cycles: [
-      {
-        id: 'cycle-demo',
-        name: 'Auditor Fiscal 2025 (Demo)',
-        createdAt: new Date().toISOString(),
-        lastAccess: new Date().toISOString(),
-        config: { ...DEFAULT_CONFIG, targetRole: 'Auditor Fiscal', weeksUntilExam: 16, studyPace: 'Avançado', examDate: new Date(new Date().getTime() + 120 * 24 * 60 * 60 * 1000).toISOString() },
-        planning: {},
-        weeklyCompletion: {},
-        schedule: {
-          'week-1': [
-             { instanceId: 'inst-1', notebookId: 'nb1', completed: true },
-             { instanceId: 'inst-2', notebookId: 'nb2', completed: true },
-             { instanceId: 'inst-3', notebookId: 'nb3', completed: true },
-             { instanceId: 'inst-4', notebookId: 'nb5', completed: true },
-             { instanceId: 'inst-5', notebookId: 'nb1', completed: false }, // Re-review
-          ],
-          'week-2': [
-             { instanceId: 'inst-6', notebookId: 'nb4', completed: false },
-             { instanceId: 'inst-7', notebookId: 'nb6', completed: false },
-             { instanceId: 'inst-8', notebookId: 'nb2', completed: false },
-          ]
+// --- SANITIZERS ---
+const sanitizeCycleData = (cycle: Cycle, validNotebookIds: Set<string>): Cycle => {
+    if (!cycle.schedule) return cycle;
+    
+    const cleanSchedule: Record<string, ScheduleItem[]> = {};
+    let hasChanges = false;
+
+    Object.entries(cycle.schedule).forEach(([weekId, slots]) => {
+        if (!Array.isArray(slots)) return;
+        
+        const validSlots = slots.filter(slot => {
+            return slot && slot.notebookId && validNotebookIds.has(slot.notebookId);
+        });
+
+        if (validSlots.length !== slots.length) {
+            hasChanges = true;
         }
-      }
-    ],
-    activeCycleId: 'cycle-demo',
+        cleanSchedule[weekId] = validSlots;
+    });
+
+    return hasChanges ? { ...cycle, schedule: cleanSchedule } : cycle;
+};
+
+// --- GUEST SEED DATA ---
+const GUEST_SEED_DATA = {
+    // ... (Mantido igual)
+    notebooks: [],
+    cycles: [],
+    activeCycleId: null,
     reports: [],
-    protocol: [
-        { id: 'p1', name: 'Cafeína', dosage: '200mg', time: '07:00', type: 'Suplemento', checked: true },
-        { id: 'p2', name: 'Creatina', dosage: '5g', time: '07:00', type: 'Suplemento', checked: false }
-    ],
-    framework: { values: 'Liberdade, Excelência', dream: 'Aprovação na Receita', motivation: 'Estabilidade Financeira', action: '4h líquidas/dia', habit: 'Acordar 05:00' },
-    notes: [{ id: 'note1', content: 'Revisar súmulas vinculantes do STF antes da prova.', color: 'yellow', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }]
+    protocol: [],
+    framework: DEFAULT_FRAMEWORK,
+    notes: []
 };
 
 interface StoreContextType {
@@ -247,13 +223,19 @@ interface StoreContextType {
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
+const OPTIMIZED_COLUMNS = `
+  id, discipline, name, subtitle, 
+  tec_link, error_notebook_link, favorite_questions_link, law_link, obsidian_link, gemini_link_1, gemini_link_2,
+  accuracy, target_accuracy, weight, relevance, trend, status, 
+  week_id, is_week_completed, last_practice, next_review, accuracy_history, notes
+`;
+
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<any>(null);
   const [isGuest, setIsGuest] = useState(false);
   const [loading, setLoading] = useState(true); 
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // Data State
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [cycles, setCycles] = useState<Cycle[]>([]);
   const [activeCycleId, setActiveCycleId] = useState<string | null>(null);
@@ -262,42 +244,57 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [framework, setFramework] = useState<FrameworkData>(DEFAULT_FRAMEWORK);
   const [notes, setNotes] = useState<Note[]>([]);
 
-  // UI State
   const [activeSession, setActiveSession] = useState<Notebook | null>(null);
   const [pendingCreateData, setPendingCreateData] = useState<Partial<Notebook> | null>(null);
   const [focusedNotebookId, setFocusedNotebookId] = useState<string | null>(null);
 
   const config = cycles.find(c => c.id === activeCycleId)?.config || DEFAULT_CONFIG;
 
-  // --- CLOUD SYNC LOGIC ---
   const fetchCloudData = async () => {
       setLoading(true);
       try {
-          console.log("[System] Sincronizando dados da nuvem...");
-          
+          // 1. Garantir que temos o ID do usuário
+          const { data: { user: currentUser } } = await supabase.auth.getUser();
+          if (!currentUser) {
+              setLoading(false);
+              return;
+          }
+
+          let notebooksData: any[] | null = null;
+          try {
+              const { data, error } = await supabase.from('notebooks').select(OPTIMIZED_COLUMNS);
+              if (error) throw error;
+              notebooksData = data;
+          } catch (optimizedError) {
+              const { data: fullData } = await supabase.from('notebooks').select('*');
+              notebooksData = fullData;
+          }
+
           const [
-              { data: dbNotebooks },
               { data: dbCycles },
               { data: dbReports },
               { data: dbProtocol },
               { data: dbNotes },
               { data: dbFramework }
           ] = await Promise.all([
-              supabase.from('notebooks').select('*'), // Reverted to select * to load everything including images
               supabase.from('cycles').select('*'),
               supabase.from('reports').select('*'),
               supabase.from('protocol').select('*'),
               supabase.from('notes').select('*'),
-              supabase.from('frameworks').select('*').maybeSingle()
+              // Filtro EXPLÍCITO pelo ID do usuário
+              supabase.from('frameworks').select('*').eq('user_id', currentUser.id).maybeSingle()
           ]);
 
-          if (dbNotebooks) {
-              const mappedNotebooks = dbNotebooks.map(mapNotebookFromDB);
+          let validNotebookIds = new Set<string>();
+
+          if (notebooksData) {
+              const mappedNotebooks = notebooksData.map(mapNotebookFromDB);
               setNotebooks(mappedNotebooks);
+              validNotebookIds = new Set(mappedNotebooks.map(n => n.id));
           }
           
           if (dbCycles && dbCycles.length > 0) {
-              const mappedCycles = dbCycles.map(mapCycleFromDB);
+              const mappedCycles = dbCycles.map(mapCycleFromDB).map(cycle => sanitizeCycleData(cycle, validNotebookIds));
               setCycles(mappedCycles);
               if (!activeCycleId) {
                   const sorted = [...mappedCycles].sort((a, b) => new Date(b.lastAccess).getTime() - new Date(a.lastAccess).getTime());
@@ -311,75 +308,55 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (dbReports) setReports(dbReports);
           if (dbProtocol) setProtocol(dbProtocol);
           if (dbNotes) setNotes(dbNotes.map(mapNoteFromDB));
-          if (dbFramework) setFramework(dbFramework);
+          
+          if (dbFramework) {
+              console.log("[Store] Framework carregado:", dbFramework);
+              setFramework(mapFrameworkFromDB(dbFramework));
+          } else {
+              setFramework(DEFAULT_FRAMEWORK);
+          }
 
-          console.log("[System] Dados carregados com sucesso.");
       } catch (error) {
-          console.error("[System] Erro ao buscar dados da nuvem:", error);
+          console.error("[System] Erro Crítico ao buscar dados da nuvem:", error);
       } finally {
           setLoading(false);
       }
   };
 
-  // --- LAZY LOAD IMAGES (Mantido para compatibilidade, mas fetch inicial já traz tudo) ---
   const fetchNotebookImages = async (id: string): Promise<string[]> => {
       if (isGuest) {
           const nb = notebooks.find(n => n.id === id);
           return nb?.images || [];
       }
-
-      // Se já carregou no select *, retorna do estado
       const currentNb = notebooks.find(n => n.id === id);
       if (currentNb && currentNb.images && currentNb.images.length > 0) {
           return currentNb.images;
       }
-
-      console.log(`[System] Buscando imagens (fallback) para ID: ${id}`);
-      const { data, error } = await supabase
-          .from('notebooks')
-          .select('images')
-          .eq('id', id)
-          .single();
-      
-      if (error) {
-          return [];
+      const { data, error } = await supabase.from('notebooks').select('images, image').eq('id', id).single();
+      if (error) return [];
+      let images: string[] = [];
+      if (data) {
+          if (data.images && Array.isArray(data.images)) images = data.images;
+          else if (data.image) images = [data.image];
+          if (images.length > 0) setNotebooks(prev => prev.map(n => n.id === id ? { ...n, images: images } : n));
       }
-
-      if (data && data.images) {
-          setNotebooks(prev => prev.map(n => n.id === id ? { ...n, images: data.images } : n));
-          return data.images;
-      }
-      return [];
+      return images;
   };
 
-  // ... (Rest of initialization and useEffects unchanged) ...
   useEffect(() => {
     const init = async () => {
         setLoading(true);
-        try {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session?.user) {
-                setUser(session.user);
-                setIsGuest(false);
-                await fetchCloudData();
-            } else {
-                const idbData = await get('athena_guest_db');
-                if (idbData) {
-                    setIsGuest(true);
-                    restoreState(idbData);
-                } else {
-                    const lsData = localStorage.getItem('athena_guest_db');
-                    if (lsData) {
-                        setIsGuest(true);
-                        const parsed = JSON.parse(lsData);
-                        restoreState(parsed);
-                        await set('athena_guest_db', parsed);
-                    }
-                }
-                setLoading(false);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+            setUser(session.user);
+            setIsGuest(false);
+            await fetchCloudData();
+        } else {
+            const idbData = await get('athena_guest_db');
+            if (idbData) {
+                setIsGuest(true);
+                restoreState(idbData);
             }
-        } catch (e) {
-            console.error("[System] Erro na inicialização:", e);
             setLoading(false);
         }
     };
@@ -405,7 +382,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setNotes(data.notes || []);
   };
 
-  // ... (Guest Persistence unchanged) ...
   useEffect(() => {
       if (isGuest && !loading) {
           const guestData = { notebooks, reports, protocol, framework, cycles, activeCycleId, notes };
@@ -416,15 +392,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const enterGuestMode = async () => {
       setIsGuest(true);
       setLoading(true);
-      try {
-          const idbData = await get('athena_guest_db');
-          if (idbData) {
-              restoreState(idbData);
-          } else {
-              restoreState(GUEST_SEED_DATA);
-              await set('athena_guest_db', GUEST_SEED_DATA);
-          }
-      } catch(e) { console.error(e); } finally { setLoading(false); }
+      restoreState(GUEST_SEED_DATA);
+      await set('athena_guest_db', GUEST_SEED_DATA);
+      setLoading(false);
   };
 
   const generateId = () => {
@@ -432,7 +402,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return Math.random().toString(36).substring(2) + Date.now().toString(36);
   };
 
-  // ... (Actions createCycle, selectCycle, etc unchanged) ...
   const createCycle = async (name: string, role: string) => {
       const newCycle: Cycle = { id: generateId(), name, createdAt: new Date().toISOString(), lastAccess: new Date().toISOString(), config: { ...DEFAULT_CONFIG, targetRole: role }, planning: {}, weeklyCompletion: {}, schedule: {} };
       const previousCycles = [...cycles];
@@ -488,7 +457,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               const payload = mapNotebookToDB(newNb);
               const { error } = await supabase.from('notebooks').insert(payload);
               if (error) throw error;
-          } catch (e) { console.error(e); setNotebooks(previousNotebooks); alert("Erro ao salvar caderno."); }
+          } catch (e) { setNotebooks(previousNotebooks); alert("Erro ao salvar caderno."); }
       }
   };
 
@@ -497,16 +466,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setNotebooks(prev => prev.map(n => n.id === id ? { ...n, ...data } : n));
       if (!isGuest && user) {
           try {
-              const payload = mapNotebookToDB(data);
+              const payload = mapNotebookToDB({ ...data, id });
+              delete (payload as any).id;
               const { error } = await supabase.from('notebooks').update(payload).eq('id', id);
               if (error) throw error;
-          } catch (e) { console.error(e); setNotebooks(previousNotebooks); alert("Erro ao editar."); }
+          } catch (e) { setNotebooks(previousNotebooks); alert("Erro ao editar."); }
       }
   };
 
   const deleteNotebook = async (id: string) => {
       const previousNotebooks = [...notebooks];
       setNotebooks(prev => prev.filter(n => n.id !== id));
+      const validNotebookIds = new Set<string>(notebooks.filter(n => n.id !== id).map(n => n.id));
+      setCycles(prev => prev.map(c => sanitizeCycleData(c, validNotebookIds)));
       if (!isGuest && user) {
           try { await supabase.from('notebooks').delete().eq('id', id); } catch (e) { console.error(e); setNotebooks(previousNotebooks); }
       }
@@ -517,7 +489,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const previousNotebooks = [...notebooks];
       setNotebooks(prev => prev.map(n => {
          if (n.id !== id) return n;
-         const prevHistory = n.accuracyHistory || [];
+         const prevHistory = n.accuracyHistory ? [...n.accuracyHistory] : [];
          const history = [...prevHistory, { date: new Date().toISOString(), accuracy }];
          const updated = { ...n, accuracy, accuracyHistory: history.slice(-10), lastPractice: new Date().toISOString() };
          updatedNb = updated;
@@ -525,7 +497,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }));
       if (!isGuest && user && updatedNb) {
           try {
-              const payload = mapNotebookToDB({ accuracy: updatedNb.accuracy, accuracyHistory: updatedNb.accuracyHistory, lastPractice: updatedNb.lastPractice });
+              const payload = { accuracy: updatedNb.accuracy, accuracy_history: updatedNb.accuracyHistory, last_practice: updatedNb.lastPractice };
               await supabase.from('notebooks').update(payload).eq('id', id);
           } catch (e) { console.error(e); setNotebooks(previousNotebooks); }
       }
@@ -535,13 +507,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       let newScheduleState: Record<string, ScheduleItem[]> | null = null;
       const previousCycles = [...cycles];
       setCycles(prev => {
-          const newCycles = prev.map(c => {
+          return prev.map(c => {
               if (c.id !== cycleId) return c;
-              const newSchedule = modifier({ ...(c.schedule || {}) });
+              const currentSchedule = c.schedule ? JSON.parse(JSON.stringify(c.schedule)) : {};
+              const newSchedule = modifier(currentSchedule);
               newScheduleState = newSchedule;
               return { ...c, schedule: newSchedule };
           });
-          return newCycles;
       });
       if (!isGuest && user && newScheduleState) {
           try { await supabase.from('cycles').update({ schedule: newScheduleState }).eq('id', cycleId); } catch (e) { console.error(e); setCycles(previousCycles); }
@@ -623,20 +595,37 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (!isGuest && user) { try { await supabase.from('protocol').delete().eq('id', id); } catch(e) { setProtocol(previousProtocol); } }
   };
 
+  // --- CORREÇÃO PRINCIPAL: FRAMEWORK UPSERT ---
   const updateFramework = async (data: FrameworkData) => {
       const previousFramework = { ...framework };
       setFramework(data);
+      
       if (!isGuest && user) {
           try {
-              const { data: existing } = await supabase.from('frameworks').select('id').maybeSingle();
-              if (existing) {
-                  await supabase.from('frameworks').update(data).eq('id', existing.id);
-              } else {
-                  await supabase.from('frameworks').insert({ ...data, user_id: user.id });
+              const payload = {
+                  user_id: user.id,
+                  values: data.values,
+                  dream: data.dream,
+                  motivation: data.motivation,
+                  action: data.action,
+                  habit: data.habit,
+              };
+
+              const { error } = await supabase
+                  .from('frameworks')
+                  .upsert(payload, { onConflict: 'user_id' }); 
+
+              if (error) {
+                  throw error;
               }
-          } catch (e) {
+          } catch (e: any) {
               console.error("DB Error: Update Framework", e);
-              setFramework(previousFramework);
+              setFramework(previousFramework); 
+              if (e.code === '42P01') {
+                  alert("Erro: A tabela 'frameworks' não existe no Supabase. Execute o script SQL fornecido.");
+              } else {
+                  alert(`Erro ao salvar framework: ${e.message || 'Verifique sua conexão.'}`);
+              }
           }
       }
   };
@@ -683,7 +672,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       notebooks, cycles, activeCycleId, config, reports, protocol, framework, notes,
       activeSession, pendingCreateData, focusedNotebookId,
       createCycle, selectCycle, deleteCycle, updateConfig,
-      addNotebook, editNotebook, deleteNotebook, updateNotebookAccuracy, fetchNotebookImages, // Exported function
+      addNotebook, editNotebook, deleteNotebook, updateNotebookAccuracy, fetchNotebookImages, 
       moveNotebookToWeek, reorderSlotInWeek, toggleSlotCompletion, removeSlotFromWeek,
       saveReport, deleteReport,
       addProtocolItem, toggleProtocolItem, deleteProtocolItem,

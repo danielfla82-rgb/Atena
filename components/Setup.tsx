@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, Relevance, Trend, NotebookStatus, ScheduleItem } from '../types';
-import { Plus, Search, Copy, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, ChevronUp, Layout, FileCode, CheckSquare, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, CalendarClock, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, ScanSearch, Scale, Loader2, TrendingUp, History, ListPlus, Minus, AlertTriangle, CheckCircle2, RotateCw, Zap, Activity, Info, Clock, Archive, Cloud, CloudOff, Download, PanelLeftClose, PanelLeftOpen, Sparkles, XCircle, Play, Forward, Book, Brain } from 'lucide-react';
+import { Plus, Search, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, Layout, FileCode, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, Scale, Loader2, TrendingUp, History, Minus, CheckCircle2, Archive, Download, PanelLeftClose, PanelLeftOpen, XCircle, Book, Brain } from 'lucide-react';
 import { calculateNextReview, getStatusColor } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 
@@ -26,7 +26,8 @@ const DraggableCard = React.memo(({
     onRemove, 
     allocationCount,
     isCompleted,
-    index
+    index,
+    startDate
 }: {
     notebook: Notebook;
     instanceId?: string;
@@ -41,6 +42,7 @@ const DraggableCard = React.memo(({
     allocationCount?: number;
     isCompleted?: boolean;
     index?: number;
+    startDate?: string;
 }) => {
     const statusColor = getStatusColor(notebook.accuracy, notebook.targetAccuracy);
     const isLibrary = origin === 'library';
@@ -50,6 +52,16 @@ const DraggableCard = React.memo(({
     const target = notebook.targetAccuracy || 90;
     const accuracy = notebook.accuracy || 0;
     const criticalThreshold = target * 0.75; 
+
+    // --- LÓGICA DE PRÓXIMA REVISÃO ---
+    let nextReviewWeek = null;
+    if (isLibrary && notebook.nextReview && startDate) {
+        const reviewDate = new Date(notebook.nextReview);
+        const start = new Date(startDate);
+        const diffTime = reviewDate.getTime() - start.getTime();
+        const diffWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7)) + 1;
+        if (diffWeeks > 0) nextReviewWeek = diffWeeks;
+    }
 
     let buttonClass = 'border-slate-600 bg-slate-700 text-slate-300 group-hover/check:border-slate-500 hover:bg-slate-600';
     let textClass = isCompleted && isWeek ? 'text-slate-600 line-through' : 'text-slate-200';
@@ -134,7 +146,12 @@ const DraggableCard = React.memo(({
                      <span className={`font-mono font-bold text-xs ${percentColorClass}`}>
                          {notebook.accuracy}%
                      </span>
-                     <div className="flex gap-1">
+                     {nextReviewWeek && (
+                         <span className="flex items-center gap-1 text-[9px] text-slate-500 bg-slate-900 border border-slate-700 px-1.5 py-0.5 rounded" title={`Próxima revisão na Semana ${nextReviewWeek}`}>
+                             <Calendar size={8} /> Sem {nextReviewWeek}
+                         </span>
+                     )}
+                     <div className="flex gap-1 mt-1">
                          <button 
                             onClick={(e) => { e.stopPropagation(); onEdit(notebook); }} 
                             className="text-slate-500 hover:text-white p-1 rounded hover:bg-slate-700 transition-colors"
@@ -177,7 +194,7 @@ const DraggableCard = React.memo(({
 const normalizeStr = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
 const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: number } }) => {
-    // ... (Existing CycleCalculator logic preserved)
+    // ... same content as before ...
     const { notebooks, config, updateConfig } = useStore();
     const [newDiscName, setNewDiscName] = useState('');
     
@@ -410,7 +427,7 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
 };
 
 export const Setup: React.FC = () => {
-  const { notebooks, cycles, activeCycleId, config, updateConfig, moveNotebookToWeek, reorderSlotInWeek, editNotebook, toggleSlotCompletion, removeSlotFromWeek, isSyncing, isGuest, exportDatabase, startSession, addNotebook } = useStore();
+  const { notebooks, cycles, activeCycleId, config, updateConfig, moveNotebookToWeek, reorderSlotInWeek, editNotebook, toggleSlotCompletion, removeSlotFromWeek, isSyncing, isGuest, exportDatabase, startSession, addNotebook, fetchNotebookImages } = useStore();
   
   const [viewMode, setViewMode] = useState<'timeline' | 'calculator'>('timeline');
   const [searchTerm, setSearchTerm] = useState('');
@@ -432,7 +449,8 @@ export const Setup: React.FC = () => {
     accuracy: 0, targetAccuracy: 90,
     weight: Weight.MEDIO, relevance: Relevance.MEDIA, trend: Trend.ESTAVEL, 
     status: NotebookStatus.NOT_STARTED,
-    notes: '', images: [] as string[], accuracyHistory: [] as { date: string, accuracy: number }[]
+    notes: '', images: [] as string[], accuracyHistory: [] as { date: string, accuracy: number }[],
+    nextReview: '' as string | undefined // Added to preserve date
   };
   
   const [formData, setFormData] = useState(initialFormState);
@@ -445,9 +463,17 @@ export const Setup: React.FC = () => {
       
       const scheduledIds = new Set<string>();
       const schedule = cycle.schedule as Record<string, ScheduleItem[]>;
-      Object.values(schedule).forEach((slots) => {
-          slots.forEach(slot => scheduledIds.add(slot.notebookId));
-      });
+      
+      // FIX: Defensive check for schedule being null or values being null
+      if (schedule) {
+          Object.values(schedule).forEach((slots) => {
+              if (Array.isArray(slots)) {
+                  slots.forEach(slot => { 
+                      if(slot && slot.notebookId) scheduledIds.add(slot.notebookId); 
+                  });
+              }
+          });
+      }
       return notebooks.filter(n => n.discipline !== 'Revisão Geral' && !scheduledIds.has(n.id)).length;
   }, [notebooks, activeCycleId, cycles]);
 
@@ -456,7 +482,11 @@ export const Setup: React.FC = () => {
 
   const computedNextReviewData = useMemo(() => {
       if (!isModalOpen) return null;
-      const nextDate = calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm);
+      
+      // Use stored date if available, otherwise calculate
+      const dateStr = formData.nextReview || calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm).toISOString();
+      const nextDate = new Date(dateStr);
+
       let weekLabel = '';
       if (config.startDate) {
           const start = new Date(config.startDate);
@@ -473,7 +503,7 @@ export const Setup: React.FC = () => {
           }
       }
       return { date: nextDate, label: weekLabel };
-  }, [formData.accuracy, formData.relevance, formData.trend, config.algorithm, isModalOpen, config.startDate]);
+  }, [formData.accuracy, formData.relevance, formData.trend, formData.nextReview, config.algorithm, isModalOpen, config.startDate]);
 
   const currentPace = config.studyPace || 'Intermediário';
   const paceTarget = PACE_SETTINGS[currentPace] || PACE_SETTINGS['Intermediário'];
@@ -485,12 +515,16 @@ export const Setup: React.FC = () => {
     if (activeCycle?.schedule) {
         const schedule = activeCycle.schedule as Record<string, ScheduleItem[]>;
         Object.values(schedule).forEach((slots) => {
-            slots.forEach(slot => {
-                const nb = notebooks.find(n => n.id === slot.notebookId);
-                if (nb && nb.discipline !== 'Revisão Geral') {
-                    data[nb.discipline] = (data[nb.discipline] || 0) + 1;
-                }
-            });
+            // FIX: Defensive check for slots array and slot object
+            if (Array.isArray(slots)) {
+                slots.forEach(slot => {
+                    if (!slot || !slot.notebookId) return;
+                    const nb = notebooks.find(n => n.id === slot.notebookId);
+                    if (nb && nb.discipline !== 'Revisão Geral') {
+                        data[nb.discipline] = (data[nb.discipline] || 0) + 1;
+                    }
+                });
+            }
         });
     } else {
         notebooks.filter(n => n.discipline !== 'Revisão Geral' && n.weekId).forEach(nb => {
@@ -504,7 +538,9 @@ export const Setup: React.FC = () => {
       if (activeCycle?.schedule) {
           let count = 0;
           const schedule = activeCycle.schedule as Record<string, ScheduleItem[]>;
-          Object.values(schedule).forEach((slots) => count += slots.length);
+          Object.values(schedule).forEach((slots) => {
+              if(Array.isArray(slots)) count += slots.length;
+          });
           return count;
       }
       return notebooks.filter(n => n.weekId && n.weekId.startsWith('week-')).length;
@@ -614,9 +650,14 @@ export const Setup: React.FC = () => {
   }, [reorderSlotInWeek, moveNotebookToWeek]);
 
   // --- CRITICAL FIX: ENSURE ALL FIELDS ARE LOADED INTO FORM ---
-  const handleEditClick = useCallback((notebook: Notebook) => {
+  const handleEditClick = useCallback(async (notebook: Notebook) => {
     setEditingId(notebook.id);
     let currentImages = notebook.images || [];
+    if (currentImages.length === 0 && !isGuest) {
+        currentImages = await fetchNotebookImages(notebook.id);
+    }
+    
+    // Fallback legacy image
     if (currentImages.length === 0 && notebook.image) currentImages = [notebook.image];
     
     // Explicitly mapping potential missing fields to prevent data loss
@@ -639,10 +680,11 @@ export const Setup: React.FC = () => {
       notes: notebook.notes || '',
       status: notebook.status,
       images: currentImages, 
-      accuracyHistory: notebook.accuracyHistory || []
+      accuracyHistory: notebook.accuracyHistory || [],
+      nextReview: notebook.nextReview || '' // Load existing date
     });
     setIsModalOpen(true);
-  }, []);
+  }, [isGuest, fetchNotebookImages]);
 
   const handleChange = (field: keyof typeof initialFormState, value: any) => setFormData(prev => ({ ...prev, [field]: value }));
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -681,14 +723,20 @@ export const Setup: React.FC = () => {
     e.preventDefault();
     setIsSaving(true);
     try {
-        const nextDate = calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm);
+        // CORRECTION: Only calculate date if nextReview is missing or explicitly reset
+        let nextDateStr = formData.nextReview;
+        
+        if (!nextDateStr) {
+            const nextDate = calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm);
+            nextDateStr = nextDate.toISOString();
+        }
         
         // Construct payload with explicit fields to ensure saving
         const payload: any = { 
             ...formData, 
             accuracy: Number(formData.accuracy), 
             targetAccuracy: Number(formData.targetAccuracy),
-            nextReview: nextDate.toISOString()
+            nextReview: nextDateStr
         };
         
         if (editingId) await editNotebook(editingId, payload);
@@ -726,7 +774,11 @@ export const Setup: React.FC = () => {
                   lastPractice: new Date().toISOString(),
                   nextReview: nextDate.toISOString()
               });
-              setFormData(prev => ({ ...prev, accuracyHistory: newHistory }));
+              setFormData(prev => ({ 
+                  ...prev, 
+                  accuracyHistory: newHistory,
+                  nextReview: nextDate.toISOString() // Update local state too
+              }));
           }
       } catch (err) { console.error("Quick save failed", err); } finally { setIsSaving(false); }
   };
@@ -827,6 +879,7 @@ export const Setup: React.FC = () => {
                             onEdit={handleEditClick} 
                             origin="library" 
                             allocationCount={nb.weekId ? 1 : 0}
+                            startDate={config.startDate}
                         />
                     ))}
                     
@@ -955,8 +1008,11 @@ export const Setup: React.FC = () => {
                             }));
                         }
 
+                        // Filter undefined/null slots before processing
+                        weekSlots = weekSlots.filter(s => !!s && !!s.notebookId);
+
                         const blocksCount = weekSlots.length;
-                        const blocksCompleted = weekSlots.filter(s => s.completed).length;
+                        const blocksCompleted = weekSlots.filter(s => s && s.completed).length; // FIX: Ensure safe access
                         const blocksRemaining = blocksCount - blocksCompleted;
                         
                         const weekPaceName = getWeekPace(week.id);
@@ -1042,12 +1098,14 @@ export const Setup: React.FC = () => {
                                 {week.isPast && <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagmonds-light.png')] opacity-10 pointer-events-none z-0"></div>}
                                 
                                 {weekSlots.map((slot, index) => {
+                                    // FIX: Double safe check
+                                    if (!slot || !slot.notebookId) return null; 
                                     const nb = notebooks.find(n => n.id === slot.notebookId);
                                     if (!nb) return null;
                                     
                                     return (
                                         <DraggableCard 
-                                            key={slot.instanceId} 
+                                            key={slot.instanceId || `fallback-${index}`} 
                                             instanceId={slot.instanceId}
                                             notebook={nb} 
                                             isCompleted={slot.completed}
@@ -1075,6 +1133,7 @@ export const Setup: React.FC = () => {
          ) : (<CycleCalculator paceTarget={paceTarget} />)}
       </main>
 
+       {/* Edit/Create Modal (REUSED FROM LIBRARY) */}
        {isModalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
@@ -1083,6 +1142,7 @@ export const Setup: React.FC = () => {
                 <button onClick={() => !isSaving && setIsModalOpen(false)} className="text-slate-400 hover:text-white" disabled={isSaving}><X size={24} /></button>
             </div>
             <form onSubmit={handleSave} className="overflow-y-auto p-6 space-y-6 custom-scrollbar flex-1">
+              {/* Form Content identical to Library for consistency */}
               <div className="space-y-4">
                   <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">1. Identificação</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

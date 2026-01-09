@@ -2,8 +2,8 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useStore } from '../store';
 import { createAIClient } from '../utils/ai';
 import { Type } from "@google/genai";
-import { CheckSquare, Square, AlertCircle, ArrowUpCircle, CheckCircle2, ListChecks, Search, BrainCircuit, Loader2, Sparkles, ChevronDown, ChevronUp, FileWarning, ExternalLink, Plus, BookOpen, X, FileText, Calendar, Target, TrendingUp, Clock } from 'lucide-react';
-import { EditalDiscipline, EditalTopic, Weight, Relevance, Trend, ScheduleItem } from '../types';
+import { CheckSquare, Square, AlertCircle, ArrowUpCircle, CheckCircle2, ListChecks, Search, BrainCircuit, Loader2, Sparkles, ChevronDown, ChevronUp, FileWarning, ExternalLink, Plus, BookOpen, X, FileText, Calendar, Target, TrendingUp, Clock, Info, Medal, Layers } from 'lucide-react';
+import { EditalDiscipline, EditalTopic, Weight, Relevance, Trend, ScheduleItem, Notebook } from '../types';
 
 interface Props {
     onNavigate: (view: string) => void;
@@ -19,49 +19,89 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
   const [showReprocessModal, setShowReprocessModal] = useState(false);
   const [localEditalText, setLocalEditalText] = useState('');
 
-  // Normalize string for fuzzy matching (matches topic name to notebook name)
-  const normalize = (str: string) => {
-      return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
-  };
-
   const openReprocessModal = () => {
       setLocalEditalText(config.editalText || '');
       setShowReprocessModal(true);
   };
 
-  // --- AUTO CHECK LOGIC (SYNC WITH SCHEDULE) ---
-  useEffect(() => {
-      const activeCycle = cycles.find(c => c.id === activeCycleId);
-      if (!activeCycle?.schedule || !config.structuredEdital) return;
+  // --- ROBUST MATCHING LOGIC (V2: STRICTER JACCARD) ---
+  const getTokens = (str: string) => {
+      const stopWords = new Set(['de', 'da', 'do', 'dos', 'das', 'em', 'na', 'no', 'para', 'com', 'por', 'que', 'os', 'as', 'um', 'uma']);
+      return str.toLowerCase()
+          .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Remove accents
+          .replace(/[^a-z0-9\s]/g, "") // Remove punctuation
+          .split(/\s+/)
+          .filter(w => w.length > 2 && isNaN(Number(w)) && !stopWords.has(w)); // Ignore small words, numbers & stopWords
+  };
 
-      // 1. Identify completed notebook IDs from the schedule
-      const completedNotebookIds = new Set<string>();
-      Object.values(activeCycle.schedule).flat().forEach((slot: any) => {
-          if (slot.completed) completedNotebookIds.add(slot.notebookId);
+  // Checks similarity between two strings (0 to 1)
+  const calculateSimilarity = useCallback((str1: string, str2: string) => {
+      const t1 = getTokens(str1);
+      const t2 = getTokens(str2);
+      
+      if (t1.length === 0 || t2.length === 0) return 0;
+
+      const set1 = new Set(t1);
+      const set2 = new Set(t2);
+      
+      // Intersection
+      const intersection = new Set([...set1].filter(x => set2.has(x)));
+      
+      // Union
+      const union = new Set([...set1, ...set2]);
+      
+      // Jaccard Index
+      return intersection.size / union.size;
+  }, []);
+
+  const findMatchingNotebook = useCallback((topicName: string, disciplineName: string, allNotebooks: Notebook[]) => {
+      // 1. Strict Discipline Filter
+      // The notebook discipline must match the edital discipline with High Similarity (0.5+)
+      const candidates = allNotebooks.filter(nb => {
+          const discScore = calculateSimilarity(nb.discipline, disciplineName);
+          return discScore >= 0.4; // Slightly lenient for discipline names (e.g. "Dir. Const" vs "Direito Constitucional")
+      });
+      
+      // 2. Filter by Topic Name (High Threshold)
+      const match = candidates.find(nb => {
+          // Check Name
+          const nameScore = calculateSimilarity(nb.name, topicName);
+          if (nameScore >= 0.65) return true; // High confidence match
+
+          // Check Subtitle (often users put the specific topic here)
+          if (nb.subtitle) {
+              const subScore = calculateSimilarity(nb.subtitle, topicName);
+              if (subScore >= 0.65) return true;
+          }
+          
+          return false;
       });
 
-      if (completedNotebookIds.size === 0) return;
+      return match;
+  }, [calculateSimilarity]);
 
-      // 2. Scan Edital and Auto-Check
+  // --- AUTO CHECK LOGIC (SYNC WITH MASTERY) ---
+  useEffect(() => {
+      if (!config.structuredEdital) return;
+
       let hasChanges = false;
       const newEdital = config.structuredEdital.map(discipline => ({
           ...discipline,
           topics: discipline.topics.map(topic => {
-              // If already manually checked, skip
-              if (topic.checked) return topic;
+              // 1. Find matching notebook
+              const match = findMatchingNotebook(topic.name, discipline.name, notebooks);
 
-              const normTopic = normalize(topic.name);
-              
-              // Find if ANY completed notebook matches this topic name
-              const match = notebooks.find(nb => 
-                  completedNotebookIds.has(nb.id) && 
-                  (normalize(nb.name).includes(normTopic) || normTopic.includes(normalize(nb.name)))
-              );
+              // 2. Check Mastery Condition (Auto-Complete)
+              // Só marca automaticamente se o usuário JÁ atingiu a meta no caderno vinculado.
+              const isMastered = match ? (match.accuracy >= match.targetAccuracy && match.accuracy > 0) : false;
 
-              if (match) {
+              // Se já está marcado, mantém (respeita marcação manual).
+              // Se não está marcado, mas atingiu a meta, marca.
+              if (!topic.checked && isMastered) {
                   hasChanges = true;
                   return { ...topic, checked: true };
               }
+              
               return topic;
           })
       }));
@@ -69,7 +109,7 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
       if (hasChanges) {
           updateConfig({ ...config, structuredEdital: newEdital });
       }
-  }, [activeCycleId, cycles, notebooks, config.structuredEdital]); // config.structuredEdital dep is safe here as updateConfig creates new ref
+  }, [notebooks, config.structuredEdital, findMatchingNotebook]);
 
   // --- STATS CALCULATION ---
   const stats = useMemo(() => {
@@ -116,70 +156,34 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
       const ai = createAIClient();
 
       try {
-          // Update global config with the text being processed
           if (localEditalText && localEditalText !== config.editalText) {
               updateConfig({ ...config, editalText: localEditalText });
           }
 
           const prompt = `
             Você é um especialista em concursos públicos.
-            Analise o seguinte texto de edital (conteúdo programático) e estruture-o.
+            Analise o seguinte texto de edital e estruture-o.
             
-            TEXTO DO EDITAL:
+            TEXTO:
             ${textToProcess.substring(0, 30000)} 
             
-            Retorne APENAS um JSON seguindo este schema:
-            {
-              "disciplines": [
-                {
-                  "name": "Nome da Disciplina",
-                  "topics": [
-                    { "name": "Nome do Tópico" }
-                  ]
-                }
-              ]
-            }
+            Retorne APENAS JSON:
+            { "disciplines": [ { "name": "Nome", "topics": [ { "name": "Tópico" } ] } ] }
           `;
 
           const response = await ai.models.generateContent({
               model: 'gemini-3-flash-preview',
               contents: prompt,
-              config: {
-                  responseMimeType: 'application/json',
-                  responseSchema: {
-                      type: Type.OBJECT,
-                      properties: {
-                          disciplines: {
-                              type: Type.ARRAY,
-                              items: {
-                                  type: Type.OBJECT,
-                                  properties: {
-                                      name: { type: Type.STRING },
-                                      topics: {
-                                          type: Type.ARRAY,
-                                          items: {
-                                              type: Type.OBJECT,
-                                              properties: {
-                                                  name: { type: Type.STRING }
-                                              }
-                                          }
-                                      }
-                                  }
-                              }
-                          }
-                      }
-                  }
-              }
+              config: { responseMimeType: 'application/json' }
           });
 
           if (response.text) {
               const result = JSON.parse(response.text);
-              // Add 'checked' property initialized to false, 'probability' will be calculated dynamically
               const structured: EditalDiscipline[] = result.disciplines.map((d: any) => ({
                   name: d.name,
                   topics: d.topics.map((t: any) => ({
                       name: t.name,
-                      probability: 'Média', // Placeholder, calculated on render
+                      probability: 'Média', 
                       checked: false
                   }))
               }));
@@ -190,13 +194,13 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
 
       } catch (error) {
           console.error("Erro ao processar edital:", error);
-          alert("Erro ao processar o edital com IA. Tente novamente.");
+          alert("Erro ao processar. Tente novamente.");
       } finally {
           setIsProcessing(false);
       }
   };
 
-  // --- ACTIONS ---
+  // --- TOPIC CHECKING LOGIC ---
   const toggleCheck = (disciplineName: string, topicName: string) => {
       if (!config.structuredEdital) return;
 
@@ -208,6 +212,22 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
                   if (t.name !== topicName) return t;
                   return { ...t, checked: !t.checked };
               })
+          };
+      });
+
+      updateConfig({ ...config, structuredEdital: newEdital });
+  };
+
+  // --- NEW: TOGGLE ALL IN DISCIPLINE ---
+  const toggleAllDisciplineTopics = (disciplineName: string, shouldCheck: boolean, event: React.MouseEvent) => {
+      event.stopPropagation(); // Prevents expanding/collapsing the accordion
+      if (!config.structuredEdital) return;
+
+      const newEdital = config.structuredEdital.map(d => {
+          if (d.name !== disciplineName) return d;
+          return {
+              ...d,
+              topics: d.topics.map(t => ({ ...t, checked: shouldCheck }))
           };
       });
 
@@ -227,40 +247,22 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
       }
   };
 
-  // --- PROBABILITY CALCULATION ---
   const calculateProbability = useCallback((topicName: string, disciplineName: string) => {
-      const normTopic = normalize(topicName);
-      const normDisc = normalize(disciplineName);
-
-      // Find best matching notebook
-      const match = notebooks.find(nb => {
-          const nbDisc = normalize(nb.discipline);
-          const discMatch = nbDisc.includes(normDisc) || normDisc.includes(nbDisc);
-          if (!discMatch) return false;
-          
-          const nbName = normalize(nb.name);
-          const nbSub = normalize(nb.subtitle || '');
-          return nbName.includes(normTopic) || normTopic.includes(nbName) || (nbSub && normTopic.includes(nbSub));
-      });
+      const match = findMatchingNotebook(topicName, disciplineName, notebooks);
 
       if (!match) return { label: 'Desconhecida', score: 0, color: 'text-slate-500 border-slate-700' };
 
-      // Map Enums to Numbers
       const weightMap: Record<Weight, number> = { [Weight.BAIXO]: 1, [Weight.MEDIO]: 2, [Weight.ALTO]: 3, [Weight.MUITO_ALTO]: 4 };
       const relevanceMap: Record<Relevance, number> = { [Relevance.BAIXA]: 1, [Relevance.MEDIA]: 2, [Relevance.ALTA]: 3, [Relevance.ALTISSIMA]: 4 };
       const trendMap: Record<Trend, number> = { [Trend.BAIXA]: 1, [Trend.ESTAVEL]: 2, [Trend.ALTA]: 3 };
 
-      // Formula: Weight (50%) + Relevance (30%) + Trend (20%)
       const w = weightMap[match.weight];
       const r = relevanceMap[match.relevance];
       const t = trendMap[match.trend];
 
-      // Max possible raw score: 4*0.5 + 4*0.3 + 3*0.2 = 2.0 + 1.2 + 0.6 = 3.8
       const rawScore = (w * 0.5) + (r * 0.3) + (t * 0.2);
-      
-      // Normalize to 0-10
       const score = (rawScore / 3.8) * 10;
-      const roundedScore = Math.round(score * 10) / 10; // 1 decimal place
+      const roundedScore = Math.round(score * 10) / 10;
 
       let label = 'Baixa';
       let color = 'text-blue-400 bg-blue-900/20 border-blue-500/30';
@@ -275,74 +277,59 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
 
       return { label, score: roundedScore, color };
 
-  }, [notebooks]);
+  }, [notebooks, findMatchingNotebook]);
 
-  // --- MATCHING LOGIC (SCHEDULE AWARE) ---
   const getTopicStatus = useCallback((topicName: string, disciplineName: string) => {
-      const normTopic = normalize(topicName);
-      const normDisc = normalize(disciplineName);
+      const match = findMatchingNotebook(topicName, disciplineName, notebooks);
 
-      // 1. Find notebooks that match this topic
-      const matches = notebooks.filter(nb => {
-          const nbDisc = normalize(nb.discipline);
-          const discMatch = nbDisc.includes(normDisc) || normDisc.includes(nbDisc);
-          if (!discMatch) return false;
-          const nbName = normalize(nb.name);
-          const nbSub = normalize(nb.subtitle || '');
-          return nbName.includes(normTopic) || normTopic.includes(nbName) || (nbSub && normTopic.includes(nbSub));
-      });
+      if (!match) {
+          return { 
+              weeksLabel: null,
+              isScheduled: false,
+              matchesCount: 0,
+              matchedId: undefined,
+              isMastered: false,
+              accuracy: 0,
+              target: 0
+          };
+      }
 
-      // 2. Find Schedule Data
       const activeCycle = cycles.find(c => c.id === activeCycleId);
       const scheduledWeeks = new Set<string>();
       
       if (activeCycle?.schedule) {
           Object.entries(activeCycle.schedule).forEach(([weekId, slots]) => {
-              // Check if any matched notebook is in this week's slots
               const typedSlots = slots as ScheduleItem[];
-              const isScheduledInWeek = typedSlots.some(slot => matches.some(m => m.id === slot.notebookId));
-              if (isScheduledInWeek) {
-                  scheduledWeeks.add(weekId); // e.g., "week-1"
+              if (typedSlots.some(slot => slot && slot.notebookId === match.id)) {
+                  scheduledWeeks.add(weekId);
               }
           });
-      } else {
-          // Legacy Fallback
-          matches.forEach(m => {
-              if (m.weekId) scheduledWeeks.add(m.weekId);
-          });
+      } else if (match.weekId) {
+          scheduledWeeks.add(match.weekId);
       }
 
-      // Convert Set to readable string array (sorted)
       const weeksArray = Array.from(scheduledWeeks).sort((a,b) => {
           const numA = parseInt(a.replace('week-', '')) || 0;
           const numB = parseInt(b.replace('week-', '')) || 0;
           return numA - numB;
-      }).map(w => w.replace('week-', 'Sem ')); // "Sem 1", "Sem 2"
+      }).map(w => w.replace('week-', 'Sem '));
 
-      // Stats for Header
-      const disciplineBlocks = notebooks.filter(nb => {
-          const nbDisc = normalize(nb.discipline);
-          return (nbDisc.includes(normDisc) || normDisc.includes(nbDisc)) && !!nb.weekId;
-      }).length;
-
-      // Return the ID of the first match if any, to allow linking
       return { 
           weeksLabel: weeksArray.length > 0 ? weeksArray.join(', ') : null,
           isScheduled: weeksArray.length > 0,
-          disciplineBlocks, 
-          matchesCount: matches.length,
-          matchedId: matches.length > 0 ? matches[0].id : undefined 
+          matchesCount: 1,
+          matchedId: match.id,
+          isMastered: match.accuracy >= match.targetAccuracy && match.accuracy > 0,
+          accuracy: match.accuracy,
+          target: match.targetAccuracy
       };
-  }, [notebooks, activeCycleId, cycles]);
+  }, [notebooks, activeCycleId, cycles, findMatchingNotebook]);
 
   // --- FILTERING ---
   const displayData = useMemo(() => {
       if (!config.structuredEdital) return [];
-      
       if (!searchTerm) return config.structuredEdital;
-
       const lowerSearch = searchTerm.toLowerCase();
-      
       return config.structuredEdital.map(d => ({
           ...d,
           topics: d.topics.filter(t => 
@@ -350,7 +337,6 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
               d.name.toLowerCase().includes(lowerSearch)
           )
       })).filter(d => d.topics.length > 0);
-
   }, [config.structuredEdital, searchTerm]);
 
   // --- RENDER ---
@@ -451,11 +437,6 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
                           {stats.pace > 0 ? stats.pace : '?'} <span className="text-xs text-slate-400 font-normal">tópicos/dia</span>
                       </p>
                   </div>
-                  {!config.examDate && (
-                      <div className="absolute inset-0 bg-slate-950/80 flex items-center justify-center text-xs text-slate-400 backdrop-blur-[1px]">
-                          Configure a data da prova
-                      </div>
-                  )}
               </div>
           </div>
       )}
@@ -466,8 +447,7 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
               const totalTopics = discipline.topics.length;
               const checkedTopics = discipline.topics.filter(t => t.checked).length;
               const progress = Math.round((checkedTopics / totalTopics) * 100);
-
-              const sampleStat = getTopicStatus(discipline.topics[0]?.name || '', discipline.name);
+              const isAllChecked = checkedTopics === totalTopics;
               
               return (
                   <div key={discipline.name} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden transition-all">
@@ -484,17 +464,27 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
                                   <h3 className="font-bold text-white text-lg">{discipline.name}</h3>
                                   <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
                                       <span>{totalTopics} tópicos</span>
-                                      <span className="w-1 h-1 rounded-full bg-slate-700"></span>
-                                      <span>{sampleStat.disciplineBlocks} blocos no ciclo</span>
                                   </div>
                               </div>
                           </div>
                           
-                          <div className="flex items-center gap-4">
-                              <div className="hidden md:block w-32 h-2 bg-slate-950 rounded-full overflow-hidden">
-                                  <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                          <div className="flex items-center gap-6">
+                              {/* Bulk Toggle Button - Only visible on hover/expand or if progress > 0 for UX */}
+                              <button 
+                                onClick={(e) => toggleAllDisciplineTopics(discipline.name, !isAllChecked, e)}
+                                className={`text-[10px] uppercase font-bold px-2 py-1 rounded border transition-colors flex items-center gap-1 ${isAllChecked ? 'text-slate-400 border-slate-700 hover:text-white hover:bg-slate-800' : 'text-emerald-500 border-emerald-500/30 hover:bg-emerald-900/20'}`}
+                                title={isAllChecked ? "Desmarcar Todos" : "Marcar Todos como Concluído"}
+                              >
+                                  {isAllChecked ? <Square size={12}/> : <CheckSquare size={12}/>}
+                                  {isAllChecked ? "Desmarcar" : "Marcar Tudo"}
+                              </button>
+
+                              <div className="flex items-center gap-4">
+                                  <div className="hidden md:block w-32 h-2 bg-slate-950 rounded-full overflow-hidden">
+                                      <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                                  </div>
+                                  <span className="text-sm font-bold text-emerald-400 w-8 text-right">{progress}%</span>
                               </div>
-                              <span className="text-sm font-bold text-emerald-400">{progress}%</span>
                           </div>
                       </div>
 
@@ -529,6 +519,15 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
                                                         onClick={() => handleTopicClick(topic.name, discipline.name, stats.matchedId)}
                                                       >
                                                           {topic.name}
+                                                          <div className="flex gap-2 items-center mt-1">
+                                                              {stats.matchedId && <span className="text-[9px] text-slate-600 bg-slate-900 border border-slate-700 px-1 rounded inline-block">Integrado</span>}
+                                                              {stats.isMastered && <span className="text-[9px] text-emerald-400 bg-emerald-900/20 border border-emerald-500/20 px-1 rounded inline-flex items-center gap-0.5"><Medal size={8}/> Dominado</span>}
+                                                              {stats.matchedId && (
+                                                                  <span className={`text-[9px] px-1.5 rounded font-bold border ${stats.accuracy >= stats.target ? 'text-emerald-400 border-emerald-500/20 bg-emerald-500/10' : 'text-amber-400 border-amber-500/20 bg-amber-500/10'}`}>
+                                                                      {stats.accuracy}% <span className="opacity-50">/ {stats.target}%</span>
+                                                                  </span>
+                                                              )}
+                                                          </div>
                                                       </td>
                                                       <td className="p-4 text-center">
                                                           <div className="flex flex-col items-center">

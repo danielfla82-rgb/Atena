@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, Relevance, Trend, NotebookStatus } from '../types';
 import { calculateNextReview } from '../utils/algorithm';
@@ -20,7 +20,9 @@ export const Library: React.FC = () => {
     setPendingCreateData,
     focusedNotebookId,
     setFocusedNotebookId,
-    startSession
+    startSession,
+    fetchNotebookImages,
+    isGuest
   } = useStore();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -39,13 +41,40 @@ export const Library: React.FC = () => {
     accuracy: 0, targetAccuracy: 90,
     weight: Weight.MEDIO, relevance: Relevance.MEDIA, trend: Trend.ESTAVEL, 
     status: NotebookStatus.NOT_STARTED,
-    notes: '', images: [] as string[], accuracyHistory: [] as { date: string, accuracy: number }[]
+    notes: '', images: [] as string[], accuracyHistory: [] as { date: string, accuracy: number }[],
+    nextReview: '' as string | undefined // Added to preserve date
   };
 
   const [formData, setFormData] = useState(initialFormState);
   const [isSaving, setIsSaving] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // --- UPDATED: LAZY LOAD IMAGES ON EDIT & PRESERVE DATE ---
+  const handleEdit = useCallback(async (notebook: Notebook) => {
+      setEditingId(notebook.id);
+      let currentImages = notebook.images || [];
+      
+      // Lazy load trigger
+      if (currentImages.length === 0 && !isGuest) {
+          currentImages = await fetchNotebookImages(notebook.id);
+      }
+
+      if (currentImages.length === 0 && notebook.image) currentImages = [notebook.image];
+      
+      setFormData({
+          discipline: notebook.discipline, name: notebook.name, subtitle: notebook.subtitle,
+          tecLink: notebook.tecLink || '', errorNotebookLink: notebook.errorNotebookLink || '', favoriteQuestionsLink: notebook.favoriteQuestionsLink || '',
+          lawLink: notebook.lawLink || '', obsidianLink: notebook.obsidianLink || '',
+          geminiLink1: notebook.geminiLink1 || '', geminiLink2: notebook.geminiLink2 || '',
+          accuracy: notebook.accuracy, targetAccuracy: notebook.targetAccuracy, weight: notebook.weight,
+          relevance: notebook.relevance, trend: notebook.trend, notes: notebook.notes || '',
+          status: notebook.status,
+          images: currentImages, accuracyHistory: notebook.accuracyHistory || [],
+          nextReview: notebook.nextReview || '' // Load existing date
+      });
+      setIsModalOpen(true);
+  }, [fetchNotebookImages, isGuest]);
 
   React.useEffect(() => {
       if (pendingCreateData) {
@@ -63,16 +92,24 @@ export const Library: React.FC = () => {
               setSearchTerm(nb.name);
               const groupKey = viewMode === 'discipline' ? nb.discipline : nb.status;
               setExpandedGroups(prev => ({...prev, [groupKey]: true}));
+              
+              // AUTO-OPEN EDIT MODAL WHEN REDIRECTED FROM DASHBOARD
+              handleEdit(nb);
           }
           setFocusedNotebookId(null);
       }
-  }, [focusedNotebookId, notebooks, viewMode]);
+  }, [focusedNotebookId, notebooks, viewMode, handleEdit]);
 
   const existingDisciplines = useMemo(() => Array.from(new Set(notebooks.map(n => n.discipline))).sort(), [notebooks]);
 
+  // Preview date calculation (Visual only)
   const computedNextReviewData = useMemo(() => {
       if (!isModalOpen) return null;
-      const nextDate = calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm);
+      
+      // Use stored date if available, otherwise calculate
+      const dateStr = formData.nextReview || calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm).toISOString();
+      const nextDate = new Date(dateStr);
+      
       let weekLabel = '';
       if (config.startDate) {
           const start = new Date(config.startDate);
@@ -89,7 +126,7 @@ export const Library: React.FC = () => {
           }
       }
       return { date: nextDate, label: weekLabel };
-  }, [formData.accuracy, formData.relevance, formData.trend, config.algorithm, isModalOpen, config.startDate]);
+  }, [formData.accuracy, formData.relevance, formData.trend, formData.nextReview, config.algorithm, isModalOpen, config.startDate]);
 
   const stats = useMemo(() => {
       const validNotebooks = notebooks.filter(n => n.discipline !== 'Revisão Geral');
@@ -113,7 +150,14 @@ export const Library: React.FC = () => {
           if (!matchesSearch) return false;
 
           switch (activeFilter) {
-              case 'review': return nb.status === NotebookStatus.REVIEWING;
+              case 'review': 
+                  // Lógica corrigida: Status Revisando OU Data vencida/hoje
+                  if (nb.status === NotebookStatus.REVIEWING) return true;
+                  if (nb.nextReview) {
+                      const today = new Date().toISOString().split('T')[0];
+                      return nb.nextReview.split('T')[0] <= today;
+                  }
+                  return false;
               case 'critical': return nb.accuracy < 60 && nb.accuracy > 0;
               case 'new': return nb.accuracy === 0;
               case 'late': 
@@ -166,23 +210,6 @@ export const Library: React.FC = () => {
       setIsModalOpen(true);
   };
 
-  const handleEdit = (notebook: Notebook) => {
-      setEditingId(notebook.id);
-      let currentImages = notebook.images || [];
-      if (currentImages.length === 0 && notebook.image) currentImages = [notebook.image];
-      setFormData({
-          discipline: notebook.discipline, name: notebook.name, subtitle: notebook.subtitle,
-          tecLink: notebook.tecLink || '', errorNotebookLink: notebook.errorNotebookLink || '', favoriteQuestionsLink: notebook.favoriteQuestionsLink || '',
-          lawLink: notebook.lawLink || '', obsidianLink: notebook.obsidianLink || '',
-          geminiLink1: notebook.geminiLink1 || '', geminiLink2: notebook.geminiLink2 || '',
-          accuracy: notebook.accuracy, targetAccuracy: notebook.targetAccuracy, weight: notebook.weight,
-          relevance: notebook.relevance, trend: notebook.trend, notes: notebook.notes || '',
-          status: notebook.status,
-          images: currentImages, accuracyHistory: notebook.accuracyHistory || []
-      });
-      setIsModalOpen(true);
-  };
-
   const handleDelete = async (id: string) => {
       if (confirm('Tem certeza que deseja excluir este caderno?')) {
           await deleteNotebook(id);
@@ -211,12 +238,19 @@ export const Library: React.FC = () => {
     e.preventDefault();
     setIsSaving(true);
     try {
-        const nextDate = calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm);
+        // CORRECTION: Only calculate date if nextReview is missing or explicitly reset
+        let nextDateStr = formData.nextReview;
+        
+        if (!nextDateStr) {
+            const nextDate = calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm);
+            nextDateStr = nextDate.toISOString();
+        }
+
         const payload: any = { 
             ...formData, 
             accuracy: Number(formData.accuracy), 
             targetAccuracy: Number(formData.targetAccuracy),
-            nextReview: nextDate.toISOString()
+            nextReview: nextDateStr
         };
         
         if (editingId) {
@@ -243,6 +277,7 @@ export const Library: React.FC = () => {
       setIsSaving(true);
       try {
           const newAccuracy = Number(formData.accuracy);
+          // Quick Record explicitly DOES recalculate date
           const nextDate = calculateNextReview(newAccuracy, formData.relevance, formData.trend, config.algorithm);
           const newHistory = [...(formData.accuracyHistory || []), { date: new Date().toISOString(), accuracy: newAccuracy }].slice(-3);
           
@@ -253,7 +288,11 @@ export const Library: React.FC = () => {
                   lastPractice: new Date().toISOString(),
                   nextReview: nextDate.toISOString()
               });
-              setFormData(prev => ({ ...prev, accuracyHistory: newHistory }));
+              setFormData(prev => ({ 
+                  ...prev, 
+                  accuracyHistory: newHistory,
+                  nextReview: nextDate.toISOString() // Update local state too
+              }));
           }
       } catch (err) { console.error("Quick save failed", err); } finally { setIsSaving(false); }
   };
@@ -393,7 +432,7 @@ export const Library: React.FC = () => {
                           <div className="border-t border-slate-800 divide-y divide-slate-800/50">
                               {items.map(nb => (
                                   <div key={nb.id} className="p-4 hover:bg-slate-800/20 transition-colors flex items-center justify-between group">
-                                      <div className="flex-1 min-w-0 pr-4 cursor-pointer" onClick={() => startSession(nb)}>
+                                      <div className="flex-1 min-w-0 pr-4 cursor-pointer" onClick={() => handleEdit(nb)}>
                                           <div className="flex items-center gap-2 mb-1">
                                               <h4 className="font-bold text-slate-200 text-sm truncate">{nb.name}</h4>
                                               {nb.weight === Weight.MUITO_ALTO && <span className="text-[9px] bg-red-500/10 text-red-400 border border-red-500/20 px-1.5 rounded uppercase font-bold">Peso Max</span>}
@@ -410,7 +449,8 @@ export const Library: React.FC = () => {
                                           <div className="text-right hidden md:block">
                                               <p className="text-[10px] text-slate-500 uppercase font-bold">Revisão</p>
                                               <p className={`font-mono font-bold text-sm ${nb.nextReview && new Date(nb.nextReview) < new Date() ? 'text-red-400' : 'text-slate-300'}`}>
-                                                  {nb.nextReview ? new Date(nb.nextReview).toLocaleDateString(undefined, {day:'2-digit', month:'2-digit'}) : '--'}
+                                                  {/* Correct display using string splitting to avoid Timezone offset */ }
+                                                  {nb.nextReview ? nb.nextReview.split('T')[0].split('-').reverse().join('/') : '--'}
                                               </p>
                                           </div>
                                           
@@ -572,10 +612,8 @@ export const Library: React.FC = () => {
               <div className="space-y-4 pt-2">
                 <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">3. Rascunhos & Anotações</h4>
                 
-                {/* ... (Existing links inputs) ... */}
-                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Anotações / Resumo</label><textarea value={formData.notes} onChange={e => handleChange('notes', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500 transition-all min-h-[200px] resize-none text-sm" placeholder="Mnemônicos..." /></div>
+                    <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Anotações / Resumo</label><textarea value={formData.notes} onChange={e => handleChange('notes', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500 transition-all min-h-[200px] resize-none text-sm custom-scrollbar" placeholder="Mnemônicos..." /></div>
                     <div className="flex flex-col h-full">
                         <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Galeria de Mapas Mentais</label>
                         <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 min-h-[200px] flex flex-col">
