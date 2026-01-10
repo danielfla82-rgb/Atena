@@ -65,8 +65,14 @@ export const calculateNextReview = (
   // 3. Cálculo Final
   let finalDays = baseDays * multiplier;
 
-  // Arredondamento e Garantia Mínima de 1 dia
-  finalDays = Math.max(1, Math.round(finalDays));
+  // CLAMPING INTELIGENTE (V7.6 UPDATE)
+  // Se o aluno acertou mais que 60% (Fase de Revisão), o intervalo mínimo deve ser 2 dias
+  // para diferenciar visualmente da Fase de Aprendizado (1 dia).
+  // Isso evita que multiplicadores agressivos comprimam 73% para 1 dia.
+  const minDays = accuracy >= 60 ? 2 : 1;
+
+  // Arredondamento e Garantia Mínima
+  finalDays = Math.max(minDays, Math.round(finalDays));
 
   // Validação extra para NaN (Persistence Safety)
   if (isNaN(finalDays)) finalDays = 1;

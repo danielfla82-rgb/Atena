@@ -1,31 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { StoreProvider, useStore } from '../store';
-import { Dashboard } from './Dashboard';
-import { Setup } from './Setup';
-import { Login } from './Login';
-import { ProjectSelection } from './ProjectSelection';
-import { Library } from './Library';
-import { Diagnostics } from './Diagnostics';
-import { Tips } from './Tips';
-import { Nietzsche } from './Nietzsche';
-import { Psychoanalyst } from './Psychoanalyst';
-import { News } from './News';
-import { Protocol } from './Protocol';
-import { Framework } from './Framework';
-import { Documentation } from './Documentation';
-import { VerticalizedEdital } from './VerticalizedEdital';
-import { Notes } from './Notes';
-import { About } from './About';
-import { StudySession } from './StudySession';
+import { Dashboard } from './components/Dashboard';
+import { Setup } from './components/Setup';
+import { Login } from './components/Login';
+import { ProjectSelection } from './components/ProjectSelection';
+import { Library } from './components/Library';
+import { Diagnostics } from './components/Diagnostics';
+import { Tips } from './components/Tips';
+import { Nietzsche } from './components/Nietzsche';
+import { Psychoanalyst } from './components/Psychoanalyst';
+import { StudyFeed } from './components/StudyFeed';
+import { Protocol } from './components/Protocol';
+import { Framework } from './components/Framework';
+import { Documentation } from './components/Documentation';
+import { VerticalizedEdital } from './components/VerticalizedEdital';
+import { Notes } from './components/Notes';
+import { About } from './components/About';
+import { StudySession } from './components/StudySession';
+import { ReviewList } from './components/ReviewList';
 import { 
   LayoutDashboard, Layers, Menu, X, Library as LibraryIcon, 
-  Activity, Lightbulb, Flame, Brain, Newspaper, Pill, Pyramid, Book, ListChecks, Shield, StickyNote, Command, LogOut, ChevronDown
+  Activity, Lightbulb, Flame, Brain, ScrollText, Pill, Pyramid, Book, ListChecks, Shield, StickyNote, Command, LogOut, ChevronDown, CalendarCheck
 } from 'lucide-react';
-import { Logo } from './Logo';
+import { Logo } from './components/Logo';
 
 const AppContent: React.FC = () => {
   // Estado principal de navegação
-  const [view, setView] = useState<'login' | 'selection' | 'dashboard' | 'setup' | 'library' | 'diagnostics' | 'tips' | 'nietzsche' | 'psycho' | 'news' | 'protocol' | 'framework' | 'docs' | 'verticalized' | 'notes' | 'about'>('login');
+  const [view, setView] = useState<'login' | 'selection' | 'dashboard' | 'setup' | 'library' | 'diagnostics' | 'tips' | 'nietzsche' | 'psycho' | 'study-feed' | 'protocol' | 'framework' | 'docs' | 'verticalized' | 'notes' | 'about' | 'review-list'>('login');
   
   // Estados de UI
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -39,8 +40,8 @@ const AppContent: React.FC = () => {
 
   // Efeito: Abre o menu automaticamente se estiver navegando em um de seus sub-itens
   useEffect(() => {
-    const strategyViews = ['dashboard', 'setup', 'verticalized', 'library', 'notes'];
-    const intelligenceViews = ['diagnostics', 'news'];
+    const strategyViews = ['dashboard', 'setup', 'verticalized', 'library', 'notes', 'review-list'];
+    const intelligenceViews = ['diagnostics', 'study-feed'];
     const mentalViews = ['framework', 'nietzsche', 'psycho', 'protocol', 'tips'];
 
     if (strategyViews.includes(view)) setStrategyMenuOpen(true);
@@ -77,9 +78,17 @@ const AppContent: React.FC = () => {
         </button>
       </div>
 
+      {/* --- Mobile Backdrop --- */}
+      {sidebarOpen && (
+        <div 
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-30 md:hidden"
+            onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* --- Sidebar Navigation --- */}
       <nav className={`
-        fixed md:sticky top-0 h-screen w-64 bg-slate-900 border-r border-slate-800 p-5 flex flex-col z-30 transition-transform duration-300 ease-out overflow-y-auto custom-scrollbar
+        fixed md:sticky top-0 h-screen w-64 bg-slate-900 border-r border-slate-800 p-5 flex flex-col z-40 transition-transform duration-300 ease-out overflow-y-auto custom-scrollbar
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
         
@@ -112,7 +121,7 @@ const AppContent: React.FC = () => {
                   <ChevronDown size={14} className={`text-slate-500 transition-transform duration-300 ${strategyMenuOpen ? 'rotate-180 text-white' : ''}`} />
               </button>
               
-              <div className={`overflow-hidden transition-all duration-300 ease-in-out space-y-1 ${strategyMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+              <div className={`overflow-hidden transition-all duration-300 ease-in-out space-y-1 ${strategyMenuOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
                   <button 
                     onClick={() => { setView('dashboard'); setSidebarOpen(false); }}
                     className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('dashboard') ? 'bg-slate-800 text-white border-emerald-500' : 'border-transparent text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
@@ -135,6 +144,14 @@ const AppContent: React.FC = () => {
                   >
                     <ListChecks size={18} />
                     <span className="text-sm">Edital Verticalizado</span>
+                  </button>
+
+                  <button 
+                    onClick={() => { setView('review-list'); setSidebarOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('review-list') ? 'bg-slate-800 text-white border-emerald-500' : 'border-transparent text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
+                  >
+                    <CalendarCheck size={18} />
+                    <span className="text-sm">Lista de Revisão</span>
                   </button>
 
                   <button 
@@ -177,11 +194,11 @@ const AppContent: React.FC = () => {
                   </button>
 
                   <button 
-                      onClick={() => { setView('news'); setSidebarOpen(false); }}
-                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('news') ? 'bg-slate-800 text-white border-cyan-500' : 'border-transparent text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
+                      onClick={() => { setView('study-feed'); setSidebarOpen(false); }}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('study-feed') ? 'bg-slate-800 text-white border-cyan-500' : 'border-transparent text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
                     >
-                      <Newspaper size={18} />
-                      <span className="text-sm">Notícias</span>
+                      <ScrollText size={18} />
+                      <span className="text-sm">Feed Estudo</span>
                   </button>
               </div>
           </div>
@@ -286,14 +303,15 @@ const AppContent: React.FC = () => {
          
          {/* Roteamento de Views */}
          {view === 'dashboard' ? <Dashboard onNavigate={(v) => setView(v as any)} /> : 
-          view === 'setup' ? <Setup /> : 
+          view === 'setup' ? <Setup onNavigate={(v) => setView(v as any)} /> : 
           view === 'verticalized' ? <VerticalizedEdital onNavigate={(v) => setView(v as any)} /> :
+          view === 'review-list' ? <ReviewList onNavigate={(v) => setView(v as any)} /> :
           view === 'library' ? <Library /> :
           view === 'notes' ? <Notes /> :
           view === 'tips' ? <Tips /> :
           view === 'nietzsche' ? <Nietzsche /> :
           view === 'psycho' ? <Psychoanalyst /> :
-          view === 'news' ? <News /> :
+          view === 'study-feed' ? <StudyFeed /> :
           view === 'protocol' ? <Protocol /> :
           view === 'framework' ? <Framework /> :
           view === 'docs' ? <Documentation /> :

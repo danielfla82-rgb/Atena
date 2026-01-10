@@ -1,18 +1,19 @@
 import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, Relevance, Trend, NotebookStatus } from '../types';
-import { calculateNextReview } from '../utils/algorithm';
+import { calculateNextReview, DEFAULT_ALGO_CONFIG } from '../utils/algorithm';
 import { 
     Search, Plus, Trash2, Edit2, Square, ChevronRight, ChevronDown, 
     BookOpen, Layers, CheckCircle2, LayoutGrid, Clock, AlertTriangle, Star, 
     History, Sparkles, X, Save, Maximize2, Thermometer,
-    Pencil, Link as LinkIcon, XCircle, ZoomIn, ChevronLeft, Calendar, Loader2, TrendingUp, Info, Scale, FileCode, Flag, List, Book, Brain
+    Pencil, Link as LinkIcon, XCircle, ZoomIn, ChevronLeft, Calendar, Loader2, TrendingUp, Info, Scale, FileCode, Flag, List, Book, Brain, BrainCircuit, AlertCircle
 } from 'lucide-react';
 
 export const Library: React.FC = () => {
   const { 
     notebooks, 
     config, 
+    updateConfig,
     addNotebook, 
     editNotebook, 
     deleteNotebook, 
@@ -28,6 +29,11 @@ export const Library: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // DELETE MODAL STATE
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [notebookToDelete, setNotebookToDelete] = useState<{id: string, name: string} | null>(null);
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'discipline' | 'status'>('discipline');
   
@@ -42,7 +48,7 @@ export const Library: React.FC = () => {
     weight: Weight.MEDIO, relevance: Relevance.MEDIA, trend: Trend.ESTAVEL, 
     status: NotebookStatus.NOT_STARTED,
     notes: '', images: [] as string[], accuracyHistory: [] as { date: string, accuracy: number }[],
-    nextReview: '' as string | undefined // Added to preserve date
+    nextReview: '' as string | undefined
   };
 
   const [formData, setFormData] = useState(initialFormState);
@@ -50,12 +56,10 @@ export const Library: React.FC = () => {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // --- UPDATED: LAZY LOAD IMAGES ON EDIT & PRESERVE DATE ---
   const handleEdit = useCallback(async (notebook: Notebook) => {
       setEditingId(notebook.id);
       let currentImages = notebook.images || [];
       
-      // Lazy load trigger
       if (currentImages.length === 0 && !isGuest) {
           currentImages = await fetchNotebookImages(notebook.id);
       }
@@ -71,7 +75,7 @@ export const Library: React.FC = () => {
           relevance: notebook.relevance, trend: notebook.trend, notes: notebook.notes || '',
           status: notebook.status,
           images: currentImages, accuracyHistory: notebook.accuracyHistory || [],
-          nextReview: notebook.nextReview || '' // Load existing date
+          nextReview: notebook.nextReview || '' 
       });
       setIsModalOpen(true);
   }, [fetchNotebookImages, isGuest]);
@@ -92,8 +96,6 @@ export const Library: React.FC = () => {
               setSearchTerm(nb.name);
               const groupKey = viewMode === 'discipline' ? nb.discipline : nb.status;
               setExpandedGroups(prev => ({...prev, [groupKey]: true}));
-              
-              // AUTO-OPEN EDIT MODAL WHEN REDIRECTED FROM DASHBOARD
               handleEdit(nb);
           }
           setFocusedNotebookId(null);
@@ -102,14 +104,10 @@ export const Library: React.FC = () => {
 
   const existingDisciplines = useMemo(() => Array.from(new Set(notebooks.map(n => n.discipline))).sort(), [notebooks]);
 
-  // Preview date calculation (Visual only)
   const computedNextReviewData = useMemo(() => {
       if (!isModalOpen) return null;
-      
-      // Use stored date if available, otherwise calculate
       const dateStr = formData.nextReview || calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm).toISOString();
       const nextDate = new Date(dateStr);
-      
       let weekLabel = '';
       if (config.startDate) {
           const start = new Date(config.startDate);
@@ -140,18 +138,14 @@ export const Library: React.FC = () => {
   const groupedData = useMemo(() => {
       const filtered = notebooks.filter(nb => {
           if (nb.discipline === 'Revisão Geral') return false; 
-
           const searchLower = searchTerm.toLowerCase();
           const matchesSearch = 
               nb.name.toLowerCase().includes(searchLower) || 
               nb.discipline.toLowerCase().includes(searchLower) ||
               (nb.subtitle && nb.subtitle.toLowerCase().includes(searchLower));
-
           if (!matchesSearch) return false;
-
           switch (activeFilter) {
               case 'review': 
-                  // Lógica corrigida: Status Revisando OU Data vencida/hoje
                   if (nb.status === NotebookStatus.REVIEWING) return true;
                   if (nb.nextReview) {
                       const today = new Date().toISOString().split('T')[0];
@@ -178,7 +172,6 @@ export const Library: React.FC = () => {
               else if (nb.accuracy > 0) key = 'Em Andamento';
               else key = 'Não Iniciados';
           }
-          
           if (!groups[key]) groups[key] = [];
           groups[key].push(nb);
       });
@@ -192,11 +185,9 @@ export const Library: React.FC = () => {
               return (idxA === -1 ? 99 : idxA) - (idxB === -1 ? 99 : idxB);
           });
       }
-
       sortedKeys.forEach(key => {
           groups[key].sort((a, b) => a.name.localeCompare(b.name));
       });
-
       return { groups, sortedKeys };
   }, [notebooks, searchTerm, activeFilter, viewMode]);
 
@@ -210,14 +201,34 @@ export const Library: React.FC = () => {
       setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-      if (confirm('Tem certeza que deseja excluir este caderno?')) {
-          await deleteNotebook(id);
+  // --- DELETE LOGIC ---
+  const requestDelete = (nb: {id: string, name: string}) => {
+      // Direct state update - no event args needed here to keep it clean
+      setNotebookToDelete(nb);
+      setDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+      if (notebookToDelete) {
+          try {
+              await deleteNotebook(notebookToDelete.id);
+              setDeleteModalOpen(false);
+              setNotebookToDelete(null);
+          } catch (error) {
+              console.error("Delete error:", error);
+              alert("Erro ao excluir.");
+          }
       }
   };
 
   const handleChange = (field: keyof typeof initialFormState, value: any) => setFormData(prev => ({ ...prev, [field]: value }));
   
+  const handleUpdateAlgoInterval = (key: string, value: number) => {
+      const currentAlgo = config.algorithm || DEFAULT_ALGO_CONFIG;
+      const newAlgo = { ...currentAlgo, baseIntervals: { ...currentAlgo.baseIntervals, [key]: value } };
+      updateConfig({ ...config, algorithm: newAlgo });
+  };
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
@@ -232,32 +243,23 @@ export const Library: React.FC = () => {
   
   const removeImage = (index: number) => { setFormData(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== index) })); };
   
-  const handleNotStudied = () => { setFormData(prev => ({ ...prev, accuracy: 0, status: NotebookStatus.NOT_STARTED })); };
-
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
     try {
-        // CORRECTION: Only calculate date if nextReview is missing or explicitly reset
         let nextDateStr = formData.nextReview;
-        
         if (!nextDateStr) {
             const nextDate = calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm);
             nextDateStr = nextDate.toISOString();
         }
-
         const payload: any = { 
             ...formData, 
             accuracy: Number(formData.accuracy), 
             targetAccuracy: Number(formData.targetAccuracy),
             nextReview: nextDateStr
         };
-        
-        if (editingId) {
-            await editNotebook(editingId, payload);
-        } else {
-            await addNotebook(payload);
-        }
+        if (editingId) await editNotebook(editingId, payload);
+        else await addNotebook(payload);
         setIsModalOpen(false);
     } catch (error) {
         console.error("Failed to save:", error);
@@ -273,11 +275,10 @@ export const Library: React.FC = () => {
       else setLightboxIndex((lightboxIndex - 1 + formData.images.length) % formData.images.length);
   };
 
-  const handleQuickRecord = async () => {
+  const handleConcludeReview = async () => {
       setIsSaving(true);
       try {
           const newAccuracy = Number(formData.accuracy);
-          // Quick Record explicitly DOES recalculate date
           const nextDate = calculateNextReview(newAccuracy, formData.relevance, formData.trend, config.algorithm);
           const newHistory = [...(formData.accuracyHistory || []), { date: new Date().toISOString(), accuracy: newAccuracy }].slice(-3);
           
@@ -288,11 +289,7 @@ export const Library: React.FC = () => {
                   lastPractice: new Date().toISOString(),
                   nextReview: nextDate.toISOString()
               });
-              setFormData(prev => ({ 
-                  ...prev, 
-                  accuracyHistory: newHistory,
-                  nextReview: nextDate.toISOString() // Update local state too
-              }));
+              setFormData(prev => ({ ...prev, accuracyHistory: newHistory, nextReview: nextDate.toISOString() }));
           }
       } catch (err) { console.error("Quick save failed", err); } finally { setIsSaving(false); }
   };
@@ -305,8 +302,6 @@ export const Library: React.FC = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 pb-20 relative h-full flex flex-col">
-      
-      {/* Lightbox */}
       {lightboxIndex !== null && (
           <div className="fixed inset-0 z-[60] bg-slate-950/95 flex items-center justify-center p-4 backdrop-blur-sm">
              <button onClick={() => setLightboxIndex(null)} className="absolute top-4 right-4 text-white hover:text-emerald-500 z-50"><X size={32} /></button>
@@ -321,7 +316,29 @@ export const Library: React.FC = () => {
           </div>
       )}
 
-      {/* Header */}
+      {/* Delete Confirmation Modal - Rendered at Root Level */}
+      {deleteModalOpen && notebookToDelete && (
+          <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in zoom-in duration-200">
+              <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+                  <div className="flex flex-col items-center text-center gap-4">
+                      <div className="p-4 bg-red-500/10 rounded-full text-red-500">
+                          <Trash2 size={32} />
+                      </div>
+                      <div>
+                          <h3 className="text-xl font-bold text-white mb-2">Excluir Caderno?</h3>
+                          <p className="text-sm text-slate-400">
+                              Tem certeza que deseja apagar <strong>"{notebookToDelete.name}"</strong>? Esta ação não pode ser desfeita.
+                          </p>
+                      </div>
+                      <div className="flex gap-3 w-full mt-2">
+                          <button onClick={() => setDeleteModalOpen(false)} className="flex-1 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold transition-colors">Cancelar</button>
+                          <button onClick={confirmDelete} className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold transition-colors shadow-lg shadow-red-900/20">Excluir</button>
+                      </div>
+                  </div>
+              </div>
+          </div>
+      )}
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-slate-800 pb-6 gap-4 flex-shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-3">
@@ -342,24 +359,14 @@ export const Library: React.FC = () => {
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg py-2 pl-9 pr-3 text-sm text-white focus:border-emerald-500 outline-none"
                 />
              </div>
-             
-             {/* View Toggle */}
              <div className="flex bg-slate-900 p-1 rounded-lg border border-slate-700">
-                 <button onClick={() => setViewMode('discipline')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${viewMode === 'discipline' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-white'}`}>
-                     Por Disciplina
-                 </button>
-                 <button onClick={() => setViewMode('status')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${viewMode === 'status' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}>
-                     Por Status
-                 </button>
+                 <button onClick={() => setViewMode('discipline')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${viewMode === 'discipline' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-white'}`}>Por Disciplina</button>
+                 <button onClick={() => setViewMode('status')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${viewMode === 'status' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}>Por Status</button>
              </div>
-
-             <button onClick={handleOpenCreate} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-sm transition-colors shadow-lg shadow-emerald-900/20 whitespace-nowrap justify-center">
-                 <Plus size={16} /> Novo Caderno
-             </button>
+             <button onClick={handleOpenCreate} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-sm transition-colors shadow-lg shadow-emerald-900/20 whitespace-nowrap justify-center"><Plus size={16} /> Novo Caderno</button>
         </div>
       </div>
 
-      {/* Stats Bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-2 flex-shrink-0">
           <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden">
               <div className="p-3 bg-slate-800 rounded-lg text-slate-400"><BookOpen size={20} /></div>
@@ -379,7 +386,6 @@ export const Library: React.FC = () => {
           </div>
       </div>
 
-      {/* Filters */}
       <div className="flex gap-2 overflow-x-auto pb-2 flex-shrink-0 custom-scrollbar">
           {[
               { id: 'all', label: 'Todos' },
@@ -399,7 +405,6 @@ export const Library: React.FC = () => {
           ))}
       </div>
 
-      {/* Main List (Grouped) */}
       <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-4">
           {groupedData.sortedKeys.map(groupKey => {
               const items = groupedData.groups[groupKey];
@@ -431,17 +436,28 @@ export const Library: React.FC = () => {
                       {isExpanded && (
                           <div className="border-t border-slate-800 divide-y divide-slate-800/50">
                               {items.map(nb => (
-                                  <div key={nb.id} className="p-4 hover:bg-slate-800/20 transition-colors flex items-center justify-between group">
-                                      <div className="flex-1 min-w-0 pr-4 cursor-pointer" onClick={() => handleEdit(nb)}>
+                                  <div key={nb.id} className="flex items-center justify-between group hover:bg-slate-800/20">
+                                      {/* CONTENT AREA - CLICK TO EDIT */}
+                                      <div 
+                                        className="flex-1 min-w-0 p-4 cursor-pointer" 
+                                        onClick={() => handleEdit(nb)}
+                                      >
                                           <div className="flex items-center gap-2 mb-1">
                                               <h4 className="font-bold text-slate-200 text-sm truncate">{nb.name}</h4>
                                               {nb.weight === Weight.MUITO_ALTO && <span className="text-[9px] bg-red-500/10 text-red-400 border border-red-500/20 px-1.5 rounded uppercase font-bold">Peso Max</span>}
                                               {viewMode === 'status' && <span className="text-[9px] text-slate-500 border border-slate-700 px-1.5 rounded uppercase font-bold">{nb.discipline}</span>}
                                           </div>
                                           <p className="text-xs text-slate-500 truncate">{nb.subtitle}</p>
+                                          
+                                          {/* Mobile Stats (only visible on small screens) */}
+                                          <div className="flex md:hidden gap-3 mt-2 text-[10px] text-slate-500 font-mono">
+                                              <span>Acc: <strong className={nb.accuracy < 60 ? 'text-red-400' : 'text-emerald-400'}>{nb.accuracy}%</strong></span>
+                                              <span>Rev: {nb.nextReview ? nb.nextReview.split('T')[0].split('-').reverse().join('/') : '--'}</span>
+                                          </div>
                                       </div>
                                       
-                                      <div className="flex items-center gap-4 md:gap-8">
+                                      {/* ACTIONS AREA - STRICTLY SEPARATED */}
+                                      <div className="flex items-center gap-4 md:gap-8 px-4 py-2 border-l border-slate-800/30">
                                           <div className="text-right hidden md:block">
                                               <p className="text-[10px] text-slate-500 uppercase font-bold">Acurácia</p>
                                               <p className={`font-mono font-bold text-sm ${nb.accuracy >= nb.targetAccuracy ? 'text-emerald-400' : nb.accuracy < 60 ? 'text-red-400' : 'text-amber-400'}`}>{nb.accuracy}%</p>
@@ -449,19 +465,25 @@ export const Library: React.FC = () => {
                                           <div className="text-right hidden md:block">
                                               <p className="text-[10px] text-slate-500 uppercase font-bold">Revisão</p>
                                               <p className={`font-mono font-bold text-sm ${nb.nextReview && new Date(nb.nextReview) < new Date() ? 'text-red-400' : 'text-slate-300'}`}>
-                                                  {/* Correct display using string splitting to avoid Timezone offset */ }
                                                   {nb.nextReview ? nb.nextReview.split('T')[0].split('-').reverse().join('/') : '--'}
                                               </p>
                                           </div>
                                           
-                                          <div className="flex gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity">
-                                              <button onClick={() => startSession(nb)} className="p-2 bg-emerald-600/10 hover:bg-emerald-600 text-emerald-500 hover:text-white rounded-lg transition-colors" title="Iniciar Sessão">
+                                          <div className="flex gap-2">
+                                              <button type="button" onClick={() => startSession(nb)} className="p-2 bg-emerald-600/10 hover:bg-emerald-600 text-emerald-500 hover:text-white rounded-lg transition-colors" title="Iniciar Sessão">
                                                   <Maximize2 size={16} />
                                               </button>
-                                              <button onClick={() => handleEdit(nb)} className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg transition-colors" title="Editar">
-                                                  <Edit2 size={16} />
-                                              </button>
-                                              <button onClick={() => handleDelete(nb.id)} className="p-2 bg-slate-800 hover:bg-red-600 text-slate-400 hover:text-white rounded-lg transition-colors" title="Excluir">
+                                              
+                                              {/* THE DELETE BUTTON - Isolated */}
+                                              <button 
+                                                type="button" 
+                                                onClick={(e) => {
+                                                    e.stopPropagation(); // Double safe
+                                                    requestDelete(nb);
+                                                }} 
+                                                className="p-2 bg-slate-800 hover:bg-red-600 text-slate-400 hover:text-white rounded-lg transition-colors border border-slate-700 hover:border-red-500" 
+                                                title="Excluir"
+                                              >
                                                   <Trash2 size={16} />
                                               </button>
                                           </div>
@@ -482,10 +504,10 @@ export const Library: React.FC = () => {
           )}
       </div>
 
-      {/* Edit/Create Modal (REUSED FROM SETUP) */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
+            {/* ... Modal content remains the same ... */}
             <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900">
                 <h3 className="text-xl font-bold text-white flex items-center gap-2"><Pencil size={20} className="text-emerald-500"/> {editingId ? 'Editar Caderno' : 'Novo Caderno'}</h3>
                 <button onClick={() => !isSaving && setIsModalOpen(false)} className="text-slate-400 hover:text-white" disabled={isSaving}><X size={24} /></button>
@@ -514,7 +536,6 @@ export const Library: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* ADDITIONAL LINKS ROW (RESTORED) */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Lei Seca</label>
@@ -539,79 +560,87 @@ export const Library: React.FC = () => {
                       <div><label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Meta (%)</label><input type="number" min="0" max="100" value={formData.targetAccuracy} onChange={e => handleChange('targetAccuracy', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm text-center font-bold" /></div>
                   </div>
 
-                  {/* Status Selector */}
                   <div>
                       <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Status do Caderno</label>
-                      <select 
-                          value={formData.status} 
-                          onChange={(e) => handleChange('status', e.target.value)} 
-                          className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm"
-                      >
+                      <select value={formData.status} onChange={(e) => handleChange('status', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm">
                           <option value={NotebookStatus.NOT_STARTED}>Não Iniciado</option>
                           <option value={NotebookStatus.REVIEWING}>Em Andamento</option>
                           <option value={NotebookStatus.MASTERED}>Concluído</option>
                       </select>
                   </div>
 
-                  <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex flex-col items-stretch gap-4">
+                  <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex flex-col items-stretch gap-4 shadow-inner">
                       <div className="flex flex-col md:flex-row gap-4 items-end">
                           <div className="flex-1 w-full">
                              <div className="flex justify-between mb-1">
-                                <label className="block text-[10px] font-bold text-emerald-400 uppercase">Taxa de Acerto Atual (%)</label>
+                                <label className="block text-[10px] font-bold text-emerald-400 uppercase">Acurácia na Revisão de Hoje (%)</label>
                                 {formData.accuracyHistory && formData.accuracyHistory.length > 0 && (
                                     <span className="text-[9px] text-slate-500 font-mono flex items-center gap-1">
-                                        <History size={10}/> Últimos 3
+                                        <History size={10}/> Histórico
                                     </span>
                                 )}
                              </div>
                              <div className="flex gap-2">
-                                <input type="number" min="0" max="100" value={formData.accuracy} onChange={e => handleChange('accuracy', e.target.value)} className="flex-1 bg-slate-900 border border-slate-600 rounded-lg p-2 text-white font-mono text-center font-bold text-lg focus:border-emerald-500 outline-none" />
-                                <button type="button" onClick={handleQuickRecord} disabled={isSaving} className="px-4 bg-emerald-600/20 border border-emerald-600/50 text-emerald-400 hover:bg-emerald-600 hover:text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2">{isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Registrar</button>
+                                <input type="number" min="0" max="100" value={formData.accuracy} onChange={e => handleChange('accuracy', e.target.value)} className="flex-1 bg-slate-900 border border-slate-600 rounded-lg p-3 text-white font-mono text-center font-bold text-xl focus:border-emerald-500 outline-none" placeholder="0" />
+                                <button type="button" onClick={handleConcludeReview} disabled={isSaving} className="px-6 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg shadow-emerald-900/30 border border-emerald-500/50">
+                                    {isSaving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} 
+                                    Concluir Revisão
+                                </button>
                              </div>
                              
                              {computedNextReviewData && (
-                                 <div className="flex flex-col mt-2 gap-1">
-                                     <div className="flex items-center justify-end gap-1.5 text-[10px] font-bold text-slate-400">
-                                         <span className="uppercase tracking-widest text-slate-500">Próxima Revisão:</span>
-                                         <span className="text-emerald-400 bg-emerald-900/20 px-1.5 py-0.5 rounded border border-emerald-500/20 flex items-center gap-1">
-                                             <Calendar size={10} /> {computedNextReviewData.date.toLocaleDateString()}
-                                         </span>
-                                         <span className="text-slate-500 text-[9px] font-normal">{computedNextReviewData.label}</span>
+                                 <div className="flex flex-col mt-3 gap-1 p-2 bg-slate-900/50 rounded-lg border border-slate-700/50">
+                                     <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
+                                         <span className="uppercase tracking-widest text-slate-500 flex items-center gap-1"><BrainCircuit size={12}/> Algoritmo Atena:</span>
+                                         <div className="flex items-center gap-2">
+                                            <span className="text-emerald-400 bg-emerald-900/20 px-2 py-1 rounded border border-emerald-500/20 flex items-center gap-1">
+                                                <Calendar size={12} /> {computedNextReviewData.date.toLocaleDateString()}
+                                            </span>
+                                            <span className="text-slate-500 text-[9px] font-normal">{computedNextReviewData.label}</span>
+                                         </div>
                                      </div>
                                  </div>
                              )}
 
                           </div>
-                          <div className="flex-1 w-full flex gap-2">
-                             <button type="button" onClick={handleNotStudied} disabled={isSaving} className="flex-1 py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 font-bold text-sm bg-slate-700 hover:bg-slate-600 text-slate-200 transition-all border border-slate-600">
-                                {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Flag size={16} />} Não estudei
-                             </button>
-                          </div>
                       </div>
+                      
                       {formData.accuracyHistory && formData.accuracyHistory.length > 0 && (
                           <div className="border-t border-slate-700/50 pt-2 flex gap-2 overflow-x-auto pb-1 min-h-[45px]">
                               {formData.accuracyHistory.map((h, i) => (
                                   <div key={i} className="group relative flex flex-col items-center bg-slate-900 px-2 py-1 rounded border border-slate-800 min-w-[60px]">
-                                      <button 
-                                        type="button"
-                                        onClick={() => removeHistoryItem(i)}
-                                        className="absolute -top-1.5 -right-1.5 bg-red-600 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110 z-10 cursor-pointer shadow-sm"
-                                        title="Excluir registro"
-                                      >
-                                          <X size={8} strokeWidth={3} />
-                                      </button>
+                                      <button type="button" onClick={() => removeHistoryItem(i)} className="absolute -top-1.5 -right-1.5 bg-red-600 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110 z-10 cursor-pointer shadow-sm"><X size={8} strokeWidth={3} /></button>
                                       <span className="text-[10px] text-slate-500 font-mono">{new Date(h.date).toLocaleDateString(undefined, {day:'2-digit', month:'2-digit'})}</span>
                                       <span className={`text-xs font-bold ${h.accuracy >= formData.targetAccuracy ? 'text-emerald-400' : h.accuracy < 60 ? 'text-red-400' : 'text-amber-400'}`}>{h.accuracy}%</span>
                                   </div>
                               ))}
-                              <div className="flex items-center text-xs text-slate-500 gap-1 ml-2"><TrendingUp size={14} /> Tendência</div>
+                              <div className="flex items-center text-xs text-slate-500 gap-1 ml-2"><TrendingUp size={14} /></div>
                           </div>
                       )}
                   </div>
               </div>
+
+              <div className="space-y-4 pt-4 border-t border-slate-800">
+                  <h3 className="text-sm font-bold text-purple-500 uppercase tracking-widest border-b border-purple-500/20 pb-2 flex items-center gap-2">
+                      <BrainCircuit size={16} /> Ajuste Fino do Algoritmo
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {Object.entries(config.algorithm?.baseIntervals || DEFAULT_ALGO_CONFIG.baseIntervals).map(([key, val]) => (
+                          <div key={key}>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{key} (Dias)</label>
+                              <input 
+                                  type="number" 
+                                  value={val} 
+                                  onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} 
+                                  className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-center font-bold outline-none focus:border-purple-500" 
+                              />
+                          </div>
+                      ))}
+                  </div>
+              </div>
+
               <div className="space-y-4 pt-2">
                 <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">3. Rascunhos & Anotações</h4>
-                
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Anotações / Resumo</label><textarea value={formData.notes} onChange={e => handleChange('notes', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500 transition-all min-h-[200px] resize-none text-sm custom-scrollbar" placeholder="Mnemônicos..." /></div>
                     <div className="flex flex-col h-full">

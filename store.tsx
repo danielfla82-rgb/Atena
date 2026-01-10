@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { supabase } from './lib/supabase';
+import { supabase } from './components/supabase';
 import { get, set } from 'idb-keyval';
 import { 
   Notebook, Cycle, AthensConfig, SavedReport, ProtocolItem, 
@@ -154,15 +154,122 @@ const sanitizeCycleData = (cycle: Cycle, validNotebookIds: Set<string>): Cycle =
 };
 
 // --- GUEST SEED DATA ---
+const GUEST_CYCLE_ID = 'guest-cycle-01';
 const GUEST_SEED_DATA = {
-    // ... (Mantido igual)
-    notebooks: [],
-    cycles: [],
-    activeCycleId: null,
+    notebooks: [
+        {
+            id: 'nb-01',
+            discipline: 'Direito Constitucional',
+            name: 'Direitos Fundamentais',
+            subtitle: 'Art. 5º e Remédios',
+            accuracy: 85,
+            targetAccuracy: 90,
+            weight: Weight.MUITO_ALTO,
+            relevance: Relevance.ALTISSIMA,
+            trend: Trend.ALTA,
+            status: NotebookStatus.REVIEWING,
+            accuracyHistory: [
+                { date: new Date(Date.now() - 86400000 * 5).toISOString(), accuracy: 65 },
+                { date: new Date(Date.now() - 86400000 * 2).toISOString(), accuracy: 85 }
+            ],
+            nextReview: new Date(Date.now() + 86400000).toISOString(),
+            lastPractice: new Date().toISOString(),
+            weekId: 'week-1'
+        },
+        {
+            id: 'nb-02',
+            discipline: 'Direito Administrativo',
+            name: 'Atos Administrativos',
+            subtitle: 'Elementos e Vícios',
+            accuracy: 45,
+            targetAccuracy: 90,
+            weight: Weight.ALTO,
+            relevance: Relevance.MEDIA,
+            trend: Trend.ESTAVEL,
+            status: NotebookStatus.THEORY_DONE,
+            accuracyHistory: [
+                { date: new Date(Date.now() - 86400000 * 3).toISOString(), accuracy: 45 }
+            ],
+            nextReview: new Date().toISOString(), // Due today
+            lastPractice: new Date(Date.now() - 86400000 * 3).toISOString(),
+            weekId: 'week-1'
+        },
+        {
+            id: 'nb-03',
+            discipline: 'Língua Portuguesa',
+            name: 'Crase e Regência',
+            subtitle: 'Casos Proibidos',
+            accuracy: 92,
+            targetAccuracy: 90,
+            weight: Weight.MEDIO,
+            relevance: Relevance.ALTA,
+            trend: Trend.ALTA,
+            status: NotebookStatus.MASTERED,
+            accuracyHistory: [
+                { date: new Date(Date.now() - 86400000 * 10).toISOString(), accuracy: 70 },
+                { date: new Date(Date.now() - 86400000 * 1).toISOString(), accuracy: 92 }
+            ],
+            nextReview: new Date(Date.now() + 86400000 * 10).toISOString(),
+            lastPractice: new Date().toISOString(),
+            weekId: 'week-2'
+        },
+        {
+            id: 'nb-04',
+            discipline: 'Raciocínio Lógico',
+            name: 'Lógica de Argumentação',
+            subtitle: 'Silogismos',
+            accuracy: 0,
+            targetAccuracy: 85,
+            weight: Weight.BAIXO,
+            relevance: Relevance.BAIXA,
+            trend: Trend.ESTAVEL,
+            status: NotebookStatus.NOT_STARTED,
+            weekId: null
+        }
+    ],
+    cycles: [
+        {
+            id: GUEST_CYCLE_ID,
+            name: 'Demonstração: Auditor Fiscal',
+            createdAt: new Date().toISOString(),
+            lastAccess: new Date().toISOString(),
+            config: {
+                ...DEFAULT_CONFIG,
+                targetRole: 'Auditor Fiscal',
+                startDate: new Date().toISOString(),
+                examDate: new Date(Date.now() + 86400000 * 60).toISOString(), // 60 days from now
+                studyPace: 'Avançado'
+            },
+            planning: {},
+            weeklyCompletion: {},
+            schedule: {
+                'week-1': [
+                    { instanceId: 'slot-1', notebookId: 'nb-01', completed: true },
+                    { instanceId: 'slot-2', notebookId: 'nb-02', completed: false }
+                ],
+                'week-2': [
+                    { instanceId: 'slot-3', notebookId: 'nb-03', completed: false }
+                ]
+            }
+        }
+    ],
+    activeCycleId: GUEST_CYCLE_ID,
     reports: [],
-    protocol: [],
-    framework: DEFAULT_FRAMEWORK,
-    notes: []
+    protocol: [
+        { id: 'p1', name: 'Cafeína', dosage: '100mg', time: '08:00', type: 'Suplemento', checked: true },
+        { id: 'p2', name: 'Creatina', dosage: '5g', time: '12:00', type: 'Suplemento', checked: false }
+    ],
+    framework: {
+        values: 'Liberdade, Excelência, Impacto',
+        dream: 'Aprovação na Receita Federal',
+        motivation: 'Estabilidade para minha família',
+        action: '4h líquidas diárias',
+        habit: 'Rotina Matinal Inegociável'
+    },
+    notes: [
+        { id: 'note-1', content: 'Revisar Súmulas Vinculantes do STF no fim de semana.', color: 'yellow', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+        { id: 'note-2', content: 'Meta da semana: Fechar Atos Administrativos.', color: 'green', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+    ]
 };
 
 interface StoreContextType {
@@ -250,51 +357,60 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const config = cycles.find(c => c.id === activeCycleId)?.config || DEFAULT_CONFIG;
 
-  const fetchCloudData = async () => {
+  const fetchCloudData = async (currentUser?: any) => {
       setLoading(true);
       try {
-          // 1. Garantir que temos o ID do usuário
-          const { data: { user: currentUser } } = await supabase.auth.getUser();
-          if (!currentUser) {
+          // Optimization: Use passed user or get from session if missing
+          const userToUse = currentUser || (await supabase.auth.getUser()).data.user;
+          
+          if (!userToUse) {
               setLoading(false);
               return;
           }
 
-          let notebooksData: any[] | null = null;
-          try {
-              const { data, error } = await supabase.from('notebooks').select(OPTIMIZED_COLUMNS);
-              if (error) throw error;
-              notebooksData = data;
-          } catch (optimizedError) {
-              const { data: fullData } = await supabase.from('notebooks').select('*');
-              notebooksData = fullData;
-          }
-
+          // PARALLEL FETCHING: Fetch all tables simultaneously
           const [
-              { data: dbCycles },
-              { data: dbReports },
-              { data: dbProtocol },
-              { data: dbNotes },
-              { data: dbFramework }
+              notebooksResponse,
+              cyclesResponse,
+              reportsResponse,
+              protocolResponse,
+              notesResponse,
+              frameworkResponse
           ] = await Promise.all([
+              // 1. Notebooks (with Fallback logic preserved)
+              (async () => {
+                  try {
+                      const { data, error } = await supabase.from('notebooks').select(OPTIMIZED_COLUMNS);
+                      if (error) throw error;
+                      return { data, error: null };
+                  } catch (optimizedError) {
+                      return await supabase.from('notebooks').select('*');
+                  }
+              })(),
+              // 2. Cycles
               supabase.from('cycles').select('*'),
+              // 3. Reports
               supabase.from('reports').select('*'),
+              // 4. Protocol
               supabase.from('protocol').select('*'),
+              // 5. Notes
               supabase.from('notes').select('*'),
-              // Filtro EXPLÍCITO pelo ID do usuário
-              supabase.from('frameworks').select('*').eq('user_id', currentUser.id).maybeSingle()
+              // 6. Framework
+              supabase.from('frameworks').select('*').eq('user_id', userToUse.id).maybeSingle()
           ]);
 
           let validNotebookIds = new Set<string>();
 
-          if (notebooksData) {
-              const mappedNotebooks = notebooksData.map(mapNotebookFromDB);
+          // Process Notebooks
+          if (notebooksResponse.data) {
+              const mappedNotebooks = notebooksResponse.data.map(mapNotebookFromDB);
               setNotebooks(mappedNotebooks);
-              validNotebookIds = new Set(mappedNotebooks.map(n => n.id));
+              validNotebookIds = new Set(mappedNotebooks.map((n: Notebook) => n.id));
           }
           
-          if (dbCycles && dbCycles.length > 0) {
-              const mappedCycles = dbCycles.map(mapCycleFromDB).map(cycle => sanitizeCycleData(cycle, validNotebookIds));
+          // Process Cycles
+          if (cyclesResponse.data && cyclesResponse.data.length > 0) {
+              const mappedCycles = cyclesResponse.data.map(mapCycleFromDB).map((cycle: Cycle) => sanitizeCycleData(cycle, validNotebookIds));
               setCycles(mappedCycles);
               if (!activeCycleId) {
                   const sorted = [...mappedCycles].sort((a, b) => new Date(b.lastAccess).getTime() - new Date(a.lastAccess).getTime());
@@ -305,13 +421,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               if (!activeCycleId) setActiveCycleId(null);
           }
 
-          if (dbReports) setReports(dbReports);
-          if (dbProtocol) setProtocol(dbProtocol);
-          if (dbNotes) setNotes(dbNotes.map(mapNoteFromDB));
+          // Process Others
+          if (reportsResponse.data) setReports(reportsResponse.data);
+          if (protocolResponse.data) setProtocol(protocolResponse.data);
+          if (notesResponse.data) setNotes(notesResponse.data.map(mapNoteFromDB));
           
-          if (dbFramework) {
-              console.log("[Store] Framework carregado:", dbFramework);
-              setFramework(mapFrameworkFromDB(dbFramework));
+          if (frameworkResponse.data) {
+              setFramework(mapFrameworkFromDB(frameworkResponse.data));
           } else {
               setFramework(DEFAULT_FRAMEWORK);
           }
@@ -350,7 +466,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (session?.user) {
             setUser(session.user);
             setIsGuest(false);
-            await fetchCloudData();
+            // Optimization: Pass user directly to avoid re-fetching
+            await fetchCloudData(session.user);
         } else {
             const idbData = await get('athena_guest_db');
             if (idbData) {
@@ -365,7 +482,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setUser(session?.user ?? null);
       if (session?.user) {
           setIsGuest(false);
-          fetchCloudData();
+          // Optimization: Pass user directly
+          fetchCloudData(session.user);
       }
     });
     return () => subscription.unsubscribe();
@@ -392,9 +510,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const enterGuestMode = async () => {
       setIsGuest(true);
       setLoading(true);
+      // Hydrate with Seed Data immediately
       restoreState(GUEST_SEED_DATA);
-      await set('athena_guest_db', GUEST_SEED_DATA);
-      setLoading(false);
+      setLoading(false); // OPTIMIZATION: Unlock UI immediately
+      await set('athena_guest_db', GUEST_SEED_DATA); // Save in background
   };
 
   const generateId = () => {

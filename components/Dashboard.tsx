@@ -4,11 +4,13 @@ import { QuadrantChart } from './QuadrantChart';
 import { WeeklyProgress } from './WeeklyProgress';
 import { Weight, WEIGHT_SCORE } from '../types';
 import { DEFAULT_ALGO_CONFIG } from '../utils/algorithm';
+import { createAIClient } from '../utils/ai';
+import { Type } from "@google/genai";
 import { 
-  Target, Settings, TrendingUp,
+  Target, Settings, TrendingUp, TrendingDown, Minus,
   PieChart as PieChartIcon, Activity, Siren, ArrowRight, CheckCircle2,
   Check, XCircle, Quote, ChevronDown, BarChart2,
-  RefreshCw, BrainCircuit, Crosshair, Scroll, Crown, Zap, Save, X, FileText, CalendarClock, AlertCircle, Edit2, Calendar, Key, ShieldCheck
+  RefreshCw, BrainCircuit, Crosshair, Scroll, Crown, Zap, Save, X, FileText, CalendarClock, AlertCircle, Edit2, Calendar, Key, ShieldCheck, Sparkles, Bot
 } from 'lucide-react';
 
 import {
@@ -39,10 +41,49 @@ ChartJS.register(
   Filler
 );
 
-ChartJS.defaults.color = '#94a3b8';
+ChartJS.defaults.color = '#64748b';
 ChartJS.defaults.borderColor = '#1e293b';
 ChartJS.defaults.font.family = "Inter, sans-serif";
-ChartJS.defaults.scale.grid.color = '#1e293b';
+ChartJS.defaults.font.size = 11;
+
+const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+        y: {
+            beginAtZero: true,
+            max: 100,
+            grid: { color: '#1e293b', borderDash: [4, 4] },
+            ticks: { color: '#64748b', font: { weight: 'bold' } },
+            border: { display: false }
+        },
+        x: {
+            grid: { display: false },
+            ticks: { color: '#64748b' },
+            border: { display: false }
+        }
+    },
+    plugins: {
+        legend: { display: false }, // Custom legend used instead
+        tooltip: {
+            backgroundColor: 'rgba(15, 23, 42, 0.95)',
+            titleColor: '#f8fafc',
+            bodyColor: '#f8fafc',
+            borderColor: '#334155',
+            borderWidth: 1,
+            padding: 10,
+            cornerRadius: 8,
+            displayColors: false,
+            callbacks: {
+                label: (ctx: any) => `${ctx.dataset.label}: ${ctx.raw}%`
+            }
+        }
+    },
+    interaction: {
+        mode: 'index' as const,
+        intersect: false,
+    },
+};
 
 const DashboardSection = ({ 
     title, 
@@ -104,6 +145,10 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [localConfig, setLocalConfig] = useState(config);
   const [apiKey, setApiKey] = useState('');
+  
+  // AI Suggestion State
+  const [aiSuggestion, setAiSuggestion] = useState<{ id: string, title: string, reason: string, strategy: string } | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // Carregar API Key do LocalStorage ao abrir
   useEffect(() => {
@@ -143,58 +188,8 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       }));
   };
 
-  const handleUpdateAlgoMultiplier = (key: string, value: number) => {
-      setLocalConfig(prev => ({
-          ...prev,
-          algorithm: {
-              ...prev.algorithm,
-              baseIntervals: prev.algorithm?.baseIntervals || DEFAULT_ALGO_CONFIG.baseIntervals,
-              multipliers: {
-                  ...(prev.algorithm?.multipliers || DEFAULT_ALGO_CONFIG.multipliers),
-                  [key]: value
-              }
-          }
-      }));
-  };
-
   const today = new Date().toISOString().split('T')[0];
   
-  // LOGIC: Sort by closest date (ASC) and take top 3
-  const dueNotebooks = useMemo(() => {
-    return notebooks
-        .filter(nb => nb.nextReview && nb.discipline !== 'Revisão Geral')
-        .sort((a, b) => {
-            const dateA = new Date(a.nextReview!).getTime();
-            const dateB = new Date(b.nextReview!).getTime();
-            return dateA - dateB;
-        })
-        .slice(0, 3);
-  }, [notebooks]);
-
-  // HELPER: Accurate Date Status Check (Local Time aware)
-  const getReviewStatus = (isoDate: string) => {
-      if (!isoDate) return null;
-      const [year, month, day] = isoDate.split('T')[0].split('-').map(Number);
-      const reviewDate = new Date(year, month - 1, day); 
-      const now = new Date();
-      now.setHours(0,0,0,0);
-      const diffTime = reviewDate.getTime() - now.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      if (diffTime < 0) {
-          return { label: "Vencido", color: "text-red-400", bg: "bg-red-500/10", border: "border-red-500/20", icon: <AlertCircle size={10} />, dateObj: reviewDate };
-      } else if (diffTime === 0) {
-          return { label: "Hoje", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", icon: <CheckCircle2 size={10} />, dateObj: reviewDate };
-      } else {
-          return { label: `Em ${diffDays} dias`, color: "text-slate-400", bg: "bg-slate-800", border: "border-slate-700", icon: <CalendarClock size={10} />, dateObj: reviewDate };
-      }
-  };
-
-  const handleEditRedirect = (nbId: string) => {
-      setFocusedNotebookId(nbId);
-      onNavigate('library');
-  };
-
   const nietzscheItem = useMemo(() => {
       const dayOfYear = Math.floor((new Date().getTime() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 1000 / 60 / 60 / 24);
       return NIETZSCHE_DATA[dayOfYear % NIETZSCHE_DATA.length];
@@ -229,7 +224,128 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       return { avgAccuracy, completedTopics, pendingTopics: totalTopics - completedTopics, progressPercent, dates, currentStreak };
   }, [notebooks]);
 
-  const athenaRecommendation = useMemo(() => {
+  // --- EVOLUTION CHART DATA WITH TREND LINE ---
+  const evolutionData = useMemo(() => {
+        // Collect all history points
+        const points: { date: string; accuracy: number }[] = [];
+        notebooks.forEach(n => {
+            if (n.accuracyHistory) {
+                n.accuracyHistory.forEach(h => points.push(h));
+            }
+        });
+        
+        points.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        
+        const grouped = new Map<string, number[]>();
+        
+        points.forEach(p => {
+            const d = new Date(p.date);
+            const day = d.getDay();
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+            const monday = new Date(d.setDate(diff));
+            monday.setHours(0,0,0,0);
+            const key = monday.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+            
+            if (!grouped.has(key)) grouped.set(key, []);
+            grouped.get(key)?.push(p.accuracy);
+        });
+
+        // Last 10 weeks
+        const keys = Array.from(grouped.keys()).slice(-10);
+        
+        const labels = keys;
+        const actualValues = keys.map(k => {
+            const arr = grouped.get(k) || [];
+            return arr.length ? Math.round(arr.reduce((a,b)=>a+b,0)/arr.length) : 0;
+        });
+
+        // --- LINEAR REGRESSION (Trend Line) ---
+        let trendValues: number[] = [];
+        let trendInfo = { slope: 0, status: 'neutral' as 'neutral' | 'up' | 'down', message: 'Dados insuficientes' };
+
+        if (actualValues.length >= 2) {
+            const n = actualValues.length;
+            const x = Array.from({ length: n }, (_, i) => i);
+            const y = actualValues;
+
+            const sumX = x.reduce((a, b) => a + b, 0);
+            const sumY = y.reduce((a, b) => a + b, 0);
+            const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
+            const sumXX = x.reduce((sum, xi) => sum + xi * xi, 0);
+
+            const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
+            const intercept = (sumY - slope * sumX) / n;
+
+            trendValues = x.map(xi => Math.round(slope * xi + intercept));
+            
+            if (slope > 0.5) trendInfo = { slope, status: 'up', message: 'Tendência de Alta! Sua consistência está gerando resultados.' };
+            else if (slope < -0.5) trendInfo = { slope, status: 'down', message: 'Alerta de Queda. Revise seus pontos fracos imediatamente.' };
+            else trendInfo = { slope, status: 'neutral', message: 'Desempenho Estável. É hora de aumentar a dificuldade.' };
+        }
+
+        // Fallback for empty state
+        if (labels.length === 0) {
+             const today = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+             return {
+                 chartData: {
+                    labels: [today],
+                    datasets: [{
+                        label: 'Evolução',
+                        data: [0],
+                        fill: true,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4
+                    }]
+                 },
+                 trend: trendInfo
+             };
+        }
+
+        return {
+            chartData: {
+                labels,
+                datasets: [
+                    {
+                        label: 'Média Semanal',
+                        data: actualValues,
+                        fill: true,
+                        borderColor: '#10b981', // Emerald-500
+                        borderWidth: 3,
+                        backgroundColor: (context: any) => {
+                            const ctx = context.chart.ctx;
+                            const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+                            gradient.addColorStop(0, 'rgba(16, 185, 129, 0.25)');
+                            gradient.addColorStop(1, 'rgba(16, 185, 129, 0)');
+                            return gradient;
+                        },
+                        pointBackgroundColor: '#020617',
+                        pointBorderColor: '#10b981',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        tension: 0.4,
+                        order: 1
+                    },
+                    {
+                        label: 'Tendência (Regressão)',
+                        data: trendValues,
+                        borderColor: trendInfo.status === 'down' ? '#ef4444' : trendInfo.status === 'up' ? '#34d399' : '#94a3b8',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        tension: 0,
+                        fill: false,
+                        order: 2
+                    }
+                ]
+            },
+            trend: trendInfo
+        };
+  }, [notebooks]);
+
+  // Static Recommendation (Instant)
+  const staticRecommendation = useMemo(() => {
     const candidates = notebooks.filter(n => n.discipline !== 'Revisão Geral');
     if (candidates.length === 0) return null;
 
@@ -238,7 +354,10 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
         type: 'critical', notebook: critical,
         title: `Atenção: ${critical.discipline}`,
         reason: `Peso ${critical.weight} com desempenho crítico (${critical.accuracy}%).`,
-        icon: <Siren className="text-red-500 animate-pulse" size={24} />, colorClass: 'border-red-500/50 bg-red-900/10'
+        icon: <Siren className="text-red-500 animate-pulse" size={24} />, 
+        colorClass: 'border-red-500/50 bg-red-900/10',
+        isAi: false,
+        strategy: undefined as string | undefined
     };
 
     const lowest = [...candidates].sort((a, b) => ((WEIGHT_SCORE[a.weight] * 100) - a.accuracy) - ((WEIGHT_SCORE[b.weight] * 100) - b.accuracy))[0];
@@ -246,10 +365,88 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
         type: 'standard', notebook: lowest,
         title: `Sugestão: ${lowest.discipline}`,
         reason: `Melhorar este tópico trará o maior retorno sobre investimento.`,
-        icon: <Zap className="text-emerald-500" size={24} />, colorClass: 'border-emerald-500/50 bg-emerald-900/10'
+        icon: <Zap className="text-emerald-500" size={24} />, 
+        colorClass: 'border-emerald-500/50 bg-emerald-900/10',
+        isAi: false,
+        strategy: undefined as string | undefined
     };
     return null;
   }, [notebooks]);
+
+  // AI Recommendation Logic
+  const handleGenerateAiInsight = async () => {
+      setIsAnalyzing(true);
+      try {
+          const ai = createAIClient();
+          // Filter top 30 most active/critical notebooks to save context
+          const simplifiedData = notebooks
+              .filter(n => n.discipline !== 'Revisão Geral')
+              .sort((a, b) => (new Date(a.lastPractice || 0).getTime()) - (new Date(b.lastPractice || 0).getTime())) // Oldest practice first
+              .slice(0, 30)
+              .map(n => ({
+                  id: n.id,
+                  discipline: n.discipline,
+                  topic: n.name,
+                  accuracy: n.accuracy,
+                  target: n.targetAccuracy,
+                  weight: n.weight,
+                  daysSinceReview: n.lastPractice ? Math.floor((new Date().getTime() - new Date(n.lastPractice).getTime()) / (1000 * 3600 * 24)) : 999
+              }));
+
+          const prompt = `
+            Atue como um Estrategista de Concursos de Elite.
+            Analise os dados: ${JSON.stringify(simplifiedData)}
+            
+            Escolha UM ÚNICO caderno que o aluno deve estudar AGORA para ter o maior impacto na aprovação.
+            Considere: Peso alto, acurácia baixa e tempo sem revisão (Curva de Esquecimento).
+            
+            Retorne JSON:
+            {
+                "id": "uuid do caderno escolhido",
+                "title": "Título de Impacto (ex: Operação Resgate em Constitucional)",
+                "reason": "Explicação técnica e psicológica curta (2 frases).",
+                "strategy": "Uma ação prática imediata (ex: Fazer 10 questões da banca X)."
+            }
+          `;
+
+          const response = await ai.models.generateContent({
+              model: 'gemini-3-flash-preview',
+              contents: prompt,
+              config: {
+                  responseMimeType: 'application/json',
+                  responseSchema: {
+                      type: Type.OBJECT,
+                      properties: {
+                          id: { type: Type.STRING },
+                          title: { type: Type.STRING },
+                          reason: { type: Type.STRING },
+                          strategy: { type: Type.STRING }
+                      },
+                      required: ["id", "title", "reason", "strategy"]
+                  }
+              }
+          });
+
+          if (response.text) {
+              setAiSuggestion(JSON.parse(response.text));
+          }
+      } catch (error) {
+          console.error("AI Insight Error:", error);
+          alert("Atena não conseguiu conectar ao núcleo de IA. Verifique sua chave API.");
+      } finally {
+          setIsAnalyzing(false);
+      }
+  };
+
+  const finalRecommendation = aiSuggestion ? {
+      notebook: notebooks.find(n => n.id === aiSuggestion.id) || staticRecommendation?.notebook, // Fallback safe
+      title: aiSuggestion.title,
+      reason: aiSuggestion.reason,
+      strategy: aiSuggestion.strategy,
+      isAi: true,
+      icon: undefined,
+      colorClass: undefined
+  } : staticRecommendation;
 
   const currentIntervals = localConfig.algorithm?.baseIntervals || DEFAULT_ALGO_CONFIG.baseIntervals;
 
@@ -307,73 +504,100 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {athenaRecommendation && (
-            <div className={`w-full p-1 rounded-2xl bg-gradient-to-r from-transparent via-slate-700 to-transparent p-[1px]`}>
-                <div className={`relative w-full rounded-2xl p-6 border flex flex-col gap-4 shadow-2xl overflow-hidden ${athenaRecommendation.colorClass} h-full justify-between`}>
+          {finalRecommendation && finalRecommendation.notebook && (
+            <div className={`w-full p-1 rounded-2xl bg-gradient-to-r p-[1px] transition-all duration-500 ${finalRecommendation.isAi ? 'from-purple-500 via-indigo-500 to-emerald-500 shadow-[0_0_20px_rgba(139,92,246,0.3)]' : 'from-transparent via-slate-700 to-transparent'}`}>
+                <div className={`relative w-full rounded-2xl p-6 border flex flex-col gap-4 shadow-2xl overflow-hidden h-full justify-between transition-colors ${finalRecommendation.isAi ? 'bg-slate-900 border-transparent' : (staticRecommendation?.colorClass || 'bg-slate-900 border-slate-800')}`}>
+                    
+                    {/* Header Badge */}
+                    <div className="flex justify-between items-start">
+                        {finalRecommendation.isAi ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold uppercase tracking-widest animate-pulse">
+                                <BrainCircuit size={12} /> Inteligência Atena
+                            </span>
+                        ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-800 text-slate-400 border border-slate-700 text-[10px] font-bold uppercase tracking-widest">
+                                <Activity size={12} /> Sugestão Algorítmica
+                            </span>
+                        )}
+                        
+                        {!finalRecommendation.isAi && (
+                            <button 
+                                onClick={handleGenerateAiInsight} 
+                                disabled={isAnalyzing}
+                                className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-emerald-400 hover:text-white bg-emerald-900/20 hover:bg-emerald-600 px-3 py-1.5 rounded-lg border border-emerald-500/20 transition-all"
+                            >
+                                {isAnalyzing ? <RefreshCw className="animate-spin" size={12} /> : <Sparkles size={12} />}
+                                {isAnalyzing ? "Analisando..." : "Invocar IA"}
+                            </button>
+                        )}
+                    </div>
+
                     <div className="flex items-start gap-5 relative z-10">
-                        <div className="bg-slate-950/80 backdrop-blur p-4 rounded-xl border border-white/10 shadow-lg">
-                            {athenaRecommendation.icon}
+                        <div className={`p-4 rounded-xl border shadow-lg backdrop-blur-md ${finalRecommendation.isAi ? 'bg-indigo-900/20 border-indigo-500/30 text-indigo-400' : 'bg-slate-950/80 border-white/10 text-emerald-500'}`}>
+                            {finalRecommendation.isAi ? <Bot size={28} /> : (staticRecommendation?.icon || <Zap size={24} />)}
                         </div>
                         <div>
-                            <div className="flex items-center gap-2 mb-1.5">
-                                <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 bg-slate-950/50 px-2 py-0.5 rounded border border-slate-700">Atena Sugere</span>
-                            </div>
-                            <h3 className="text-xl font-bold text-white mb-2">{athenaRecommendation.title}</h3>
-                            <p className="text-sm text-slate-300 max-w-sm leading-relaxed">{athenaRecommendation.reason}</p>
+                            <h3 className="text-xl font-bold text-white mb-2 leading-tight">
+                                {finalRecommendation.title || `Atenção: ${finalRecommendation.notebook.discipline}`}
+                            </h3>
+                            <p className="text-sm text-slate-300 max-w-sm leading-relaxed mb-2">
+                                {finalRecommendation.reason}
+                            </p>
+                            {finalRecommendation.isAi && finalRecommendation.strategy && (
+                                <div className="mt-3 pl-3 border-l-2 border-indigo-500/50 text-xs text-indigo-200 italic">
+                                    "{finalRecommendation.strategy}"
+                                </div>
+                            )}
                         </div>
                     </div>
-                    <button onClick={() => { setFocusedNotebookId(athenaRecommendation.notebook.id); onNavigate('library'); }} className="w-full py-4 bg-white text-slate-950 font-bold rounded-xl hover:bg-slate-200 transition-all flex items-center justify-center gap-2 shadow-lg">
+
+                    <button onClick={() => { setFocusedNotebookId(finalRecommendation.notebook!.id); onNavigate('library'); }} className={`w-full py-4 font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg ${finalRecommendation.isAi ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white' : 'bg-white text-slate-950 hover:bg-slate-200'}`}>
                         <ArrowRight size={20} /> Abrir no Banco
                     </button>
                 </div>
             </div>
           )}
 
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 flex flex-col h-full">
-             <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <RefreshCw size={20} className="text-emerald-500"/>
-                Próximas Revisões (Fila)
-             </h3>
-             <div className="space-y-3 flex-1 overflow-y-auto max-h-[300px] custom-scrollbar">
-               {dueNotebooks.length === 0 ? (
-                 <div className="flex flex-col items-center justify-center py-8 text-center h-full">
-                    <CheckCircle2 size={40} className="text-emerald-500/30 mb-3" />
-                    <p className="text-slate-300 font-medium">Nenhuma revisão agendada!</p>
+          {/* PERFORMANCE EVOLUTION CHART (ENHANCED) */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col h-full min-h-[340px] shadow-2xl relative overflow-hidden">
+             
+             {/* Trend Alert (Insight) - Overlay */}
+             <div className={`absolute top-0 right-0 m-6 px-3 py-2 rounded-lg border backdrop-blur-md z-10 flex items-center gap-3 transition-all duration-500
+                 ${evolutionData.trend.status === 'up' ? 'bg-emerald-900/40 border-emerald-500/30 text-emerald-100' : 
+                   evolutionData.trend.status === 'down' ? 'bg-red-900/40 border-red-500/30 text-red-100' : 
+                   'bg-slate-800/60 border-slate-700 text-slate-300'}
+             `}>
+                 <div className={`p-1.5 rounded-full ${
+                     evolutionData.trend.status === 'up' ? 'bg-emerald-500 text-white' : 
+                     evolutionData.trend.status === 'down' ? 'bg-red-500 text-white' : 
+                     'bg-slate-600 text-white'
+                 }`}>
+                     {evolutionData.trend.status === 'up' ? <TrendingUp size={14} /> : 
+                      evolutionData.trend.status === 'down' ? <TrendingDown size={14} /> : 
+                      <Minus size={14} />}
                  </div>
-               ) : (
-                 dueNotebooks.map(nb => {
-                     const status = getReviewStatus(nb.nextReview!);
-                     
-                     return (
-                         <div 
-                            key={nb.id} 
-                            className={`flex flex-col gap-2 p-3 rounded-lg border transition-colors cursor-pointer group bg-slate-800/50 border-slate-700/50 hover:border-emerald-500/50`}
-                            onClick={() => handleEditRedirect(nb.id)}
-                         >
-                           <div className="flex justify-between items-start">
-                               <div>
-                                 <h4 className={`text-sm font-bold flex items-center gap-2 text-slate-200 group-hover:text-emerald-400 transition-colors`}>
-                                    {nb.discipline === 'Revisão Geral' && <BrainCircuit size={14} />} {nb.name}
-                                 </h4>
-                                 <p className="text-slate-200 text-[10px] mt-0.5">{nb.discipline}</p>
-                               </div>
-                               <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${nb.accuracy >= nb.targetAccuracy ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10' : 'text-amber-400 border-amber-500/30 bg-amber-500/10'}`}>{nb.accuracy}%</span>
-                           </div>
-                           <div className="flex items-center justify-between mt-1">
-                               <button onClick={(e) => { e.stopPropagation(); startSession(nb); }} className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all bg-emerald-600 text-white hover:bg-emerald-500 shadow-md`}>
-                                 Revisar Agora
-                               </button>
-                               {status && (
-                                   <span className={`text-[10px] font-bold flex items-center gap-1.5 px-2 py-1 rounded border ${status.color} ${status.bg} ${status.border}`}>
-                                       {status.icon}
-                                       {status.label} ({status.dateObj.toLocaleDateString()})
-                                   </span>
-                               )}
-                           </div>
-                         </div>
-                     );
-                 })
-               )}
+                 <div className="flex flex-col">
+                     <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">
+                         Análise de Tendência
+                     </span>
+                     <span className="text-xs font-medium leading-tight max-w-[180px]">
+                         {evolutionData.trend.message}
+                     </span>
+                 </div>
+             </div>
+
+             <div className="flex justify-between items-end mb-6">
+                 <div>
+                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                        <TrendingUp size={24} className="text-emerald-500"/>
+                        Evolução
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-1">Média de acurácia semanal</p>
+                 </div>
+             </div>
+             
+             <div className="flex-1 w-full relative">
+                 <Line data={evolutionData.chartData} options={chartOptions} />
              </div>
           </div>
       </div>
@@ -403,8 +627,10 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
               <div className="lg:col-span-2 order-1 lg:order-1">
                   <QuadrantChart data={notebooks.filter(n => n.discipline !== 'Revisão Geral')} onNavigate={onNavigate} />
               </div>
-              <div className="lg:col-span-1 order-2 lg:order-2">
-                  <WeeklyProgress />
+              <div className="lg:col-span-1 order-2 lg:order-2 flex flex-col gap-6">
+                  <div className="flex-1 h-full">
+                     <WeeklyProgress />
+                  </div>
               </div>
           </div>
       </DashboardSection>

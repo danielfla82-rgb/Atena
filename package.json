@@ -1,7 +1,7 @@
 {
-  "name": "projeto-atena-v7-6",
+  "name": "projeto-atena-v10-0",
   "private": true,
-  "version": "7.6.0",
+  "version": "10.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",

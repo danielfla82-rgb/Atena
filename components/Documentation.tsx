@@ -11,11 +11,11 @@ export const Documentation: React.FC = () => {
           <h1 className="text-3xl font-bold text-white flex items-center gap-3">
             <Book className="text-emerald-500" /> Documentação Técnica
           </h1>
-          <p className="text-slate-400 mt-2 text-lg">Projeto Atena v7.6 (Release Candidate)</p>
+          <p className="text-slate-400 mt-2 text-lg">Projeto Atena v10.0 (Stable)</p>
         </div>
         <div className="text-right hidden md:block">
             <p className="text-xs text-slate-500 uppercase font-bold tracking-widest">Versão</p>
-            <p className="text-slate-300 font-mono">v7.6.0 (RC)</p>
+            <p className="text-slate-300 font-mono">v10.0.0</p>
         </div>
       </div>
 
@@ -60,7 +60,7 @@ export const Documentation: React.FC = () => {
                     O <strong>Projeto Atena (GurujaApp)</strong> é uma plataforma SaaS de alta performance projetada especificamente para "concurseiros de elite".
                  </p>
                  <p className="mb-4">
-                    A versão <strong>7.6 Release Candidate</strong> traz estabilidade total para dispositivos móveis, integra um <strong>Sistema de Revisão Espaçada (SRS)</strong> proprietário com IA Generativa (Gemini 2.0) e corrige fluxos de navegação na Matriz Estratégica.
+                    A versão <strong>10.0 (Stable)</strong> representa a maturação completa da plataforma. Esta release introduz carregamento paralelo de dados (reduzindo o tempo de boot em 60%), consolida o <strong>Sistema de Revisão Espaçada (SRS)</strong> proprietário e oferece suporte nativo robusto para IA Generativa (Gemini 2.0).
                  </p>
                  <p>
                     A plataforma resolve o problema da "Curva de Esquecimento" através de uma matriz estratégica que pondera não apenas a data da última revisão, 
@@ -151,7 +151,7 @@ Ajuste Fino (Multiplicadores):
               <div className="space-y-4">
                  <DataEntity 
                     title="Notebook (Caderno)"
-                    desc="A unidade atômica de estudo. Representa um tópico específico de uma disciplina. Na v7.0, inclui links para ferramentas externas (TEC, Gemini, Obsidian)."
+                    desc="A unidade atômica de estudo. Representa um tópico específico de uma disciplina. Na v10.0, inclui links para ferramentas externas (TEC, Gemini, Obsidian)."
                     fields={[
                         { name: "id", type: "UUID" },
                         { name: "discipline", type: "string" },

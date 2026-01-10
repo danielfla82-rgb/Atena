@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useStore } from '../store';
-import { Notebook, Weight, Relevance, Trend, NotebookStatus, ScheduleItem } from '../types';
-import { Plus, Search, Pencil, X, Save, Link as LinkIcon, BarChart3, Calendar, Lock, ChevronDown, Layout, FileCode, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, ZoomIn, Trash2, Flag, ChevronLeft, ChevronRight, Inbox, Layers, Star, Scale, Loader2, TrendingUp, History, Minus, CheckCircle2, Archive, Download, PanelLeftClose, PanelLeftOpen, XCircle, Book, Brain } from 'lucide-react';
-import { calculateNextReview, getStatusColor } from '../utils/algorithm';
+import { Notebook, Weight, NotebookStatus, ScheduleItem } from '../types';
+import { Plus, Search, Pencil, BarChart3, Calendar, Lock, ChevronDown, Layout, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, Flag, Inbox, Scale, Download, PanelLeftClose, PanelLeftOpen, Archive, Minus, Meh, Frown, Smile } from 'lucide-react';
+import { getStatusColor } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 
 const PACE_SETTINGS: Record<string, { hours: number, blocks: number }> = {
@@ -194,7 +194,6 @@ const DraggableCard = React.memo(({
 const normalizeStr = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
 const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: number } }) => {
-    // ... same content as before ...
     const { notebooks, config, updateConfig } = useStore();
     const [newDiscName, setNewDiscName] = useState('');
     
@@ -233,6 +232,20 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
     const weights: Record<string, number> = config.calculatorState?.weights || {};
     const selectedDiscs = new Set<string>(config.calculatorState?.selectedDisciplines || []);
     const customDiscs: string[] = config.calculatorState?.customDisciplines || [];
+
+    const totalWeight = useMemo(() => {
+        return Array.from(selectedDiscs).reduce((acc, d) => acc + (weights[d] || 1), 0);
+    }, [selectedDiscs, weights]);
+
+    const distribution = useMemo(() => {
+        if (totalWeight === 0) return [];
+        return Array.from(selectedDiscs).map(d => {
+            const w = weights[d] || 1;
+            const percentage = w / totalWeight;
+            const blocks = Math.round(percentage * paceTarget.blocks);
+            return { name: d, percentage, blocks };
+        }).sort((a, b) => b.blocks - a.blocks);
+    }, [selectedDiscs, weights, totalWeight, paceTarget.blocks]);
 
     const toggleDisc = (d: string) => {
         const newSet = new Set(selectedDiscs);
@@ -313,21 +326,6 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
         };
 
     }, [notebooks, paceTarget.blocks, config.examDate]);
-
-    const totalWeight = useMemo(() => {
-        let sum = 0; selectedDiscs.forEach(d => { sum += (weights[d] || 1); }); return sum;
-    }, [selectedDiscs, weights]);
-
-    const distribution = useMemo(() => {
-        if (totalWeight === 0) return [];
-        return availableDisciplines.map(d => {
-            if (!selectedDiscs.has(d)) return null;
-            const weight = weights[d] || 1;
-            const percentage = weight / totalWeight;
-            const blocks = Math.round(percentage * paceTarget.blocks);
-            return { name: d, weight, percentage, blocks, topicCount: notebooks.filter(n => n.discipline === d).length };
-        }).filter(Boolean) as {name: string, weight: number, percentage: number, blocks: number, topicCount: number}[];
-    }, [availableDisciplines, selectedDiscs, weights, totalWeight, paceTarget.blocks, notebooks]);
 
     const totalAllocated = distribution.reduce((sum, item) => sum + item.blocks, 0);
     const diff = totalAllocated - paceTarget.blocks;
@@ -426,36 +424,20 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
     );
 };
 
-export const Setup: React.FC = () => {
-  const { notebooks, cycles, activeCycleId, config, updateConfig, moveNotebookToWeek, reorderSlotInWeek, editNotebook, toggleSlotCompletion, removeSlotFromWeek, isSyncing, isGuest, exportDatabase, startSession, addNotebook, fetchNotebookImages } = useStore();
+interface Props {
+    onNavigate?: (view: string) => void;
+}
+
+export const Setup: React.FC<Props> = ({ onNavigate }) => {
+  const { notebooks, cycles, activeCycleId, config, updateConfig, moveNotebookToWeek, reorderSlotInWeek, toggleSlotCompletion, removeSlotFromWeek, exportDatabase, setFocusedNotebookId } = useStore();
   
   const [viewMode, setViewMode] = useState<'timeline' | 'calculator'>('timeline');
   const [searchTerm, setSearchTerm] = useState('');
   const [showStats, setShowStats] = useState(false);
   const [libraryFilter, setLibraryFilter] = useState<'all' | 'unallocated' | 'overdue'>('all');
   const [disciplineFilter, setDisciplineFilter] = useState<string>('');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   
-  // INITIAL STATE WITH ALL FIELDS FOR SUPABASE
-  const initialFormState = {
-    discipline: '', name: '', subtitle: '', 
-    tecLink: '', errorNotebookLink: '', favoriteQuestionsLink: '',
-    lawLink: '', obsidianLink: '', 
-    geminiLink1: '', geminiLink2: '',
-    accuracy: 0, targetAccuracy: 90,
-    weight: Weight.MEDIO, relevance: Relevance.MEDIA, trend: Trend.ESTAVEL, 
-    status: NotebookStatus.NOT_STARTED,
-    notes: '', images: [] as string[], accuracyHistory: [] as { date: string, accuracy: number }[],
-    nextReview: '' as string | undefined // Added to preserve date
-  };
-  
-  const [formData, setFormData] = useState(initialFormState);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const pendingCount = useMemo(() => {
       if (!activeCycleId) return notebooks.filter(n => n.discipline !== 'Revisão Geral' && !n.weekId).length;
       const cycle = cycles.find(c => c.id === activeCycleId);
@@ -477,33 +459,7 @@ export const Setup: React.FC = () => {
       return notebooks.filter(n => n.discipline !== 'Revisão Geral' && !scheduledIds.has(n.id)).length;
   }, [notebooks, activeCycleId, cycles]);
 
-  // ... (useMemos and effects same as before)
   const existingDisciplines = useMemo(() => Array.from(new Set(notebooks.map(n => n.discipline))).sort(), [notebooks]);
-
-  const computedNextReviewData = useMemo(() => {
-      if (!isModalOpen) return null;
-      
-      // Use stored date if available, otherwise calculate
-      const dateStr = formData.nextReview || calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm).toISOString();
-      const nextDate = new Date(dateStr);
-
-      let weekLabel = '';
-      if (config.startDate) {
-          const start = new Date(config.startDate);
-          start.setHours(0,0,0,0);
-          const target = new Date(nextDate);
-          target.setHours(0,0,0,0);
-          const diffTime = target.getTime() - start.getTime();
-          const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-          if (diffDays >= 0) {
-              const weekNum = Math.floor(diffDays / 7) + 1;
-              weekLabel = `(Semana ${weekNum})`;
-          } else {
-              weekLabel = '(Passado)';
-          }
-      }
-      return { date: nextDate, label: weekLabel };
-  }, [formData.accuracy, formData.relevance, formData.trend, formData.nextReview, config.algorithm, isModalOpen, config.startDate]);
 
   const currentPace = config.studyPace || 'Intermediário';
   const paceTarget = PACE_SETTINGS[currentPace] || PACE_SETTINGS['Intermediário'];
@@ -649,164 +605,23 @@ export const Setup: React.FC = () => {
       }
   }, [reorderSlotInWeek, moveNotebookToWeek]);
 
-  // --- CRITICAL FIX: ENSURE ALL FIELDS ARE LOADED INTO FORM ---
-  const handleEditClick = useCallback(async (notebook: Notebook) => {
-    setEditingId(notebook.id);
-    let currentImages = notebook.images || [];
-    if (currentImages.length === 0 && !isGuest) {
-        currentImages = await fetchNotebookImages(notebook.id);
+  // --- REDIRECT TO LIBRARY FOR EDITING ---
+  const handleEditClick = useCallback((notebook: Notebook) => {
+    setFocusedNotebookId(notebook.id);
+    if (onNavigate) {
+        onNavigate('library');
+    } else {
+        console.warn("Setup: onNavigate not provided");
     }
-    
-    // Fallback legacy image
-    if (currentImages.length === 0 && notebook.image) currentImages = [notebook.image];
-    
-    // Explicitly mapping potential missing fields to prevent data loss
-    setFormData({
-      discipline: notebook.discipline, 
-      name: notebook.name, 
-      subtitle: notebook.subtitle,
-      tecLink: notebook.tecLink || '', 
-      errorNotebookLink: notebook.errorNotebookLink || '', 
-      favoriteQuestionsLink: notebook.favoriteQuestionsLink || '',
-      lawLink: notebook.lawLink || '', 
-      obsidianLink: notebook.obsidianLink || '',
-      geminiLink1: notebook.geminiLink1 || '', // Ensures "Gemini Contexto" loads
-      geminiLink2: notebook.geminiLink2 || '',
-      accuracy: notebook.accuracy, 
-      targetAccuracy: notebook.targetAccuracy, 
-      weight: notebook.weight,
-      relevance: notebook.relevance, 
-      trend: notebook.trend, 
-      notes: notebook.notes || '',
-      status: notebook.status,
-      images: currentImages, 
-      accuracyHistory: notebook.accuracyHistory || [],
-      nextReview: notebook.nextReview || '' // Load existing date
-    });
-    setIsModalOpen(true);
-  }, [isGuest, fetchNotebookImages]);
-
-  const handleChange = (field: keyof typeof initialFormState, value: any) => setFormData(prev => ({ ...prev, [field]: value }));
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files) {
-      (Array.from(files) as File[]).forEach(file => {
-          if (file.size > 2 * 1024 * 1024) { alert("Imagem muito grande (>2MB)."); return; }
-          const reader = new FileReader();
-          reader.onloadend = () => { if(reader.result) setFormData(prev => ({ ...prev, images: [...prev.images, reader.result as string] })); };
-          reader.readAsDataURL(file);
-      });
-    }
-  };
-  const removeImage = (index: number) => { setFormData(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== index) })); };
-  
-  const handleNotStudied = async () => { 
-      setIsSaving(true);
-      try {
-          if (editingId) {
-              await editNotebook(editingId, { 
-                  accuracy: 0, 
-                  status: NotebookStatus.NOT_STARTED 
-              });
-              setIsModalOpen(false); 
-          } else {
-              setFormData(prev => ({ ...prev, accuracy: 0, status: NotebookStatus.NOT_STARTED }));
-          }
-      } catch (e) {
-          console.error("Error setting not studied", e);
-      } finally {
-          setIsSaving(false);
-      }
-  };
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaving(true);
-    try {
-        // CORRECTION: Only calculate date if nextReview is missing or explicitly reset
-        let nextDateStr = formData.nextReview;
-        
-        if (!nextDateStr) {
-            const nextDate = calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm);
-            nextDateStr = nextDate.toISOString();
-        }
-        
-        // Construct payload with explicit fields to ensure saving
-        const payload: any = { 
-            ...formData, 
-            accuracy: Number(formData.accuracy), 
-            targetAccuracy: Number(formData.targetAccuracy),
-            nextReview: nextDateStr
-        };
-        
-        if (editingId) await editNotebook(editingId, payload);
-        else await addNotebook(payload); 
-        
-        setIsModalOpen(false);
-    } catch (error) {
-        console.error("Failed to save:", error);
-        alert("Erro ao salvar.");
-    } finally {
-        setIsSaving(false);
-    }
-  };
-
-  const navigateLightbox = (direction: 'next' | 'prev') => {
-      if (lightboxIndex === null) return;
-      if (direction === 'next') setLightboxIndex((lightboxIndex + 1) % formData.images.length);
-      else setLightboxIndex((lightboxIndex - 1 + formData.images.length) % formData.images.length);
-  };
+  }, [setFocusedNotebookId, onNavigate]);
 
   const handleRemoveFromWeek = useCallback((instanceId: string, weekId: string) => {
       removeSlotFromWeek(instanceId, weekId);
   }, [removeSlotFromWeek]);
 
-  const handleQuickRecord = async () => {
-      setIsSaving(true);
-      try {
-          const newAccuracy = Number(formData.accuracy);
-          const nextDate = calculateNextReview(newAccuracy, formData.relevance, formData.trend, config.algorithm);
-          const newHistory = [...(formData.accuracyHistory || []), { date: new Date().toISOString(), accuracy: newAccuracy }].slice(-3);
-          if(editingId) {
-              await editNotebook(editingId, { 
-                  accuracy: newAccuracy, 
-                  accuracyHistory: newHistory, 
-                  lastPractice: new Date().toISOString(),
-                  nextReview: nextDate.toISOString()
-              });
-              setFormData(prev => ({ 
-                  ...prev, 
-                  accuracyHistory: newHistory,
-                  nextReview: nextDate.toISOString() // Update local state too
-              }));
-          }
-      } catch (err) { console.error("Quick save failed", err); } finally { setIsSaving(false); }
-  };
-
-  const removeHistoryItem = (index: number) => {
-      const newHistory = [...(formData.accuracyHistory || [])];
-      newHistory.splice(index, 1);
-      setFormData(prev => ({ ...prev, accuracyHistory: newHistory }));
-  };
-
   return (
     <div className="flex flex-row h-full w-full overflow-hidden relative">
       
-      {/* Lightbox */}
-      {lightboxIndex !== null && (
-          <div className="fixed inset-0 z-[60] bg-slate-950/95 flex items-center justify-center p-4 backdrop-blur-sm">
-             <button onClick={() => setLightboxIndex(null)} className="absolute top-4 right-4 text-white hover:text-emerald-500 z-50"><X size={32} /></button>
-             {formData.images.length > 1 && (
-                 <>
-                    <button onClick={() => navigateLightbox('prev')} className="absolute left-4 p-2 bg-slate-800/50 rounded-full hover:bg-emerald-600 text-white"><ChevronLeft size={32}/></button>
-                    <button onClick={() => navigateLightbox('next')} className="absolute right-4 p-2 bg-slate-800/50 rounded-full hover:bg-emerald-600 text-white"><ChevronRight size={32}/></button>
-                 </>
-             )}
-             <img src={formData.images[lightboxIndex]} className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" />
-             <div className="absolute bottom-4 bg-black/50 px-4 py-1 rounded-full text-white text-sm">{lightboxIndex + 1} / {formData.images.length}</div>
-          </div>
-      )}
-
       {/* Sidebar - Always visible for quick drag & reference, just lighter in calculator mode if needed */}
       <aside className={`flex-shrink-0 border-r border-slate-800 bg-slate-900/95 flex flex-col z-40 transition-all duration-300 ease-in-out h-full ${isSidebarCollapsed ? 'w-14' : 'absolute md:relative w-80 shadow-2xl md:shadow-none'}`}>
           <div className={`p-4 border-b border-slate-800 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
@@ -1022,9 +837,27 @@ export const Setup: React.FC = () => {
                         
                         const isOverloaded = blocksCount > weekTarget.blocks;
                         const isAllocated = blocksCount >= weekTarget.blocks && !isOverloaded;
-                        const isWeekFullyDone = blocksCount > 0 && blocksCompleted === blocksCount;
-                        const isLate = week.isPast && !isWeekFullyDone;
+                        
+                        // NEW LOGIC: Meta Batida only if completed >= Target Pace
+                        const isTargetMet = blocksCompleted >= weekTarget.blocks;
+                        const isAllAllocatedDone = blocksCount > 0 && blocksCompleted === blocksCount;
+                        
+                        const isLate = week.isPast && !isTargetMet;
                         const dailyAvg = (blocksCount / 7).toFixed(1);
+
+                        // --- PERFORMANCE SUMMARY ---
+                        const summaryStats = { success: 0, warning: 0, critical: 0 };
+                        if (week.isPast || blocksCompleted > 0) {
+                            weekSlots.forEach(slot => {
+                                if (!slot.completed || !slot.notebookId) return;
+                                const nb = notebooks.find(n => n.id === slot.notebookId);
+                                if (!nb) return;
+                                if (nb.accuracy >= nb.targetAccuracy) summaryStats.success++;
+                                else if (nb.accuracy < 60) summaryStats.critical++;
+                                else summaryStats.warning++;
+                            });
+                        }
+                        const hasActivity = summaryStats.success + summaryStats.warning + summaryStats.critical > 0;
 
                         return (
                             <div key={week.id} className={`w-80 flex-shrink-0 flex flex-col rounded-2xl border transition-all duration-300 relative h-full max-h-full ${week.isPast ? 'bg-slate-900/30 border-slate-800/50 opacity-90' : 'bg-slate-900 border-slate-800 shadow-2xl hover:border-slate-700'}`} onDragOver={week.isPast ? undefined : onDragOver} onDrop={(e) => onDrop(e, week.id, week.isPast)}>
@@ -1038,7 +871,7 @@ export const Setup: React.FC = () => {
                                     <div><span className="font-black block text-base flex items-center gap-2 text-white">SEMANA {week.index} {week.isPast && <Lock size={14} />}</span><span className={`text-[10px] font-bold uppercase tracking-widest ${week.isPast ? 'line-through decoration-slate-600 opacity-50' : 'text-slate-500'}`}>{week.label}</span></div>
                                     <div className="flex flex-col items-end">
                                         <div className="flex items-baseline gap-1">
-                                            <span className={`text-lg font-black ${blocksCompleted === blocksCount && blocksCount > 0 ? 'text-emerald-400' : 'text-white'}`}>
+                                            <span className={`text-lg font-black ${isTargetMet ? 'text-emerald-400' : 'text-white'}`}>
                                                 {blocksCompleted}
                                             </span>
                                             <span className="text-sm font-medium text-slate-600">/</span>
@@ -1074,9 +907,13 @@ export const Setup: React.FC = () => {
                                     <div className="w-full h-1 bg-slate-950 rounded-full overflow-hidden flex relative group border border-slate-800"><div className={`h-full transition-all duration-500 ${isOverloaded ? 'bg-red-500' : 'bg-slate-600'}`} style={{ width: `${loadPercentage}%` }}></div></div>
                                     
                                     <div className="flex justify-between items-center h-5">
-                                        {isWeekFullyDone ? (
+                                        {isTargetMet ? (
                                             <span className="text-[10px] text-emerald-500 font-bold flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 w-full justify-center">
                                                 <Check size={10} /> Meta Batida
+                                            </span>
+                                        ) : isAllAllocatedDone ? (
+                                            <span className="text-[10px] text-amber-400 font-bold flex items-center gap-1 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 w-full justify-center" title={`Você completou a lista, mas a meta para este perfil é de ${weekTarget.blocks} blocos.`}>
+                                                <Meh size={10} /> Ritmo Baixo ({blocksCompleted}/{weekTarget.blocks})
                                             </span>
                                         ) : isLate ? (
                                             <span className="text-[10px] text-red-400 font-bold flex items-center gap-1 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20 w-full justify-center">
@@ -1093,6 +930,17 @@ export const Setup: React.FC = () => {
                                         )}
                                     </div>
                                 </div>
+
+                                {/* PERFORMANCE SUMMARY ROW */}
+                                {hasActivity && (
+                                    <div className="flex justify-between items-center pt-2 border-t border-slate-800/50 mt-1">
+                                        <div className="flex items-center gap-3">
+                                            {summaryStats.success > 0 && <span className="text-[9px] font-bold text-emerald-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> {summaryStats.success}</span>}
+                                            {summaryStats.warning > 0 && <span className="text-[9px] font-bold text-amber-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span> {summaryStats.warning}</span>}
+                                            {summaryStats.critical > 0 && <span className="text-[9px] font-bold text-red-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-500"></span> {summaryStats.critical}</span>}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                             <div className="p-3 space-y-2 overflow-y-auto flex-1 custom-scrollbar relative bg-slate-900/50">
                                 {week.isPast && <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagmonds-light.png')] opacity-10 pointer-events-none z-0"></div>}
@@ -1132,166 +980,6 @@ export const Setup: React.FC = () => {
              </div>
          ) : (<CycleCalculator paceTarget={paceTarget} />)}
       </main>
-
-       {/* Edit/Create Modal (REUSED FROM LIBRARY) */}
-       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
-            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900">
-                <h3 className="text-xl font-bold text-white flex items-center gap-2"><Pencil size={20} className="text-emerald-500"/> {editingId ? 'Editar Caderno' : 'Novo Caderno'}</h3>
-                <button onClick={() => !isSaving && setIsModalOpen(false)} className="text-slate-400 hover:text-white" disabled={isSaving}><X size={24} /></button>
-            </div>
-            <form onSubmit={handleSave} className="overflow-y-auto p-6 space-y-6 custom-scrollbar flex-1">
-              {/* Form Content identical to Library for consistency */}
-              <div className="space-y-4">
-                  <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">1. Identificação</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Disciplina</label><input required list="disciplines" value={formData.discipline} onChange={e => handleChange('discipline', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /><datalist id="disciplines">{existingDisciplines.map(d => <option key={d} value={d} />)}</datalist></div>
-                    <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Nome do Tópico</label><input required value={formData.name} onChange={e => handleChange('name', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /></div>
-                  </div>
-                  <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Subtópico / Foco</label><input value={formData.subtitle} onChange={e => handleChange('subtitle', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /></div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Caderno TEC</label>
-                        <div className="relative"><LinkIcon className="absolute left-3 top-3 text-slate-500" size={14} /><input type="url" value={formData.tecLink} onChange={e => handleChange('tecLink', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-white outline-none focus:border-emerald-500" placeholder="https://tecconcursos..." /></div>
-                    </div>
-                    <div>
-                        <label className="block text-[10px] font-bold text-red-400 mb-1 uppercase tracking-wider">Caderno de Erros</label>
-                        <div className="relative"><XCircle className="absolute left-3 top-3 text-red-500" size={14} /><input type="url" value={formData.errorNotebookLink} onChange={e => handleChange('errorNotebookLink', e.target.value)} className="w-full bg-slate-800 border border-red-500/20 rounded-lg py-2.5 pl-9 text-xs text-white outline-none focus:border-red-500 placeholder-red-900/50" placeholder="Link de Erros..." /></div>
-                    </div>
-                    <div>
-                        <label className="block text-[10px] font-bold text-yellow-400 mb-1 uppercase tracking-wider">Questões Favoritas</label>
-                        <div className="relative"><Star className="absolute left-3 top-3 text-yellow-500" size={14} /><input type="url" value={formData.favoriteQuestionsLink} onChange={e => handleChange('favoriteQuestionsLink', e.target.value)} className="w-full bg-slate-800 border border-yellow-500/20 rounded-lg py-2.5 pl-9 text-xs text-white outline-none focus:border-yellow-500 placeholder-yellow-900/50" placeholder="Link Favoritas..." /></div>
-                    </div>
-                    <div>
-                        <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Lei Seca</label>
-                        <div className="relative"><Book className="absolute left-3 top-3 text-slate-500" size={14} /><input type="url" value={formData.lawLink} onChange={e => handleChange('lawLink', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-white outline-none focus:border-emerald-500" placeholder="Planalto..." /></div>
-                    </div>
-                    <div>
-                        <label className="block text-[10px] font-bold text-purple-400 mb-1 uppercase tracking-wider">Obsidian / Notion</label>
-                        <div className="relative"><FileCode className="absolute left-3 top-3 text-purple-500" size={14} /><input type="url" value={formData.obsidianLink} onChange={e => handleChange('obsidianLink', e.target.value)} className="w-full bg-slate-800 border border-purple-500/20 rounded-lg py-2.5 pl-9 text-xs text-white outline-none focus:border-purple-500 placeholder-purple-900/50" placeholder="Link anotações..." /></div>
-                    </div>
-                    <div>
-                        <label className="block text-[10px] font-bold text-cyan-400 mb-1 uppercase tracking-wider">Gemini Contexto</label>
-                        <div className="relative"><Brain className="absolute left-3 top-3 text-cyan-500" size={14} /><input type="url" value={formData.geminiLink1} onChange={e => handleChange('geminiLink1', e.target.value)} className="w-full bg-slate-800 border border-cyan-500/20 rounded-lg py-2.5 pl-9 text-xs text-white outline-none focus:border-cyan-500 placeholder-cyan-900/50" placeholder="Link Chat..." /></div>
-                    </div>
-                  </div>
-              </div>
-              <div className="space-y-4 pt-2">
-                  <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">2. Estratégia & Performance</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div><label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Peso</label><select value={formData.weight} onChange={(e) => handleChange('weight', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm">{Object.values(Weight).map(w => <option key={w} value={w}>{w}</option>)}</select></div>
-                      <div><label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Relevância</label><select value={formData.relevance} onChange={(e) => handleChange('relevance', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm">{Object.values(Relevance).map(r => <option key={r} value={r}>{r}</option>)}</select></div>
-                      <div><label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Tendência</label><select value={formData.trend} onChange={(e) => handleChange('trend', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm">{Object.values(Trend).map(t => <option key={t} value={t}>{t}</option>)}</select></div>
-                      <div><label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Meta (%)</label><input type="number" min="0" max="100" value={formData.targetAccuracy} onChange={e => handleChange('targetAccuracy', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm text-center font-bold" /></div>
-                  </div>
-                  
-                  {/* Status Selector */}
-                  <div>
-                      <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Status do Caderno</label>
-                      <select 
-                          value={formData.status} 
-                          onChange={(e) => handleChange('status', e.target.value)} 
-                          className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm"
-                      >
-                          <option value={NotebookStatus.NOT_STARTED}>Não Iniciado</option>
-                          <option value={NotebookStatus.REVIEWING}>Em Andamento</option>
-                          <option value={NotebookStatus.MASTERED}>Concluído</option>
-                      </select>
-                  </div>
-
-                  <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex flex-col items-stretch gap-4">
-                      <div className="flex flex-col md:flex-row gap-4 items-end">
-                          <div className="flex-1 w-full">
-                             <div className="flex justify-between mb-1">
-                                <label className="block text-[10px] font-bold text-emerald-400 uppercase">Taxa de Acerto Atual (%)</label>
-                                {formData.accuracyHistory && formData.accuracyHistory.length > 0 && (
-                                    <span className="text-[9px] text-slate-500 font-mono flex items-center gap-1">
-                                        <History size={10}/> Últimos 3
-                                    </span>
-                                )}
-                             </div>
-                             <div className="flex gap-2">
-                                <input type="number" min="0" max="100" value={formData.accuracy} onChange={e => handleChange('accuracy', e.target.value)} className="flex-1 bg-slate-900 border border-slate-600 rounded-lg p-2 text-white font-mono text-center font-bold text-lg focus:border-emerald-500 outline-none" />
-                                <button type="button" onClick={handleQuickRecord} disabled={isSaving} className="px-4 bg-emerald-600/20 border border-emerald-600/50 text-emerald-400 hover:bg-emerald-600 hover:text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2">{isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Registrar</button>
-                             </div>
-                             
-                             {computedNextReviewData && (
-                                 <div className="flex flex-col mt-2 gap-1">
-                                     <div className="flex items-center justify-end gap-1.5 text-[10px] font-bold text-slate-400">
-                                         <span className="uppercase tracking-widest text-slate-500">Próxima Revisão:</span>
-                                         <span className="text-emerald-400 bg-emerald-900/20 px-1.5 py-0.5 rounded border border-emerald-500/20 flex items-center gap-1">
-                                             <Calendar size={10} /> {computedNextReviewData.date.toLocaleDateString()}
-                                         </span>
-                                         <span className="text-slate-500 text-[9px] font-normal">{computedNextReviewData.label}</span>
-                                     </div>
-                                 </div>
-                             )}
-
-                          </div>
-                          <div className="flex-1 w-full flex gap-2">
-                             <button type="button" onClick={handleNotStudied} disabled={isSaving} className="flex-1 py-2.5 px-4 rounded-lg flex items-center justify-center gap-2 font-bold text-sm bg-slate-700 hover:bg-slate-600 text-slate-200 transition-all border border-slate-600">
-                                {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Flag size={16} />} Não estudei
-                             </button>
-                          </div>
-                      </div>
-                      {formData.accuracyHistory && formData.accuracyHistory.length > 0 && (
-                          <div className="border-t border-slate-700/50 pt-2 flex gap-2 overflow-x-auto pb-1 min-h-[45px]">
-                              {formData.accuracyHistory.map((h, i) => (
-                                  <div key={i} className="group relative flex flex-col items-center bg-slate-900 px-2 py-1 rounded border border-slate-800 min-w-[60px]">
-                                      <button 
-                                        type="button"
-                                        onClick={() => removeHistoryItem(i)}
-                                        className="absolute -top-1.5 -right-1.5 bg-red-600 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110 z-10 cursor-pointer shadow-sm"
-                                        title="Excluir registro"
-                                      >
-                                          <X size={8} strokeWidth={3} />
-                                      </button>
-                                      <span className="text-[10px] text-slate-500 font-mono">{new Date(h.date).toLocaleDateString(undefined, {day:'2-digit', month:'2-digit'})}</span>
-                                      <span className={`text-xs font-bold ${h.accuracy >= formData.targetAccuracy ? 'text-emerald-400' : h.accuracy < 60 ? 'text-red-400' : 'text-amber-400'}`}>{h.accuracy}%</span>
-                                  </div>
-                              ))}
-                              <div className="flex items-center text-xs text-slate-500 gap-1 ml-2"><TrendingUp size={14} /> Tendência</div>
-                          </div>
-                      )}
-                  </div>
-              </div>
-              <div className="space-y-4 pt-2">
-                <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">3. Rascunhos & Anotações</h4>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Anotações / Resumo</label><textarea value={formData.notes} onChange={e => handleChange('notes', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500 transition-all min-h-[200px] resize-none text-sm custom-scrollbar" placeholder="Mnemônicos..." /></div>
-                    <div className="flex flex-col h-full">
-                        <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Galeria de Mapas Mentais</label>
-                        <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 min-h-[200px] flex flex-col">
-                            <div className="grid grid-cols-3 gap-2 mb-3">
-                                {formData.images.map((img, idx) => (
-                                    <div key={idx} className="relative group aspect-square bg-slate-900 rounded-lg overflow-hidden border border-slate-700 hover:border-emerald-500 transition-colors cursor-pointer">
-                                        <img src={img} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" onClick={() => setLightboxIndex(idx)} />
-                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 pointer-events-none"><ZoomIn size={16} className="text-white" /></div>
-                                        <button type="button" onClick={(e) => { e.stopPropagation(); removeImage(idx); }} className="absolute top-1 right-1 bg-red-600 hover:bg-red-500 text-white rounded p-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto"><Trash2 size={12} /></button>
-                                    </div>
-                                ))}
-                                <div onClick={() => fileInputRef.current?.click()} className="aspect-square border-2 border-dashed border-slate-700 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-emerald-500 hover:bg-slate-700/50 transition-colors text-slate-500 hover:text-emerald-500"><Plus size={24} /><span className="text-[10px] uppercase font-bold mt-1">Add Imagem</span></div>
-                            </div>
-                            <input type="file" ref={fileInputRef} className="hidden" accept="image/*" multiple onChange={handleImageUpload} />
-                            <p className="text-[10px] text-slate-500 mt-auto text-center italic">Suporta múltiplas imagens. Clique em uma imagem para ampliar.</p>
-                        </div>
-                    </div>
-                </div>
-              </div>
-            </form>
-            <div className="p-6 border-t border-slate-800 bg-slate-900 flex gap-4">
-                <button type="button" onClick={() => !isSaving && setIsModalOpen(false)} disabled={isSaving} className="flex-1 bg-slate-800 text-slate-300 py-3 rounded-xl hover:bg-slate-700 font-medium transition-colors disabled:opacity-50">Cancelar</button>
-                <button type="button" onClick={handleSave} disabled={isSaving} className="flex-1 bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-500 font-bold shadow-lg shadow-emerald-900/20 transition-all flex items-center justify-center gap-2 disabled:bg-emerald-800 disabled:text-emerald-400 disabled:cursor-wait">
-                    {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                    {isSaving ? "Salvando..." : "Salvar Alterações"}
-                </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
