@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useStore } from '../store';
-import { Notebook } from '../types';
+import { Notebook, NotebookStatus } from '../types';
 import { 
     CalendarCheck, AlertCircle, Clock, CalendarCheck2, 
     Edit2, Search, ArrowRight, Calendar, Filter
@@ -28,6 +28,11 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
 
       const filtered = notebooks.filter(nb => {
           if (nb.discipline === 'Revisão Geral') return false;
+          
+          // EXCLUDE NOT STARTED ITEMS
+          // Items that haven't been started (0% accuracy + Not Started status) are "Acquisition", not "Review".
+          if (nb.status === NotebookStatus.NOT_STARTED && nb.accuracy === 0) return false;
+
           if (searchTerm && !nb.name.toLowerCase().includes(searchTerm.toLowerCase()) && !nb.discipline.toLowerCase().includes(searchTerm.toLowerCase())) return false;
           return !!nb.nextReview;
       });
@@ -258,7 +263,7 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
                       const days = getDaysDiff(nb.nextReview!);
                       const weekLabel = getWeekLabel(nb.nextReview!);
                       return (
-                          <div key={nb.id} className="group bg-slate-950 border border-slate-800 p-3 rounded-lg flex items-center justify-between cursor-pointer" onClick={() => handleEdit(nb)}>
+                          <div key={nb.id} className="group bg-slate-900 border border-slate-800 p-3 rounded-lg flex items-center justify-between cursor-pointer" onClick={() => handleEdit(nb)}>
                               <div className="flex-1 min-w-0 pr-4">
                                   <div className="flex items-center gap-2">
                                       <h3 className="font-bold text-slate-300 text-sm truncate">{nb.discipline}</h3>

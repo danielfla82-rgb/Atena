@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, NotebookStatus, ScheduleItem } from '../types';
-import { Plus, Search, Pencil, BarChart3, Calendar, Lock, ChevronDown, Layout, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, Flag, Inbox, Scale, Download, PanelLeftClose, PanelLeftOpen, Archive, Minus, Meh, Frown, Smile, CloudLightning } from 'lucide-react';
+import { Plus, Search, Pencil, BarChart3, Calendar, Lock, ChevronDown, Layout, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, Flag, Inbox, Scale, Download, PanelLeftClose, PanelLeftOpen, Archive, Minus, Meh, Frown, Smile, CloudLightning, History, ChevronRight, Maximize2, Activity } from 'lucide-react';
 import { getStatusColor } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 import { MigrationTool } from './MigrationTool';
@@ -439,6 +439,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
   const [libraryFilter, setLibraryFilter] = useState<'all' | 'unallocated' | 'overdue'>('all');
   const [disciplineFilter, setDisciplineFilter] = useState<string>('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [expandedWeekId, setExpandedWeekId] = useState<string | null>(null);
   
   // MIGRATION TOOL STATE
   const [showMigrationTool, setShowMigrationTool] = useState(false);
@@ -843,25 +844,91 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                         const dailyAvg = (blocksCount / 7).toFixed(1);
 
                         // --- PERFORMANCE SUMMARY ---
-                        const summaryStats = { success: 0, warning: 0, critical: 0 };
+                        const summaryStats = { success: 0, warning: 0, critical: 0, totalAcc: 0, countAcc: 0 };
                         if (week.isPast || blocksCompleted > 0) {
                             weekSlots.forEach(slot => {
                                 if (!slot.completed || !slot.notebookId) return;
                                 const nb = notebooks.find(n => n.id === slot.notebookId);
                                 if (!nb) return;
+                                
+                                // Accumulate accuracy for average
+                                if (nb.accuracy > 0) {
+                                    summaryStats.totalAcc += nb.accuracy;
+                                    summaryStats.countAcc++;
+                                }
+
                                 if (nb.accuracy >= nb.targetAccuracy) summaryStats.success++;
                                 else if (nb.accuracy < 60) summaryStats.critical++;
                                 else summaryStats.warning++;
                             });
                         }
                         const hasActivity = summaryStats.success + summaryStats.warning + summaryStats.critical > 0;
+                        const avgAccuracy = summaryStats.countAcc > 0 ? Math.round(summaryStats.totalAcc / summaryStats.countAcc) : 0;
+
+                        // COLLAPSED LOGIC
+                        const isCollapsed = week.isPast && expandedWeekId !== week.id;
+
+                        if (isCollapsed) {
+                            return (
+                                <div 
+                                    key={week.id}
+                                    onClick={() => setExpandedWeekId(week.id)}
+                                    className="w-24 h-full bg-slate-900/60 border border-slate-800 hover:border-emerald-500/50 hover:bg-slate-900 rounded-2xl flex flex-col items-center py-4 cursor-pointer transition-all duration-300 group shadow-sm hover:shadow-xl relative overflow-hidden"
+                                    title={`Semana ${week.index} - Clique para expandir`}
+                                >
+                                    <div className="absolute inset-0 bg-slate-950/30 group-hover:bg-transparent transition-colors" />
+                                    
+                                    {/* Top: Status Dots (Mini Dashboard) */}
+                                    <div className="flex flex-col gap-1 mb-4 z-10 w-full items-center">
+                                        {hasActivity ? (
+                                            <>
+                                                <div className="flex gap-1">
+                                                    {summaryStats.success > 0 && <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm" title={`${summaryStats.success} metas batidas`}></span>}
+                                                    {summaryStats.warning > 0 && <span className="w-2 h-2 rounded-full bg-amber-500 shadow-sm" title={`${summaryStats.warning} em atenção`}></span>}
+                                                    {summaryStats.critical > 0 && <span className="w-2 h-2 rounded-full bg-red-500 shadow-sm" title={`${summaryStats.critical} críticos`}></span>}
+                                                </div>
+                                                <span className={`text-[10px] font-mono font-bold ${avgAccuracy >= 80 ? 'text-emerald-400' : 'text-slate-400'}`}>
+                                                    {avgAccuracy}%
+                                                </span>
+                                            </>
+                                        ) : (
+                                            <span className="w-2 h-2 rounded-full bg-slate-700"></span>
+                                        )}
+                                    </div>
+
+                                    {/* Middle: Vertical Text */}
+                                    <div className="flex-1 flex items-center justify-center z-10 w-full relative">
+                                        <span className="text-xs font-bold text-slate-500 group-hover:text-white whitespace-nowrap tracking-widest uppercase absolute" style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}>
+                                            Semana {week.index}
+                                        </span>
+                                    </div>
+
+                                    {/* Bottom: Pace Indicator */}
+                                    <div className="mt-4 z-10 flex flex-col items-center gap-1">
+                                        <Activity size={14} className={isTargetMet ? "text-emerald-500" : "text-slate-600"} />
+                                        {isTargetMet && <span className="text-[9px] text-emerald-500 font-bold uppercase tracking-tighter scale-75">Meta OK</span>}
+                                    </div>
+                                </div>
+                            );
+                        }
 
                         return (
-                            <div key={week.id} className={`w-80 flex-shrink-0 flex flex-col rounded-2xl border transition-all duration-300 relative h-full max-h-full ${week.isPast ? 'bg-slate-900/30 border-slate-800/50 opacity-90' : 'bg-slate-900 border-slate-800 shadow-2xl hover:border-slate-700'}`} onDragOver={week.isPast ? undefined : onDragOver} onDrop={(e) => onDrop(e, week.id, week.isPast)}>
+                            <div key={week.id} className={`w-80 flex-shrink-0 flex flex-col rounded-2xl border transition-all duration-300 relative h-full max-h-full ${week.isPast ? 'bg-slate-900/30 border-slate-800/50 opacity-100' : 'bg-slate-900 border-slate-800 shadow-2xl hover:border-slate-700'}`} onDragOver={week.isPast ? undefined : onDragOver} onDrop={(e) => onDrop(e, week.id, week.isPast)}>
                             
                             <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-950 px-2 py-0.5 rounded border border-slate-800 shadow-sm z-20">
                                 ~{dailyAvg} / dia
                             </div>
+
+                            {/* Collapse Button for Past Weeks */}
+                            {week.isPast && (
+                                <button 
+                                    onClick={(e) => { e.stopPropagation(); setExpandedWeekId(null); }}
+                                    className="absolute -right-3 top-1/2 -translate-y-1/2 bg-slate-800 text-slate-400 hover:text-white p-1 rounded-full shadow-lg border border-slate-700 z-50 hover:scale-110 transition-transform"
+                                    title="Recolher Semana"
+                                >
+                                    <ChevronRight size={16} />
+                                </button>
+                            )}
 
                             <div className={`p-4 rounded-t-2xl border-b flex flex-col gap-3 z-10 relative ${week.isPast ? 'bg-slate-950/30 border-slate-800/50 text-slate-600' : 'bg-slate-900 border-slate-700 text-slate-200'}`}>
                                 <div className="flex justify-between items-start">

@@ -7,7 +7,7 @@ import {
     Search, Plus, Trash2, Edit2, Square, ChevronRight, ChevronDown, 
     BookOpen, Layers, CheckCircle2, LayoutGrid, Clock, AlertTriangle, Star, 
     History, Sparkles, X, Save, Maximize2, Thermometer,
-    Pencil, Link as LinkIcon, XCircle, ZoomIn, ChevronLeft, Calendar, Loader2, TrendingUp, Info, Scale, FileCode, Flag, List, Book, Brain, BrainCircuit, AlertCircle
+    Pencil, Link as LinkIcon, XCircle, ZoomIn, ChevronLeft, Calendar, Loader2, TrendingUp, Info, Scale, FileCode, Flag, List, Book, Brain, BrainCircuit, AlertCircle, PlayCircle
 } from 'lucide-react';
 
 export const Library: React.FC = () => {
@@ -49,7 +49,7 @@ export const Library: React.FC = () => {
     weight: Weight.MEDIO, relevance: Relevance.MEDIA, trend: Trend.ESTAVEL, 
     status: NotebookStatus.NOT_STARTED,
     notes: '', images: [] as string[], accuracyHistory: [] as { date: string, accuracy: number }[],
-    nextReview: '' as string | undefined
+    nextReview: '' as string | undefined | null
   };
 
   const [formData, setFormData] = useState(initialFormState);
@@ -107,6 +107,12 @@ export const Library: React.FC = () => {
 
   const computedNextReviewData = useMemo(() => {
       if (!isModalOpen) return null;
+
+      // LÓGICA ATUALIZADA: Se não iniciado e zerado, não calcula revisão
+      if (formData.status === NotebookStatus.NOT_STARTED && Number(formData.accuracy) === 0) {
+          return { isNotStarted: true };
+      }
+
       const dateStr = formData.nextReview || calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm).toISOString();
       const nextDate = new Date(dateStr);
       let weekLabel = '';
@@ -124,8 +130,8 @@ export const Library: React.FC = () => {
               weekLabel = '(Passado)';
           }
       }
-      return { date: nextDate, label: weekLabel };
-  }, [formData.accuracy, formData.relevance, formData.trend, formData.nextReview, config.algorithm, isModalOpen, config.startDate]);
+      return { date: nextDate, label: weekLabel, isNotStarted: false };
+  }, [formData.accuracy, formData.relevance, formData.trend, formData.nextReview, config.algorithm, isModalOpen, config.startDate, formData.status]);
 
   const stats = useMemo(() => {
       const validNotebooks = notebooks.filter(n => n.discipline !== 'Revisão Geral');
@@ -274,8 +280,13 @@ export const Library: React.FC = () => {
     e.preventDefault();
     setIsSaving(true);
     try {
-        let nextDateStr = formData.nextReview;
-        if (!nextDateStr) {
+        let nextDateStr: string | null | undefined = formData.nextReview;
+        
+        // LÓGICA CRÍTICA: Se "Não Iniciado" e "0%", remove da fila de revisão (null)
+        if (formData.status === NotebookStatus.NOT_STARTED && Number(formData.accuracy) === 0) {
+            nextDateStr = null;
+        } else if (!nextDateStr) {
+            // Caso contrário, se não tiver data, calcula
             const nextDate = calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm);
             nextDateStr = nextDate.toISOString();
         }
@@ -330,14 +341,27 @@ export const Library: React.FC = () => {
           const nextDate = calculateNextReview(newAccuracy, formData.relevance, formData.trend, config.algorithm);
           const newHistory = [...(formData.accuracyHistory || []), { date: new Date().toISOString(), accuracy: newAccuracy }].slice(-3);
           
+          // Se estava "Não Iniciado" e concluiu revisão, muda para "Em Andamento" automaticamente
+          let newStatus = formData.status;
+          if (formData.status === NotebookStatus.NOT_STARTED && newAccuracy > 0) {
+              newStatus = NotebookStatus.REVIEWING;
+          }
+          // Se bateu a meta, sugere "Dominado" (opcional, por enquanto mantemos manual ou apenas visual)
+          
           if(editingId) {
               await editNotebook(editingId, { 
                   accuracy: newAccuracy, 
                   accuracyHistory: newHistory, 
                   lastPractice: new Date().toISOString(),
-                  nextReview: nextDate.toISOString()
+                  nextReview: nextDate.toISOString(),
+                  status: newStatus
               });
-              setFormData(prev => ({ ...prev, accuracyHistory: newHistory, nextReview: nextDate.toISOString() }));
+              setFormData(prev => ({ 
+                  ...prev, 
+                  accuracyHistory: newHistory, 
+                  nextReview: nextDate.toISOString(),
+                  status: newStatus
+              }));
           }
       } catch (err) { console.error("Quick save failed", err); } finally { setIsSaving(false); }
   };
@@ -636,7 +660,17 @@ export const Library: React.FC = () => {
                                 </button>
                              </div>
                              
-                             {computedNextReviewData && (
+                             {computedNextReviewData?.isNotStarted ? (
+                                 <div className="flex flex-col mt-3 gap-1 p-2 bg-slate-900/50 rounded-lg border border-slate-700/50">
+                                     <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
+                                         <span className="uppercase tracking-widest text-slate-500 flex items-center gap-1"><BrainCircuit size={12}/> Algoritmo Atena:</span>
+                                         <span className="text-slate-400 bg-slate-800/80 px-2 py-1 rounded border border-slate-700 flex items-center gap-1">
+                                            <PlayCircle size={12} /> Aguardando Início
+                                         </span>
+                                     </div>
+                                     <p className="text-[9px] text-slate-500 mt-1 italic">Este caderno entrará no fluxo de revisão apenas após o primeiro estudo.</p>
+                                 </div>
+                             ) : computedNextReviewData && (
                                  <div className="flex flex-col mt-3 gap-1 p-2 bg-slate-900/50 rounded-lg border border-slate-700/50">
                                      <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
                                          <span className="uppercase tracking-widest text-slate-500 flex items-center gap-1"><BrainCircuit size={12}/> Algoritmo Atena:</span>
