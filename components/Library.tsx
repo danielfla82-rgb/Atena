@@ -240,7 +240,7 @@ export const Library: React.FC = () => {
     const files = e.target.files;
     if (files) {
       (Array.from(files) as File[]).forEach(file => {
-          if (file.size > 5 * 1024 * 1024) { alert("Imagem muito grande (>5MB)."); return; }
+          if (file.size > 30 * 1024 * 1024) { alert("Imagem muito grande (>30MB)."); return; }
           const reader = new FileReader();
           reader.onloadend = () => { if(reader.result) setFormData(prev => ({ ...prev, images: [...prev.images, reader.result as string] })); };
           reader.readAsDataURL(file);
