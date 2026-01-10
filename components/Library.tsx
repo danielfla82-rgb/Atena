@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { useStore } from '../store';
+import { supabase } from './supabase';
 import { Notebook, Weight, Relevance, Trend, NotebookStatus } from '../types';
 import { calculateNextReview, DEFAULT_ALGO_CONFIG } from '../utils/algorithm';
 import { 
@@ -233,7 +234,7 @@ export const Library: React.FC = () => {
     const files = e.target.files;
     if (files) {
       (Array.from(files) as File[]).forEach(file => {
-          if (file.size > 2 * 1024 * 1024) { alert("Imagem muito grande (>2MB)."); return; }
+          if (file.size > 5 * 1024 * 1024) { alert("Imagem muito grande (>5MB)."); return; }
           const reader = new FileReader();
           reader.onloadend = () => { if(reader.result) setFormData(prev => ({ ...prev, images: [...prev.images, reader.result as string] })); };
           reader.readAsDataURL(file);
@@ -243,6 +244,32 @@ export const Library: React.FC = () => {
   
   const removeImage = (index: number) => { setFormData(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== index) })); };
   
+  // --- AUTOMATED CLOUD UPLOAD UTILS ---
+  const base64ToBlob = async (base64: string): Promise<Blob> => {
+      const res = await fetch(base64);
+      return await res.blob();
+  };
+
+  const uploadImageToStorage = async (base64: string, prefix: string): Promise<string> => {
+      try {
+          const blob = await base64ToBlob(base64);
+          const fileExt = base64.substring("data:image/".length, base64.indexOf(";base64"));
+          const fileName = `uploads/${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}.${fileExt}`;
+          
+          const { error: uploadError } = await supabase.storage
+              .from('notebook-images')
+              .upload(fileName, blob, { contentType: blob.type, upsert: true });
+
+          if (uploadError) throw uploadError;
+
+          const { data } = supabase.storage.from('notebook-images').getPublicUrl(fileName);
+          return data.publicUrl;
+      } catch (e) {
+          console.error("Auto-upload failed for one image, keeping base64 fallback", e);
+          return base64; // Fallback to keep data safe even if upload fails
+      }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
@@ -252,8 +279,29 @@ export const Library: React.FC = () => {
             const nextDate = calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm);
             nextDateStr = nextDate.toISOString();
         }
+
+        // --- AUTO UPLOAD LOGIC ---
+        let processedImages = [...formData.images];
+        if (!isGuest) {
+            const uploadedImages: string[] = [];
+            for (const img of processedImages) {
+                if (img.startsWith('data:image')) {
+                    // It's a new Base64 image, upload it!
+                    // Use editingId or 'new' as prefix
+                    const url = await uploadImageToStorage(img, editingId || 'new');
+                    uploadedImages.push(url);
+                } else {
+                    // Already a URL
+                    uploadedImages.push(img);
+                }
+            }
+            processedImages = uploadedImages;
+        }
+        // -------------------------
+
         const payload: any = { 
             ...formData, 
+            images: processedImages,
             accuracy: Number(formData.accuracy), 
             targetAccuracy: Number(formData.targetAccuracy),
             nextReview: nextDateStr
@@ -263,7 +311,7 @@ export const Library: React.FC = () => {
         setIsModalOpen(false);
     } catch (error) {
         console.error("Failed to save:", error);
-        alert("Erro ao salvar.");
+        alert("Erro ao salvar. Verifique se o bucket 'notebook-images' existe no Supabase.");
     } finally {
         setIsSaving(false);
     }

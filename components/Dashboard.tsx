@@ -10,7 +10,7 @@ import {
   Target, Settings, TrendingUp, TrendingDown, Minus,
   PieChart as PieChartIcon, Activity, Siren, ArrowRight, CheckCircle2,
   Check, XCircle, Quote, ChevronDown, BarChart2,
-  RefreshCw, BrainCircuit, Crosshair, Scroll, Crown, Zap, Save, X, FileText, CalendarClock, AlertCircle, Edit2, Calendar, Key, ShieldCheck, Sparkles, Bot
+  RefreshCw, BrainCircuit, Crosshair, Scroll, Crown, Zap, Save, X, FileText, CalendarClock, AlertCircle, Edit2, Calendar, Key, ShieldCheck, Sparkles, Bot, AlertTriangle, Database, Terminal
 } from 'lucide-react';
 
 import {
@@ -136,12 +136,35 @@ const NIETZSCHE_DATA = [
   { quote: "A disciplina é a mãe do sucesso.", source: "Aforismos", context: "A inspiração é para amadores. A elite opera baseada em disciplina inegociável." }
 ];
 
+const FIX_SQL = `-- 1. PERMISSÕES DE ACESSO (CORREÇÃO DE ERRO)
+-- Permite que usuários logados leiam e gravem em todas as tabelas
+alter table notebooks enable row level security;
+alter table cycles enable row level security;
+alter table reports enable row level security;
+alter table protocol enable row level security;
+alter table frameworks enable row level security;
+alter table notes enable row level security;
+
+create policy "Enable all access for authenticated users" on "public"."notebooks" as PERMISSIVE for all to authenticated using (true) with check (true);
+create policy "Enable all access for authenticated users" on "public"."cycles" as PERMISSIVE for all to authenticated using (true) with check (true);
+create policy "Enable all access for authenticated users" on "public"."reports" as PERMISSIVE for all to authenticated using (true) with check (true);
+create policy "Enable all access for authenticated users" on "public"."protocol" as PERMISSIVE for all to authenticated using (true) with check (true);
+create policy "Enable all access for authenticated users" on "public"."frameworks" as PERMISSIVE for all to authenticated using (true) with check (true);
+create policy "Enable all access for authenticated users" on "public"."notes" as PERMISSIVE for all to authenticated using (true) with check (true);
+
+-- 2. CORREÇÃO DO STORAGE (ERRO DE UPLOAD)
+insert into storage.buckets (id, name, public) values ('notebook-images', 'notebook-images', true) on conflict (id) do nothing;
+create policy "Public Access" on storage.objects for select using ( bucket_id = 'notebook-images' );
+create policy "Authenticated Upload" on storage.objects for insert to authenticated with check ( bucket_id = 'notebook-images' );
+create policy "Authenticated Update" on storage.objects for update to authenticated using ( bucket_id = 'notebook-images' );
+create policy "Authenticated Delete" on storage.objects for delete to authenticated using ( bucket_id = 'notebook-images' );`;
+
 interface Props {
     onNavigate: (view: string) => void;
 }
 
 export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
-  const { notebooks, config, updateConfig, setFocusedNotebookId, cycles, activeCycleId, startSession } = useStore();
+  const { notebooks, config, updateConfig, setFocusedNotebookId, cycles, activeCycleId, startSession, dbError } = useStore();
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [localConfig, setLocalConfig] = useState(config);
   const [apiKey, setApiKey] = useState('');
@@ -149,6 +172,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
   // AI Suggestion State
   const [aiSuggestion, setAiSuggestion] = useState<{ id: string, title: string, reason: string, strategy: string } | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [showSql, setShowSql] = useState(false);
 
   // Carregar API Key do LocalStorage ao abrir
   useEffect(() => {
@@ -459,6 +483,47 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           </button>
       </div>
 
+      {dbError && (
+          <div className="bg-red-500/10 border border-red-500/30 p-6 rounded-xl animate-in slide-in-from-top-4">
+              <div className="flex items-start gap-4">
+                  <div className="p-3 bg-red-600 rounded-lg text-white"><Database size={24} /></div>
+                  <div className="flex-1">
+                      <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">Configuração de Banco de Dados Pendente</h3>
+                      <p className="text-slate-300 text-sm mb-4">
+                          O sistema detectou que as tabelas ou permissões do Supabase não estão configuradas corretamente.
+                          Seus dados estão seguros, mas inacessíveis até que o reparo seja feito.
+                      </p>
+                      
+                      {!showSql ? (
+                          <button 
+                            onClick={() => setShowSql(true)}
+                            className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold text-xs uppercase tracking-wider flex items-center gap-2 transition-colors shadow-lg shadow-red-900/20"
+                          >
+                              <Terminal size={14} /> Mostrar Script de Reparo (SQL)
+                          </button>
+                      ) : (
+                          <div className="space-y-2">
+                              <div className="bg-slate-950 border border-slate-800 rounded-lg p-3 relative group">
+                                  <textarea 
+                                    readOnly 
+                                    value={FIX_SQL}
+                                    className="w-full h-40 bg-transparent text-emerald-400 font-mono text-xs outline-none resize-none"
+                                  />
+                                  <button onClick={() => navigator.clipboard.writeText(FIX_SQL)} className="absolute top-2 right-2 bg-slate-800 hover:bg-slate-700 text-white px-2 py-1 rounded text-[10px] uppercase font-bold border border-slate-700">Copiar</button>
+                              </div>
+                              <p className="text-[10px] text-slate-500">
+                                  1. Copie o código acima.<br/>
+                                  2. Vá ao <a href="https://supabase.com/dashboard" target="_blank" className="text-blue-400 underline">Supabase Dashboard</a> {'>'} SQL Editor.<br/>
+                                  3. Cole e clique em "RUN".<br/>
+                                  4. Recarregue esta página.
+                              </p>
+                          </div>
+                      )}
+                  </div>
+              </div>
+          </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-slate-50 text-slate-900 rounded-xl p-5 shadow-lg border border-slate-200 flex flex-col justify-between h-32">
               <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Desempenho</span>
@@ -635,7 +700,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           </div>
       </DashboardSection>
 
-      {/* --- CONFIGURATION MODAL (EDITAL CONFIG) --- */}
+      {/* ... CONFIGURATION MODAL (Existing code maintained) ... */}
       {isConfigOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">

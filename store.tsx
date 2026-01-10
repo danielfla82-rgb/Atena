@@ -48,6 +48,8 @@ const mapNotebookFromDB = (db: any): Notebook => ({
     nextReview: db.next_review || db.nextReview || null,
     accuracyHistory: Array.isArray(db.accuracy_history) ? db.accuracy_history : [],
     notes: db.notes || '',
+    // Logic: If images is an array, use it. If 'image' (legacy base64) exists, wrap it.
+    // NOTE: In the main list, we might receive stripped data, handled in fetchCloudData.
     images: Array.isArray(db.images) ? db.images : (db.image ? [db.image] : [])
 });
 
@@ -277,6 +279,7 @@ interface StoreContextType {
   isGuest: boolean;
   loading: boolean;
   isSyncing: boolean;
+  dbError: string | null;
   
   notebooks: Notebook[];
   cycles: Cycle[];
@@ -330,6 +333,7 @@ interface StoreContextType {
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
+// V10 Optimized Columns
 const OPTIMIZED_COLUMNS = `
   id, discipline, name, subtitle, 
   tec_link, error_notebook_link, favorite_questions_link, law_link, obsidian_link, gemini_link_1, gemini_link_2,
@@ -342,6 +346,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isGuest, setIsGuest] = useState(false);
   const [loading, setLoading] = useState(true); 
   const [isSyncing, setIsSyncing] = useState(false);
+  const [dbError, setDbError] = useState<string | null>(null);
 
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [cycles, setCycles] = useState<Cycle[]>([]);
@@ -359,6 +364,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const fetchCloudData = async (currentUser?: any) => {
       setLoading(true);
+      setDbError(null);
       try {
           // Optimization: Use passed user or get from session if missing
           const userToUse = currentUser || (await supabase.auth.getUser()).data.user;
@@ -377,14 +383,42 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               notesResponse,
               frameworkResponse
           ] = await Promise.all([
-              // 1. Notebooks (with Fallback logic preserved)
+              // 1. Notebooks (Enhanced Recovery)
               (async () => {
                   try {
+                      // Attempt optimized fetch
                       const { data, error } = await supabase.from('notebooks').select(OPTIMIZED_COLUMNS);
                       if (error) throw error;
                       return { data, error: null };
                   } catch (optimizedError) {
-                      return await supabase.from('notebooks').select('*');
+                      console.warn("⚠️ Optimized Fetch Failed (Schema Mismatch?). Trying Recovery Mode.", optimizedError);
+                      // Fallback: Select ALL (*) but manually filtering heavily in memory if needed.
+                      // Ideally, we depend on RLS, but if RLS is broken, this at least tries to get the data.
+                      const { data, error } = await supabase.from('notebooks').select('*');
+                      if (error) { 
+                          const errString = JSON.stringify(error);
+                          console.error("❌ Recovery Fetch Failed. Check RLS Policies.", errString);
+                          
+                          // Code 42P01: undefined_table (Tabela não existe)
+                          // Code 42501: insufficient_privilege (RLS bloqueando)
+                          if (error.code === '42P01' || error.code === '42501') {
+                              setDbError(errString);
+                          }
+                          return { data: [], error };
+                      }
+                      
+                      // CLIENT-SIDE STRIPPING: Ensure we don't hold massive base64 in memory if it was fetched via *
+                      const cleanedData = data?.map((nb: any) => {
+                          // If 'image' or 'images' contain huge strings (starts with data:image), we NULL them here to save RAM
+                          // They will be re-fetched on demand via `fetchNotebookImages`
+                          // This simulates the behavior of OPTIMIZED_COLUMNS but safe for any schema
+                          return {
+                              ...nb,
+                              image: null, 
+                              images: [] // Strip images to match V10 logic
+                          };
+                      });
+                      return { data: cleanedData, error: null };
                   }
               })(),
               // 2. Cycles
@@ -787,7 +821,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const endSession = () => setActiveSession(null);
 
   const value = {
-      user, isGuest, loading, isSyncing,
+      user, isGuest, loading, isSyncing, dbError,
       notebooks, cycles, activeCycleId, config, reports, protocol, framework, notes,
       activeSession, pendingCreateData, focusedNotebookId,
       createCycle, selectCycle, deleteCycle, updateConfig,
