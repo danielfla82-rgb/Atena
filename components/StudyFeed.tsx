@@ -1,20 +1,18 @@
-import React, { useState, useEffect, useRef, memo } from 'react';
+import React, { useState, useEffect, useRef, memo, useMemo } from 'react';
 import { useStore } from '../store';
 import { createAIClient } from '../utils/ai';
 import { Type, Schema } from '@google/genai';
-import { Heart, Share2, Bookmark, Bot, Sparkles, Upload, FileText, X, Layers, CheckCircle2, XCircle, HelpCircle, Play, FileSearch, AlertTriangle, Paperclip, Loader2, StopCircle, Zap, HardDrive, Cpu, Wifi } from 'lucide-react';
+import { Heart, Share2, Bookmark, Bot, Sparkles, Upload, FileText, X, Layers, CheckCircle2, XCircle, HelpCircle, Play, FileSearch, AlertTriangle, Paperclip, Loader2, StopCircle, Zap, HardDrive, Cpu, Wifi, Filter, Book } from 'lucide-react';
 import { Weight } from '../types';
 import { get, set } from 'idb-keyval';
 // @ts-ignore
 import * as pdfjsLibProxy from 'pdfjs-dist';
 
 // --- PDF.js Configuration (Fixed) ---
-// Handle ESM default export structure (pdfjsLib vs pdfjsLib.default)
 const pdfjsLib = (pdfjsLibProxy as any).default || pdfjsLibProxy;
 
 try {
     if (typeof window !== 'undefined' && pdfjsLib && pdfjsLib.GlobalWorkerOptions) {
-        // Use UNPKG for exact version matching and better CORS handling
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
     }
 } catch (e) {
@@ -35,19 +33,19 @@ interface FeedPost {
     discipline: string;
     topic: string;
     type: 'concept' | 'mnemonic' | 'trivia' | 'connection' | 'quiz';
-    content: string; // Used for non-quiz posts
-    quiz?: QuizData; // Used for quiz posts
+    content: string;
+    quiz?: QuizData;
     headline: string;
     likes: number;
     isLiked: boolean;
     isSaved: boolean;
     timestamp: string;
-    isFileContext?: boolean; // New flag to identify file-based posts
+    isFileContext?: boolean;
 }
 
 type FeedMode = 'general' | 'custom';
 
-// --- SUB-COMPONENT: QUIZ CARD (Active Recall) ---
+// --- SUB-COMPONENT: QUIZ CARD ---
 const QuizCard = memo(({ post, onInteraction }: { post: FeedPost, onInteraction: () => void }) => {
     const [selectedOption, setSelectedOption] = useState<number | null>(null);
     const [isRevealed, setIsRevealed] = useState(false);
@@ -58,7 +56,7 @@ const QuizCard = memo(({ post, onInteraction }: { post: FeedPost, onInteraction:
         if (isRevealed) return;
         setSelectedOption(index);
         setIsRevealed(true);
-        onInteraction(); // Trigger any analytics or parent updates
+        onInteraction();
     };
 
     return (
@@ -109,12 +107,10 @@ const QuizCard = memo(({ post, onInteraction }: { post: FeedPost, onInteraction:
     );
 });
 
-// --- SUB-COMPONENT: FEED POST ITEM (Memoized for Performance) ---
+// --- SUB-COMPONENT: FEED POST ITEM ---
 const FeedPostItem = memo(({ post, toggleLike, toggleSave }: { post: FeedPost, toggleLike: (id: string) => void, toggleSave: (id: string) => void }) => {
     return (
         <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl animate-in fade-in slide-in-from-bottom-8 duration-700 relative">
-            
-            {/* Header */}
             <div className="p-4 flex items-center justify-between border-b border-slate-800/50 bg-slate-900/50 backdrop-blur-md">
                 <div className="flex items-center gap-3">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white shadow-lg shrink-0 ${post.type === 'quiz' ? 'bg-purple-600' : 'bg-gradient-to-tr from-emerald-500 to-cyan-500'}`}>
@@ -124,7 +120,6 @@ const FeedPostItem = memo(({ post, toggleLike, toggleSave }: { post: FeedPost, t
                         <h3 className="text-sm font-bold text-white flex items-center gap-1 truncate">
                             Atena AI <span className="text-[10px] text-slate-500 font-normal ml-1 truncate max-w-[150px]">• {post.discipline}</span>
                         </h3>
-                        {/* Topic Display - Explicit if File */}
                         <p className="text-[10px] text-emerald-400 font-medium truncate flex items-center gap-1">
                             {post.isFileContext && <Paperclip size={10} />}
                             {post.topic}
@@ -132,11 +127,10 @@ const FeedPostItem = memo(({ post, toggleLike, toggleSave }: { post: FeedPost, t
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    {post.type === 'quiz' && <span className="text-[9px] bg-purple-900/30 text-purple-400 border border-purple-500/30 px-2 py-0.5 rounded font-bold uppercase tracking-widest">Quiz</span>}
+                    {post.type === 'quiz' && <span className="text-[9px] bg-purple-900/30 text-purple-400 border border-purple-500/30 px-2 py-0.5 rounded font-bold uppercase tracking-widest">Quiz Final</span>}
                 </div>
             </div>
 
-            {/* Content */}
             <div className="bg-gradient-to-b from-slate-900 to-slate-950 p-6 flex flex-col justify-center relative group">
                 <div className="mb-2 relative z-10">
                     <h2 className="text-lg md:text-xl font-bold text-white leading-tight mb-2 font-sans tracking-tight">
@@ -153,7 +147,6 @@ const FeedPostItem = memo(({ post, toggleLike, toggleSave }: { post: FeedPost, t
                 )}
             </div>
 
-            {/* Action Bar */}
             <div className="p-4 flex items-center justify-between bg-slate-900 border-t border-slate-800/50">
                 <div className="flex items-center gap-4">
                     <button onClick={() => toggleLike(post.id)} className="flex items-center gap-1.5 group">
@@ -173,6 +166,7 @@ const FeedPostItem = memo(({ post, toggleLike, toggleSave }: { post: FeedPost, t
 export const StudyFeed: React.FC = () => {
     const { notebooks } = useStore();
     const [mode, setMode] = useState<FeedMode>('general');
+    const [selectedDiscipline, setSelectedDiscipline] = useState<string | null>(null);
     const [posts, setPosts] = useState<FeedPost[]>([]);
     const [loading, setLoading] = useState(false);
     const [loadingStage, setLoadingStage] = useState<'idle' | 'extracting' | 'uploading' | 'thinking'>('idle');
@@ -186,25 +180,24 @@ export const StudyFeed: React.FC = () => {
     const [customFile, setCustomFile] = useState<{ name: string, data: string, mimeType: string, size: number } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // --- SANITIZATION HELPER ---
+    // List of disciplines for filter
+    const disciplinesList = useMemo(() => {
+        return Array.from(new Set(notebooks.map(n => n.discipline))).sort();
+    }, [notebooks]);
+
+    // Helpers
     const cleanText = (text: any): string => {
         if (!text) return "";
         if (typeof text !== 'string') return String(text);
         return text.replace(/[\u0000-\u001F\u007F-\u009F]/g, "").trim();
     };
 
-    // --- JSON CLEANER HELPER (REVISED FOR ROBUSTNESS) ---
     const cleanJsonString = (text: string) => {
         if (!text) return '[]';
-        
-        // Find the outer most JSON array or object
         const firstBracket = text.indexOf('[');
         const firstBrace = text.indexOf('{');
-        
         let startIndex = 0;
         let endIndex = text.length;
-
-        // Try to find [ ... ] or { ... }
         if (firstBracket !== -1 && (firstBrace === -1 || firstBracket < firstBrace)) {
             startIndex = firstBracket;
             endIndex = text.lastIndexOf(']') + 1;
@@ -212,21 +205,14 @@ export const StudyFeed: React.FC = () => {
             startIndex = firstBrace;
             endIndex = text.lastIndexOf('}') + 1;
         } else {
-            return '[]'; // No JSON structure found
+            return '[]';
         }
-
         let candidate = text.substring(startIndex, endIndex);
-        
-        // Common repair: remove markdown markers if stuck
         candidate = candidate.replace(/^```json/, '').replace(/^```/, '').replace(/```$/, '');
-        
-        // Common repair: missing comma between objects `}{` -> `},{`
         candidate = candidate.replace(/}\s*{/g, '},{');
-
         return candidate.trim();
     };
 
-    // --- PRIORITY SCORE HELPER ---
     const getWeightScore = (w: Weight) => {
         switch(w) {
             case Weight.MUITO_ALTO: return 4;
@@ -237,25 +223,20 @@ export const StudyFeed: React.FC = () => {
         }
     };
 
-    // --- PDF TEXT EXTRACTION (ROBUST FALLBACK) ---
     const extractTextFromPDF = async (base64Data: string): Promise<string> => {
         try {
             if (!pdfjsLib) throw new Error("PDF Library not loaded");
-            
-            // Convert Base64 to binary manually to ensure compatibility
             const binaryString = window.atob(base64Data);
             const len = binaryString.length;
             const bytes = new Uint8Array(len);
             for (let i = 0; i < len; i++) {
                 bytes[i] = binaryString.charCodeAt(i);
             }
-
-            // Define extraction logic reusable for both attempts
             const runExtraction = async (params: any) => {
                 const loadingTask = pdfjsLib.getDocument(params);
                 const pdf = await loadingTask.promise;
                 let fullText = '';
-                const maxPages = Math.min(pdf.numPages, 15); // Limit pages for speed
+                const maxPages = Math.min(pdf.numPages, 15);
                 for (let i = 1; i <= maxPages; i++) {
                     const page = await pdf.getPage(i);
                     const textContent = await page.getTextContent();
@@ -264,43 +245,32 @@ export const StudyFeed: React.FC = () => {
                 }
                 return fullText;
             };
-
-            // Attempt 1: Standard Load (May fail if Worker CORS issue)
             try {
                 return await runExtraction({ data: bytes });
             } catch (workerError) {
-                console.warn("Worker extraction failed, trying main thread fallback...", workerError);
-                // Attempt 2: Disable Worker (Forces main thread execution, slower UI but works)
                 return await runExtraction({ data: bytes, disableWorker: true });
             }
-
         } catch (error) {
             console.error("PDF Extraction Failed Completely", error);
             throw new Error("Falha ao ler texto do PDF.");
         }
     };
 
-    // --- FILE HANDLING ---
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-
-        // VALIDAÇÃO DE TAMANHO (30MB)
         if (file.size > 30 * 1024 * 1024) {
             setErrorMsg("O arquivo excede o limite máximo de 30MB.");
             return;
         }
-
         setLoading(false);
         setPosts([]);
         setHasStarted(false);
         setErrorMsg(null);
-
         const reader = new FileReader();
         reader.onloadend = () => {
             const base64String = reader.result as string;
             const base64Data = base64String.split(',')[1];
-            
             setCustomFile({
                 name: file.name,
                 data: base64Data,
@@ -324,11 +294,9 @@ export const StudyFeed: React.FC = () => {
 
     const generateFeedPosts = async () => {
         if (loading) return;
-        
         if (mode === 'general' && notebooks.length === 0) return;
         if (mode === 'custom' && !customFile) return;
 
-        // Cancel previous if any
         if (abortControllerRef.current) abortControllerRef.current.abort();
         const controller = new AbortController();
         abortControllerRef.current = controller;
@@ -338,18 +306,6 @@ export const StudyFeed: React.FC = () => {
         setErrorMsg(null);
 
         try {
-            // CHECK CACHE FOR CUSTOM FILE (Simulated Local Storage Optimization)
-            let cachedPosts: FeedPost[] | undefined;
-            if (mode === 'custom' && customFile) {
-                const fileHash = `feed_cache_${customFile.name}_${customFile.size}`;
-                cachedPosts = await get(fileHash);
-                if (cachedPosts && cachedPosts.length > 0) {
-                    setPosts(cachedPosts);
-                    setLoading(false);
-                    return; // EXIT EARLY IF CACHED
-                }
-            }
-
             const ai = createAIClient();
             let prompt = '';
             let contentsPayload: any = '';
@@ -386,12 +342,19 @@ export const StudyFeed: React.FC = () => {
             };
 
             const commonInstructions = `
-                OUTPUT MUST BE VALID JSON. No text before or after.
-                Format: { "items": [ ... ] }
+                CRITICAL ORDER: Return exactly 6 items. 
+                - The first 5 items MUST be conceptual (type: concept, mnemonic, trivia, or connection).
+                - The 6th (last) item MUST be a quiz (type: quiz).
+                OUTPUT MUST BE VALID JSON. Format: { "items": [ ... ] }
             `;
 
             if (mode === 'general') {
-                const rankedNotebooks = [...notebooks].sort((a, b) => {
+                let sourceNotebooks = [...notebooks];
+                if (selectedDiscipline) {
+                    sourceNotebooks = sourceNotebooks.filter(n => n.discipline === selectedDiscipline);
+                }
+
+                const rankedNotebooks = sourceNotebooks.sort((a, b) => {
                     const scoreA = getWeightScore(a.weight) * (100 - a.accuracy);
                     const scoreB = getWeightScore(b.weight) * (100 - b.accuracy);
                     return scoreB - scoreA;
@@ -401,24 +364,20 @@ export const StudyFeed: React.FC = () => {
                     id: n.id,
                     discipline: n.discipline,
                     topic: n.name,
-                    context: n.notes ? n.notes.substring(0, 50) : '' 
+                    context: n.notes ? n.notes.substring(0, 100) : '' 
                 }));
 
-                systemInstruction = "You are a specialized Tutor AI. Generate strictly valid JSON.";
-                prompt = `Topics: ${JSON.stringify(selected)}. ${commonInstructions} Create 3 flashcards. Include 1 quiz.`;
+                systemInstruction = "You are a specialized Tutor AI. Your goal is to provide a structured flow of learning: 5 pieces of information followed by 1 quiz to test the knowledge.";
+                prompt = `Topics context: ${JSON.stringify(selected)}. ${commonInstructions}`;
                 contentsPayload = prompt;
-                
                 setLoadingStage('thinking');
-                setLoadingText('Gerando Conhecimento (Modo Texto - Rápido)...');
-
+                setLoadingText(selectedDiscipline ? `Focando em ${selectedDiscipline}...` : 'Gerando Conhecimento Geral...');
             } else {
-                // OPTIMIZED PDF HANDLING FOR SPEED
                 let textContext = '';
                 let useTextExtraction = false;
-
                 if (customFile!.mimeType === 'application/pdf') {
                     setLoadingStage('extracting');
-                    setLoadingText('Otimizando: Extraindo texto localmente...');
+                    setLoadingText('Lendo PDF localmente...');
                     try {
                         const extracted = await extractTextFromPDF(customFile!.data);
                         if (extracted && extracted.length > 50) {
@@ -426,36 +385,23 @@ export const StudyFeed: React.FC = () => {
                             useTextExtraction = true;
                         }
                     } catch (err) {
-                        console.warn("PDF Extraction failed, falling back to Vision", err);
+                        console.warn("PDF fallback to Vision", err);
                     }
                 }
 
-                systemInstruction = `
-                    ROLE: High-Speed Data Extractor.
-                    OBJECTIVE: Quickly identify key concepts.
-                    CONSTRAINT: Return strictly valid JSON.
-                `;
-                
-                prompt = `
-                    TASK: FAST EXTRACTION.
-                    1. Scan the document for 3 KEY CONCEPTS.
-                    2. Generate 3 distinct flashcards/questions.
-                    3. Keep content concise.
-                    ${commonInstructions}
-                `;
+                systemInstruction = `ROLE: Educational Content Synthesizer. MISSION: Create a study flow from the document.`;
+                prompt = `TASK: From the provided document, extract information and return exactly 6 items: 5 flashcards/concepts followed by 1 quiz about those concepts. ${commonInstructions}`;
                 
                 if (useTextExtraction) {
-                    // Send TEXT payload (Fast Upload)
                     setLoadingStage('thinking');
-                    setLoadingText('IA Analisando Texto Extraído (Alta Velocidade)...');
+                    setLoadingText('Analisando texto do arquivo...');
                     contentsPayload = [
                         { text: prompt },
-                        { text: `DOCUMENT TEXT:\n${textContext.substring(0, 30000)}` } // Limit context window
+                        { text: `DOCUMENT CONTENT:\n${textContext.substring(0, 25000)}` }
                     ];
                 } else {
-                    // Send BINARY payload (Slow Upload)
                     setLoadingStage('uploading');
-                    setLoadingText('PDF Digitalizado (Imagem) detectado. Enviando arquivo completo...');
+                    setLoadingText('Processando imagens do arquivo...');
                     contentsPayload = {
                         parts: [
                             { text: prompt },
@@ -465,24 +411,16 @@ export const StudyFeed: React.FC = () => {
                 }
             }
 
-            // INCREASED TIMEOUT TO 300s (5 Minutes)
-            const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error("Tempo limite excedido (5 min). A conexão ou o upload demorou muito.")), 300000)
-            );
-
-            const aiCall = ai.models.generateContent({
+            const response: any = await ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
                 contents: contentsPayload,
                 config: {
                     responseMimeType: 'application/json',
                     responseSchema: responseSchema,
                     systemInstruction: systemInstruction,
-                    temperature: mode === 'custom' ? 0.1 : 0.7, // Lower temp for faster/direct answers
-                    topK: mode === 'custom' ? 10 : 40, // Reduce search space for speed
+                    temperature: 0.7,
                 }
             });
-
-            const response: any = await Promise.race([aiCall, timeoutPromise]);
 
             setLoadingStage('idle');
             const rawText = cleanJsonString(response.text || '{}');
@@ -491,43 +429,24 @@ export const StudyFeed: React.FC = () => {
 
             try {
                 parsedResponse = JSON.parse(rawText);
-                if (Array.isArray(parsedResponse)) {
-                    newItems = parsedResponse;
-                } else if (parsedResponse.items) {
-                    newItems = parsedResponse.items;
-                }
+                newItems = parsedResponse.items || (Array.isArray(parsedResponse) ? parsedResponse : []);
             } catch (e) {
-                console.error("JSON Parse Error:", e, "\nRaw Text:", rawText);
-                throw new Error("Erro na formatação da resposta da IA. Tente novamente.");
+                throw new Error("Erro na formatação da resposta da IA.");
             }
             
             const newPosts: FeedPost[] = newItems
                 .map((p: any) => {
                     const nb = notebooks.find(n => n.id === p.notebookId);
                     const safeHeadline = cleanText(p.headline) || "Insight de Estudo";
-                    
                     if (p.type === 'quiz') {
                         if (!p.quiz || !p.quiz.options || p.quiz.options.length < 2) return null;
-                    } else {
-                        if (!p.content || p.content.length < 5) return null;
-                    }
-
-                    let displayDiscipline = "Geral";
-                    let displayTopic = "";
-
-                    if (mode === 'custom') {
-                        displayDiscipline = (p.discipline && p.discipline.length > 2) ? p.discipline : "Arquivo Analisado";
-                        displayTopic = p.topic || customFile?.name || "Análise Documental";
-                    } else {
-                        displayDiscipline = nb?.discipline || p.discipline || "Geral";
-                        displayTopic = nb?.name || safeHeadline;
-                    }
+                    } else if (!p.content || p.content.length < 5) return null;
 
                     return {
                         id: Math.random().toString(36).substr(2, 9),
                         notebookId: p.notebookId || 'temp',
-                        discipline: displayDiscipline,
-                        topic: displayTopic,
+                        discipline: nb?.discipline || p.discipline || (mode === 'custom' ? "Arquivo" : "Geral"),
+                        topic: nb?.name || p.topic || safeHeadline,
                         headline: safeHeadline,
                         type: p.type || 'concept',
                         content: cleanText(p.content),
@@ -535,47 +454,30 @@ export const StudyFeed: React.FC = () => {
                         likes: Math.floor(Math.random() * 50) + 10,
                         isLiked: false,
                         isSaved: false,
-                        timestamp: 'Agora mesmo',
+                        timestamp: 'Agora',
                         isFileContext: mode === 'custom'
                     };
                 })
                 .filter((p: any) => p !== null);
 
-            if (newPosts.length === 0) {
-                throw new Error("A IA não conseguiu extrair conteúdo relevante.");
-            }
-
+            if (newPosts.length === 0) throw new Error("A IA não gerou conteúdo válido.");
             setPosts(prev => [...prev, ...newPosts]);
 
-            // CACHE RESULT (LOCAL STORAGE OPTIMIZATION)
-            if (mode === 'custom' && customFile) {
-                const fileHash = `feed_cache_${customFile.name}_${customFile.size}`;
-                await set(fileHash, newPosts);
-            }
-
         } catch (error: any) {
-            console.error("Erro feed:", error);
-            setLoadingStage('idle');
-            if (!controller.signal.aborted) {
-                setErrorMsg(error.message || "Erro ao processar conteúdo.");
-            }
+            if (!controller.signal.aborted) setErrorMsg(error.message || "Erro ao processar conteúdo.");
         } finally {
-            if (!controller.signal.aborted) {
-                setLoading(false);
-            }
+            if (!controller.signal.aborted) setLoading(false);
         }
     };
 
-    // Reset on Mode Change
     useEffect(() => {
         setPosts([]);
         setHasStarted(false);
         setErrorMsg(null);
         setLoadingStage('idle');
         if (abortControllerRef.current) abortControllerRef.current.abort();
-    }, [mode]);
+    }, [mode, selectedDiscipline]);
 
-    // Infinite Scroll (Active ONLY after start)
     useEffect(() => {
         const observer = new IntersectionObserver(
             entries => {
@@ -610,13 +512,13 @@ export const StudyFeed: React.FC = () => {
         <div className="h-full flex flex-col items-center bg-slate-950 overflow-y-auto custom-scrollbar pt-6 pb-20">
             <div className="w-full max-w-md space-y-6 px-4">
                 
-                {/* Header & Tabs */}
+                {/* Header */}
                 <div className="space-y-4">
                     <div className="flex items-center justify-between px-2">
                         <h1 className="text-2xl font-bold text-white flex items-center gap-2">
                             <Sparkles className="text-emerald-500" /> Feed de Estudo
                         </h1>
-                        <span className="text-[10px] text-emerald-600 font-mono border border-emerald-900/30 px-2 py-1 rounded bg-emerald-900/10">v3.5 (Upload Feedback)</span>
+                        <span className="text-[10px] text-emerald-600 font-mono border border-emerald-900/30 px-2 py-1 rounded bg-emerald-900/10">v4.0 (5:1 Study Flow)</span>
                     </div>
 
                     <div className="bg-slate-900 p-1 rounded-xl border border-slate-800 flex">
@@ -629,47 +531,67 @@ export const StudyFeed: React.FC = () => {
                     </div>
                 </div>
 
-                {/* GENERAL EMPTY STATE (MANUAL TRIGGER) */}
-                {mode === 'general' && notebooks.length > 0 && !hasStarted && (
-                    <div className="flex flex-col items-center justify-center py-10 bg-slate-900/50 border border-slate-800 rounded-2xl p-6 border-dashed animate-in fade-in zoom-in">
-                        <Bot size={48} className="text-slate-700 mb-4" />
-                        <h3 className="text-lg font-bold text-white mb-2">Feed de Revisão Inteligente</h3>
-                        <p className="text-slate-400 text-xs text-center max-w-xs mb-6 leading-relaxed">
-                            A IA analisará seus cadernos para criar flashcards e quizzes personalizados, focando nas suas dificuldades atuais.
+                {/* DISCIPLINE FILTER (GENERAL MODE) */}
+                {mode === 'general' && disciplinesList.length > 0 && (
+                    <div className="space-y-2 animate-in fade-in duration-500">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest px-2 flex items-center gap-2">
+                            <Filter size={10} /> Filtrar por Matéria
                         </p>
-                        <button 
-                            onClick={generateFeedPosts} 
-                            disabled={loading}
-                            className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-900/20"
-                        >
-                            <Sparkles size={18} fill="currentColor" /> Gerar Feed Agora
-                        </button>
-                    </div>
-                )}
-
-                {/* GENERAL EMPTY (NO NOTEBOOKS) */}
-                {mode === 'general' && notebooks.length === 0 && (
-                    <div className="text-center py-10 bg-slate-900 rounded-2xl border border-slate-800 p-6">
-                        <p className="text-slate-400">Adicione cadernos ao seu banco para começar.</p>
-                    </div>
-                )}
-
-                {/* ERROR MESSAGE */}
-                {errorMsg && (
-                    <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
-                        <AlertTriangle className="text-red-500 flex-shrink-0 mt-0.5" size={18} />
-                        <div>
-                            <h3 className="text-red-400 font-bold text-sm">Erro de Processamento</h3>
-                            <p className="text-red-300/80 text-xs mt-1">{errorMsg}</p>
-                            <button onClick={() => { setErrorMsg(null); generateFeedPosts(); }} className="mt-2 text-xs font-bold text-red-400 hover:text-white underline">Tentar Novamente</button>
+                        <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar px-1">
+                            <button 
+                                onClick={() => setSelectedDiscipline(null)}
+                                className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase transition-all border whitespace-nowrap ${!selectedDiscipline ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg' : 'bg-slate-900 text-slate-500 border-slate-800 hover:text-slate-300'}`}
+                            >
+                                Todas
+                            </button>
+                            {disciplinesList.map(d => (
+                                <button 
+                                    key={d}
+                                    onClick={() => setSelectedDiscipline(d)}
+                                    className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase transition-all border whitespace-nowrap ${selectedDiscipline === d ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg' : 'bg-slate-900 text-slate-500 border-slate-800 hover:text-slate-300'}`}
+                                >
+                                    {d}
+                                </button>
+                            ))}
                         </div>
                     </div>
                 )}
 
-                {/* CUSTOM INPUT AREA (FILE ONLY) */}
+                {/* EMPTY STATES & TRIGGERS */}
+                {mode === 'general' && notebooks.length > 0 && !hasStarted && (
+                    <div className="flex flex-col items-center justify-center py-10 bg-slate-900/50 border border-slate-800 rounded-2xl p-6 border-dashed animate-in fade-in zoom-in">
+                        <Bot size={48} className="text-slate-700 mb-4" />
+                        <h3 className="text-lg font-bold text-white mb-2">Fluxo de Estudo Inteligente</h3>
+                        <p className="text-slate-400 text-xs text-center max-w-xs mb-6 leading-relaxed">
+                            {selectedDiscipline 
+                                ? `Analisando seus cadernos de ${selectedDiscipline} para criar uma sequência de 5 cards e 1 quiz.` 
+                                : "A IA criará um fluxo contínuo de aprendizado: 5 insights seguidos de 1 quiz desafiador."}
+                        </p>
+                        <button onClick={generateFeedPosts} disabled={loading} className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-900/20">
+                            <Sparkles size={18} fill="currentColor" /> {selectedDiscipline ? `Gerar Feed de ${selectedDiscipline}` : "Iniciar Feed de Estudos"}
+                        </button>
+                    </div>
+                )}
+
+                {mode === 'general' && notebooks.length === 0 && (
+                    <div className="text-center py-10 bg-slate-900 rounded-2xl border border-slate-800 p-6 text-slate-400">
+                        Adicione cadernos ao seu banco para começar.
+                    </div>
+                )}
+
+                {errorMsg && !loading && (
+                    <div className="bg-red-500/10 border border-red-500/30 p-4 rounded-xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
+                        <AlertTriangle className="text-red-500 flex-shrink-0 mt-0.5" size={18} />
+                        <div>
+                            <h3 className="text-red-400 font-bold text-sm">Erro de Geração</h3>
+                            <p className="text-red-300/80 text-xs mt-1">{errorMsg}</p>
+                            <button onClick={generateFeedPosts} className="mt-2 text-xs font-bold text-red-400 hover:text-white underline">Tentar Novamente</button>
+                        </div>
+                    </div>
+                )}
+
                 {mode === 'custom' && (
                     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 animate-in fade-in slide-in-from-top-2 space-y-4">
-                        
                         {!customFile ? (
                             <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-slate-700 hover:border-emerald-500/50 rounded-xl p-6 flex flex-col items-center justify-center cursor-pointer transition-all text-center">
                                 <Upload size={24} className="text-slate-500 mb-2"/>
@@ -685,37 +607,20 @@ export const StudyFeed: React.FC = () => {
                                 <button onClick={() => { setCustomFile(null); setPosts([]); setHasStarted(false); setErrorMsg(null); }}><X size={14} className="text-slate-500 hover:text-white"/></button>
                             </div>
                         )}
-
-                        {/* EXPLICIT ACTION BUTTON FOR CUSTOM FEED */}
                         {customFile && (!hasStarted || posts.length === 0) && !loading && (
-                            <div className="animate-in fade-in zoom-in">
-                                {customFile.size > 5 * 1024 * 1024 && (
-                                    <div className="flex items-center gap-2 justify-center mb-3 bg-amber-500/10 text-amber-400 p-2 rounded text-[10px] border border-amber-500/20">
-                                        <Zap size={12} /> Arquivo grande. Modo Turbo ativado.
-                                    </div>
-                                )}
-                                <div className="flex items-center justify-center gap-2 mb-3">
-                                    <HardDrive size={12} className="text-slate-500" />
-                                    <span className="text-[9px] text-slate-500">Cache local ativado para este arquivo.</span>
-                                </div>
-                                <p className="text-[10px] text-center text-slate-500 mb-2">Arquivo carregado. Clique para extrair conteúdo.</p>
-                                <button onClick={generateFeedPosts} className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg shadow-emerald-900/20">
-                                    <Play size={16} fill="currentColor" /> Analisar & Gerar Feed
-                                </button>
-                            </div>
+                            <button onClick={generateFeedPosts} className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg">
+                                <Play size={16} fill="currentColor" /> Analisar e Criar Fluxo 5:1
+                            </button>
                         )}
                     </div>
                 )}
 
-                {/* POSTS LIST (MEMOIZED) */}
-                {posts.map((post) => (
-                    <FeedPostItem 
-                        key={post.id} 
-                        post={post} 
-                        toggleLike={toggleLike} 
-                        toggleSave={toggleSave} 
-                    />
-                ))}
+                {/* POSTS LIST */}
+                <div className="space-y-6">
+                    {posts.map((post) => (
+                        <FeedPostItem key={post.id} post={post} toggleLike={toggleLike} toggleSave={toggleSave} />
+                    ))}
+                </div>
 
                 {loading && (
                     <div className="flex flex-col items-center justify-center py-8 gap-4 bg-slate-900/30 rounded-xl border border-slate-800/50 backdrop-blur-sm animate-in fade-in zoom-in">
@@ -725,27 +630,11 @@ export const StudyFeed: React.FC = () => {
                                 {getStatusIcon()}
                             </div>
                         </div>
-                        
                         <div className="text-center px-4">
-                            <p className="text-xs font-bold text-white mb-1 animate-pulse">
-                                {loadingText}
-                            </p>
-                            {loadingStage === 'uploading' && (
-                                <p className="text-[10px] text-amber-400">
-                                    Enviando arquivo bruto... Isso depende da sua internet.
-                                </p>
-                            )}
-                            {loadingStage === 'extracting' && (
-                                <p className="text-[10px] text-emerald-400">
-                                    Lendo PDF no navegador para economizar dados...
-                                </p>
-                            )}
+                            <p className="text-xs font-bold text-white mb-1 animate-pulse">{loadingText}</p>
+                            <p className="text-[10px] text-slate-500">Preparando seus cards conceituais e quiz...</p>
                         </div>
-
-                        <button 
-                            onClick={cancelGeneration}
-                            className="mt-2 flex items-center gap-2 text-[10px] text-red-400 hover:text-red-300 bg-red-900/20 px-4 py-2 rounded-full border border-red-500/20 transition-all hover:bg-red-900/30"
-                        >
+                        <button onClick={cancelGeneration} className="mt-2 flex items-center gap-2 text-[10px] text-red-400 hover:text-red-300 bg-red-900/20 px-4 py-2 rounded-full border border-red-500/20 transition-all hover:bg-red-900/30">
                             <StopCircle size={12} /> Cancelar Operação
                         </button>
                     </div>
