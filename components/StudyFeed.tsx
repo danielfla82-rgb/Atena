@@ -13,6 +13,7 @@ const pdfjsLib = (pdfjsLibProxy as any).default || pdfjsLibProxy;
 
 try {
     if (typeof window !== 'undefined' && pdfjsLib && pdfjsLib.GlobalWorkerOptions) {
+        // Use UNPKG for exact version matching and better CORS handling
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
     }
 } catch (e) {
@@ -248,6 +249,8 @@ export const StudyFeed: React.FC = () => {
             try {
                 return await runExtraction({ data: bytes });
             } catch (workerError) {
+                // Fallback to main thread if worker fails
+                console.warn("Worker extraction failed, trying main thread...", workerError);
                 return await runExtraction({ data: bytes, disableWorker: true });
             }
         } catch (error) {
@@ -377,7 +380,7 @@ export const StudyFeed: React.FC = () => {
                 let useTextExtraction = false;
                 if (customFile!.mimeType === 'application/pdf') {
                     setLoadingStage('extracting');
-                    setLoadingText('Lendo PDF localmente...');
+                    setLoadingText('Otimizando: Extraindo texto localmente...');
                     try {
                         const extracted = await extractTextFromPDF(customFile!.data);
                         if (extracted && extracted.length > 50) {
@@ -394,14 +397,14 @@ export const StudyFeed: React.FC = () => {
                 
                 if (useTextExtraction) {
                     setLoadingStage('thinking');
-                    setLoadingText('Analisando texto do arquivo...');
+                    setLoadingText('IA Analisando Texto Extraído (Alta Velocidade)...');
                     contentsPayload = [
                         { text: prompt },
-                        { text: `DOCUMENT CONTENT:\n${textContext.substring(0, 25000)}` }
+                        { text: `DOCUMENT CONTENT:\n${textContext.substring(0, 30000)}` }
                     ];
                 } else {
                     setLoadingStage('uploading');
-                    setLoadingText('Processando imagens do arquivo...');
+                    setLoadingText('PDF Digitalizado detectado. Enviando arquivo completo (Pode demorar)...');
                     contentsPayload = {
                         parts: [
                             { text: prompt },
@@ -411,7 +414,12 @@ export const StudyFeed: React.FC = () => {
                 }
             }
 
-            const response: any = await ai.models.generateContent({
+            // TIMEOUT PROTECTION (5 minutes)
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error("Tempo limite excedido (5 min). A conexão ou o upload demorou muito.")), 300000)
+            );
+
+            const aiCall = ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
                 contents: contentsPayload,
                 config: {
@@ -421,6 +429,8 @@ export const StudyFeed: React.FC = () => {
                     temperature: 0.7,
                 }
             });
+
+            const response: any = await Promise.race([aiCall, timeoutPromise]);
 
             setLoadingStage('idle');
             const rawText = cleanJsonString(response.text || '{}');
@@ -464,7 +474,11 @@ export const StudyFeed: React.FC = () => {
             setPosts(prev => [...prev, ...newPosts]);
 
         } catch (error: any) {
-            if (!controller.signal.aborted) setErrorMsg(error.message || "Erro ao processar conteúdo.");
+            console.error("Feed error:", error);
+            setLoadingStage('idle');
+            if (!controller.signal.aborted) {
+                setErrorMsg(error.message || "Erro ao processar conteúdo.");
+            }
         } finally {
             if (!controller.signal.aborted) setLoading(false);
         }
@@ -632,7 +646,12 @@ export const StudyFeed: React.FC = () => {
                         </div>
                         <div className="text-center px-4">
                             <p className="text-xs font-bold text-white mb-1 animate-pulse">{loadingText}</p>
-                            <p className="text-[10px] text-slate-500">Preparando seus cards conceituais e quiz...</p>
+                            {loadingStage === 'uploading' && (
+                                <p className="text-[10px] text-amber-400 font-bold">Isso pode demorar dependendo da sua internet...</p>
+                            )}
+                            {loadingStage === 'extracting' && (
+                                <p className="text-[10px] text-emerald-400">Processando texto localmente...</p>
+                            )}
                         </div>
                         <button onClick={cancelGeneration} className="mt-2 flex items-center gap-2 text-[10px] text-red-400 hover:text-red-300 bg-red-900/20 px-4 py-2 rounded-full border border-red-500/20 transition-all hover:bg-red-900/30">
                             <StopCircle size={12} /> Cancelar Operação
