@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, memo, useMemo } from 'react';
 import { useStore } from '../store';
 import { createAIClient } from '../utils/ai';
 import { Type, Schema } from '@google/genai';
-import { Heart, Share2, Bookmark, Bot, Sparkles, Upload, FileText, X, Layers, CheckCircle2, XCircle, HelpCircle, Play, FileSearch, AlertTriangle, Paperclip, Loader2, StopCircle, Zap, HardDrive, Cpu, Wifi, Filter, Book, RefreshCw, History } from 'lucide-react';
+import { Heart, Share2, Bookmark, Bot, Sparkles, Upload, FileText, X, Layers, CheckCircle2, XCircle, HelpCircle, Play, FileSearch, AlertTriangle, Paperclip, Loader2, StopCircle, Zap, HardDrive, Cpu, Wifi, Filter, Book, RefreshCw, History, ArrowRight } from 'lucide-react';
 import { Weight } from '../types';
 import { get, set } from 'idb-keyval';
 // @ts-ignore
@@ -139,6 +139,7 @@ export const StudyFeed: React.FC = () => {
     const [hasStarted, setHasStarted] = useState(false); 
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [extractedTextCache, setExtractedTextCache] = useState<string | null>(null);
+    const [textCursor, setTextCursor] = useState(0); // Cursor for chunking
     
     // Rastreador de tópicos para evitar repetição
     const displayedTopicsRef = useRef<Set<string>>(new Set());
@@ -166,12 +167,14 @@ export const StudyFeed: React.FC = () => {
             const bytes = new Uint8Array(window.atob(base64Data).split("").map(c => c.charCodeAt(0)));
             const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
             let fullText = '';
-            const maxPages = Math.min(pdf.numPages, 12);
+            // Increased page limit for larger docs, but we still cache it
+            const maxPages = Math.min(pdf.numPages, 50); 
             for (let i = 1; i <= maxPages; i++) {
                 const page = await pdf.getPage(i);
                 const content = await page.getTextContent();
                 fullText += content.items.map((item: any) => item.str).join(' ') + '\n';
-                if (fullText.length > 25000) break;
+                // Safety break if too massive for initial load
+                if (fullText.length > 500000) break; 
             }
             setExtractedTextCache(fullText);
             return fullText;
@@ -186,7 +189,7 @@ export const StudyFeed: React.FC = () => {
         setLoading(true);
         setHasStarted(true);
         setErrorMsg(null);
-        setLoadingText(isInitial ? 'Iniciando Feed...' : 'Buscando novos temas...');
+        setLoadingText(isInitial ? 'Iniciando Feed...' : 'Carregando mais...');
 
         const controller = new AbortController();
         abortControllerRef.current = controller;
@@ -254,21 +257,60 @@ export const StudyFeed: React.FC = () => {
                 contentsPayload = `${promptBase} 
                 REFERÊNCIA DO ALUNO (USE ESTE CONTEÚDO): ${JSON.stringify(context)}`;
                 
-                setLoadingStage('thinking');
-                setLoadingText(selectedDiscipline ? `Processando ${selectedDiscipline}...` : 'Cruzando suas anotações...');
             } else {
-                setLoadingText('Extraindo material...');
-                const text = await extractTextFromPDF(customFile!.data);
+                let text = '';
+                
+                if (customFile!.mimeType === 'application/pdf') {
+                    setLoadingText('Extraindo PDF...');
+                    text = await extractTextFromPDF(customFile!.data);
+                } else if (customFile!.mimeType === 'text/plain') {
+                    // NEW: TEXT FILE HANDLING
+                    setLoadingText('Lendo arquivo de texto...');
+                    try {
+                        const binaryString = window.atob(customFile!.data);
+                        const bytes = new Uint8Array(binaryString.length);
+                        for (let i = 0; i < binaryString.length; i++) {
+                            bytes[i] = binaryString.charCodeAt(i);
+                        }
+                        text = new TextDecoder().decode(bytes);
+                        // Update cache to prevent re-decoding
+                        setExtractedTextCache(text);
+                    } catch (e) {
+                        console.error("Erro ao decodificar TXT", e);
+                        throw new Error("Formato de texto inválido.");
+                    }
+                }
+
                 if (text.length > 200) {
-                    setLoadingText('IA processando texto...');
-                    contentsPayload = [{ text: `${promptBase} Baseie-se estritamente neste material de arquivo: ${text.substring(0, 20000)}` }];
+                    // CHUNKING LOGIC
+                    const CHUNK_SIZE = 30000;
+                    // If isInitial, reset cursor. Else use existing cursor.
+                    const currentCursor = isInitial ? 0 : textCursor;
+                    const nextCursor = currentCursor + CHUNK_SIZE;
+                    
+                    const chunk = text.substring(currentCursor, nextCursor);
+                    const blockNumber = Math.floor(currentCursor / CHUNK_SIZE) + 1;
+                    const totalBlocks = Math.ceil(text.length / CHUNK_SIZE);
+
+                    if (!chunk) {
+                        // End of document
+                        setLoading(false);
+                        return; 
+                    }
+
+                    setLoadingText(`Processando bloco ${blockNumber}/${totalBlocks}...`);
+                    contentsPayload = [{ text: `${promptBase} Analise APENAS esta parte do documento (Parte ${blockNumber}): ${chunk}` }];
+                    
+                    // Update cursor for next run
+                    setTextCursor(nextCursor >= text.length ? 0 : nextCursor); 
+
                 } else {
                     setLoadingText('IA processando imagem (Vision)...');
                     contentsPayload = { parts: [{ text: promptBase }, { inlineData: { mimeType: customFile!.mimeType, data: customFile!.data } }] };
                 }
             }
 
-            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("A conexão com o servidor de IA demorou muito.")), 50000));
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 60000));
             
             const aiPromise = ai.models.generateContent({
                 model: 'gemini-3-flash-preview',
@@ -277,7 +319,7 @@ export const StudyFeed: React.FC = () => {
                     responseMimeType: 'application/json', 
                     responseSchema, 
                     temperature: 0.7,
-                    systemInstruction: "Você é um Tutor de Elite. Sua tarefa é transformar anotações técnicas em um feed de aprendizado dinâmico, sem repetições e com alta precisão pedagógica."
+                    systemInstruction: "Você é um Tutor de Elite. Transforme o conteúdo cru em flashcards de alto impacto e quizzes."
                 }
             });
 
@@ -285,10 +327,9 @@ export const StudyFeed: React.FC = () => {
             const parsed = JSON.parse(cleanJsonString(response.text || '{}'));
             const newItems = parsed.items || [];
 
-            if (newItems.length === 0) throw new Error("Não conseguimos gerar novos temas agora. Tente em instantes.");
+            if (newItems.length === 0) throw new Error("A IA não encontrou tópicos relevantes neste trecho.");
 
             const newPosts: FeedPost[] = newItems.map((p: any) => {
-                // Registrar o tópico como exibido para evitar repetição no próximo scroll
                 if (p.topic) displayedTopicsRef.current.add(p.topic);
                 
                 return {
@@ -312,7 +353,7 @@ export const StudyFeed: React.FC = () => {
         } catch (error: any) {
             if (!controller.signal.aborted) {
                 console.error("Study Feed Error:", error);
-                setErrorMsg(error.message || "Falha ao carregar o feed. Verifique sua chave API.");
+                setErrorMsg(error.message || "Falha ao carregar o feed.");
             }
         } finally {
             setLoading(false);
@@ -320,18 +361,16 @@ export const StudyFeed: React.FC = () => {
         }
     };
 
-    const [loadingStage, setLoadingStage] = useState<'idle' | 'extracting' | 'uploading' | 'thinking'>('idle');
-
     // Auto-scroll logic
     useEffect(() => {
         const observer = new IntersectionObserver(entries => {
             if (entries[0].isIntersecting && !loading && hasStarted && !errorMsg) {
-                generateFeedPosts();
+                generateFeedPosts(false);
             }
         }, { threshold: 0.2 });
         if (observerTarget.current) observer.observe(observerTarget.current);
         return () => observer.disconnect();
-    }, [loading, hasStarted, errorMsg]);
+    }, [loading, hasStarted, errorMsg, textCursor]); // Add textCursor dependency
 
     // Reset when switching modes
     useEffect(() => {
@@ -339,7 +378,8 @@ export const StudyFeed: React.FC = () => {
         setHasStarted(false);
         setErrorMsg(null);
         setExtractedTextCache(null);
-        displayedTopicsRef.current.clear(); // Limpar histórico ao trocar de matéria/modo
+        setTextCursor(0);
+        displayedTopicsRef.current.clear(); 
         if (abortControllerRef.current) abortControllerRef.current.abort();
     }, [mode, selectedDiscipline]);
 
@@ -352,9 +392,17 @@ export const StudyFeed: React.FC = () => {
             setCustomFile({ name: file.name, data: base64, mimeType: file.type });
             setPosts([]);
             setHasStarted(false);
+            setTextCursor(0);
+            setExtractedTextCache(null);
             displayedTopicsRef.current.clear();
         };
         reader.readAsDataURL(file);
+    };
+
+    // Retry specific chunk
+    const handleRetry = () => {
+        setErrorMsg(null);
+        generateFeedPosts(false);
     };
 
     return (
@@ -385,8 +433,8 @@ export const StudyFeed: React.FC = () => {
                 {mode === 'custom' && !customFile && (
                     <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-slate-800 hover:border-emerald-500/50 rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer transition-all bg-slate-900/30 group">
                         <Upload size={32} className="text-slate-600 group-hover:text-emerald-500 mb-2" />
-                        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Enviar PDF ou Imagem</p>
-                        <input type="file" ref={fileInputRef} className="hidden" accept=".pdf,image/*" onChange={handleFileUpload} />
+                        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Enviar PDF, TXT ou Imagem</p>
+                        <input type="file" ref={fileInputRef} className="hidden" accept=".pdf,.txt,image/*" onChange={handleFileUpload} />
                     </div>
                 )}
 
@@ -417,12 +465,14 @@ export const StudyFeed: React.FC = () => {
 
                 {/* Error Box */}
                 {errorMsg && (
-                    <div className="bg-red-900/20 border border-red-500/30 p-4 rounded-xl flex items-center justify-between animate-in fade-in">
+                    <div className="bg-red-900/20 border border-red-500/30 p-4 rounded-xl flex flex-col gap-3 animate-in fade-in">
                         <div className="flex items-center gap-3">
                             <AlertTriangle className="text-red-500" size={18} />
                             <p className="text-xs text-red-200 font-medium">{errorMsg}</p>
                         </div>
-                        <button onClick={() => generateFeedPosts(true)} className="p-2 bg-red-500 text-white rounded-lg"><RefreshCw size={14}/></button>
+                        <button onClick={handleRetry} className="p-2 bg-red-500 text-white rounded-lg self-end flex items-center gap-2 text-xs font-bold px-4">
+                            <RefreshCw size={14}/> Tentar Próximo Bloco
+                        </button>
                     </div>
                 )}
 
@@ -447,12 +497,16 @@ export const StudyFeed: React.FC = () => {
                         </div>
                         <div className="text-center px-6">
                             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 animate-pulse">{loadingText}</p>
-                            <p className="text-[10px] text-slate-500 mt-1">Garantindo que nenhum tema seja repetido.</p>
+                            <p className="text-[10px] text-slate-500 mt-1">Analisando conteúdo...</p>
                         </div>
                     </div>
                 )}
 
-                <div ref={observerTarget} className="h-20" />
+                {hasStarted && !loading && !errorMsg && (
+                    <div ref={observerTarget} className="h-20 flex items-center justify-center text-slate-600">
+                        <ArrowRight className="animate-pulse" size={20} />
+                    </div>
+                )}
             </div>
         </div>
     );
