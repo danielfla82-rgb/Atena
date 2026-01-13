@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { useStore } from '../store';
 import { supabase } from './supabase';
-import { Notebook, Weight, Relevance, Trend, NotebookStatus } from '../types';
+import { Notebook, Weight, Relevance, Trend, NotebookStatus, ScheduleItem } from '../types';
 import { calculateNextReview, DEFAULT_ALGO_CONFIG } from '../utils/algorithm';
 import { 
     Search, Plus, Trash2, Edit2, Square, ChevronRight, ChevronDown, 
@@ -13,6 +13,8 @@ import {
 export const Library: React.FC = () => {
   const { 
     notebooks, 
+    cycles,
+    activeCycleId,
     config, 
     updateConfig,
     addNotebook, 
@@ -56,6 +58,24 @@ export const Library: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Helper to check if notebook is scheduled in active cycle
+  const isScheduledInActiveCycle = useCallback((notebookId: string) => {
+      const activeCycle = cycles.find(c => c.id === activeCycleId);
+      if (!activeCycle) return false;
+      
+      // Check legacy weekId
+      const nb = notebooks.find(n => n.id === notebookId);
+      if (nb?.weekId) return true;
+
+      // Check V10 Schedule
+      if (activeCycle.schedule) {
+          return Object.values(activeCycle.schedule).some(slots => 
+              (slots as ScheduleItem[]).some(slot => slot.notebookId === notebookId)
+          );
+      }
+      return false;
+  }, [cycles, activeCycleId, notebooks]);
 
   const handleEdit = useCallback(async (notebook: Notebook) => {
       setEditingId(notebook.id);
@@ -320,9 +340,11 @@ export const Library: React.FC = () => {
         if (editingId) await editNotebook(editingId, payload);
         else await addNotebook(payload);
         setIsModalOpen(false);
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to save:", error);
-        alert("Erro ao salvar. Verifique se o bucket 'notebook-images' existe no Supabase.");
+        // Alert handled in store, but we keep modal open
+        // Error message already shown by store alert logic or we can show it here if needed
+        // Since store alerts, we just stop here.
     } finally {
         setIsSaving(false);
     }
@@ -507,7 +529,10 @@ export const Library: React.FC = () => {
 
                       {isExpanded && (
                           <div className="border-t border-slate-800 divide-y divide-slate-800/50">
-                              {items.map(nb => (
+                              {items.map(nb => {
+                                  const isScheduled = isScheduledInActiveCycle(nb.id);
+                                  
+                                  return (
                                   <div key={nb.id} className="flex items-center justify-between group hover:bg-slate-800/20">
                                       {/* CONTENT AREA - CLICK TO EDIT */}
                                       <div 
@@ -518,6 +543,7 @@ export const Library: React.FC = () => {
                                               <h4 className="font-bold text-slate-200 text-sm truncate">{nb.name}</h4>
                                               {nb.weight === Weight.MUITO_ALTO && <span className="text-[9px] bg-red-500/10 text-red-400 border border-red-500/20 px-1.5 rounded uppercase font-bold">Peso Max</span>}
                                               {viewMode === 'status' && <span className="text-[9px] text-slate-500 border border-slate-700 px-1.5 rounded uppercase font-bold">{nb.discipline}</span>}
+                                              {isScheduled && <span className="text-[9px] bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 px-1.5 rounded uppercase font-bold flex items-center gap-1"><span className="w-1 h-1 bg-indigo-400 rounded-full animate-pulse"></span> No Ciclo</span>}
                                           </div>
                                           <p className="text-xs text-slate-500 truncate">{nb.subtitle}</p>
                                           
@@ -561,7 +587,8 @@ export const Library: React.FC = () => {
                                           </div>
                                       </div>
                                   </div>
-                              ))}
+                                  );
+                              })}
                           </div>
                       )}
                   </div>

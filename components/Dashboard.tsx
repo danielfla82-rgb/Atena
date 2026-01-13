@@ -136,8 +136,20 @@ const NIETZSCHE_DATA = [
   { quote: "A disciplina é a mãe do sucesso.", source: "Aforismos", context: "A inspiração é para amadores. A elite opera baseada em disciplina inegociável." }
 ];
 
-const FIX_SQL = `-- 1. PERMISSÕES DE ACESSO (CORREÇÃO DE ERRO)
--- Permite que usuários logados leiam e gravem em todas as tabelas
+const FIX_SQL = `-- 1. ATUALIZAÇÃO DE COLUNAS (V10)
+-- Garante que todas as colunas necessárias existam
+alter table notebooks add column if not exists week_id text;
+alter table notebooks add column if not exists is_week_completed boolean default false;
+alter table notebooks add column if not exists gemini_link_1 text;
+alter table notebooks add column if not exists gemini_link_2 text;
+alter table notebooks add column if not exists obsidian_link text;
+alter table notebooks add column if not exists error_notebook_link text;
+alter table notebooks add column if not exists favorite_questions_link text;
+alter table notebooks add column if not exists law_link text;
+alter table notebooks add column if not exists tec_link text;
+alter table notebooks add column if not exists images text[];
+
+-- 2. PERMISSÕES DE ACESSO (RLS)
 alter table notebooks enable row level security;
 alter table cycles enable row level security;
 alter table reports enable row level security;
@@ -145,6 +157,7 @@ alter table protocol enable row level security;
 alter table frameworks enable row level security;
 alter table notes enable row level security;
 
+-- Políticas Permissivas (Ajuste conforme necessidade de segurança real)
 create policy "Enable all access for authenticated users" on "public"."notebooks" as PERMISSIVE for all to authenticated using (true) with check (true);
 create policy "Enable all access for authenticated users" on "public"."cycles" as PERMISSIVE for all to authenticated using (true) with check (true);
 create policy "Enable all access for authenticated users" on "public"."reports" as PERMISSIVE for all to authenticated using (true) with check (true);
@@ -152,12 +165,16 @@ create policy "Enable all access for authenticated users" on "public"."protocol"
 create policy "Enable all access for authenticated users" on "public"."frameworks" as PERMISSIVE for all to authenticated using (true) with check (true);
 create policy "Enable all access for authenticated users" on "public"."notes" as PERMISSIVE for all to authenticated using (true) with check (true);
 
--- 2. CORREÇÃO DO STORAGE (ERRO DE UPLOAD)
+-- 3. CORREÇÃO DO STORAGE
 insert into storage.buckets (id, name, public) values ('notebook-images', 'notebook-images', true) on conflict (id) do nothing;
 create policy "Public Access" on storage.objects for select using ( bucket_id = 'notebook-images' );
 create policy "Authenticated Upload" on storage.objects for insert to authenticated with check ( bucket_id = 'notebook-images' );
 create policy "Authenticated Update" on storage.objects for update to authenticated using ( bucket_id = 'notebook-images' );
-create policy "Authenticated Delete" on storage.objects for delete to authenticated using ( bucket_id = 'notebook-images' );`;
+create policy "Authenticated Delete" on storage.objects for delete to authenticated using ( bucket_id = 'notebook-images' );
+
+-- 4. REFRESH SCHEMA CACHE
+-- Força o PostgREST a reconhecer as novas colunas imediatamente
+NOTIFY pgrst, 'reload schema';`;
 
 interface Props {
     onNavigate: (view: string) => void;

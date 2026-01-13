@@ -58,27 +58,27 @@ const mapNotebookToDB = (nb: Partial<Notebook>) => {
         id: nb.id,
         discipline: nb.discipline,
         name: nb.name,
-        subtitle: nb.subtitle,
-        tec_link: nb.tecLink,
-        error_notebook_link: nb.errorNotebookLink,
-        favorite_questions_link: nb.favoriteQuestionsLink,
-        law_link: nb.lawLink,
-        obsidian_link: nb.obsidianLink,
-        gemini_link_1: nb.geminiLink1,
-        gemini_link_2: nb.geminiLink2,
+        subtitle: nb.subtitle || null,
+        tec_link: nb.tecLink || null,
+        error_notebook_link: nb.errorNotebookLink || null,
+        favorite_questions_link: nb.favoriteQuestionsLink || null,
+        law_link: nb.lawLink || null,
+        obsidian_link: nb.obsidianLink || null,
+        gemini_link_1: nb.geminiLink1 || null,
+        gemini_link_2: nb.geminiLink2 || null,
         target_accuracy: nb.targetAccuracy,
         accuracy: nb.accuracy,
         weight: nb.weight,
         relevance: nb.relevance,
         trend: nb.trend,
         status: nb.status,
-        week_id: nb.weekId,
+        week_id: nb.weekId || null,
         is_week_completed: nb.isWeekCompleted,
-        last_practice: nb.lastPractice,
-        next_review: nb.nextReview,
-        accuracy_history: nb.accuracyHistory,
-        notes: nb.notes,
-        images: nb.images 
+        last_practice: nb.lastPractice || null,
+        next_review: nb.nextReview || null,
+        accuracy_history: nb.accuracyHistory || [],
+        notes: nb.notes || '',
+        images: nb.images || []
     };
 };
 
@@ -401,7 +401,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                           
                           // Code 42P01: undefined_table (Tabela não existe)
                           // Code 42501: insufficient_privilege (RLS bloqueando)
-                          if (error.code === '42P01' || error.code === '42501') {
+                          // Code PGRST204: Column not found in cache (rare but possible here too)
+                          if (error.code === '42P01' || error.code === '42501' || error.code === 'PGRST204') {
                               setDbError(errString);
                           }
                           return { data: [], error };
@@ -562,7 +563,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setActiveCycleId(newCycle.id);
       if (!isGuest && user) {
           try {
-              const payload = mapCycleToDB(newCycle);
+              const payload = { ...mapCycleToDB(newCycle), user_id: user.id };
               const { error } = await supabase.from('cycles').insert(payload);
               if (error) throw error;
           } catch (e) { console.error(e); setCycles(previousCycles); alert("Erro ao criar ciclo."); }
@@ -607,10 +608,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setNotebooks(prev => [...prev, newNb]);
       if (!isGuest && user) {
           try {
-              const payload = mapNotebookToDB(newNb);
+              const payload = { ...mapNotebookToDB(newNb), user_id: user.id };
               const { error } = await supabase.from('notebooks').insert(payload);
-              if (error) throw error;
-          } catch (e) { setNotebooks(previousNotebooks); alert("Erro ao salvar caderno."); }
+              if (error) {
+                  console.error("Supabase Insert Error:", JSON.stringify(error));
+                  throw error; // Throw specific Supabase error
+              }
+          } catch (e: any) { 
+              setNotebooks(previousNotebooks); 
+              let msg = e.message || JSON.stringify(e);
+              if (e.code === '42703') msg = `Erro de Schema (42703): Coluna inexistente no banco. Provavelmente 'gemini_link_1' ou 'obsidian_link'. Vá em Dashboard > Configurações > Mostrar Script SQL para atualizar.`;
+              if (e.code === '42501') msg = `Erro de Permissão (42501): RLS bloqueou a escrita. Execute o script SQL no Dashboard.`;
+              if (e.code === 'PGRST204') msg = `Erro de Cache (PGRST204): Coluna 'week_id' não encontrada. O banco pode estar desatualizado. Execute o script SQL no Dashboard e recarregue.`;
+              
+              // We must throw here so the UI knows the operation failed and doesn't close the modal
+              throw new Error(msg);
+          }
       }
   };
 
@@ -623,7 +636,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               delete (payload as any).id;
               const { error } = await supabase.from('notebooks').update(payload).eq('id', id);
               if (error) throw error;
-          } catch (e) { setNotebooks(previousNotebooks); alert("Erro ao editar."); }
+          } catch (e: any) { 
+              setNotebooks(previousNotebooks); 
+              let msg = e.message || JSON.stringify(e);
+              if (e.code === '42703') msg = `Erro de Schema: Coluna ausente no banco.`;
+              if (e.code === 'PGRST204') msg = `Erro de Cache (PGRST204): Coluna 'week_id' não encontrada. Execute o script SQL no Dashboard.`;
+              throw new Error(msg);
+          }
       }
   };
 
@@ -718,7 +737,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const previousReports = [...reports];
       setReports(prev => [newReport, ...prev]);
       if (!isGuest && user) {
-          try { await supabase.from('reports').insert(newReport); } catch (e) { console.error(e); setReports(previousReports); }
+          try { await supabase.from('reports').insert({ ...newReport, user_id: user.id }); } catch (e) { console.error(e); setReports(previousReports); }
       }
   };
 
@@ -732,7 +751,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const newItem = { ...item, id: generateId(), checked: false };
       const previousProtocol = [...protocol];
       setProtocol(prev => [...prev, newItem]);
-      if (!isGuest && user) { try { await supabase.from('protocol').insert(newItem); } catch(e) { console.error(e); setProtocol(previousProtocol); } }
+      if (!isGuest && user) { try { await supabase.from('protocol').insert({ ...newItem, user_id: user.id }); } catch(e) { console.error(e); setProtocol(previousProtocol); } }
   };
 
   const toggleProtocolItem = async (id: string) => {
@@ -774,11 +793,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           } catch (e: any) {
               console.error("DB Error: Update Framework", e);
               setFramework(previousFramework); 
-              if (e.code === '42P01') {
-                  alert("Erro: A tabela 'frameworks' não existe no Supabase. Execute o script SQL fornecido.");
-              } else {
-                  alert(`Erro ao salvar framework: ${e.message || 'Verifique sua conexão.'}`);
-              }
+              let msg = e.message || JSON.stringify(e);
+              if (e.code === '42P01') msg = "Erro: A tabela 'frameworks' não existe no Supabase. Execute o script SQL fornecido.";
+              alert(`Erro ao salvar framework: ${msg}`);
           }
       }
   };
@@ -787,7 +804,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const newNote: Note = { id: generateId(), content: '', color: 'yellow', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
       const previousNotes = [...notes];
       setNotes(prev => [newNote, ...prev]);
-      if (!isGuest && user) { try { const payload = mapNoteToDB(newNote); await supabase.from('notes').insert(payload); } catch (e) { console.error(e); setNotes(previousNotes); } }
+      if (!isGuest && user) { try { const payload = { ...mapNoteToDB(newNote), user_id: user.id }; await supabase.from('notes').insert(payload); } catch (e) { console.error(e); setNotes(previousNotes); } }
   };
 
   const updateNote = async (id: string, content: string, color?: Note['color']) => {
