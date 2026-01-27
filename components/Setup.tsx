@@ -1,10 +1,9 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, NotebookStatus, ScheduleItem } from '../types';
-import { Plus, Search, Pencil, BarChart3, Calendar, Lock, ChevronDown, Layout, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, Flag, Inbox, Scale, Download, PanelLeftClose, PanelLeftOpen, Archive, Minus, Meh, Frown, Smile, CloudLightning, History, ChevronRight, Maximize2, Activity } from 'lucide-react';
+import { Plus, Search, Pencil, BarChart3, Calendar, Lock, ChevronDown, Layout, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, Flag, Inbox, Scale, Download, PanelLeftClose, PanelLeftOpen, Archive, Minus, Meh, Frown, Smile, History, ChevronRight, Maximize2, Activity } from 'lucide-react';
 import { getStatusColor } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
-import { MigrationTool } from './MigrationTool';
 
 const PACE_SETTINGS: Record<string, { hours: number, blocks: number }> = {
     'Iniciante': { hours: 10, blocks: 15 },
@@ -196,8 +195,6 @@ const normalizeStr = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\
 
 const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: number } }) => {
     // ... (CycleCalculator implementation remains identical to previous) ...
-    // Note: Due to file length limit, assuming the CycleCalculator code is preserved.
-    // I am just injecting the new button in the Setup component below.
     const { notebooks, config, updateConfig } = useStore();
     const [newDiscName, setNewDiscName] = useState('');
     
@@ -440,9 +437,6 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
   const [disciplineFilter, setDisciplineFilter] = useState<string>('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [expandedWeekId, setExpandedWeekId] = useState<string | null>(null);
-  
-  // MIGRATION TOOL STATE
-  const [showMigrationTool, setShowMigrationTool] = useState(false);
 
   // ... (Existing useMemo hooks for pendingCount, allocationData, etc.) ...
   const pendingCount = useMemo(() => {
@@ -726,6 +720,20 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                     </div>
                  </div>
 
+                 {/* New: Exam Date Input */}
+                 <div className="flex flex-col">
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Data da Prova</span>
+                    <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5">
+                        <Flag size={14} className="text-red-500" />
+                        <input 
+                            type="date" 
+                            value={config.examDate || ''} 
+                            onChange={(e) => updateConfig({...config, examDate: e.target.value})} 
+                            className="bg-transparent outline-none text-xs text-white cursor-pointer font-medium" 
+                        />
+                    </div>
+                 </div>
+
                  {/* ... More Stats ... */}
                  {daysRemaining !== null && (
                      <div className="flex flex-col">
@@ -763,14 +771,6 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                     </div>
                  </div>
                  
-                 <button 
-                    onClick={() => setShowMigrationTool(true)} 
-                    className="h-[42px] w-[42px] flex items-center justify-center rounded-xl transition-all border bg-slate-800 text-cyan-400 border-slate-700 hover:text-white hover:bg-cyan-600 hover:border-cyan-500 shadow-sm"
-                    title="Migrar Imagens para Storage"
-                 >
-                    <CloudLightning size={18} />
-                 </button>
-
                  <button 
                     onClick={exportDatabase} 
                     className="h-[42px] w-[42px] flex items-center justify-center rounded-xl transition-all border bg-slate-800 text-slate-400 border-slate-700 hover:text-white hover:bg-slate-700 hover:border-emerald-500/50"
@@ -878,21 +878,36 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                                 >
                                     <div className="absolute inset-0 bg-slate-950/30 group-hover:bg-transparent transition-colors" />
                                     
-                                    {/* Top: Status Dots (Mini Dashboard) */}
-                                    <div className="flex flex-col gap-1 mb-4 z-10 w-full items-center">
+                                    {/* Top: Status Dots (Mini Dashboard) - ENHANCED */}
+                                    <div className="flex flex-col gap-1 mb-2 z-10 w-full items-center">
+                                        {/* Counter: Completed / Total */}
+                                        <div className={`mb-2 px-2 py-0.5 rounded text-[10px] font-bold border ${isTargetMet ? 'bg-emerald-900/20 text-emerald-400 border-emerald-500/30' : 'bg-slate-950 text-slate-300 border-slate-800'}`}>
+                                            {blocksCompleted}/{blocksCount}
+                                        </div>
+
                                         {hasActivity ? (
-                                            <>
-                                                <div className="flex gap-1">
-                                                    {summaryStats.success > 0 && <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm" title={`${summaryStats.success} metas batidas`}></span>}
-                                                    {summaryStats.warning > 0 && <span className="w-2 h-2 rounded-full bg-amber-500 shadow-sm" title={`${summaryStats.warning} em atenção`}></span>}
-                                                    {summaryStats.critical > 0 && <span className="w-2 h-2 rounded-full bg-red-500 shadow-sm" title={`${summaryStats.critical} críticos`}></span>}
-                                                </div>
-                                                <span className={`text-[10px] font-mono font-bold ${avgAccuracy >= 80 ? 'text-emerald-400' : 'text-slate-400'}`}>
-                                                    {avgAccuracy}%
-                                                </span>
-                                            </>
+                                            <div className="flex flex-col gap-1 w-full px-5">
+                                                {summaryStats.success > 0 && (
+                                                    <div className="flex items-center justify-between text-[9px] text-emerald-400 font-bold w-full">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></span>
+                                                        <span>{summaryStats.success}</span>
+                                                    </div>
+                                                )}
+                                                {summaryStats.warning > 0 && (
+                                                    <div className="flex items-center justify-between text-[9px] text-amber-400 font-bold w-full">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-sm"></span>
+                                                        <span>{summaryStats.warning}</span>
+                                                    </div>
+                                                )}
+                                                {summaryStats.critical > 0 && (
+                                                    <div className="flex items-center justify-between text-[9px] text-red-400 font-bold w-full">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-sm"></span>
+                                                        <span>{summaryStats.critical}</span>
+                                                    </div>
+                                                )}
+                                            </div>
                                         ) : (
-                                            <span className="w-2 h-2 rounded-full bg-slate-700"></span>
+                                            <span className="w-1.5 h-1.5 rounded-full bg-slate-700 mt-1"></span>
                                         )}
                                     </div>
 
@@ -906,7 +921,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                                     {/* Bottom: Pace Indicator */}
                                     <div className="mt-4 z-10 flex flex-col items-center gap-1">
                                         <Activity size={14} className={isTargetMet ? "text-emerald-500" : "text-slate-600"} />
-                                        {isTargetMet && <span className="text-[9px] text-emerald-500 font-bold uppercase tracking-tighter scale-75">Meta OK</span>}
+                                        {avgAccuracy > 0 && <span className={`text-[9px] font-mono font-bold ${avgAccuracy >= 80 ? 'text-emerald-400' : 'text-slate-500'}`}>{avgAccuracy}%</span>}
                                     </div>
                                 </div>
                             );
@@ -1027,9 +1042,6 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
              </div>
          ) : (<CycleCalculator paceTarget={paceTarget} />)}
       </main>
-
-      {/* Migration Tool Modal */}
-      {showMigrationTool && <MigrationTool onClose={() => setShowMigrationTool(false)} />}
     </div>
   );
 };

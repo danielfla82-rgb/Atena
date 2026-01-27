@@ -9,7 +9,6 @@ import { Diagnostics } from './components/Diagnostics';
 import { Tips } from './components/Tips';
 import { Nietzsche } from './components/Nietzsche';
 import { Psychoanalyst } from './components/Psychoanalyst';
-import { StudyFeed } from './components/StudyFeed';
 import { Protocol } from './components/Protocol';
 import { Framework } from './components/Framework';
 import { Documentation } from './components/Documentation';
@@ -20,13 +19,13 @@ import { StudySession } from './components/StudySession';
 import { ReviewList } from './components/ReviewList';
 import { 
   LayoutDashboard, Layers, Menu, X, Library as LibraryIcon, 
-  Activity, Lightbulb, Flame, Brain, ScrollText, Pill, Pyramid, Book, ListChecks, Shield, StickyNote, Command, LogOut, ChevronDown, CalendarCheck
+  Activity, Lightbulb, Flame, Brain, Pill, Pyramid, Book, ListChecks, Shield, StickyNote, LogOut, ChevronDown, CalendarCheck
 } from 'lucide-react';
 import { Logo } from './components/Logo';
 
 const AppContent: React.FC = () => {
   // Estado principal de navegação
-  const [view, setView] = useState<'login' | 'selection' | 'dashboard' | 'setup' | 'library' | 'diagnostics' | 'tips' | 'nietzsche' | 'psycho' | 'study-feed' | 'protocol' | 'framework' | 'docs' | 'verticalized' | 'notes' | 'about' | 'review-list'>('login');
+  const [view, setView] = useState<'login' | 'selection' | 'dashboard' | 'setup' | 'library' | 'diagnostics' | 'tips' | 'nietzsche' | 'psycho' | 'protocol' | 'framework' | 'docs' | 'verticalized' | 'notes' | 'about' | 'review-list'>('login');
   
   // Estados de UI
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -41,7 +40,7 @@ const AppContent: React.FC = () => {
   // Efeito: Abre o menu automaticamente se estiver navegando em um de seus sub-itens
   useEffect(() => {
     const strategyViews = ['dashboard', 'setup', 'verticalized', 'library', 'notes', 'review-list'];
-    const intelligenceViews = ['diagnostics', 'study-feed'];
+    const intelligenceViews = ['diagnostics'];
     const mentalViews = ['framework', 'nietzsche', 'psycho', 'protocol', 'tips'];
 
     if (strategyViews.includes(view)) setStrategyMenuOpen(true);
@@ -192,14 +191,6 @@ const AppContent: React.FC = () => {
                     <Activity size={18} />
                     <span className="text-sm">Diagnóstico IA</span>
                   </button>
-
-                  <button 
-                      onClick={() => { setView('study-feed'); setSidebarOpen(false); }}
-                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('study-feed') ? 'bg-slate-800 text-white border-cyan-500' : 'border-transparent text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
-                    >
-                      <ScrollText size={18} />
-                      <span className="text-sm">Feed Estudo</span>
-                  </button>
               </div>
           </div>
 
@@ -311,7 +302,6 @@ const AppContent: React.FC = () => {
           view === 'tips' ? <Tips /> :
           view === 'nietzsche' ? <Nietzsche /> :
           view === 'psycho' ? <Psychoanalyst /> :
-          view === 'study-feed' ? <StudyFeed /> :
           view === 'protocol' ? <Protocol /> :
           view === 'framework' ? <Framework /> :
           view === 'docs' ? <Documentation /> :
