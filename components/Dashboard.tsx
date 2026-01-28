@@ -10,7 +10,7 @@ import {
   Target, Settings, TrendingUp, TrendingDown, Minus,
   PieChart as PieChartIcon, Activity, Siren, ArrowRight, CheckCircle2,
   Check, XCircle, Quote, ChevronDown, BarChart2,
-  RefreshCw, BrainCircuit, Crosshair, Scroll, Crown, Zap, Save, X, FileText, CalendarClock, AlertCircle, Edit2, Calendar, Key, ShieldCheck, Sparkles, Bot, AlertTriangle, Database, Terminal
+  RefreshCw, BrainCircuit, Crosshair, Scroll, Crown, Zap, Save, X, FileText, CalendarClock, AlertCircle, Edit2, Calendar, Key, ShieldCheck, Sparkles, Bot, AlertTriangle, Database, Terminal, Flame
 } from 'lucide-react';
 
 import {
@@ -229,13 +229,25 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       }));
   };
 
-  const today = new Date().toISOString().split('T')[0];
+  // Helper para obter data local (YYYY-MM-DD) corrigindo Timezone
+  const getLocalDateString = (dateInput?: string | Date) => {
+      if (!dateInput) return null;
+      const d = new Date(dateInput);
+      // Ajusta o offset para garantir que a data exibida seja a local do usuário, e não UTC
+      // Ex: 22:00 de dia 26/02 (Brasil) vira 01:00 de 27/02 (UTC). Queremos 26/02.
+      const offset = d.getTimezoneOffset(); 
+      const localDate = new Date(d.getTime() - (offset * 60 * 1000));
+      return localDate.toISOString().split('T')[0];
+  };
+
+  const today = getLocalDateString(new Date())!;
   
   const nietzscheItem = useMemo(() => {
       const dayOfYear = Math.floor((new Date().getTime() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 1000 / 60 / 60 / 24);
       return NIETZSCHE_DATA[dayOfYear % NIETZSCHE_DATA.length];
   }, []);
 
+  // --- REFACTORED METRICS & STREAK LOGIC ---
   const metrics = useMemo(() => {
       const activeNotebooks = notebooks.filter(n => n.accuracy > 0);
       const totalAcc = activeNotebooks.reduce((sum, n) => sum + n.accuracy, 0);
@@ -244,26 +256,67 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       const completedTopics = notebooks.filter(n => (n.status === 'Dominado' || n.accuracy >= n.targetAccuracy) && n.discipline !== 'Revisão Geral').length;
       const progressPercent = totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0;
 
-      const dates = [];
-      let currentStreak = 0;
-      let streakBroken = false;
-      const dayNames = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']; 
+      // 1. Map all activity dates from history (LOCAL TIME FIX)
+      const activitySet = new Set<string>();
+      notebooks.forEach(n => {
+          // Check history
+          if (Array.isArray(n.accuracyHistory)) {
+              n.accuracyHistory.forEach(h => {
+                  if (h.date) {
+                      const localDate = getLocalDateString(h.date);
+                      if (localDate) activitySet.add(localDate);
+                  }
+              });
+          }
+          // Check last practice fallback
+          if (n.lastPractice) {
+              const localDate = getLocalDateString(n.lastPractice);
+              if (localDate) activitySet.add(localDate);
+          }
+      });
 
-      for (let i = 13; i >= 0; i--) {
-          const d = new Date();
+      // 2. Generate Calendar Grid (Last 21 days - 3 Weeks - MINIMALIST)
+      const dates = [];
+      const dayNames = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']; 
+      
+      const endDate = new Date(); // Hoje
+      endDate.setHours(0,0,0,0);
+      
+      // Mostrar exatamente 3 semanas (21 dias) para layout limpo
+      for (let i = 20; i >= 0; i--) {
+          const d = new Date(endDate);
           d.setDate(d.getDate() - i);
-          const dateStr = d.toISOString().split('T')[0];
-          const hasPractice = notebooks.some(n => n.lastPractice && n.lastPractice.startsWith(dateStr));
-          dates.push({ date: dateStr, active: hasPractice, dayLabel: dayNames[d.getDay()] });
+          // Usa a mesma função helper para garantir consistência
+          const dateStr = getLocalDateString(d)!;
+          const isActive = activitySet.has(dateStr);
+          
+          dates.push({
+              date: dateStr,
+              active: isActive,
+              dayLabel: dayNames[d.getDay()],
+              dayNum: d.getDate(),
+              isToday: dateStr === today
+          });
       }
-      const sortedDatesDesc = [...dates].reverse();
-      for (const d of sortedDatesDesc) {
-          if (d.active) { if (!streakBroken) currentStreak++; } 
-          else { if (d.date !== today) streakBroken = true; }
+
+      // 3. Calculate Streak
+      let currentStreak = 0;
+      const todayDate = new Date();
+      for (let i = 0; i < 365; i++) {
+          const d = new Date(todayDate);
+          d.setDate(d.getDate() - i);
+          const dateStr = getLocalDateString(d)!;
+          
+          if (activitySet.has(dateStr)) {
+              currentStreak++;
+          } else {
+              if (i === 0) continue; // Permite gap se hoje ainda não acabou
+              break;
+          }
       }
 
       return { avgAccuracy, completedTopics, pendingTopics: totalTopics - completedTopics, progressPercent, dates, currentStreak };
-  }, [notebooks]);
+  }, [notebooks, today]);
 
   // --- EVOLUTION CHART DATA WITH TREND LINE ---
   const evolutionData = useMemo(() => {
@@ -564,24 +617,55 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           </div>
       </div>
 
-      <div className="bg-white text-slate-900 rounded-xl p-6 border border-slate-200 shadow-lg">
-          <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">Constância (Últimos 14 dias)</h3>
-              <div className="text-[10px] font-mono text-slate-400 flex items-center gap-2">
-                  <span className="cursor-pointer">&lt;</span> 
-                  {metrics.dates[0]?.date.split('-').reverse().join('/')} ~ {metrics.dates[metrics.dates.length-1]?.date.split('-').reverse().join('/')} 
-                  <span className="cursor-pointer">&gt;</span>
+      {/* --- SPLIT ROW: STREAK GRID & WEEKLY PROGRESS --- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          {/* STREAK GRID (MINIMALIST) */}
+          <div className="bg-slate-900 text-slate-300 rounded-xl p-5 border border-slate-800 shadow-lg flex flex-col justify-between">
+              <div className="flex justify-between items-center mb-4">
+                  <div className="flex items-center gap-3">
+                      <div className="bg-slate-800 p-2 rounded-lg text-slate-500">
+                          <Flame size={18} className={metrics.currentStreak > 0 ? "text-orange-500 fill-orange-500 animate-pulse" : "text-slate-600"} />
+                      </div>
+                      <div>
+                          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400">Histórico de Foco</h3>
+                          <p className="text-[10px] text-slate-500">
+                              {metrics.currentStreak} dias consecutivos
+                          </p>
+                      </div>
+                  </div>
+              </div>
+
+              {/* Center Grid content */}
+              <div className="flex flex-col items-center w-full">
+                  <div className="grid grid-cols-7 gap-1.5 mb-2 w-fit">
+                      {['D','S','T','Q','Q','S','S'].map((d, i) => (
+                          <div key={i} className="text-[9px] font-bold text-slate-600 w-9 text-center">{d}</div>
+                      ))}
+                  </div>
+                  <div className="grid grid-cols-7 gap-1.5 w-fit">
+                      {metrics.dates.map((day, idx) => (
+                          <div 
+                            key={idx} 
+                            className={`
+                                h-9 w-9 rounded-lg flex items-center justify-center transition-all relative group text-[10px] font-bold
+                                ${day.active 
+                                    ? 'bg-emerald-500 text-white shadow-md shadow-emerald-900/20' 
+                                    : 'bg-slate-800/50 text-slate-600 border border-slate-800'}
+                                ${day.isToday ? 'ring-1 ring-emerald-400 ring-offset-1 ring-offset-slate-900' : ''}
+                            `}
+                            title={day.date}
+                          >
+                              {day.dayNum}
+                          </div>
+                      ))}
+                  </div>
               </div>
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar">
-              {metrics.dates.map((day, idx) => (
-                  <div key={idx} className="flex flex-col items-center gap-1 flex-1 min-w-[30px]">
-                      <div className={`w-full h-8 rounded-md flex items-center justify-center border transition-all ${day.active ? 'bg-emerald-200 border-emerald-300 text-emerald-700' : 'bg-red-100 border-red-200 text-red-400 opacity-50'}`} title={day.date}>
-                          {day.active ? <Check size={14} strokeWidth={3} /> : <XCircle size={14} />}
-                      </div>
-                      <span className="text-[9px] font-bold text-slate-400">{day.dayLabel}</span>
-                  </div>
-              ))}
+
+          {/* WEEKLY PROGRESS */}
+          <div className="h-full">
+             <WeeklyProgress />
           </div>
       </div>
 
@@ -704,20 +788,13 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           </div>
       </div>
 
-      <DashboardSection title="Radiografia Tática" subtitle="Matriz Estratégica & Meta Semanal" icon={<Target size={20} />} defaultOpen={true}>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 order-1 lg:order-1">
-                  <QuadrantChart data={notebooks.filter(n => n.discipline !== 'Revisão Geral')} onNavigate={onNavigate} />
-              </div>
-              <div className="lg:col-span-1 order-2 lg:order-2 flex flex-col gap-6">
-                  <div className="flex-1 h-full">
-                     <WeeklyProgress />
-                  </div>
-              </div>
+      <DashboardSection title="Radiografia Tática" subtitle="Matriz Estratégica" icon={<Target size={20} />} defaultOpen={true}>
+          <div className="w-full">
+              <QuadrantChart data={notebooks.filter(n => n.discipline !== 'Revisão Geral')} onNavigate={onNavigate} />
           </div>
       </DashboardSection>
 
-      {/* ... CONFIGURATION MODAL (Existing code maintained) ... */}
+      {/* ... CONFIGURATION MODAL ... */}
       {isConfigOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
