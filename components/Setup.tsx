@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, NotebookStatus, ScheduleItem } from '../types';
-import { Plus, Search, Pencil, BarChart3, Calendar, Lock, ChevronDown, Layout, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, Flag, Inbox, Scale, Download, PanelLeftClose, PanelLeftOpen, Archive, Minus, Meh, Frown, Smile, History, ChevronRight, Maximize2, Activity } from 'lucide-react';
+import { Plus, Search, Pencil, BarChart3, Calendar, Lock, ChevronDown, Layout, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, Flag, Inbox, Scale, Download, PanelLeftClose, PanelLeftOpen, Archive, Minus, Meh, Frown, Smile, History, ChevronRight, Maximize2, Activity, ChevronUp, Layers, CheckCircle2 } from 'lucide-react';
 import { getStatusColor } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 
@@ -64,25 +64,25 @@ const DraggableCard = React.memo(({
     }
 
     let buttonClass = 'border-slate-600 bg-slate-700 text-slate-300 group-hover/check:border-slate-500 hover:bg-slate-600';
-    let textClass = isCompleted && isWeek ? 'text-slate-600 line-through' : 'text-slate-200';
+    let textClass = isCompleted && isWeek ? 'text-slate-500 line-through' : 'text-slate-200';
     let percentColorClass = notebook.accuracy < 60 ? 'text-red-400' : 'text-emerald-400';
     let tooltipText = "Pendente: Clique para marcar como concluído.";
 
     if (isCompleted) {
         if (accuracy >= target) {
-            buttonClass = 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-900/20';
-            textClass = 'text-emerald-400 line-through decoration-emerald-500/30';
-            percentColorClass = 'text-emerald-400';
+            buttonClass = 'bg-emerald-900/30 border-emerald-500/50 text-emerald-400';
+            textClass = 'text-emerald-500/70 line-through decoration-emerald-500/30';
+            percentColorClass = 'text-emerald-500/70';
             tooltipText = "Desempenho de Elite: Meta atingida!";
         } else if (accuracy < criticalThreshold) {
-            buttonClass = 'bg-red-500 border-red-500 text-white shadow-lg shadow-red-900/20';
-            textClass = 'text-red-400 line-through decoration-red-500/30';
-            percentColorClass = 'text-red-400';
+            buttonClass = 'bg-red-900/30 border-red-500/50 text-red-400';
+            textClass = 'text-red-500/70 line-through decoration-red-500/30';
+            percentColorClass = 'text-red-500/70';
             tooltipText = `Crítico: Acurácia muito abaixo da meta (${target}%).`;
         } else {
-            buttonClass = 'bg-amber-500 border-amber-500 text-white shadow-lg shadow-amber-900/20';
-            textClass = 'text-amber-400 line-through decoration-amber-500/30';
-            percentColorClass = 'text-amber-400';
+            buttonClass = 'bg-amber-900/30 border-amber-500/50 text-amber-400';
+            textClass = 'text-amber-500/70 line-through decoration-amber-500/30';
+            percentColorClass = 'text-amber-500/70';
             tooltipText = "Atenção: Meta não atingida. Reforce a revisão.";
         }
     }
@@ -97,7 +97,7 @@ const DraggableCard = React.memo(({
                 group relative bg-slate-800 border border-slate-700 rounded-xl p-3 cursor-grab active:cursor-grabbing hover:border-emerald-500/50 transition-all shadow-sm
                 ${disabled ? 'opacity-50 pointer-events-none' : ''}
                 ${isCompact ? 'text-xs' : 'text-sm'}
-                ${isCompleted && isWeek ? 'bg-slate-900 border-slate-800' : ''}
+                ${isCompleted && isWeek ? 'bg-slate-900/50 border-slate-800 opacity-70 hover:opacity-100' : ''}
             `}
         >
             {isLibrary && (
@@ -138,7 +138,7 @@ const DraggableCard = React.memo(({
                             </span>
                         ) : null}
                     </div>
-                    <p className={`truncate mb-1 leading-tight font-medium ${isWeek ? (isCompleted ? 'text-slate-600' : 'text-slate-400') : 'text-slate-400'}`} title={notebook.name}>{notebook.name}</p>
+                    <p className={`truncate mb-1 leading-tight font-medium ${isWeek ? (isCompleted ? 'text-slate-500' : 'text-slate-400') : 'text-slate-400'}`} title={notebook.name}>{notebook.name}</p>
                     {notebook.subtitle && <p className="text-slate-500 text-[10px] truncate">{notebook.subtitle}</p>}
                 </div>
                 
@@ -437,6 +437,14 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
   const [disciplineFilter, setDisciplineFilter] = useState<string>('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [expandedWeekId, setExpandedWeekId] = useState<string | null>(null);
+  
+  // NEW: State for tracking collapsed completed lists per week
+  const [expandedCompletedWeeks, setExpandedCompletedWeeks] = useState<Record<string, boolean>>({});
+
+  const toggleCompletedWeek = (weekId: string, e: React.MouseEvent) => {
+      e.stopPropagation();
+      setExpandedCompletedWeeks(prev => ({ ...prev, [weekId]: !prev[weekId] }));
+  };
 
   // ... (Existing useMemo hooks for pendingCount, allocationData, etc.) ...
   const pendingCount = useMemo(() => {
@@ -927,6 +935,17 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                             );
                         }
 
+                        // PREPARE LISTS: Pending vs Completed (Preserving Original Index for Drag & Drop Safety)
+                        const pendingItems: { slot: ScheduleItem, originalIndex: number }[] = [];
+                        const completedItems: { slot: ScheduleItem, originalIndex: number }[] = [];
+
+                        weekSlots.forEach((slot, index) => {
+                            if (slot.completed) completedItems.push({ slot, originalIndex: index });
+                            else pendingItems.push({ slot, originalIndex: index });
+                        });
+
+                        const isCompletedListExpanded = expandedCompletedWeeks[week.id];
+
                         return (
                             <div key={week.id} className={`w-80 flex-shrink-0 flex flex-col rounded-2xl border transition-all duration-300 relative h-full max-h-full ${week.isPast ? 'bg-slate-900/30 border-slate-800/50 opacity-100' : 'bg-slate-900 border-slate-800 shadow-2xl hover:border-slate-700'}`} onDragOver={week.isPast ? undefined : onDragOver} onDrop={(e) => onDrop(e, week.id, week.isPast)}>
                             
@@ -1010,13 +1029,15 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                             </div>
                             <div className="p-3 space-y-2 overflow-y-auto flex-1 custom-scrollbar relative bg-slate-900/50">
                                 {week.isPast && <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagmonds-light.png')] opacity-10 pointer-events-none z-0"></div>}
-                                {weekSlots.map((slot, index) => {
+                                
+                                {/* PENDING ITEMS (Always visible) */}
+                                {pendingItems.map(({ slot, originalIndex }) => {
                                     if (!slot || !slot.notebookId) return null; 
                                     const nb = notebooks.find(n => n.id === slot.notebookId);
                                     if (!nb) return null;
                                     return (
                                         <DraggableCard 
-                                            key={slot.instanceId || `fallback-${index}`} 
+                                            key={slot.instanceId || `fallback-${originalIndex}`} 
                                             instanceId={slot.instanceId}
                                             notebook={nb} 
                                             isCompleted={slot.completed}
@@ -1028,10 +1049,51 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                                             isCompact 
                                             origin="week" 
                                             disabled={week.isPast}
-                                            index={index}
+                                            index={originalIndex}
                                         />
                                     );
                                 })}
+
+                                {/* COMPLETED SECTION TOGGLE */}
+                                {completedItems.length > 0 && (
+                                    <div className="pt-2">
+                                        <button 
+                                            onClick={(e) => toggleCompletedWeek(week.id, e)}
+                                            className="w-full flex items-center justify-between px-3 py-2 bg-slate-800/50 border border-slate-800 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 hover:border-slate-700 transition-all group"
+                                        >
+                                            <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-2">
+                                                <CheckCircle2 size={12} className="text-emerald-500" />
+                                                {isCompletedListExpanded ? 'Ocultar' : 'Mostrar'} {completedItems.length} Concluídos
+                                            </span>
+                                            {isCompletedListExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* COMPLETED ITEMS (Conditionally Visible) */}
+                                {isCompletedListExpanded && completedItems.map(({ slot, originalIndex }) => {
+                                    if (!slot || !slot.notebookId) return null; 
+                                    const nb = notebooks.find(n => n.id === slot.notebookId);
+                                    if (!nb) return null;
+                                    return (
+                                        <DraggableCard 
+                                            key={slot.instanceId || `fallback-${originalIndex}`} 
+                                            instanceId={slot.instanceId}
+                                            notebook={nb} 
+                                            isCompleted={slot.completed}
+                                            onDragStart={onDragStart} 
+                                            onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)}
+                                            onEdit={handleEditClick} 
+                                            onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} 
+                                            onRemove={(instId) => handleRemoveFromWeek(instId, week.id)}
+                                            isCompact 
+                                            origin="week" 
+                                            disabled={week.isPast}
+                                            index={originalIndex}
+                                        />
+                                    );
+                                })}
+
                                 {weekSlots.length === 0 && !week.isPast && <div className="h-full flex flex-col items-center justify-center text-slate-700 text-xs italic opacity-50 border-2 border-dashed border-slate-800 rounded-xl m-2 bg-slate-950/50 min-h-[100px]">Arraste matérias aqui</div>}
                             </div>
                             </div>
