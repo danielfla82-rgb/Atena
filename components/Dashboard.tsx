@@ -275,31 +275,44 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           }
       });
 
-      // 2. Generate Calendar Grid (Last 21 days - 3 Weeks - MINIMALIST)
-      const dates = [];
-      const dayNames = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']; 
+      // 2. Generate Calendar Grid (CURRENT MONTH)
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth();
+      const monthName = now.toLocaleString('pt-BR', { month: 'long' });
       
-      const endDate = new Date(); // Hoje
-      endDate.setHours(0,0,0,0);
+      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+      const firstDayOfWeek = new Date(currentYear, currentMonth, 1).getDay(); // 0 = Sunday
       
-      // Mostrar exatamente 3 semanas (21 dias) para layout limpo
-      for (let i = 20; i >= 0; i--) {
-          const d = new Date(endDate);
-          d.setDate(d.getDate() - i);
-          // Usa a mesma função helper para garantir consistência
-          const dateStr = getLocalDateString(d)!;
+      const calendarGrid = [];
+      
+      // Empty slots for start of month
+      for (let i = 0; i < firstDayOfWeek; i++) {
+          calendarGrid.push({ day: null, active: false, isToday: false, date: '', isFuture: false });
+      }
+      
+      // Days of month
+      for (let i = 1; i <= daysInMonth; i++) {
+          const dateObj = new Date(currentYear, currentMonth, i);
+          const dateStr = getLocalDateString(dateObj)!;
           const isActive = activitySet.has(dateStr);
+          const isToday = dateStr === today;
           
-          dates.push({
-              date: dateStr,
+          // Check if future day
+          const todayObj = new Date();
+          todayObj.setHours(0,0,0,0);
+          const isFuture = dateObj > todayObj;
+
+          calendarGrid.push({
+              day: i,
               active: isActive,
-              dayLabel: dayNames[d.getDay()],
-              dayNum: d.getDate(),
-              isToday: dateStr === today
+              isToday: isToday,
+              date: dateStr,
+              isFuture: isFuture
           });
       }
 
-      // 3. Calculate Streak
+      // 3. Calculate Streak (Global)
       let currentStreak = 0;
       const todayDate = new Date();
       for (let i = 0; i < 365; i++) {
@@ -315,7 +328,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           }
       }
 
-      return { avgAccuracy, completedTopics, pendingTopics: totalTopics - completedTopics, progressPercent, dates, currentStreak };
+      return { avgAccuracy, completedTopics, pendingTopics: totalTopics - completedTopics, progressPercent, calendarGrid, currentStreak, monthName };
   }, [notebooks, today]);
 
   // --- EVOLUTION CHART DATA WITH TREND LINE ---
@@ -620,9 +633,9 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       {/* --- SPLIT ROW: STREAK GRID & WEEKLY PROGRESS --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           
-          {/* STREAK GRID (MINIMALIST) */}
+          {/* STREAK GRID (FULL CALENDAR MONTH) */}
           <div className="bg-slate-900 text-slate-300 rounded-xl p-5 border border-slate-800 shadow-lg flex flex-col justify-between">
-              <div className="flex justify-between items-center mb-4">
+              <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-3">
                       <div className="bg-slate-800 p-2 rounded-lg text-slate-500">
                           <Flame size={18} className={metrics.currentStreak > 0 ? "text-orange-500 fill-orange-500 animate-pulse" : "text-slate-600"} />
@@ -634,6 +647,11 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                           </p>
                       </div>
                   </div>
+                  
+                  {/* Month Label */}
+                  <span className="text-[10px] uppercase font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded border border-slate-700 tracking-wider">
+                      {metrics.monthName}
+                  </span>
               </div>
 
               {/* Center Grid content */}
@@ -644,19 +662,23 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                       ))}
                   </div>
                   <div className="grid grid-cols-7 gap-1.5 w-fit">
-                      {metrics.dates.map((day, idx) => (
+                      {metrics.calendarGrid.map((day, idx) => (
                           <div 
                             key={idx} 
                             className={`
                                 h-9 w-9 rounded-lg flex items-center justify-center transition-all relative group text-[10px] font-bold
-                                ${day.active 
-                                    ? 'bg-emerald-500 text-white shadow-md shadow-emerald-900/20' 
-                                    : 'bg-slate-800/50 text-slate-600 border border-slate-800'}
+                                ${!day.day 
+                                    ? 'bg-transparent border-transparent' 
+                                    : day.active 
+                                        ? 'bg-emerald-500 text-white shadow-md shadow-emerald-900/20' 
+                                        : day.isFuture 
+                                            ? 'bg-slate-900/30 text-slate-700 border border-slate-800/50' 
+                                            : 'bg-slate-800/50 text-slate-600 border border-slate-800'}
                                 ${day.isToday ? 'ring-1 ring-emerald-400 ring-offset-1 ring-offset-slate-900' : ''}
                             `}
                             title={day.date}
                           >
-                              {day.dayNum}
+                              {day.day}
                           </div>
                       ))}
                   </div>
