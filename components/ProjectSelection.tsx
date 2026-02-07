@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, PlusCircle, ArrowRight, FolderOpen, Calendar, Trash2, X, AlertTriangle, Loader2 } from 'lucide-react';
+import { LayoutDashboard, PlusCircle, ArrowRight, FolderOpen, Calendar, Trash2, X, AlertTriangle, Loader2, Flag, Clock } from 'lucide-react';
 import { useStore } from '../store';
 import { LOGO_URL } from '../constants';
 
@@ -50,6 +50,51 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
           // Optional: Auto-reset after 3 seconds if not confirmed
           setTimeout(() => setDeleteConfirmId(null), 3000);
       }
+  };
+
+  // Helper para calcular progresso temporal
+  const calculateTimeMetrics = (startDateStr?: string, examDateStr?: string, createdAtStr?: string) => {
+      if (!examDateStr) return null;
+
+      const start = new Date(startDateStr || createdAtStr || new Date());
+      const end = new Date(examDateStr);
+      const now = new Date();
+
+      // Zera horas para cálculo de dias limpo
+      start.setHours(0,0,0,0);
+      end.setHours(0,0,0,0);
+      now.setHours(0,0,0,0);
+
+      const totalDuration = end.getTime() - start.getTime();
+      const elapsed = now.getTime() - start.getTime();
+      const remaining = end.getTime() - now.getTime();
+
+      const daysLeft = Math.ceil(remaining / (1000 * 60 * 60 * 24));
+      
+      let percent = 0;
+      if (totalDuration > 0) {
+          percent = Math.round((elapsed / totalDuration) * 100);
+      }
+      
+      // Clamp percentage between 0 and 100
+      percent = Math.max(0, Math.min(100, percent));
+
+      // Color Logic based on urgency
+      let colorClass = 'bg-emerald-500';
+      let statusText = 'Fase Inicial';
+      
+      if (percent > 90 || daysLeft <= 7) {
+          colorClass = 'bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.6)]';
+          statusText = 'Reta Final';
+      } else if (percent > 60) {
+          colorClass = 'bg-amber-500';
+          statusText = 'Avançado';
+      } else if (percent > 30) {
+          colorClass = 'bg-blue-500';
+          statusText = 'Intermediário';
+      }
+
+      return { percent, daysLeft, colorClass, statusText, hasExamDate: true };
   };
 
   return (
@@ -126,11 +171,14 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
                     )}
 
                     {/* 2. Existing Cycles */}
-                    {cycles.map((cycle) => (
+                    {cycles.map((cycle) => {
+                        const timeMetrics = calculateTimeMetrics(cycle.config.startDate, cycle.config.examDate, cycle.createdAt);
+                        
+                        return (
                         <div 
                             key={cycle.id}
                             onClick={() => handleSelectCycle(cycle.id)}
-                            className={`group bg-slate-900/80 backdrop-blur-md border p-6 rounded-2xl text-left transition-all hover:-translate-y-1 hover:shadow-2xl cursor-pointer relative overflow-hidden flex flex-col justify-between min-h-[200px]
+                            className={`group bg-slate-900/80 backdrop-blur-md border p-6 rounded-2xl text-left transition-all hover:-translate-y-1 hover:shadow-2xl cursor-pointer relative overflow-hidden flex flex-col justify-between min-h-[220px]
                                 ${activeCycleId === cycle.id 
                                     ? 'border-emerald-500/50 ring-1 ring-emerald-500/20' 
                                     : 'border-slate-800 hover:border-slate-600'}
@@ -163,7 +211,7 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
                                     </div>
                                     {activeCycleId === cycle.id && (
                                         <span className="text-[10px] bg-emerald-900/40 text-emerald-400 border border-emerald-500/30 px-2 py-1 rounded-full uppercase font-bold tracking-wider">
-                                            Em Andamento
+                                            Ativo
                                         </span>
                                     )}
                                 </div>
@@ -176,22 +224,53 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
                                 </p>
                             </div>
 
-                            <div className="space-y-3 mt-auto">
-                                <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                                     {/* Mock progress based on allocated weeks vs total weeks or random for visual if new */}
-                                     <div className="h-full bg-emerald-500 w-1/4 group-hover:w-1/3 transition-all duration-1000"></div>
+                            <div className="space-y-4 mt-auto">
+                                {/* DYNAMIC PROGRESS BAR */}
+                                <div className="space-y-2">
+                                    <div className="flex justify-between text-[10px] uppercase font-bold tracking-wider">
+                                        <span className="text-slate-500">
+                                            {timeMetrics?.hasExamDate ? timeMetrics.statusText : 'Sem data definida'}
+                                        </span>
+                                        <span className={timeMetrics?.hasExamDate ? 'text-white' : 'text-slate-600'}>
+                                            {timeMetrics?.hasExamDate ? `${timeMetrics.percent}% do Prazo` : '--%'}
+                                        </span>
+                                    </div>
+                                    <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                                         {timeMetrics?.hasExamDate ? (
+                                             <div 
+                                                className={`h-full transition-all duration-1000 ${timeMetrics.colorClass}`} 
+                                                style={{ width: `${timeMetrics.percent}%` }}
+                                             ></div>
+                                         ) : (
+                                             <div className="h-full bg-slate-700 w-full opacity-20"></div>
+                                         )}
+                                    </div>
                                 </div>
-                                <div className="flex justify-between items-center text-xs text-slate-500">
-                                    <span className="flex items-center gap-1">
-                                        <Calendar size={12}/> {new Date(cycle.lastAccess).toLocaleDateString()}
-                                    </span>
-                                    <span className="group-hover:translate-x-1 transition-transform flex items-center gap-1 text-emerald-500 font-bold">
+
+                                <div className="flex justify-between items-center text-xs text-slate-500 pt-2 border-t border-slate-800/50">
+                                    {timeMetrics?.hasExamDate ? (
+                                        <span className="flex items-center gap-1.5 font-mono text-slate-300">
+                                            <Flag size={12} className={timeMetrics.daysLeft < 30 ? "text-red-500" : "text-emerald-500"} /> 
+                                            {timeMetrics.daysLeft > 0 ? (
+                                                <>Faltam <strong className="text-white">{timeMetrics.daysLeft}</strong> dias</>
+                                            ) : (
+                                                <span className="text-red-400 font-bold">Prova Realizada</span>
+                                            )}
+                                        </span>
+                                    ) : (
+                                        <span className="flex items-center gap-1.5 text-amber-500/80 italic">
+                                            <Clock size={12} /> Defina a data da prova
+                                        </span>
+                                    )}
+                                    
+                                    <span className="group-hover:translate-x-1 transition-transform flex items-center gap-1 text-emerald-500 font-bold ml-auto">
                                         Acessar <ArrowRight size={12} />
                                     </span>
                                 </div>
                             </div>
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
         </div>

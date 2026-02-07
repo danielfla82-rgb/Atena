@@ -10,7 +10,7 @@ import {
   Target, Settings, TrendingUp, TrendingDown, Minus,
   PieChart as PieChartIcon, Activity, Siren, ArrowRight, CheckCircle2,
   Check, XCircle, Quote, ChevronDown, BarChart2,
-  RefreshCw, BrainCircuit, Crosshair, Scroll, Crown, Zap, Save, X, FileText, CalendarClock, AlertCircle, Edit2, Calendar, Key, ShieldCheck, Sparkles, Bot, AlertTriangle, Database, Terminal, Flame, Loader2, Settings2, HelpCircle
+  RefreshCw, BrainCircuit, Crosshair, Scroll, Crown, Zap, Save, X, FileText, CalendarClock, AlertCircle, Edit2, Calendar, Key, ShieldCheck, Sparkles, Bot, AlertTriangle, Database, Terminal, Flame, Loader2, Settings2, HelpCircle, ChevronUp
 } from 'lucide-react';
 
 import {
@@ -26,7 +26,7 @@ import {
   Legend,
   Filler
 } from 'chart.js';
-import { Radar, Line } from 'react-chartjs-2';
+import { Radar, Line, Bar } from 'react-chartjs-2';
 
 // ... (ChartJS setup remains same)
 ChartJS.register(
@@ -84,6 +84,38 @@ const chartOptions = {
         mode: 'index' as const,
         intersect: false,
     },
+};
+
+const barChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+        y: {
+            beginAtZero: true,
+            max: 100,
+            grid: { display: false },
+            ticks: { display: false },
+            border: { display: false }
+        },
+        x: {
+            grid: { display: false },
+            ticks: { color: '#94a3b8', font: { size: 9 } },
+            border: { display: false }
+        }
+    },
+    plugins: {
+        legend: { display: false },
+        tooltip: {
+            backgroundColor: 'rgba(15, 23, 42, 0.95)',
+            titleColor: '#f8fafc',
+            bodyColor: '#f8fafc',
+            borderColor: '#334155',
+            borderWidth: 1,
+            padding: 8,
+            cornerRadius: 6,
+            displayColors: false,
+        }
+    }
 };
 
 const ALGO_TOOLTIPS: Record<string, { title: string, desc: string }> = {
@@ -208,6 +240,9 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
   // Quote State
   const [quoteIndex, setQuoteIndex] = useState(0);
 
+  // Expanded Cards State
+  const [expandedMetric, setExpandedMetric] = useState<'performance' | 'progress' | null>(null);
+
   // Carregar API Key do LocalStorage ao abrir
   useEffect(() => {
       if (isConfigOpen) {
@@ -292,6 +327,27 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       const completedTopics = notebooks.filter(n => (n.status === 'Dominado' || n.accuracy >= n.targetAccuracy) && n.discipline !== 'Revisão Geral').length;
       const progressPercent = totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0;
 
+      // --- DETAILED BREAKDOWN BY DISCIPLINE ---
+      const breakdown: Record<string, { total: number, completed: number, accSum: number, accCount: number }> = {};
+      
+      notebooks.filter(n => n.discipline !== 'Revisão Geral').forEach(n => {
+          if (!breakdown[n.discipline]) breakdown[n.discipline] = { total: 0, completed: 0, accSum: 0, accCount: 0 };
+          
+          breakdown[n.discipline].total++;
+          if (n.status === 'Dominado' || n.accuracy >= n.targetAccuracy) breakdown[n.discipline].completed++;
+          
+          if (n.accuracy > 0) {
+              breakdown[n.discipline].accSum += n.accuracy;
+              breakdown[n.discipline].accCount++;
+          }
+      });
+
+      const disciplineStats = Object.entries(breakdown).map(([name, stats]) => ({
+          name,
+          accuracy: stats.accCount > 0 ? Math.round(stats.accSum / stats.accCount) : 0,
+          progress: stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0
+      })).sort((a, b) => b.accuracy - a.accuracy).slice(0, 7); // Top 7 for charts
+
       // 1. Map all activity dates from history (LOCAL TIME FIX)
       const activitySet = new Set<string>();
       notebooks.forEach(n => {
@@ -364,7 +420,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           }
       }
 
-      return { avgAccuracy, completedTopics, pendingTopics: totalTopics - completedTopics, progressPercent, calendarGrid, currentStreak, monthName };
+      return { avgAccuracy, completedTopics, pendingTopics: totalTopics - completedTopics, progressPercent, calendarGrid, currentStreak, monthName, disciplineStats };
   }, [notebooks, today]);
 
   // --- EVOLUTION CHART DATA WITH TREND LINE ---
@@ -643,12 +699,20 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           </div>
       )}
 
-      {/* ... (Rest of dashboard code remains same) ... */}
+      {/* EXPANDABLE METRIC CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* ... */}
-          {/* (Skipping identical metric grid for brevity) */}
-          <div className="bg-slate-50 text-slate-900 rounded-xl p-5 shadow-lg border border-slate-200 flex flex-col justify-between h-32">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Desempenho</span>
+          
+          {/* Card 1: Desempenho */}
+          <div 
+            className={`bg-slate-50 text-slate-900 rounded-xl p-5 shadow-lg border border-slate-200 flex flex-col justify-between transition-all duration-300 relative overflow-hidden ${expandedMetric === 'performance' ? 'h-80' : 'h-32'}`}
+          >
+              <div className="flex justify-between items-start">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Desempenho</span>
+                  <button onClick={() => setExpandedMetric(expandedMetric === 'performance' ? null : 'performance')} className="text-slate-400 hover:text-emerald-600 transition-colors">
+                      {expandedMetric === 'performance' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                  </button>
+              </div>
+              
               <div className="flex justify-between items-end">
                   <div className="flex flex-col gap-0.5">
                       <span className="text-xs font-bold text-emerald-600">{metrics.avgAccuracy}% Acertos</span>
@@ -656,9 +720,36 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                   </div>
                   <span className="text-4xl font-black text-slate-900">{metrics.avgAccuracy}%</span>
               </div>
+
+              {expandedMetric === 'performance' && (
+                  <div className="mt-6 flex-1 w-full relative animate-in fade-in slide-in-from-top-4">
+                      <Bar 
+                          data={{
+                              labels: metrics.disciplineStats.map(d => d.name),
+                              datasets: [{
+                                  label: 'Acurácia (%)',
+                                  data: metrics.disciplineStats.map(d => d.accuracy),
+                                  backgroundColor: '#10b981',
+                                  borderRadius: 4
+                              }]
+                          }} 
+                          options={barChartOptions} 
+                      />
+                  </div>
+              )}
           </div>
-          <div className="bg-slate-50 text-slate-900 rounded-xl p-5 shadow-lg border border-slate-200 flex flex-col justify-between h-32">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Progresso Edital</span>
+
+          {/* Card 2: Progresso Edital */}
+          <div 
+            className={`bg-slate-50 text-slate-900 rounded-xl p-5 shadow-lg border border-slate-200 flex flex-col justify-between transition-all duration-300 relative overflow-hidden ${expandedMetric === 'progress' ? 'h-80' : 'h-32'}`}
+          >
+              <div className="flex justify-between items-start">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Progresso Edital</span>
+                  <button onClick={() => setExpandedMetric(expandedMetric === 'progress' ? null : 'progress')} className="text-slate-400 hover:text-emerald-600 transition-colors">
+                      {expandedMetric === 'progress' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                  </button>
+              </div>
+
               <div className="flex justify-between items-end">
                   <div className="flex flex-col">
                       <span className="text-xs font-semibold text-emerald-600">{metrics.completedTopics} Concluídos</span>
@@ -666,6 +757,23 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                   </div>
                   <span className="text-4xl font-black text-slate-900">{metrics.progressPercent}%</span>
               </div>
+
+              {expandedMetric === 'progress' && (
+                  <div className="mt-6 flex-1 w-full relative animate-in fade-in slide-in-from-top-4">
+                      <Bar 
+                          data={{
+                              labels: metrics.disciplineStats.map(d => d.name),
+                              datasets: [{
+                                  label: 'Conclusão (%)',
+                                  data: metrics.disciplineStats.map(d => d.progress),
+                                  backgroundColor: '#3b82f6',
+                                  borderRadius: 4
+                              }]
+                          }} 
+                          options={barChartOptions} 
+                      />
+                  </div>
+              )}
           </div>
       </div>
 
