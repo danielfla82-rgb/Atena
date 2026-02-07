@@ -7,7 +7,8 @@ import {
     Search, Plus, Trash2, Edit2, Square, ChevronRight, ChevronDown, 
     BookOpen, Layers, CheckCircle2, LayoutGrid, Clock, AlertTriangle, Star, 
     History, Sparkles, X, Save, Maximize2, Thermometer,
-    Pencil, Link as LinkIcon, XCircle, ZoomIn, ChevronLeft, Calendar, Loader2, TrendingUp, Info, Scale, FileCode, Flag, List, Book, Brain, BrainCircuit, AlertCircle, PlayCircle
+    Pencil, Link as LinkIcon, XCircle, ZoomIn, ChevronLeft, Calendar, Loader2, TrendingUp, Info, Scale, FileCode, Flag, List, Book, Brain, BrainCircuit, AlertCircle, PlayCircle,
+    Zap, Gauge
 } from 'lucide-react';
 
 export const Library: React.FC = () => {
@@ -58,6 +59,32 @@ export const Library: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // --- ALGORITHM ACCELERATION LOGIC ---
+  const currentReviewInterval = config.algorithm?.baseIntervals?.reviewing || DEFAULT_ALGO_CONFIG.baseIntervals.reviewing;
+  const defaultReviewInterval = DEFAULT_ALGO_CONFIG.baseIntervals.reviewing;
+  const currentFactor = Math.round(currentReviewInterval / defaultReviewInterval);
+
+  const applyAcceleration = (factor: number) => {
+      const base = DEFAULT_ALGO_CONFIG.baseIntervals;
+      const newAlgoConfig = {
+          ...config.algorithm,
+          baseIntervals: {
+              learning: Math.ceil(base.learning * factor),
+              reviewing: Math.ceil(base.reviewing * factor),
+              mastering: Math.ceil(base.mastering * factor),
+              maintaining: Math.ceil(base.maintaining * factor)
+          }
+      };
+      updateConfig({ ...config, algorithm: newAlgoConfig });
+  };
+
+  const INTERVAL_LABELS: Record<string, string> = {
+      learning: 'Aprendizado (Fase 1)',
+      reviewing: 'Revisão (Fase 2)',
+      mastering: 'Domínio (Fase 3)',
+      maintaining: 'Manutenção (Fase 4)'
+  };
 
   // Helper to check if notebook is scheduled in active cycle
   const isScheduledInActiveCycle = useCallback((notebookId: string) => {
@@ -637,15 +664,15 @@ export const Library: React.FC = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                        <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Lei Seca</label>
+                        <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Externo 1</label>
                         <div className="relative"><Book className="absolute left-3 top-3 text-slate-500" size={14} /><input type="url" value={formData.lawLink} onChange={e => handleChange('lawLink', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-white outline-none focus:border-emerald-500" placeholder="Planalto..." /></div>
                     </div>
                     <div>
-                        <label className="block text-[10px] font-bold text-purple-400 mb-1 uppercase tracking-wider">Obsidian / Notion</label>
+                        <label className="block text-[10px] font-bold text-purple-400 mb-1 uppercase tracking-wider">Link Externo 2</label>
                         <div className="relative"><FileCode className="absolute left-3 top-3 text-purple-500" size={14} /><input type="url" value={formData.obsidianLink} onChange={e => handleChange('obsidianLink', e.target.value)} className="w-full bg-slate-800 border border-purple-500/20 rounded-lg py-2.5 pl-9 text-xs text-white outline-none focus:border-purple-500 placeholder-purple-900/50" placeholder="Link anotações..." /></div>
                     </div>
                     <div>
-                        <label className="block text-[10px] font-bold text-cyan-400 mb-1 uppercase tracking-wider">Gemini Contexto</label>
+                        <label className="block text-[10px] font-bold text-cyan-400 mb-1 uppercase tracking-wider">Link Externo 3</label>
                         <div className="relative"><Brain className="absolute left-3 top-3 text-cyan-500" size={14} /><input type="url" value={formData.geminiLink1} onChange={e => handleChange('geminiLink1', e.target.value)} className="w-full bg-slate-800 border border-cyan-500/20 rounded-lg py-2.5 pl-9 text-xs text-white outline-none focus:border-cyan-500 placeholder-cyan-900/50" placeholder="Link Chat..." /></div>
                     </div>
                   </div>
@@ -730,13 +757,44 @@ export const Library: React.FC = () => {
               </div>
 
               <div className="space-y-4 pt-4 border-t border-slate-800">
-                  <h3 className="text-sm font-bold text-purple-500 uppercase tracking-widest border-b border-purple-500/20 pb-2 flex items-center gap-2">
-                      <BrainCircuit size={16} /> Ajuste Fino do Algoritmo
-                  </h3>
+                  <div className="flex items-center justify-between border-b border-purple-500/20 pb-2">
+                      <h3 className="text-sm font-bold text-purple-500 uppercase tracking-widest flex items-center gap-2">
+                          <BrainCircuit size={16} /> Ajuste Fino do Algoritmo
+                      </h3>
+                      
+                      {/* ACCELERATED MODE BUTTONS */}
+                      <div className="flex items-center gap-1">
+                          {[
+                              { factor: 1, label: 'Normal' },
+                              { factor: 2, label: 'Turbo 2x' },
+                              { factor: 3, label: 'Turbo 3x' },
+                              { factor: 4, label: 'Max 4x' }
+                          ].map(mode => (
+                              <button
+                                  type="button"
+                                  key={mode.factor}
+                                  onClick={() => applyAcceleration(mode.factor)}
+                                  className={`
+                                      px-2 py-1 rounded text-[10px] font-bold transition-all flex items-center gap-1 border
+                                      ${currentFactor === mode.factor 
+                                          ? 'bg-purple-600 text-white border-purple-500' 
+                                          : 'bg-slate-900 text-slate-500 border-slate-700 hover:text-white'}
+                                  `}
+                                  title={`Multiplicar intervalos por ${mode.factor}`}
+                              >
+                                  {mode.factor > 1 && <Zap size={8} />}
+                                  {mode.label}
+                              </button>
+                          ))}
+                      </div>
+                  </div>
+
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {Object.entries(config.algorithm?.baseIntervals || DEFAULT_ALGO_CONFIG.baseIntervals).map(([key, val]) => (
                           <div key={key}>
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{key} (Dias)</label>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                                  {INTERVAL_LABELS[key] || key} (Dias)
+                              </label>
                               <input 
                                   type="number" 
                                   value={val} 
