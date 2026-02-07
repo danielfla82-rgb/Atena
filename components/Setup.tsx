@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, NotebookStatus, ScheduleItem } from '../types';
-import { Plus, Search, Pencil, BarChart3, Calendar, Lock, ChevronDown, Layout, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, Flag, Inbox, Scale, Download, PanelLeftClose, PanelLeftOpen, Archive, Minus, Meh, Frown, Smile, History, ChevronRight, Maximize2, Activity, ChevronUp, Layers, CheckCircle2 } from 'lucide-react';
+import { Plus, Search, Pencil, BarChart3, Calendar, Lock, ChevronDown, Layout, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, Flag, Inbox, Scale, Download, PanelLeftClose, PanelLeftOpen, Archive, Minus, Meh, Frown, Smile, History, ChevronRight, Maximize2, Activity, ChevronUp, Layers, CheckCircle2, Loader2, X, FileText, Key, BrainCircuit } from 'lucide-react';
 import { getStatusColor } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 
@@ -446,6 +446,58 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
       setExpandedCompletedWeeks(prev => ({ ...prev, [weekId]: !prev[weekId] }));
   };
 
+  // State for Configuration Modal
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [localConfig, setLocalConfig] = useState(config);
+  const [apiKey, setApiKey] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+      if (isConfigOpen) {
+          const storedKey = localStorage.getItem('atena_api_key');
+          if (storedKey) setApiKey(storedKey);
+      }
+  }, [isConfigOpen]);
+
+  // FIX: Async save with await to prevent race condition with reload
+  const handleSaveConfig = async (e: React.FormEvent | React.MouseEvent) => {
+      e.preventDefault();
+      setIsSaving(true);
+      try {
+          await updateConfig(localConfig);
+          
+          if (apiKey.trim()) {
+              localStorage.setItem('atena_api_key', apiKey.trim());
+          } else {
+              localStorage.removeItem('atena_api_key');
+          }
+          
+          setIsConfigOpen(false);
+          // Hard reload to refresh all clients and AI config
+          window.location.reload();
+      } catch (error) {
+          console.error("Failed to save configuration:", error);
+          alert("Erro ao salvar. Verifique o console.");
+          setIsSaving(false);
+      }
+  };
+
+  const handleUpdateAlgoInterval = (key: string, value: number) => {
+      // Create deep copy to update local state safely
+      const currentIntervals = localConfig.algorithm?.baseIntervals || { learning: 1, reviewing: 3, mastering: 7, maintaining: 15 };
+      const currentMultipliers = localConfig.algorithm?.multipliers || { relevanceHigh: 0.9, relevanceExtreme: 0.7, trendHigh: 0.9 };
+      
+      const newAlgorithm = {
+          baseIntervals: { ...currentIntervals, [key]: value },
+          multipliers: currentMultipliers
+      };
+
+      setLocalConfig({
+          ...localConfig,
+          algorithm: newAlgorithm
+      });
+  };
+
   // ... (Existing useMemo hooks for pendingCount, allocationData, etc.) ...
   const pendingCount = useMemo(() => {
       if (!activeCycleId) return notebooks.filter(n => n.discipline !== 'Revisão Geral' && !n.weekId).length;
@@ -629,6 +681,9 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
       removeSlotFromWeek(instanceId, weekId);
   }, [removeSlotFromWeek]);
 
+  // Safe Check for Algorithm Intervals
+  const currentIntervals = localConfig.algorithm?.baseIntervals || { learning: 1, reviewing: 3, mastering: 7, maintaining: 15 };
+
   return (
     <div className="flex flex-row h-full w-full overflow-hidden relative">
       
@@ -793,7 +848,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                     <Download size={18} />
                  </button>
 
-                 <button onClick={() => setShowStats(!showStats)} className={`h-[42px] w-[42px] flex items-center justify-center rounded-xl transition-all border flex-shrink-0 ${showStats ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white hover:bg-slate-700'}`}><BarChart3 size={18} /></button>
+                 <button onClick={() => { setLocalConfig(config); setIsConfigOpen(true); }} className={`h-[42px] w-[42px] flex items-center justify-center rounded-xl transition-all border flex-shrink-0 ${isConfigOpen ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white hover:bg-slate-700'}`}><Settings2 size={18} /></button>
             </div>
          </header>
 
@@ -1109,7 +1164,112 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                  </div>
              </div>
          ) : (<CycleCalculator paceTarget={paceTarget} />)}
-      </main>
+
+      {/* ... CONFIGURATION MODAL ... */}
+      {isConfigOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900">
+              <h2 className="text-xl font-bold text-white flex items-center gap-2"><Settings2 size={20} className="text-emerald-500"/> Configurações do Ciclo</h2>
+              <button onClick={() => !isSaving && setIsConfigOpen(false)} disabled={isSaving} className="text-slate-400 hover:text-white"><X size={24} /></button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-8">
+              
+              {/* SECTION: EDITAL CONFIG */}
+              <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2 flex items-center gap-2">
+                      <FileText size={16} /> Configuração do Edital
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                          <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Cargo Alvo</label>
+                          <input type="text" value={localConfig.targetRole} onChange={(e) => setLocalConfig({...localConfig, targetRole: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" />
+                      </div>
+                      <div>
+                          <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Banca Examinadora</label>
+                          <input type="text" value={localConfig.banca || ''} onChange={(e) => setLocalConfig({...localConfig, banca: e.target.value})} placeholder="Ex: FGV, Cebraspe" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" />
+                      </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                          <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Data da Prova</label>
+                          <div className="relative">
+                              <Calendar className="absolute left-3 top-3 text-slate-500" size={16} />
+                              <input type="date" value={localConfig.examDate || ''} onChange={(e) => setLocalConfig({...localConfig, examDate: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg py-3 pl-10 text-white outline-none focus:border-emerald-500 cursor-pointer" />
+                          </div>
+                      </div>
+                      <div>
+                          <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Link do Edital</label>
+                          <input type="url" value={localConfig.editalLink || ''} onChange={(e) => setLocalConfig({...localConfig, editalLink: e.target.value})} placeholder="https://..." className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" />
+                      </div>
+                  </div>
+
+                  <div>
+                      <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Conteúdo Programático (Texto Completo)</label>
+                      <textarea 
+                          value={localConfig.editalText || ''}
+                          onChange={(e) => setLocalConfig({...localConfig, editalText: e.target.value})}
+                          placeholder="Cole aqui o texto do edital para a IA processar..."
+                          className="w-full h-32 bg-slate-950 border border-slate-700 rounded-lg p-3 text-xs text-slate-300 font-mono outline-none focus:border-emerald-500 resize-none custom-scrollbar"
+                      />
+                      <p className="text-[10px] text-slate-500 mt-1 italic">Este texto é usado pela IA para gerar o Edital Verticalizado e os Diagnósticos.</p>
+                  </div>
+              </div>
+
+              {/* SECTION: INTEGRATION CONFIG */}
+              <div className="space-y-4 pt-4 border-t border-slate-800">
+                  <h3 className="text-sm font-bold text-cyan-500 uppercase tracking-widest border-b border-cyan-500/20 pb-2 flex items-center gap-2">
+                      <Key size={16} /> Integração IA (Google Gemini)
+                  </h3>
+                  
+                  <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl">
+                      <label className="block text-xs font-bold text-slate-400 mb-2 uppercase">Google Gemini API Key</label>
+                      <div className="flex gap-2">
+                          <input 
+                            type="password" 
+                            value={apiKey} 
+                            onChange={(e) => setApiKey(e.target.value)} 
+                            placeholder="AIzaSy..." 
+                            className="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-cyan-500 font-mono text-sm" 
+                          />
+                      </div>
+                      <p className="text-[10px] text-slate-500 mt-2 flex items-center gap-1">
+                          <CheckCircle2 size={12} /> Salvo apenas no seu navegador (LocalStorage). Necessário para Nietzsche, Diagnóstico e Notícias.
+                      </p>
+                  </div>
+              </div>
+
+              {/* SECTION: ALGORITHM TUNING */}
+              <div className="space-y-4 pt-4 border-t border-slate-800">
+                  <h3 className="text-sm font-bold text-purple-500 uppercase tracking-widest border-b border-purple-500/20 pb-2 flex items-center gap-2">
+                      <BrainCircuit size={16} /> Ajuste Fino do Algoritmo
+                  </h3>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {Object.entries(currentIntervals).map(([key, val]) => (
+                          <div key={key}>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{key} (Dias)</label>
+                              <input type="number" value={val} onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-center font-bold outline-none focus:border-purple-500" />
+                          </div>
+                      ))}
+                  </div>
+              </div>
+
+            </div>
+
+            <div className="p-6 border-t border-slate-800 bg-slate-900 flex justify-end gap-3">
+              <button onClick={() => !isSaving && setIsConfigOpen(false)} disabled={isSaving} className="px-4 py-2 text-slate-400 hover:text-white font-medium transition-colors">Cancelar</button>
+              <button onClick={handleSaveConfig} disabled={isSaving} className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-900/20 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                  {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Settings2 size={18} />}
+                  {isSaving ? "Salvando..." : "Salvar Alterações"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

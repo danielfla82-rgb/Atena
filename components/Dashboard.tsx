@@ -10,7 +10,7 @@ import {
   Target, Settings, TrendingUp, TrendingDown, Minus,
   PieChart as PieChartIcon, Activity, Siren, ArrowRight, CheckCircle2,
   Check, XCircle, Quote, ChevronDown, BarChart2,
-  RefreshCw, BrainCircuit, Crosshair, Scroll, Crown, Zap, Save, X, FileText, CalendarClock, AlertCircle, Edit2, Calendar, Key, ShieldCheck, Sparkles, Bot, AlertTriangle, Database, Terminal, Flame
+  RefreshCw, BrainCircuit, Crosshair, Scroll, Crown, Zap, Save, X, FileText, CalendarClock, AlertCircle, Edit2, Calendar, Key, ShieldCheck, Sparkles, Bot, AlertTriangle, Database, Terminal, Flame, Loader2, Settings2
 } from 'lucide-react';
 
 import {
@@ -190,6 +190,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
   const [aiSuggestion, setAiSuggestion] = useState<{ id: string, title: string, reason: string, strategy: string } | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showSql, setShowSql] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Carregar API Key do LocalStorage ao abrir
   useEffect(() => {
@@ -199,20 +200,26 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       }
   }, [isConfigOpen]);
 
-  const handleSaveConfig = (e: React.FormEvent | React.MouseEvent) => {
+  const handleSaveConfig = async (e: React.FormEvent | React.MouseEvent) => {
       e.preventDefault();
-      updateConfig(localConfig);
-      
-      // Salvar API Key
-      if (apiKey.trim()) {
-          localStorage.setItem('atena_api_key', apiKey.trim());
-      } else {
-          localStorage.removeItem('atena_api_key');
+      setIsSaving(true);
+      try {
+        await updateConfig(localConfig);
+        
+        // Salvar API Key
+        if (apiKey.trim()) {
+            localStorage.setItem('atena_api_key', apiKey.trim());
+        } else {
+            localStorage.removeItem('atena_api_key');
+        }
+        
+        setIsConfigOpen(false);
+        // Forçar reload suave para atualizar o cliente de IA
+        window.location.reload(); 
+      } catch (error) {
+        console.error(error);
+        setIsSaving(false);
       }
-      
-      setIsConfigOpen(false);
-      // Forçar reload suave para atualizar o cliente de IA
-      window.location.reload(); 
   };
 
   const handleUpdateAlgoInterval = (key: string, value: number) => {
@@ -243,8 +250,9 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
   const today = getLocalDateString(new Date())!;
   
   const nietzscheItem = useMemo(() => {
-      const dayOfYear = Math.floor((new Date().getTime() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 1000 / 60 / 60 / 24);
-      return NIETZSCHE_DATA[dayOfYear % NIETZSCHE_DATA.length];
+      // Changed from dayOfYear to Random to change on every login/refresh
+      const randomIndex = Math.floor(Math.random() * NIETZSCHE_DATA.length);
+      return NIETZSCHE_DATA[randomIndex];
   }, []);
 
   // --- REFACTORED METRICS & STREAK LOGIC ---
@@ -822,7 +830,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900">
               <h2 className="text-xl font-bold text-white flex items-center gap-2"><Settings size={20} className="text-emerald-500"/> Configurações do Ciclo</h2>
-              <button onClick={() => setIsConfigOpen(false)} className="text-slate-400 hover:text-white"><X size={24} /></button>
+              <button onClick={() => !isSaving && setIsConfigOpen(false)} disabled={isSaving} className="text-slate-400 hover:text-white"><X size={24} /></button>
             </div>
             
             <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-8">
@@ -888,7 +896,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                           />
                       </div>
                       <p className="text-[10px] text-slate-500 mt-2 flex items-center gap-1">
-                          <ShieldCheck size={12} /> Salvo apenas no seu navegador (LocalStorage). Necessário para Nietzsche, Diagnóstico e Notícias.
+                          <CheckCircle2 size={12} /> Salvo apenas no seu navegador (LocalStorage). Necessário para Nietzsche, Diagnóstico e Notícias.
                       </p>
                   </div>
               </div>
@@ -912,9 +920,10 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
             </div>
 
             <div className="p-6 border-t border-slate-800 bg-slate-900 flex justify-end gap-3">
-              <button onClick={() => setIsConfigOpen(false)} className="px-4 py-2 text-slate-400 hover:text-white font-medium transition-colors">Cancelar</button>
-              <button onClick={handleSaveConfig} className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-900/20 transition-all flex items-center gap-2">
-                  <Save size={18} /> Salvar Alterações
+              <button onClick={() => !isSaving && setIsConfigOpen(false)} disabled={isSaving} className="px-4 py-2 text-slate-400 hover:text-white font-medium transition-colors">Cancelar</button>
+              <button onClick={handleSaveConfig} className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-900/20 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                  {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Settings2 size={18} />}
+                  {isSaving ? "Salvando..." : "Salvar Alterações"}
               </button>
             </div>
           </div>
