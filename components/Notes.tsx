@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store';
 import { Note } from '../types';
-import { Plus, Trash2, StickyNote, Palette, Calendar, Layout, List, CalendarDays, CheckCircle2 } from 'lucide-react';
+import { Plus, Trash2, StickyNote, Palette, Calendar, Layout, List, CalendarDays, CheckCircle2, Maximize2, Minimize2 } from 'lucide-react';
 
 const COLORS = {
     yellow: 'bg-yellow-200 text-yellow-900 border-yellow-300 placeholder-yellow-900/50',
@@ -24,6 +24,7 @@ const COLOR_MAP = {
 const StickyNoteItem: React.FC<{ note: Note }> = ({ note }) => {
     const { updateNote, deleteNote } = useStore();
     const [content, setContent] = useState(note.content);
+    const [isExpanded, setIsExpanded] = useState(false);
     
     // Track the latest content for unmount save
     const contentRef = useRef(content);
@@ -51,16 +52,23 @@ const StickyNoteItem: React.FC<{ note: Note }> = ({ note }) => {
     };
 
     return (
-        <div className={`min-h-[250px] w-full rounded-xl p-4 shadow-lg transition-all hover:scale-[1.02] flex flex-col group relative border-2 ${COLORS[note.color] || COLORS.yellow}`}>
+        <div className={`min-h-[250px] w-full rounded-xl p-4 shadow-lg transition-all flex flex-col group relative border-2 ${COLORS[note.color] || COLORS.yellow} ${isExpanded ? 'col-span-2 md:col-span-2' : ''}`}>
             <textarea 
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 onBlur={handleBlur}
                 placeholder="Digite sua anotação..."
-                className="w-full h-full bg-transparent border-none resize-none outline-none text-sm font-medium leading-relaxed custom-scrollbar flex-1"
+                className="w-full h-full bg-transparent border-none resize-y outline-none text-sm font-medium leading-relaxed custom-scrollbar flex-1"
             />
             
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                <button 
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    className="p-1.5 bg-black/10 rounded-full hover:bg-black/20 text-current transition-colors"
+                    title={isExpanded ? "Contrair" : "Expandir"}
+                >
+                    {isExpanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                </button>
                 <div className="group/palette relative">
                     <button className="p-1.5 bg-black/10 rounded-full hover:bg-black/20 text-current transition-colors">
                         <Palette size={14} />

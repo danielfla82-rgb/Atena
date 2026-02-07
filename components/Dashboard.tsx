@@ -86,6 +86,28 @@ const chartOptions = {
     },
 };
 
+// Plugin Customizado para desenhar valores nas barras
+const textOnBarsPlugin = {
+  id: 'textOnBars',
+  afterDatasetsDraw(chart: any) {
+    const { ctx } = chart;
+    chart.data.datasets.forEach((dataset: any, i: number) => {
+      const meta = chart.getDatasetMeta(i);
+      meta.data.forEach((bar: any, index: number) => {
+        const value = dataset.data[index];
+        if (value > 5) { // Só desenha se a barra for visível o suficiente
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 12px Inter';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            // Desenha um pouco abaixo do topo da barra (dentro dela)
+            ctx.fillText(value + '%', bar.x, bar.y + 20); 
+        }
+      });
+    });
+  }
+};
+
 const barChartOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -729,11 +751,21 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                               datasets: [{
                                   label: 'Acurácia (%)',
                                   data: metrics.disciplineStats.map(d => d.accuracy),
-                                  backgroundColor: '#10b981',
+                                  // Logica condicional de cor
+                                  backgroundColor: metrics.disciplineStats.map(d => d.accuracy < 70 ? '#ef4444' : '#10b981'),
                                   borderRadius: 4
                               }]
                           }} 
-                          options={barChartOptions} 
+                          options={{
+                              ...barChartOptions,
+                              plugins: {
+                                  ...barChartOptions.plugins,
+                                  // @ts-ignore
+                                  textOnBars: true // Enable custom plugin logic if needed, but we registered globally
+                              }
+                          }}
+                          // Register local plugin instance
+                          plugins={[textOnBarsPlugin]}
                       />
                   </div>
               )}
@@ -770,7 +802,8 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                                   borderRadius: 4
                               }]
                           }} 
-                          options={barChartOptions} 
+                          options={barChartOptions}
+                          plugins={[textOnBarsPlugin]} 
                       />
                   </div>
               )}
@@ -830,6 +863,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           </div>
       </div>
 
+      {/* ... (The rest of Dashboard component remains unchanged) ... */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {finalRecommendation && finalRecommendation.notebook && (
             <div className={`w-full p-1 rounded-2xl bg-gradient-to-r p-[1px] transition-all duration-500 ${finalRecommendation.isAi ? 'from-purple-500 via-indigo-500 to-emerald-500 shadow-[0_0_20px_rgba(139,92,246,0.3)]' : 'from-transparent via-slate-700 to-transparent'}`}>
@@ -947,7 +981,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       {isConfigOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            {/* ... Modal content ... */}
+            {/* ... (Config modal content remains identical) ... */}
             <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900">
               <h2 className="text-xl font-bold text-white flex items-center gap-2"><Settings size={20} className="text-emerald-500"/> Configurações do Ciclo</h2>
               <button onClick={() => !isSaving && setIsConfigOpen(false)} disabled={isSaving} className="text-slate-400 hover:text-white"><X size={24} /></button>
