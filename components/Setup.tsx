@@ -12,7 +12,6 @@ const PACE_SETTINGS: Record<string, { hours: number, blocks: number }> = {
     'Avançado': { hours: 44, blocks: 66 }
 };
 
-// ... (DraggableCard and CycleCalculator components remain unchanged) ...
 // MEMOIZED COMPONENT TO PREVENT RE-RENDERS ON DRAG/SEARCH
 const DraggableCard = React.memo(({ 
     notebook, 
@@ -1290,6 +1289,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
           </div>
         </div>
       )}
+      </main>
     </div>
   );
 };
