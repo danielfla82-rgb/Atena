@@ -10,7 +10,7 @@ import {
   Target, Settings, TrendingUp, TrendingDown, Minus,
   PieChart as PieChartIcon, Activity, Siren, ArrowRight, CheckCircle2,
   Check, XCircle, Quote, ChevronDown, BarChart2,
-  RefreshCw, BrainCircuit, Crosshair, Scroll, Crown, Zap, Save, X, FileText, CalendarClock, AlertCircle, Edit2, Calendar, Key, ShieldCheck, Sparkles, Bot, AlertTriangle, Database, Terminal, Flame, Loader2, Settings2
+  RefreshCw, BrainCircuit, Crosshair, Scroll, Crown, Zap, Save, X, FileText, CalendarClock, AlertCircle, Edit2, Calendar, Key, ShieldCheck, Sparkles, Bot, AlertTriangle, Database, Terminal, Flame, Loader2, Settings2, HelpCircle
 } from 'lucide-react';
 
 import {
@@ -28,6 +28,7 @@ import {
 } from 'chart.js';
 import { Radar, Line } from 'react-chartjs-2';
 
+// ... (ChartJS setup remains same)
 ChartJS.register(
   RadialLinearScale,
   CategoryScale,
@@ -83,6 +84,13 @@ const chartOptions = {
         mode: 'index' as const,
         intersect: false,
     },
+};
+
+const ALGO_TOOLTIPS: Record<string, { title: string, desc: string }> = {
+    learning: { title: "Aprendizado (< 60%)", desc: "Fase de aquisição ou reconstrução. O sistema entende que você ainda não aprendeu. Intervalo curto para evitar perda." },
+    reviewing: { title: "Revisão (60% - 79%)", desc: "Fase de fixação. Você entende o assunto, mas comete erros ou tem lacunas. Intervalo médio-curto." },
+    mastering: { title: "Domínio (80% - 89%)", desc: "Fase de polimento. O conteúdo está sólido, quase excelente. Intervalo médio." },
+    maintaining: { title: "Manutenção (> 90%)", desc: "Você dominou o tópico. O objetivo é apenas combater a Curva do Esquecimento. Intervalo longo." }
 };
 
 const DashboardSection = ({ 
@@ -181,6 +189,7 @@ interface Props {
 }
 
 export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
+// ... (Component logic remains identical until render)
   const { notebooks, config, updateConfig, setFocusedNotebookId, cycles, activeCycleId, startSession, dbError } = useStore();
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [localConfig, setLocalConfig] = useState(config);
@@ -630,6 +639,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           </div>
       )}
 
+      {/* ... (Metrics Grid) ... */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-slate-50 text-slate-900 rounded-xl p-5 shadow-lg border border-slate-200 flex flex-col justify-between h-32">
               <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Desempenho</span>
@@ -916,7 +926,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                   </div>
               </div>
 
-              {/* SECTION: ALGORITHM TUNING */}
+              {/* SECTION: ALGORITHM TUNING - WITH TOOLTIPS */}
               <div className="space-y-4 pt-4 border-t border-slate-800">
                   <h3 className="text-sm font-bold text-purple-500 uppercase tracking-widest border-b border-purple-500/20 pb-2 flex items-center gap-2">
                       <BrainCircuit size={16} /> Ajuste Fino do Algoritmo
@@ -924,9 +934,26 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                   
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {Object.entries(currentIntervals).map(([key, val]) => (
-                          <div key={key}>
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{key} (Dias)</label>
-                              <input type="number" value={val} onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-center font-bold outline-none focus:border-purple-500" />
+                          <div key={key} className="group relative">
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-help flex items-center gap-1">
+                                  {ALGO_TOOLTIPS[key]?.title || key} 
+                                  <HelpCircle size={10} className="text-slate-600"/>
+                              </label>
+                              <input 
+                                type="number" 
+                                value={val} 
+                                onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} 
+                                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-center font-bold outline-none focus:border-purple-500" 
+                              />
+                              
+                              {/* TOOLTIP ON HOVER */}
+                              {ALGO_TOOLTIPS[key] && (
+                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-slate-800 border border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                      <strong className="block text-emerald-400 mb-1">{ALGO_TOOLTIPS[key].title}</strong>
+                                      <span className="text-slate-300 leading-tight block">{ALGO_TOOLTIPS[key].desc}</span>
+                                      <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800"></div>
+                                  </div>
+                              )}
                           </div>
                       ))}
                   </div>

@@ -4,8 +4,7 @@ import { Notebook, NotebookStatus, Weight } from '../types';
 import { DEFAULT_ALGO_CONFIG } from '../utils/algorithm';
 import { 
     CalendarCheck, AlertCircle, Clock, CalendarCheck2, 
-    Edit2, Search, ArrowRight, Calendar, Filter, ChevronDown, ChevronRight, CheckCircle2,
-    Zap, Gauge
+    Edit2, Search, ArrowRight, Calendar, Filter, ChevronDown, ChevronRight, CheckCircle2
 } from 'lucide-react';
 
 interface Props {
@@ -15,7 +14,7 @@ interface Props {
 type FilterType = 'all' | 'critical' | 'today' | 'future';
 
 export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
-  const { notebooks, setFocusedNotebookId, config, updateConfig } = useStore();
+  const { notebooks, setFocusedNotebookId, config } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   
@@ -32,29 +31,6 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
 
   const toggleSection = (section: 'critical' | 'today' | 'future') => {
       setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
-  };
-
-  // --- ALGORITHM ACCELERATION LOGIC ---
-  const currentReviewInterval = config.algorithm?.baseIntervals?.reviewing || DEFAULT_ALGO_CONFIG.baseIntervals.reviewing;
-  const defaultReviewInterval = DEFAULT_ALGO_CONFIG.baseIntervals.reviewing;
-  
-  // Determine current factor based on "reviewing" interval comparison (approximate)
-  const currentFactor = Math.round(currentReviewInterval / defaultReviewInterval);
-
-  const applyAcceleration = (factor: number) => {
-      const base = DEFAULT_ALGO_CONFIG.baseIntervals;
-      
-      const newAlgoConfig = {
-          ...config.algorithm, // Keep multipliers
-          baseIntervals: {
-              learning: Math.ceil(base.learning * factor),
-              reviewing: Math.ceil(base.reviewing * factor),
-              mastering: Math.ceil(base.mastering * factor),
-              maintaining: Math.ceil(base.maintaining * factor)
-          }
-      };
-
-      updateConfig({ ...config, algorithm: newAlgoConfig });
   };
 
   // Derived Data
@@ -229,42 +205,6 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
                 </button>
             )}
         </div>
-      </div>
-
-      {/* --- ACCELERATED MODE CONTROLS --- */}
-      <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 flex-shrink-0">
-          <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-900/20 rounded-lg text-purple-400">
-                  <Gauge size={20} />
-              </div>
-              <div>
-                  <h3 className="text-sm font-bold text-white">Modo Acelerado (Espaçamento)</h3>
-                  <p className="text-xs text-slate-400">Multiplica o intervalo entre revisões.</p>
-              </div>
-          </div>
-          
-          <div className="flex items-center gap-2 bg-slate-950 p-1 rounded-lg border border-slate-800">
-              {[
-                  { factor: 1, label: 'Normal' },
-                  { factor: 2, label: 'Turbo 2.0' },
-                  { factor: 3, label: 'Turbo 3.0' },
-                  { factor: 4, label: 'Max 4.0' }
-              ].map(mode => (
-                  <button
-                      key={mode.factor}
-                      onClick={() => applyAcceleration(mode.factor)}
-                      className={`
-                          px-4 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1
-                          ${currentFactor === mode.factor 
-                              ? 'bg-purple-600 text-white shadow-lg shadow-purple-900/50' 
-                              : 'text-slate-400 hover:text-white hover:bg-slate-800'}
-                      `}
-                  >
-                      {currentFactor === mode.factor && mode.factor > 1 && <Zap size={10} className="fill-white" />}
-                      {mode.label}
-                  </button>
-              ))}
-          </div>
       </div>
 
       {/* Stats Cards (Interactive) */}

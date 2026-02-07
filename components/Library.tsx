@@ -8,10 +8,11 @@ import {
     BookOpen, Layers, CheckCircle2, LayoutGrid, Clock, AlertTriangle, Star, 
     History, Sparkles, X, Save, Maximize2, Thermometer,
     Pencil, Link as LinkIcon, XCircle, ZoomIn, ChevronLeft, Calendar, Loader2, TrendingUp, Info, Scale, FileCode, Flag, List, Book, Brain, BrainCircuit, AlertCircle, PlayCircle,
-    Zap, Gauge
+    Zap, Gauge, HelpCircle
 } from 'lucide-react';
 
 export const Library: React.FC = () => {
+  // ... (Component logic and state remain identical)
   const { 
     notebooks, 
     cycles,
@@ -84,6 +85,13 @@ export const Library: React.FC = () => {
       reviewing: 'Revisão (Fase 2)',
       mastering: 'Domínio (Fase 3)',
       maintaining: 'Manutenção (Fase 4)'
+  };
+
+  const ALGO_TOOLTIPS: Record<string, { title: string, desc: string }> = {
+    learning: { title: "Aprendizado (< 60%)", desc: "Fase de aquisição ou reconstrução. O sistema entende que você ainda não aprendeu. Intervalo curto para evitar perda." },
+    reviewing: { title: "Revisão (60% - 79%)", desc: "Fase de fixação. Você entende o assunto, mas comete erros ou tem lacunas. Intervalo médio-curto." },
+    mastering: { title: "Domínio (80% - 89%)", desc: "Fase de polimento. O conteúdo está sólido, quase excelente. Intervalo médio." },
+    maintaining: { title: "Manutenção (> 90%)", desc: "Você dominou o tópico. O objetivo é apenas combater a Curva do Esquecimento. Intervalo longo." }
   };
 
   // Helper to check if notebook is scheduled in active cycle
@@ -180,6 +188,7 @@ export const Library: React.FC = () => {
       return { date: nextDate, label: weekLabel, isNotStarted: false };
   }, [formData.accuracy, formData.relevance, formData.trend, formData.nextReview, config.algorithm, isModalOpen, config.startDate, formData.status]);
 
+  // ... (Stats and Grouped Data logic remains same)
   const stats = useMemo(() => {
       const validNotebooks = notebooks.filter(n => n.discipline !== 'Revisão Geral');
       const total = validNotebooks.length;
@@ -423,6 +432,7 @@ export const Library: React.FC = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 pb-20 relative h-full flex flex-col">
+      {/* ... (Lightbox and Delete Modal remain same) */}
       {lightboxIndex !== null && (
           <div className="fixed inset-0 z-[60] bg-slate-950/95 flex items-center justify-center p-4 backdrop-blur-sm">
              <button onClick={() => setLightboxIndex(null)} className="absolute top-4 right-4 text-white hover:text-emerald-500 z-50"><X size={32} /></button>
@@ -791,9 +801,10 @@ export const Library: React.FC = () => {
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {Object.entries(config.algorithm?.baseIntervals || DEFAULT_ALGO_CONFIG.baseIntervals).map(([key, val]) => (
-                          <div key={key}>
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
-                                  {INTERVAL_LABELS[key] || key} (Dias)
+                          <div key={key} className="group relative">
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-help flex items-center gap-1">
+                                  {INTERVAL_LABELS[key] || key}
+                                  <HelpCircle size={10} className="text-slate-600"/>
                               </label>
                               <input 
                                   type="number" 
@@ -801,6 +812,15 @@ export const Library: React.FC = () => {
                                   onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} 
                                   className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-center font-bold outline-none focus:border-purple-500" 
                               />
+                              
+                              {/* TOOLTIP ON HOVER */}
+                              {ALGO_TOOLTIPS[key] && (
+                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-slate-800 border border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                      <strong className="block text-emerald-400 mb-1">{ALGO_TOOLTIPS[key].title}</strong>
+                                      <span className="text-slate-300 leading-tight block">{ALGO_TOOLTIPS[key].desc}</span>
+                                      <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800"></div>
+                                  </div>
+                              )}
                           </div>
                       ))}
                   </div>

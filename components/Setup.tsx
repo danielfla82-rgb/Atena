@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, NotebookStatus, ScheduleItem } from '../types';
-import { Plus, Search, Pencil, BarChart3, Calendar, Lock, ChevronDown, Layout, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, Flag, Inbox, Scale, Download, PanelLeftClose, PanelLeftOpen, Archive, Minus, Meh, Frown, Smile, History, ChevronRight, Maximize2, Activity, ChevronUp, Layers, CheckCircle2, Loader2, X, FileText, Key, BrainCircuit } from 'lucide-react';
-import { getStatusColor } from '../utils/algorithm';
+import { Plus, Search, Pencil, BarChart3, Calendar, Lock, ChevronDown, Layout, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, Flag, Inbox, Scale, Download, PanelLeftClose, PanelLeftOpen, Archive, Minus, Meh, Frown, Smile, History, ChevronRight, Maximize2, Activity, ChevronUp, Layers, CheckCircle2, Loader2, X, FileText, Key, BrainCircuit, HelpCircle } from 'lucide-react';
+import { getStatusColor, DEFAULT_ALGO_CONFIG } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 
 const PACE_SETTINGS: Record<string, { hours: number, blocks: number }> = {
@@ -10,6 +10,13 @@ const PACE_SETTINGS: Record<string, { hours: number, blocks: number }> = {
     'Básico': { hours: 20, blocks: 30 },
     'Intermediário': { hours: 30, blocks: 45 },
     'Avançado': { hours: 44, blocks: 66 }
+};
+
+const ALGO_TOOLTIPS: Record<string, { title: string, desc: string }> = {
+    learning: { title: "Aprendizado (< 60%)", desc: "Fase de aquisição ou reconstrução. O sistema entende que você ainda não aprendeu. Intervalo curto para evitar perda." },
+    reviewing: { title: "Revisão (60% - 79%)", desc: "Fase de fixação. Você entende o assunto, mas comete erros ou tem lacunas. Intervalo médio-curto." },
+    mastering: { title: "Domínio (80% - 89%)", desc: "Fase de polimento. O conteúdo está sólido, quase excelente. Intervalo médio." },
+    maintaining: { title: "Manutenção (> 90%)", desc: "Você dominou o tópico. O objetivo é apenas combater a Curva do Esquecimento. Intervalo longo." }
 };
 
 // MEMOIZED COMPONENT TO PREVENT RE-RENDERS ON DRAG/SEARCH
@@ -22,7 +29,7 @@ const DraggableCard = React.memo(({
     origin, 
     isCompact, 
     disabled, 
-    onToggleComplete,
+    onToggleComplete, 
     onRemove, 
     allocationCount,
     isCompleted,
@@ -194,7 +201,7 @@ const DraggableCard = React.memo(({
 const normalizeStr = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
 const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: number } }) => {
-    // ... (CycleCalculator implementation remains identical to previous) ...
+// ... (CycleCalculator implementation remains identical until render)
     const { notebooks, config, updateConfig } = useStore();
     const [newDiscName, setNewDiscName] = useState('');
     
@@ -424,7 +431,7 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
 };
 
 interface Props {
-    onNavigate?: (view: string) => void;
+  onNavigate: (view: string) => void;
 }
 
 export const Setup: React.FC<Props> = ({ onNavigate }) => {
@@ -497,8 +504,8 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
       const safeValue = isNaN(value) ? 0 : value;
 
       // Create deep copy to update local state safely
-      const currentIntervals = localConfig.algorithm?.baseIntervals || { learning: 1, reviewing: 3, mastering: 7, maintaining: 15 };
-      const currentMultipliers = localConfig.algorithm?.multipliers || { relevanceHigh: 0.9, relevanceExtreme: 0.7, trendHigh: 0.9 };
+      const currentIntervals = localConfig.algorithm?.baseIntervals || DEFAULT_ALGO_CONFIG.baseIntervals;
+      const currentMultipliers = localConfig.algorithm?.multipliers || DEFAULT_ALGO_CONFIG.multipliers;
       
       const newAlgorithm = {
           baseIntervals: { ...currentIntervals, [key]: safeValue },
@@ -511,7 +518,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
       });
   };
 
-  // ... (Rest of component) ...
+  // ... (Rest of component logic until render return)
   // ... (Existing useMemo hooks for pendingCount, allocationData, etc.) ...
   const pendingCount = useMemo(() => {
       if (!activeCycleId) return notebooks.filter(n => n.discipline !== 'Revisão Geral' && !n.weekId).length;
@@ -696,13 +703,14 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
   }, [removeSlotFromWeek]);
 
   // Safe Check for Algorithm Intervals
-  const currentIntervals = localConfig.algorithm?.baseIntervals || { learning: 1, reviewing: 3, mastering: 7, maintaining: 15 };
+  const currentIntervals = localConfig.algorithm?.baseIntervals || DEFAULT_ALGO_CONFIG.baseIntervals;
 
   return (
     <div className="flex flex-row h-full w-full overflow-hidden relative">
       
       {/* Sidebar */}
       <aside className={`flex-shrink-0 border-r border-slate-800 bg-slate-900/95 flex flex-col z-40 transition-all duration-300 ease-in-out h-full ${isSidebarCollapsed ? 'w-14' : 'absolute md:relative w-80 shadow-2xl md:shadow-none'}`}>
+          {/* ... (Sidebar content remains same) ... */}
           <div className={`p-4 border-b border-slate-800 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
             {!isSidebarCollapsed && (
                 <div className="flex items-center gap-2">
@@ -792,6 +800,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
 
       {/* Main Area */}
       <main className="flex-1 flex flex-col min-w-0 bg-slate-950 relative">
+         {/* ... (Header and Timeline/Calculator content remains identical) ... */}
          <header className="flex flex-col lg:flex-row items-center justify-between gap-4 px-6 py-4 border-b border-slate-800 bg-slate-900/90 backdrop-blur-xl sticky top-0 z-30 shadow-lg">
             <div className="flex items-center gap-6 w-full lg:w-auto lg:flex-1">
                  {/* ... Date/Exam Stats ... */}
@@ -1256,7 +1265,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                   </div>
               </div>
 
-              {/* SECTION: ALGORITHM TUNING */}
+              {/* SECTION: ALGORITHM TUNING - WITH TOOLTIPS */}
               <div className="space-y-4 pt-4 border-t border-slate-800">
                   <h3 className="text-sm font-bold text-purple-500 uppercase tracking-widest border-b border-purple-500/20 pb-2 flex items-center gap-2">
                       <BrainCircuit size={16} /> Ajuste Fino do Algoritmo
@@ -1264,14 +1273,26 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                   
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {Object.entries(currentIntervals).map(([key, val]) => (
-                          <div key={key}>
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{key} (Dias)</label>
+                          <div key={key} className="group relative">
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-help flex items-center gap-1">
+                                  {ALGO_TOOLTIPS[key]?.title || key} 
+                                  <HelpCircle size={10} className="text-slate-600"/>
+                              </label>
                               <input 
                                 type="number" 
                                 value={val} 
                                 onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} 
                                 className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-center font-bold outline-none focus:border-purple-500" 
                               />
+                              
+                              {/* TOOLTIP ON HOVER */}
+                              {ALGO_TOOLTIPS[key] && (
+                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-slate-800 border border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                      <strong className="block text-emerald-400 mb-1">{ALGO_TOOLTIPS[key].title}</strong>
+                                      <span className="text-slate-300 leading-tight block">{ALGO_TOOLTIPS[key].desc}</span>
+                                      <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800"></div>
+                                  </div>
+                              )}
                           </div>
                       ))}
                   </div>
