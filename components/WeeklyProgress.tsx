@@ -36,12 +36,11 @@ export const WeeklyProgress: React.FC = () => {
         // Days remaining in week (assuming 7 day cycles starting from start date)
         // Day of cycle 0-6
         const dayOfCycle = diffDays < 0 ? 0 : diffDays % 7;
-        const daysLeft = 7 - dayOfCycle;
+        const daysLeft = Math.max(1, 7 - dayOfCycle); // Never zero to avoid division issues
 
         // Calculate Pace
         const remaining = Math.max(0, total - completed);
-        // Use max(daysLeft, 1) to avoid division by zero on last day
-        const dailyPace = daysLeft > 0 ? Math.ceil(remaining / Math.max(1, daysLeft)) : remaining;
+        const dailyPace = Math.ceil(remaining / daysLeft);
 
         return { weekIndex, total, completed, percent, daysLeft, hasSchedule: total > 0, dailyPace };
     }, [activeCycleId, cycles, config.startDate]);
@@ -111,12 +110,12 @@ export const WeeklyProgress: React.FC = () => {
                     </span>
                 ) : (
                     <div className="flex flex-col items-end">
-                        <span className="text-slate-400">
+                        <span className="text-slate-400 mb-1">
                             Faltam <strong>{stats.total - stats.completed}</strong>
                         </span>
                         {stats.dailyPace > 0 && (
-                            <span className="text-[10px] text-emerald-400 font-bold bg-emerald-900/20 px-1.5 rounded mt-0.5 border border-emerald-500/20">
-                                Meta Diária: {stats.dailyPace}
+                            <span className="text-[10px] text-white font-bold bg-emerald-600 px-2 py-0.5 rounded shadow-sm flex items-center gap-1">
+                                {stats.daysLeft === 1 ? "Meta Hoje:" : "Meta Diária:"} {stats.dailyPace}
                             </span>
                         )}
                     </div>

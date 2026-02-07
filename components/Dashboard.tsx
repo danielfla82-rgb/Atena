@@ -191,6 +191,9 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showSql, setShowSql] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Quote State
+  const [quoteIndex, setQuoteIndex] = useState(0);
 
   // Carregar API Key do LocalStorage ao abrir
   useEffect(() => {
@@ -249,11 +252,23 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
 
   const today = getLocalDateString(new Date())!;
   
-  const nietzscheItem = useMemo(() => {
-      // Changed from dayOfYear to Random to change on every login/refresh
-      const randomIndex = Math.floor(Math.random() * NIETZSCHE_DATA.length);
-      return NIETZSCHE_DATA[randomIndex];
-  }, []);
+  // ORÁCULO DE ELITE: Lógica de rotação forçada
+  useEffect(() => {
+      const lastIndex = parseInt(localStorage.getItem('atena_last_quote_index') || '-1');
+      let newIndex = Math.floor(Math.random() * NIETZSCHE_DATA.length);
+      
+      // Garante que não repete a mesma frase consecutivamente se houver mais de uma opção
+      if (NIETZSCHE_DATA.length > 1) {
+          while (newIndex === lastIndex) {
+              newIndex = Math.floor(Math.random() * NIETZSCHE_DATA.length);
+          }
+      }
+      
+      localStorage.setItem('atena_last_quote_index', newIndex.toString());
+      setQuoteIndex(newIndex);
+  }, []); // Executa apenas no mount (login/refresh)
+
+  const nietzscheItem = NIETZSCHE_DATA[quoteIndex] || NIETZSCHE_DATA[0];
 
   // --- REFACTORED METRICS & STREAK LOGIC ---
   const metrics = useMemo(() => {
@@ -921,7 +936,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
 
             <div className="p-6 border-t border-slate-800 bg-slate-900 flex justify-end gap-3">
               <button onClick={() => !isSaving && setIsConfigOpen(false)} disabled={isSaving} className="px-4 py-2 text-slate-400 hover:text-white font-medium transition-colors">Cancelar</button>
-              <button onClick={handleSaveConfig} className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-900/20 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+              <button onClick={handleSaveConfig} disabled={isSaving} className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-900/20 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                   {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Settings2 size={18} />}
                   {isSaving ? "Salvando..." : "Salvar Alterações"}
               </button>
