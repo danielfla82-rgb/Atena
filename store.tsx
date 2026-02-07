@@ -593,7 +593,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const previousCycles = [...cycles];
       setCycles(prev => prev.map(c => c.id === activeCycleId ? { ...c, config: newConfig } : c));
       if (!isGuest && user) {
-          try { await supabase.from('cycles').update({ config: newConfig }).eq('id', activeCycleId); } catch (e) { console.error(e); setCycles(previousCycles); }
+          try { 
+              const { error } = await supabase.from('cycles').update({ config: newConfig }).eq('id', activeCycleId); 
+              if (error) throw error;
+          } catch (e) { 
+              console.error("Error updating config:", e); 
+              setCycles(previousCycles); 
+              throw e; // RE-THROW TO UI
+          }
       }
   };
 

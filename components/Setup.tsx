@@ -12,6 +12,7 @@ const PACE_SETTINGS: Record<string, { hours: number, blocks: number }> = {
     'Avançado': { hours: 44, blocks: 66 }
 };
 
+// ... (DraggableCard and CycleCalculator components remain unchanged) ...
 // MEMOIZED COMPONENT TO PREVENT RE-RENDERS ON DRAG/SEARCH
 const DraggableCard = React.memo(({ 
     notebook, 
@@ -459,36 +460,49 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
       }
   }, [isConfigOpen]);
 
-  // FIX: Async save with await to prevent race condition with reload
   const handleSaveConfig = async (e: React.FormEvent | React.MouseEvent) => {
       e.preventDefault();
       setIsSaving(true);
       try {
           await updateConfig(localConfig);
           
+          const oldKey = localStorage.getItem('atena_api_key');
+          let keyChanged = false;
+
           if (apiKey.trim()) {
-              localStorage.setItem('atena_api_key', apiKey.trim());
+              if (apiKey.trim() !== oldKey) {
+                  localStorage.setItem('atena_api_key', apiKey.trim());
+                  keyChanged = true;
+              }
           } else {
-              localStorage.removeItem('atena_api_key');
+              if (oldKey) {
+                  localStorage.removeItem('atena_api_key');
+                  keyChanged = true;
+              }
           }
           
           setIsConfigOpen(false);
-          // Hard reload to refresh all clients and AI config
-          window.location.reload();
+          
+          if (keyChanged) {
+              window.location.reload();
+          }
       } catch (error) {
           console.error("Failed to save configuration:", error);
-          alert("Erro ao salvar. Verifique o console.");
+          alert("Erro ao salvar configurações no servidor. Tente novamente.");
           setIsSaving(false);
       }
   };
 
   const handleUpdateAlgoInterval = (key: string, value: number) => {
+      // Prevent NaN from breaking state
+      const safeValue = isNaN(value) ? 0 : value;
+
       // Create deep copy to update local state safely
       const currentIntervals = localConfig.algorithm?.baseIntervals || { learning: 1, reviewing: 3, mastering: 7, maintaining: 15 };
       const currentMultipliers = localConfig.algorithm?.multipliers || { relevanceHigh: 0.9, relevanceExtreme: 0.7, trendHigh: 0.9 };
       
       const newAlgorithm = {
-          baseIntervals: { ...currentIntervals, [key]: value },
+          baseIntervals: { ...currentIntervals, [key]: safeValue },
           multipliers: currentMultipliers
       };
 
@@ -498,6 +512,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
       });
   };
 
+  // ... (Rest of component) ...
   // ... (Existing useMemo hooks for pendingCount, allocationData, etc.) ...
   const pendingCount = useMemo(() => {
       if (!activeCycleId) return notebooks.filter(n => n.discipline !== 'Revisão Geral' && !n.weekId).length;
@@ -1252,7 +1267,12 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                       {Object.entries(currentIntervals).map(([key, val]) => (
                           <div key={key}>
                               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">{key} (Dias)</label>
-                              <input type="number" value={val} onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-center font-bold outline-none focus:border-purple-500" />
+                              <input 
+                                type="number" 
+                                value={val} 
+                                onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} 
+                                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-center font-bold outline-none focus:border-purple-500" 
+                              />
                           </div>
                       ))}
                   </div>
