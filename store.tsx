@@ -13,7 +13,7 @@ const DEFAULT_CONFIG: AthensConfig = {
     weeksUntilExam: 12,
     studyPace: 'Intermediário',
     algorithm: {
-        baseIntervals: { learning: 1, reviewing: 3, mastering: 7, maintaining: 15 },
+        baseIntervals: { learning: 5, reviewing: 10, mastering: 20, maintaining: 30 },
         multipliers: { relevanceHigh: 0.9, relevanceExtreme: 0.7, trendHigh: 0.9 }
     }
 };

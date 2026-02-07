@@ -8,10 +8,10 @@ import { Relevance, Trend, AlgorithmConfig, Weight, WEIGHT_SCORE } from '../type
 
 export const DEFAULT_ALGO_CONFIG: AlgorithmConfig = {
     baseIntervals: {
-        learning: 1,
-        reviewing: 3,
-        mastering: 7,
-        maintaining: 15
+        learning: 5,    // Anterior: 1
+        reviewing: 10,  // Anterior: 3
+        mastering: 20,  // Anterior: 7
+        maintaining: 30 // Anterior: 15
     },
     multipliers: {
         relevanceExtreme: 0.7,
@@ -192,7 +192,7 @@ export const runAlgorithmUnitTests = () => {
         {
             name: "Cenário 1: Aprendizado (Baixa Acurácia, Relevância Média)",
             input: { acc: 50, rel: Relevance.MEDIA, trend: Trend.ESTAVEL },
-            expectedDays: 1, 
+            expectedDays: 5, 
         },
         // ... (Testes existentes mantidos)
     ];
