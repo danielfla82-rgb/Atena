@@ -1,4 +1,4 @@
-import { Relevance, Trend, AlgorithmConfig, Weight, WEIGHT_SCORE } from '../types';
+import { Relevance, Trend, AlgorithmConfig, Weight, WEIGHT_SCORE, RELEVANCE_SCORE, TREND_SCORE } from '../types';
 
 /**
  * DOCUMENTAÇÃO MATEMÁTICA - ALGORITMO ATENA V2
@@ -91,35 +91,32 @@ export const getStatusColor = (accuracy: number, target: number): string => {
 };
 
 /**
- * V7.6 FEATURE: Score de Prioridade Dinâmica (0-10)
- * Cruza Peso x Tendência x Gap de Meta.
+ * V10.2 FEATURE: Score de Importância Estratégica (0-100)
+ * Baseado puramente na configuração qualitativa do caderno.
+ * Não considera mais a acurácia ou meta (que são métricas de execução).
  */
 export const calculateUrgencyScore = (
     weight: Weight,
-    trend: Trend,
-    accuracy: number,
-    targetAccuracy: number
+    relevance: Relevance,
+    trend: Trend
 ): number => {
-    // 1. Normalizar Peso (1 a 4) -> 0 a 1
-    const wScore = WEIGHT_SCORE[weight]; // 1, 2, 3, 4
-    const normWeight = wScore / 4; 
+    // 1. Peso (45% do Score)
+    // Escala: Baixo(1) a Muito Alto(4)
+    const wScore = WEIGHT_SCORE[weight]; 
+    const partWeight = (wScore / 4) * 45;
 
-    // 2. Normalizar Tendência (1 a 3) -> 0 a 1
-    const tScore = trend === Trend.ALTA ? 3 : trend === Trend.ESTAVEL ? 2 : 1;
-    const normTrend = tScore / 3;
+    // 2. Relevância (40% do Score)
+    // Escala: Baixa(1) a Altíssima(4)
+    const rScore = RELEVANCE_SCORE[relevance];
+    const partRelevance = (rScore / 4) * 40;
 
-    // 3. Calcular Gap de Meta (Quanto falta para a meta)
-    // Se gap < 0 (já bateu a meta), consideramos 0 para urgência, mas mantemos peso de manutenção
-    const gap = Math.max(0, targetAccuracy - accuracy); 
-    const normGap = gap / 100; // 0 a 1
+    // 3. Tendência (15% do Score)
+    // Escala: Baixa(1) a Alta(3)
+    const tScore = TREND_SCORE[trend];
+    const partTrend = (tScore / 3) * 15;
 
-    // 4. Fórmula Ponderada
-    // O Gap é o fator mais crítico (50%), seguido pelo Peso (30%) e Tendência (20%)
-    // Se a acurácia for 0 (nunca estudado), o Gap é alto, gerando alta urgência inicial.
-    const rawScore = (normGap * 0.5) + (normWeight * 0.3) + (normTrend * 0.2);
-    
-    // Escalar para 0-10 e arredondar para 1 casa decimal
-    return Math.round(rawScore * 100) / 10;
+    // Soma total (Máx 100)
+    return Math.round(partWeight + partRelevance + partTrend);
 };
 
 /**

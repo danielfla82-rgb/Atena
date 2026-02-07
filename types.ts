@@ -81,6 +81,8 @@ export interface Notebook {
   relevance: Relevance;
   /** Tendência da banca */
   trend: Trend;
+  /** Score de Prioridade Manual (Override) - 0 a 100 */
+  customScore?: number;
   /** Status atual do progresso */
   status: NotebookStatus;
   /** Data ISO da última bateria de questões */

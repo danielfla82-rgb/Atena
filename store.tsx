@@ -41,6 +41,7 @@ const mapNotebookFromDB = (db: any): Notebook => ({
     weight: db.weight || Weight.MEDIO,
     relevance: db.relevance || Relevance.MEDIA,
     trend: db.trend || Trend.ESTAVEL,
+    customScore: db.custom_score || db.customScore || undefined,
     status: db.status || NotebookStatus.NOT_STARTED,
     weekId: db.week_id || db.weekId || null,
     isWeekCompleted: !!(db.is_week_completed || db.isWeekCompleted),
@@ -71,6 +72,7 @@ const mapNotebookToDB = (nb: Partial<Notebook>) => {
         weight: nb.weight,
         relevance: nb.relevance,
         trend: nb.trend,
+        custom_score: nb.customScore || null,
         status: nb.status,
         week_id: nb.weekId || null,
         is_week_completed: nb.isWeekCompleted,
@@ -169,6 +171,7 @@ const GUEST_SEED_DATA = {
             weight: Weight.MUITO_ALTO,
             relevance: Relevance.ALTISSIMA,
             trend: Trend.ALTA,
+            customScore: 92,
             status: NotebookStatus.REVIEWING,
             accuracyHistory: [
                 { date: new Date(Date.now() - 86400000 * 5).toISOString(), accuracy: 65 },
@@ -188,6 +191,7 @@ const GUEST_SEED_DATA = {
             weight: Weight.ALTO,
             relevance: Relevance.MEDIA,
             trend: Trend.ESTAVEL,
+            customScore: 65,
             status: NotebookStatus.THEORY_DONE,
             accuracyHistory: [
                 { date: new Date(Date.now() - 86400000 * 3).toISOString(), accuracy: 45 }
@@ -337,7 +341,7 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 const OPTIMIZED_COLUMNS = `
   id, discipline, name, subtitle, 
   tec_link, error_notebook_link, favorite_questions_link, law_link, obsidian_link, gemini_link_1, gemini_link_2,
-  accuracy, target_accuracy, weight, relevance, trend, status, 
+  accuracy, target_accuracy, weight, relevance, trend, custom_score, status, 
   week_id, is_week_completed, last_practice, next_review, accuracy_history, notes
 `;
 
@@ -624,7 +628,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           } catch (e: any) { 
               setNotebooks(previousNotebooks); 
               let msg = e.message || JSON.stringify(e);
-              if (e.code === '42703') msg = `Erro de Schema (42703): Coluna inexistente no banco. Provavelmente 'gemini_link_1' ou 'obsidian_link'. Vá em Dashboard > Configurações > Mostrar Script SQL para atualizar.`;
+              if (e.code === '42703') msg = `Erro de Schema (42703): Coluna inexistente no banco. Vá em Dashboard > Configurações > Mostrar Script SQL para atualizar.`;
               if (e.code === '42501') msg = `Erro de Permissão (42501): RLS bloqueou a escrita. Execute o script SQL no Dashboard.`;
               if (e.code === 'PGRST204') msg = `Erro de Cache (PGRST204): Coluna 'week_id' não encontrada. O banco pode estar desatualizado. Execute o script SQL no Dashboard e recarregue.`;
               

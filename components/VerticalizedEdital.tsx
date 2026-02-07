@@ -4,6 +4,7 @@ import { createAIClient } from '../utils/ai';
 import { Type } from "@google/genai";
 import { CheckSquare, Square, AlertCircle, ArrowUpCircle, CheckCircle2, ListChecks, Search, BrainCircuit, Loader2, Sparkles, ChevronDown, ChevronUp, FileWarning, ExternalLink, Plus, BookOpen, X, FileText, Calendar, Target, TrendingUp, Clock, Info, Medal, Layers } from 'lucide-react';
 import { EditalDiscipline, EditalTopic, Weight, Relevance, Trend, ScheduleItem, Notebook } from '../types';
+import { calculateUrgencyScore } from '../utils/algorithm';
 
 interface Props {
     onNavigate: (view: string) => void;
@@ -252,30 +253,23 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
 
       if (!match) return { label: 'Desconhecida', score: 0, color: 'text-slate-500 border-slate-700' };
 
-      const weightMap: Record<Weight, number> = { [Weight.BAIXO]: 1, [Weight.MEDIO]: 2, [Weight.ALTO]: 3, [Weight.MUITO_ALTO]: 4 };
-      const relevanceMap: Record<Relevance, number> = { [Relevance.BAIXA]: 1, [Relevance.MEDIA]: 2, [Relevance.ALTA]: 3, [Relevance.ALTISSIMA]: 4 };
-      const trendMap: Record<Trend, number> = { [Trend.BAIXA]: 1, [Trend.ESTAVEL]: 2, [Trend.ALTA]: 3 };
-
-      const w = weightMap[match.weight];
-      const r = relevanceMap[match.relevance];
-      const t = trendMap[match.trend];
-
-      const rawScore = (w * 0.5) + (r * 0.3) + (t * 0.2);
-      const score = (rawScore / 3.8) * 10;
-      const roundedScore = Math.round(score * 10) / 10;
+      // Use Manual Score if available, otherwise calculate (New Signature: Weight, Relevance, Trend)
+      const score = match.customScore !== null && match.customScore !== undefined
+          ? match.customScore
+          : calculateUrgencyScore(match.weight, match.relevance, match.trend);
 
       let label = 'Baixa';
       let color = 'text-blue-400 bg-blue-900/20 border-blue-500/30';
 
-      if (score >= 7.5) {
+      if (score >= 75) {
           label = 'Alta';
           color = 'text-red-400 bg-red-900/20 border-red-500/30';
-      } else if (score >= 4.5) {
+      } else if (score >= 45) {
           label = 'Média';
           color = 'text-amber-400 bg-amber-900/20 border-amber-500/30';
       }
 
-      return { label, score: roundedScore, color };
+      return { label, score, color };
 
   }, [notebooks, findMatchingNotebook]);
 
@@ -534,7 +528,7 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
                                                               <span className={`text-[10px] uppercase font-bold px-2 py-1 rounded border ${prob.color}`}>
                                                                   {prob.label}
                                                               </span>
-                                                              {prob.score > 0 && <span className="text-[9px] text-slate-600 mt-0.5 font-mono">Score: {prob.score}/10</span>}
+                                                              {prob.score > 0 && <span className="text-[9px] text-slate-600 mt-0.5 font-mono">Score: {prob.score}/100</span>}
                                                           </div>
                                                       </td>
                                                       <td className="p-4 text-center">

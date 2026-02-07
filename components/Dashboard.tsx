@@ -93,6 +93,9 @@ const ALGO_TOOLTIPS: Record<string, { title: string, desc: string }> = {
     maintaining: { title: "Manutenção (> 90%)", desc: "Você dominou o tópico. O objetivo é apenas combater a Curva do Esquecimento. Intervalo longo." }
 };
 
+// ORDEM LÓGICA CORRETA PARA EXIBIÇÃO
+const ORDERED_ALGO_KEYS = ['learning', 'reviewing', 'mastering', 'maintaining'];
+
 const DashboardSection = ({ 
     title, 
     icon, 
@@ -156,6 +159,7 @@ alter table notebooks add column if not exists favorite_questions_link text;
 alter table notebooks add column if not exists law_link text;
 alter table notebooks add column if not exists tec_link text;
 alter table notebooks add column if not exists images text[];
+alter table notebooks add column if not exists custom_score numeric;
 
 -- 2. PERMISSÕES DE ACESSO (RLS)
 alter table notebooks enable row level security;
@@ -639,8 +643,10 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           </div>
       )}
 
-      {/* ... (Metrics Grid) ... */}
+      {/* ... (Rest of dashboard code remains same) ... */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* ... */}
+          {/* (Skipping identical metric grid for brevity) */}
           <div className="bg-slate-50 text-slate-900 rounded-xl p-5 shadow-lg border border-slate-200 flex flex-col justify-between h-32">
               <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Desempenho</span>
               <div className="flex justify-between items-end">
@@ -663,10 +669,8 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           </div>
       </div>
 
-      {/* --- SPLIT ROW: STREAK GRID & WEEKLY PROGRESS --- */}
+      {/* ... (Rest of charts and widgets) ... */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          
-          {/* STREAK GRID (FULL CALENDAR MONTH) */}
           <div className="bg-slate-900 text-slate-300 rounded-xl p-5 border border-slate-800 shadow-lg flex flex-col justify-between">
               <div className="flex justify-between items-start mb-4">
                   <div className="flex items-center gap-3">
@@ -680,14 +684,10 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                           </p>
                       </div>
                   </div>
-                  
-                  {/* Month Label */}
                   <span className="text-[10px] uppercase font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded border border-slate-700 tracking-wider">
                       {metrics.monthName}
                   </span>
               </div>
-
-              {/* Center Grid content */}
               <div className="flex flex-col items-center w-full">
                   <div className="grid grid-cols-7 gap-1.5 mb-2 w-fit">
                       {['D','S','T','Q','Q','S','S'].map((d, i) => (
@@ -717,8 +717,6 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                   </div>
               </div>
           </div>
-
-          {/* WEEKLY PROGRESS */}
           <div className="h-full">
              <WeeklyProgress />
           </div>
@@ -728,8 +726,6 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           {finalRecommendation && finalRecommendation.notebook && (
             <div className={`w-full p-1 rounded-2xl bg-gradient-to-r p-[1px] transition-all duration-500 ${finalRecommendation.isAi ? 'from-purple-500 via-indigo-500 to-emerald-500 shadow-[0_0_20px_rgba(139,92,246,0.3)]' : 'from-transparent via-slate-700 to-transparent'}`}>
                 <div className={`relative w-full rounded-2xl p-6 border flex flex-col gap-4 shadow-2xl overflow-hidden h-full justify-between transition-colors ${finalRecommendation.isAi ? 'bg-slate-900 border-transparent' : (staticRecommendation?.colorClass || 'bg-slate-900 border-slate-800')}`}>
-                    
-                    {/* Header Badge */}
                     <div className="flex justify-between items-start">
                         {finalRecommendation.isAi ? (
                             <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold uppercase tracking-widest animate-pulse">
@@ -740,7 +736,6 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                                 <Activity size={12} /> Sugestão Algorítmica
                             </span>
                         )}
-                        
                         {!finalRecommendation.isAi && (
                             <button 
                                 onClick={handleGenerateAiInsight} 
@@ -752,7 +747,6 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                             </button>
                         )}
                     </div>
-
                     <div className="flex items-start gap-5 relative z-10">
                         <div className={`p-4 rounded-xl border shadow-lg backdrop-blur-md ${finalRecommendation.isAi ? 'bg-indigo-900/20 border-indigo-500/30 text-indigo-400' : 'bg-slate-950/80 border-white/10 text-emerald-500'}`}>
                             {finalRecommendation.isAi ? <Bot size={28} /> : (staticRecommendation?.icon || <Zap size={24} />)}
@@ -771,18 +765,13 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                             )}
                         </div>
                     </div>
-
                     <button onClick={() => { setFocusedNotebookId(finalRecommendation.notebook!.id); onNavigate('library'); }} className={`w-full py-4 font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg ${finalRecommendation.isAi ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white' : 'bg-white text-slate-950 hover:bg-slate-200'}`}>
                         <ArrowRight size={20} /> Abrir no Banco
                     </button>
                 </div>
             </div>
           )}
-
-          {/* PERFORMANCE EVOLUTION CHART (ENHANCED) */}
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col h-full min-h-[340px] shadow-2xl relative overflow-hidden">
-             
-             {/* Trend Alert (Insight) - Overlay */}
              <div className={`absolute top-0 right-0 m-6 px-3 py-2 rounded-lg border backdrop-blur-md z-10 flex items-center gap-3 transition-all duration-500
                  ${evolutionData.trend.status === 'up' ? 'bg-emerald-900/40 border-emerald-500/30 text-emerald-100' : 
                    evolutionData.trend.status === 'down' ? 'bg-red-900/40 border-red-500/30 text-red-100' : 
@@ -806,7 +795,6 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                      </span>
                  </div>
              </div>
-
              <div className="flex justify-between items-end mb-6">
                  <div>
                     <h3 className="text-xl font-bold text-white flex items-center gap-2">
@@ -816,7 +804,6 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                     <p className="text-xs text-slate-400 mt-1">Média de acurácia semanal</p>
                  </div>
              </div>
-             
              <div className="flex-1 w-full relative">
                  <Line data={evolutionData.chartData} options={chartOptions} />
              </div>
@@ -849,23 +836,20 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           </div>
       </DashboardSection>
 
-      {/* ... CONFIGURATION MODAL ... */}
       {isConfigOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            {/* ... Modal content ... */}
             <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900">
               <h2 className="text-xl font-bold text-white flex items-center gap-2"><Settings size={20} className="text-emerald-500"/> Configurações do Ciclo</h2>
               <button onClick={() => !isSaving && setIsConfigOpen(false)} disabled={isSaving} className="text-slate-400 hover:text-white"><X size={24} /></button>
             </div>
-            
             <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-8">
-              
-              {/* SECTION: EDITAL CONFIG */}
+              {/* ... Sections ... */}
               <div className="space-y-4">
                   <h3 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2 flex items-center gap-2">
                       <FileText size={16} /> Configuração do Edital
                   </h3>
-                  
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                           <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Cargo Alvo</label>
@@ -876,7 +860,6 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                           <input type="text" value={localConfig.banca || ''} onChange={(e) => setLocalConfig({...localConfig, banca: e.target.value})} placeholder="Ex: FGV, Cebraspe" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" />
                       </div>
                   </div>
-
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                           <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Data da Prova</label>
@@ -890,7 +873,6 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                           <input type="url" value={localConfig.editalLink || ''} onChange={(e) => setLocalConfig({...localConfig, editalLink: e.target.value})} placeholder="https://..." className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" />
                       </div>
                   </div>
-
                   <div>
                       <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Conteúdo Programático (Texto Completo)</label>
                       <textarea 
@@ -902,13 +884,10 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                       <p className="text-[10px] text-slate-500 mt-1 italic">Este texto é usado pela IA para gerar o Edital Verticalizado e os Diagnósticos.</p>
                   </div>
               </div>
-
-              {/* SECTION: INTEGRATION CONFIG */}
               <div className="space-y-4 pt-4 border-t border-slate-800">
                   <h3 className="text-sm font-bold text-cyan-500 uppercase tracking-widest border-b border-cyan-500/20 pb-2 flex items-center gap-2">
                       <Key size={16} /> Integração IA (Google Gemini)
                   </h3>
-                  
                   <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl">
                       <label className="block text-xs font-bold text-slate-400 mb-2 uppercase">Google Gemini API Key</label>
                       <div className="flex gap-2">
@@ -925,15 +904,14 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                       </p>
                   </div>
               </div>
-
-              {/* SECTION: ALGORITHM TUNING - WITH TOOLTIPS */}
               <div className="space-y-4 pt-4 border-t border-slate-800">
                   <h3 className="text-sm font-bold text-purple-500 uppercase tracking-widest border-b border-purple-500/20 pb-2 flex items-center gap-2">
                       <BrainCircuit size={16} /> Ajuste Fino do Algoritmo
                   </h3>
-                  
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {Object.entries(currentIntervals).map(([key, val]) => (
+                      {ORDERED_ALGO_KEYS.map((key) => {
+                          const val = currentIntervals[key as keyof typeof currentIntervals];
+                          return (
                           <div key={key} className="group relative">
                               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-help flex items-center gap-1">
                                   {ALGO_TOOLTIPS[key]?.title || key} 
@@ -945,8 +923,6 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                                 onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} 
                                 className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-center font-bold outline-none focus:border-purple-500" 
                               />
-                              
-                              {/* TOOLTIP ON HOVER */}
                               {ALGO_TOOLTIPS[key] && (
                                   <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-slate-800 border border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                                       <strong className="block text-emerald-400 mb-1">{ALGO_TOOLTIPS[key].title}</strong>
@@ -955,12 +931,10 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                                   </div>
                               )}
                           </div>
-                      ))}
+                      )})}
                   </div>
               </div>
-
             </div>
-
             <div className="p-6 border-t border-slate-800 bg-slate-900 flex justify-end gap-3">
               <button onClick={() => !isSaving && setIsConfigOpen(false)} disabled={isSaving} className="px-4 py-2 text-slate-400 hover:text-white font-medium transition-colors">Cancelar</button>
               <button onClick={handleSaveConfig} disabled={isSaving} className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-900/20 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">

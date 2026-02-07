@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useStore } from '../store';
 import { supabase } from './supabase';
 import { Notebook, Weight, Relevance, Trend, NotebookStatus, ScheduleItem } from '../types';
-import { calculateNextReview, DEFAULT_ALGO_CONFIG } from '../utils/algorithm';
+import { calculateNextReview, DEFAULT_ALGO_CONFIG, calculateUrgencyScore } from '../utils/algorithm';
 import { 
     Search, Plus, Trash2, Edit2, Square, ChevronRight, ChevronDown, 
     BookOpen, Layers, CheckCircle2, LayoutGrid, Clock, AlertTriangle, Star, 
@@ -10,6 +10,9 @@ import {
     Pencil, Link as LinkIcon, XCircle, ZoomIn, ChevronLeft, Calendar, Loader2, TrendingUp, Info, Scale, FileCode, Flag, List, Book, Brain, BrainCircuit, AlertCircle, PlayCircle,
     Zap, Gauge, HelpCircle
 } from 'lucide-react';
+
+// ORDEM LÓGICA CORRETA PARA EXIBIÇÃO
+const ORDERED_ALGO_KEYS = ['learning', 'reviewing', 'mastering', 'maintaining'];
 
 export const Library: React.FC = () => {
   // ... (Component logic and state remain identical)
@@ -50,7 +53,8 @@ export const Library: React.FC = () => {
     lawLink: '', obsidianLink: '', 
     geminiLink1: '', geminiLink2: '',
     accuracy: 0, targetAccuracy: 90,
-    weight: Weight.MEDIO, relevance: Relevance.MEDIA, trend: Trend.ESTAVEL, 
+    weight: Weight.MEDIO, relevance: Relevance.MEDIA, trend: Trend.ESTAVEL,
+    customScore: '' as string | number, 
     status: NotebookStatus.NOT_STARTED,
     notes: '', images: [] as string[], accuracyHistory: [] as { date: string, accuracy: number }[],
     nextReview: '' as string | undefined | null
@@ -61,10 +65,19 @@ export const Library: React.FC = () => {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // --- SCORE CALCULATION ON EDIT ---
+  const calculatedScore = useMemo(() => {
+      // Calcula Score em Tempo Real baseada na configuração estratégica
+      return calculateUrgencyScore(formData.weight, formData.relevance, formData.trend);
+  }, [formData.weight, formData.relevance, formData.trend]);
+
   // --- ALGORITHM ACCELERATION LOGIC ---
   const currentReviewInterval = config.algorithm?.baseIntervals?.reviewing || DEFAULT_ALGO_CONFIG.baseIntervals.reviewing;
   const defaultReviewInterval = DEFAULT_ALGO_CONFIG.baseIntervals.reviewing;
   const currentFactor = Math.round(currentReviewInterval / defaultReviewInterval);
+
+  // Variable needed for the settings UI inside the modal
+  const currentIntervals = config.algorithm?.baseIntervals || DEFAULT_ALGO_CONFIG.baseIntervals;
 
   const applyAcceleration = (factor: number) => {
       const base = DEFAULT_ALGO_CONFIG.baseIntervals;
@@ -92,6 +105,12 @@ export const Library: React.FC = () => {
     reviewing: { title: "Revisão (60% - 79%)", desc: "Fase de fixação. Você entende o assunto, mas comete erros ou tem lacunas. Intervalo médio-curto." },
     mastering: { title: "Domínio (80% - 89%)", desc: "Fase de polimento. O conteúdo está sólido, quase excelente. Intervalo médio." },
     maintaining: { title: "Manutenção (> 90%)", desc: "Você dominou o tópico. O objetivo é apenas combater a Curva do Esquecimento. Intervalo longo." }
+  };
+
+  const SCORE_TOOLTIPS = {
+      weight: { title: "Peso (45% do Score)", desc: "Impacto no Edital. Muito Alto vale 45pts." },
+      relevance: { title: "Relevância (40% do Score)", desc: "Dificuldade pessoal ou tática. Altíssima vale 40pts." },
+      trend: { title: "Tendência (15% do Score)", desc: "Apostas da banca. Alta vale 15pts." }
   };
 
   // Helper to check if notebook is scheduled in active cycle
@@ -129,6 +148,7 @@ export const Library: React.FC = () => {
           geminiLink1: notebook.geminiLink1 || '', geminiLink2: notebook.geminiLink2 || '',
           accuracy: notebook.accuracy, targetAccuracy: notebook.targetAccuracy, weight: notebook.weight,
           relevance: notebook.relevance, trend: notebook.trend, notes: notebook.notes || '',
+          customScore: notebook.customScore || '', // Load custom score if exists
           status: notebook.status,
           images: currentImages, accuracyHistory: notebook.accuracyHistory || [],
           nextReview: notebook.nextReview || '' 
@@ -136,7 +156,7 @@ export const Library: React.FC = () => {
       setIsModalOpen(true);
   }, [fetchNotebookImages, isGuest]);
 
-  React.useEffect(() => {
+  useEffect(() => {
       if (pendingCreateData) {
           setFormData({ ...initialFormState, ...pendingCreateData });
           setEditingId(null);
@@ -145,7 +165,7 @@ export const Library: React.FC = () => {
       }
   }, [pendingCreateData]);
 
-  React.useEffect(() => {
+  useEffect(() => {
       if (focusedNotebookId) {
           const nb = notebooks.find(n => n.id === focusedNotebookId);
           if (nb) {
@@ -371,6 +391,7 @@ export const Library: React.FC = () => {
             images: processedImages,
             accuracy: Number(formData.accuracy), 
             targetAccuracy: Number(formData.targetAccuracy),
+            customScore: formData.customScore ? Number(formData.customScore) : null,
             nextReview: nextDateStr
         };
         if (editingId) await editNotebook(editingId, payload);
@@ -498,6 +519,7 @@ export const Library: React.FC = () => {
         </div>
       </div>
 
+      {/* STATS */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-2 flex-shrink-0">
           <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden">
               <div className="p-3 bg-slate-800 rounded-lg text-slate-400"><BookOpen size={20} /></div>
@@ -568,7 +590,11 @@ export const Library: React.FC = () => {
                           <div className="border-t border-slate-800 divide-y divide-slate-800/50">
                               {items.map(nb => {
                                   const isScheduled = isScheduledInActiveCycle(nb.id);
-                                  
+                                  // SCORE Display Logic
+                                  const displayScore = nb.customScore !== null && nb.customScore !== undefined 
+                                      ? nb.customScore 
+                                      : calculateUrgencyScore(nb.weight, nb.relevance, nb.trend);
+
                                   return (
                                   <div key={nb.id} className="flex items-center justify-between group hover:bg-slate-800/20">
                                       {/* CONTENT AREA - CLICK TO EDIT */}
@@ -578,6 +604,9 @@ export const Library: React.FC = () => {
                                       >
                                           <div className="flex items-center gap-2 mb-1">
                                               <h4 className="font-bold text-slate-200 text-sm truncate">{nb.name}</h4>
+                                              <span className="text-[9px] bg-slate-800 text-slate-400 border border-slate-700 px-1.5 rounded uppercase font-bold">
+                                                  Score: {displayScore}
+                                              </span>
                                               {nb.weight === Weight.MUITO_ALTO && <span className="text-[9px] bg-red-500/10 text-red-400 border border-red-500/20 px-1.5 rounded uppercase font-bold">Peso Max</span>}
                                               {viewMode === 'status' && <span className="text-[9px] text-slate-500 border border-slate-700 px-1.5 rounded uppercase font-bold">{nb.discipline}</span>}
                                               {isScheduled && <span className="text-[9px] bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 px-1.5 rounded uppercase font-bold flex items-center gap-1"><span className="w-1 h-1 bg-indigo-400 rounded-full animate-pulse"></span> No Ciclo</span>}
@@ -689,11 +718,71 @@ export const Library: React.FC = () => {
               </div>
               <div className="space-y-4 pt-2">
                   <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">2. Estratégia & Performance</h4>
+                  
+                  {/* METRICS & SCORE INPUT */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div><label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Peso</label><select value={formData.weight} onChange={(e) => handleChange('weight', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm">{Object.values(Weight).map(w => <option key={w} value={w}>{w}</option>)}</select></div>
-                      <div><label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Relevância</label><select value={formData.relevance} onChange={(e) => handleChange('relevance', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm">{Object.values(Relevance).map(r => <option key={r} value={r}>{r}</option>)}</select></div>
-                      <div><label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Tendência</label><select value={formData.trend} onChange={(e) => handleChange('trend', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm">{Object.values(Trend).map(t => <option key={t} value={t}>{t}</option>)}</select></div>
+                      {/* Weight with Tooltip */}
+                      <div className="group relative">
+                          <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase flex items-center gap-1 cursor-help">
+                              Peso <HelpCircle size={10} className="text-slate-600"/>
+                          </label>
+                          <select value={formData.weight} onChange={(e) => handleChange('weight', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm">{Object.values(Weight).map(w => <option key={w} value={w}>{w}</option>)}</select>
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-900 border border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                              <strong className="block text-emerald-400">{SCORE_TOOLTIPS.weight.title}</strong>
+                              <span className="text-slate-400">{SCORE_TOOLTIPS.weight.desc}</span>
+                          </div>
+                      </div>
+
+                      {/* Relevance with Tooltip */}
+                      <div className="group relative">
+                          <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase flex items-center gap-1 cursor-help">
+                              Relevância <HelpCircle size={10} className="text-slate-600"/>
+                          </label>
+                          <select value={formData.relevance} onChange={(e) => handleChange('relevance', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm">{Object.values(Relevance).map(r => <option key={r} value={r}>{r}</option>)}</select>
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-900 border border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                              <strong className="block text-emerald-400">{SCORE_TOOLTIPS.relevance.title}</strong>
+                              <span className="text-slate-400">{SCORE_TOOLTIPS.relevance.desc}</span>
+                          </div>
+                      </div>
+
+                      {/* Trend with Tooltip */}
+                      <div className="group relative">
+                          <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase flex items-center gap-1 cursor-help">
+                              Tendência <HelpCircle size={10} className="text-slate-600"/>
+                          </label>
+                          <select value={formData.trend} onChange={(e) => handleChange('trend', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm">{Object.values(Trend).map(t => <option key={t} value={t}>{t}</option>)}</select>
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-900 border border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                              <strong className="block text-emerald-400">{SCORE_TOOLTIPS.trend.title}</strong>
+                              <span className="text-slate-400">{SCORE_TOOLTIPS.trend.desc}</span>
+                          </div>
+                      </div>
+
                       <div><label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Meta (%)</label><input type="number" min="0" max="100" value={formData.targetAccuracy} onChange={e => handleChange('targetAccuracy', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm text-center font-bold" /></div>
+                  </div>
+
+                  {/* SCORE BOX (New V10.2 Feature) */}
+                  <div className="bg-slate-950 border border-slate-800 rounded-lg p-3 flex items-center justify-between shadow-inner">
+                      <div className="flex flex-col">
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Score Atena (Urgência)</span>
+                          <span className="text-xs text-slate-400">Nota final gerada pelo algoritmo (0-100).</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                          <div className="text-right">
+                              <span className="text-[9px] block text-slate-500 uppercase font-bold">Auto</span>
+                              <span className="text-sm font-mono text-slate-400">{calculatedScore}</span>
+                          </div>
+                          <div className="h-8 w-px bg-slate-800 mx-2"></div>
+                          <div className="text-right">
+                              <span className="text-[9px] block text-emerald-500 uppercase font-bold">Final (Editável)</span>
+                              <input 
+                                  type="number" 
+                                  min="0" max="100"
+                                  value={formData.customScore !== '' ? formData.customScore : calculatedScore} 
+                                  onChange={(e) => handleChange('customScore', e.target.value)}
+                                  className="w-16 bg-slate-900 border border-slate-700 rounded text-center font-bold text-white text-lg focus:border-emerald-500 outline-none p-1"
+                              />
+                          </div>
+                      </div>
                   </div>
 
                   <div>
@@ -800,7 +889,9 @@ export const Library: React.FC = () => {
                   </div>
 
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {Object.entries(config.algorithm?.baseIntervals || DEFAULT_ALGO_CONFIG.baseIntervals).map(([key, val]) => (
+                      {ORDERED_ALGO_KEYS.map((key) => {
+                          const val = currentIntervals[key as keyof typeof currentIntervals];
+                          return (
                           <div key={key} className="group relative">
                               <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-help flex items-center gap-1">
                                   {INTERVAL_LABELS[key] || key}
@@ -822,7 +913,7 @@ export const Library: React.FC = () => {
                                   </div>
                               )}
                           </div>
-                      ))}
+                      )})}
                   </div>
               </div>
 
