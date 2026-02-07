@@ -433,7 +433,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
   const [viewMode, setViewMode] = useState<'timeline' | 'calculator'>('timeline');
   const [searchTerm, setSearchTerm] = useState('');
   const [showStats, setShowStats] = useState(false);
-  const [libraryFilter, setLibraryFilter] = useState<'all' | 'unallocated' | 'overdue'>('all');
+  const [libraryFilter, setLibraryFilter] = useState<'all' | 'unallocated' | 'overdue' | 'zero_accuracy' | 'high_weight'>('all');
   const [disciplineFilter, setDisciplineFilter] = useState<string>('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [expandedWeekId, setExpandedWeekId] = useState<string | null>(null);
@@ -529,6 +529,10 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
         result = result.filter(nb => !nb.weekId);
     } else if (libraryFilter === 'overdue') {
         result = result.filter(nb => nb.nextReview && nb.nextReview.split('T')[0] < today);
+    } else if (libraryFilter === 'zero_accuracy') {
+        result = result.filter(nb => nb.accuracy === 0);
+    } else if (libraryFilter === 'high_weight') {
+        result = result.filter(nb => nb.weight === Weight.ALTO || nb.weight === Weight.MUITO_ALTO);
     }
 
     result.sort((a, b) => a.discipline.localeCompare(b.discipline) || a.name.localeCompare(b.name));
@@ -674,10 +678,12 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                         <div className="absolute right-3 top-2.5 pointer-events-none text-slate-500"><ChevronDown size={12} /></div>
                     </div>
 
-                    <div className="flex gap-2">
-                        <button onClick={() => setLibraryFilter('all')} className={`flex-1 py-1.5 text-[10px] rounded border font-bold ${libraryFilter === 'all' ? 'bg-slate-800 border-slate-600 text-white' : 'bg-transparent border-slate-800 text-slate-500'}`}>Todos</button>
-                        <button onClick={() => setLibraryFilter('unallocated')} className={`flex-1 py-1.5 text-[10px] rounded border font-bold ${libraryFilter === 'unallocated' ? 'bg-blue-900/20 border-blue-500/30 text-blue-400' : 'bg-transparent border-slate-800 text-slate-500'}`}>Pendentes</button>
-                        <button onClick={() => setLibraryFilter('overdue')} className={`flex-1 py-1.5 text-[10px] rounded border font-bold ${libraryFilter === 'overdue' ? 'bg-red-900/20 border-red-500/30 text-red-400' : 'bg-transparent border-slate-800 text-slate-500'}`}>Atrasados</button>
+                    <div className="flex gap-2 flex-wrap">
+                        <button onClick={() => setLibraryFilter('all')} className={`flex-1 py-1.5 text-[10px] rounded border font-bold min-w-[60px] ${libraryFilter === 'all' ? 'bg-slate-800 border-slate-600 text-white' : 'bg-transparent border-slate-800 text-slate-500'}`}>Todos</button>
+                        <button onClick={() => setLibraryFilter('unallocated')} className={`flex-1 py-1.5 text-[10px] rounded border font-bold min-w-[60px] ${libraryFilter === 'unallocated' ? 'bg-blue-900/20 border-blue-500/30 text-blue-400' : 'bg-transparent border-slate-800 text-slate-500'}`}>Pendentes</button>
+                        <button onClick={() => setLibraryFilter('overdue')} className={`flex-1 py-1.5 text-[10px] rounded border font-bold min-w-[60px] ${libraryFilter === 'overdue' ? 'bg-red-900/20 border-red-500/30 text-red-400' : 'bg-transparent border-slate-800 text-slate-500'}`}>Atrasados</button>
+                        <button onClick={() => setLibraryFilter('zero_accuracy')} className={`flex-1 py-1.5 text-[10px] rounded border font-bold min-w-[60px] ${libraryFilter === 'zero_accuracy' ? 'bg-amber-900/20 border-amber-500/30 text-amber-400' : 'bg-transparent border-slate-800 text-slate-500'}`}>0% Acertos</button>
+                        <button onClick={() => setLibraryFilter('high_weight')} className={`flex-1 py-1.5 text-[10px] rounded border font-bold min-w-[60px] ${libraryFilter === 'high_weight' ? 'bg-purple-900/20 border-purple-500/30 text-purple-400' : 'bg-transparent border-slate-800 text-slate-500'}`}>Peso Alto</button>
                     </div>
 
                     <div className="relative">
