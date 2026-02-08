@@ -51,7 +51,9 @@ const mapNotebookFromDB = (db: any): Notebook => ({
     notes: db.notes || '',
     // Logic: If images is an array, use it. If 'image' (legacy base64) exists, wrap it.
     // NOTE: In the main list, we might receive stripped data, handled in fetchCloudData.
-    images: Array.isArray(db.images) ? db.images : (db.image ? [db.image] : [])
+    images: Array.isArray(db.images) ? db.images : (db.image ? [db.image] : []),
+    // V3: Detect Global (user_id is null)
+    isGlobal: db.user_id === null
 });
 
 const mapNotebookToDB = (nb: Partial<Notebook>) => {
@@ -303,7 +305,7 @@ interface StoreContextType {
   deleteCycle: (id: string) => Promise<void>;
   updateConfig: (config: AthensConfig) => Promise<void>;
 
-  addNotebook: (notebook: Partial<Notebook>) => Promise<void>;
+  addNotebook: (notebook: Partial<Notebook>) => Promise<string>;
   editNotebook: (id: string, data: Partial<Notebook>) => Promise<void>;
   deleteNotebook: (id: string) => Promise<void>;
   updateNotebookAccuracy: (id: string, accuracy: number) => Promise<void>;
@@ -339,7 +341,7 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 // V10 Optimized Columns
 const OPTIMIZED_COLUMNS = `
-  id, discipline, name, subtitle, 
+  id, user_id, discipline, name, subtitle, 
   tec_link, error_notebook_link, favorite_questions_link, law_link, obsidian_link, gemini_link_1, gemini_link_2,
   accuracy, target_accuracy, weight, relevance, trend, custom_score, status, 
   week_id, is_week_completed, last_practice, next_review, accuracy_history, notes
@@ -366,11 +368,36 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const config = cycles.find(c => c.id === activeCycleId)?.config || DEFAULT_CONFIG;
 
+  const generateId = () => {
+      if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+      return Math.random().toString(36).substring(2) + Date.now().toString(36);
+  };
+
+  // --- MERGE LOGIC: USER > GLOBAL ---
+  const mergeGlobalAndUserNotebooks = (allRows: any[], userId: string) => {
+      const mapped = allRows.map(mapNotebookFromDB);
+      
+      const userNotebooks = mapped.filter(n => !n.isGlobal);
+      const globalNotebooks = mapped.filter(n => n.isGlobal);
+
+      // Create a set of keys (Discipline + Name) that the user already owns
+      const userKeys = new Set(userNotebooks.map(n => 
+          `${n.discipline.trim().toLowerCase()}|${n.name.trim().toLowerCase()}`
+      ));
+
+      // Only show global notebooks that the user DOES NOT have yet
+      const visibleGlobals = globalNotebooks.filter(g => 
+          !userKeys.has(`${g.discipline.trim().toLowerCase()}|${g.name.trim().toLowerCase()}`)
+      );
+
+      // Combine: User's stuff + Remaining Global Stuff
+      return [...userNotebooks, ...visibleGlobals];
+  };
+
   const fetchCloudData = async (currentUser?: any) => {
       setLoading(true);
       setDbError(null);
       try {
-          // Optimization: Use passed user or get from session if missing
           const userToUse = currentUser || (await supabase.auth.getUser()).data.user;
           
           if (!userToUse) {
@@ -378,8 +405,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               return;
           }
 
-          // PARALLEL FETCHING: Fetch all tables simultaneously
-          // DEFESA EM PROFUNDIDADE: Filtro explícito .eq('user_id', userToUse.id)
+          // PARALLEL FETCHING
+          // V3 Update: Fetch where user_id = ME OR user_id IS NULL
           const [
               notebooksResponse,
               cyclesResponse,
@@ -388,22 +415,26 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               notesResponse,
               frameworkResponse
           ] = await Promise.all([
-              // 1. Notebooks (Enhanced Recovery)
+              // 1. Notebooks (User + Global)
               (async () => {
                   try {
-                      // Attempt optimized fetch with explicit user_id filter
-                      const { data, error } = await supabase.from('notebooks').select(OPTIMIZED_COLUMNS).eq('user_id', userToUse.id);
+                      // Attempt optimized fetch
+                      const { data, error } = await supabase
+                          .from('notebooks')
+                          .select(OPTIMIZED_COLUMNS)
+                          .or(`user_id.eq.${userToUse.id},user_id.is.null`);
+                          
                       if (error) throw error;
                       return { data, error: null };
                   } catch (optimizedError) {
-                      console.warn("⚠️ Optimized Fetch Failed. Trying Recovery Mode.", optimizedError);
-                      const { data, error } = await supabase.from('notebooks').select('*').eq('user_id', userToUse.id);
+                      console.warn("⚠️ Optimized Fetch Failed.", optimizedError);
+                      const { data, error } = await supabase
+                          .from('notebooks')
+                          .select('*')
+                          .or(`user_id.eq.${userToUse.id},user_id.is.null`);
+                      
                       if (error) { 
-                          const errString = JSON.stringify(error);
-                          console.error("❌ Recovery Fetch Failed.", errString);
-                          if (error.code === '42P01' || error.code === '42501' || error.code === 'PGRST204') {
-                              setDbError(errString);
-                          }
+                          setDbError(JSON.stringify(error));
                           return { data: [], error };
                       }
                       
@@ -413,25 +444,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                       return { data: cleanedData, error: null };
                   }
               })(),
-              // 2. Cycles - Filtered
+              // 2. Other tables strictly filtered by user_id
               supabase.from('cycles').select('*').eq('user_id', userToUse.id),
-              // 3. Reports - Filtered
               supabase.from('reports').select('*').eq('user_id', userToUse.id),
-              // 4. Protocol - Filtered
               supabase.from('protocol').select('*').eq('user_id', userToUse.id),
-              // 5. Notes - Filtered
               supabase.from('notes').select('*').eq('user_id', userToUse.id),
-              // 6. Framework - Filtered
               supabase.from('frameworks').select('*').eq('user_id', userToUse.id).maybeSingle()
           ]);
 
           let validNotebookIds = new Set<string>();
 
-          // Process Notebooks
+          // Process Notebooks with Merge Logic
           if (notebooksResponse.data) {
-              const mappedNotebooks = notebooksResponse.data.map(mapNotebookFromDB);
-              setNotebooks(mappedNotebooks);
-              validNotebookIds = new Set(mappedNotebooks.map((n: Notebook) => n.id));
+              const merged = mergeGlobalAndUserNotebooks(notebooksResponse.data, userToUse.id);
+              setNotebooks(merged);
+              // Global IDs are valid for validNotebookIds so they appear in cycle schedule
+              validNotebookIds = new Set(merged.map((n: Notebook) => n.id));
           }
           
           // Process Cycles
@@ -465,6 +493,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
   };
 
+  // ... (Other functions like fetchNotebookImages, useEffect init, restoreState remain identical) ...
   const fetchNotebookImages = async (id: string): Promise<string[]> => {
       if (isGuest) {
           const nb = notebooks.find(n => n.id === id);
@@ -492,7 +521,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         if (session?.user) {
             setUser(session.user);
             setIsGuest(false);
-            // Optimization: Pass user directly to avoid re-fetching
             await fetchCloudData(session.user);
         } else {
             const idbData = await get('athena_guest_db');
@@ -505,18 +533,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
     init();
     
-    // AUTH STATE LISTENER
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
-      
       if (event === 'SIGNED_OUT') {
-          // *** NUCLEAR OPTION ***
-          // Se o usuário deslogou, forçamos um reload da página.
-          // Isso garante que a memória RAM seja limpa e nenhum dado do usuário anterior persista.
           window.location.reload();
           return;
       }
-
       if (session?.user) {
           setIsGuest(false);
           fetchCloudData(session.user);
@@ -555,15 +577,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const enterGuestMode = async () => {
       setIsGuest(true);
       setLoading(true);
-      // Hydrate with Seed Data immediately
       restoreState(GUEST_SEED_DATA);
-      setLoading(false); // OPTIMIZATION: Unlock UI immediately
-      await set('athena_guest_db', GUEST_SEED_DATA); // Save in background
-  };
-
-  const generateId = () => {
-      if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
-      return Math.random().toString(36).substring(2) + Date.now().toString(36);
+      setLoading(false);
+      await set('athena_guest_db', GUEST_SEED_DATA);
   };
 
   const createCycle = async (name: string, role: string) => {
@@ -615,83 +631,136 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const addNotebook = async (notebook: Partial<Notebook>) => {
+      // NOTE: We return the new ID so UI can use it immediately (critical for Global Forking)
+      const newId = generateId();
       const newNb: Notebook = {
-          id: generateId(), discipline: notebook.discipline || 'Geral', name: notebook.name || 'Novo Tópico', subtitle: notebook.subtitle || '',
+          id: newId, discipline: notebook.discipline || 'Geral', name: notebook.name || 'Novo Tópico', subtitle: notebook.subtitle || '',
           accuracy: notebook.accuracy || 0, targetAccuracy: notebook.targetAccuracy || 90, weight: notebook.weight || Weight.MEDIO,
           relevance: notebook.relevance || Relevance.MEDIA, trend: notebook.trend || Trend.ESTAVEL, status: NotebookStatus.NOT_STARTED,
-          images: notebook.images || [], notes: notebook.notes || '', ...notebook
+          images: notebook.images || [], notes: notebook.notes || '', ...notebook,
+          isGlobal: false // Always false for new items
       };
+      
       const previousNotebooks = [...notebooks];
       setNotebooks(prev => [...prev, newNb]);
+      
       if (!isGuest && user) {
           try {
               const payload = { ...mapNotebookToDB(newNb), user_id: user.id };
               const { error } = await supabase.from('notebooks').insert(payload);
-              if (error) {
-                  console.error("Supabase Insert Error:", JSON.stringify(error));
-                  throw error; // Throw specific Supabase error
-              }
+              if (error) { throw error; }
           } catch (e: any) { 
               setNotebooks(previousNotebooks); 
               let msg = e.message || JSON.stringify(e);
-              if (e.code === '42703') msg = `Erro de Schema (42703): Coluna inexistente no banco. Vá em Dashboard > Configurações > Mostrar Script SQL para atualizar.`;
-              if (e.code === '42501') msg = `Erro de Permissão (42501): RLS bloqueou a escrita. Execute o script SQL no Dashboard.`;
-              if (e.code === 'PGRST204') msg = `Erro de Cache (PGRST204): Coluna 'week_id' não encontrada. O banco pode estar desatualizado. Execute o script SQL no Dashboard e recarregue.`;
-              
-              // We must throw here so the UI knows the operation failed and doesn't close the modal
               throw new Error(msg);
           }
       }
+      return newId;
+  };
+
+  // --- FORKING LOGIC ---
+  const ensureNotebookIsPrivate = async (notebookId: string): Promise<string> => {
+      // Check if this notebook is Global
+      const nb = notebooks.find(n => n.id === notebookId);
+      if (!nb) throw new Error("Notebook not found");
+      
+      if (!nb.isGlobal) return notebookId; // Already private, do nothing
+
+      // It IS global. We must fork it.
+      const { id, isGlobal, ...dataToCopy } = nb;
+      
+      // Create new private copy
+      const newId = await addNotebook({
+          ...dataToCopy,
+          // Reset status if needed, or keep it. Let's keep it 'Not Started' usually, but here we clone exactly.
+      });
+
+      // UI Trick: Remove the global one from view immediately so it looks like it "transformed"
+      setNotebooks(prev => prev.filter(n => n.id !== notebookId)); // Remove global phantom
+      
+      return newId;
   };
 
   const editNotebook = async (id: string, data: Partial<Notebook>) => {
+      // Intercept: If editing a global notebook, fork it first!
+      let targetId = id;
+      const nb = notebooks.find(n => n.id === id);
+      
+      if (nb?.isGlobal) {
+          targetId = await ensureNotebookIsPrivate(id);
+      }
+
       const previousNotebooks = [...notebooks];
-      setNotebooks(prev => prev.map(n => n.id === id ? { ...n, ...data } : n));
+      setNotebooks(prev => prev.map(n => n.id === targetId ? { ...n, ...data } : n));
+      
       if (!isGuest && user) {
           try {
-              const payload = mapNotebookToDB({ ...data, id });
+              const payload = mapNotebookToDB({ ...data, id: targetId });
               delete (payload as any).id;
-              const { error } = await supabase.from('notebooks').update(payload).eq('id', id);
+              const { error } = await supabase.from('notebooks').update(payload).eq('id', targetId);
               if (error) throw error;
           } catch (e: any) { 
-              setNotebooks(previousNotebooks); 
-              let msg = e.message || JSON.stringify(e);
-              if (e.code === '42703') msg = `Erro de Schema: Coluna ausente no banco.`;
-              if (e.code === 'PGRST204') msg = `Erro de Cache (PGRST204): Coluna 'week_id' não encontrada. Execute o script SQL no Dashboard.`;
-              throw new Error(msg);
+              // Revert logic is complex with forking, usually we just reload or show error
+              console.error(e);
+              throw new Error(e.message);
           }
       }
   };
 
   const deleteNotebook = async (id: string) => {
+      // Cannot delete global notebooks (RLS prevents it anyway), just remove from local view?
+      // Actually, standard behavior: delete removes it from User view.
+      // If it was global, we can't "delete" it from DB. We just hide it? 
+      // Current logic: If global, do nothing (or maybe add to a 'hidden' list).
+      // For now, let's allow deleting only private ones.
+      
+      const nb = notebooks.find(n => n.id === id);
+      if (nb?.isGlobal) {
+          alert("Você não pode excluir um caderno do catálogo mestre. Ele sumirá automaticamente se você criar uma versão própria.");
+          return;
+      }
+
       const previousNotebooks = [...notebooks];
       setNotebooks(prev => prev.filter(n => n.id !== id));
+      // Cleanup cycles
       const validNotebookIds = new Set<string>(notebooks.filter(n => n.id !== id).map(n => n.id));
       setCycles(prev => prev.map(c => sanitizeCycleData(c, validNotebookIds)));
+      
       if (!isGuest && user) {
           try { await supabase.from('notebooks').delete().eq('id', id); } catch (e) { console.error(e); setNotebooks(previousNotebooks); }
       }
   };
 
   const updateNotebookAccuracy = async (id: string, accuracy: number) => {
+      // Intercept Global
+      let targetId = id;
+      const nb = notebooks.find(n => n.id === id);
+      if (nb?.isGlobal) {
+          targetId = await ensureNotebookIsPrivate(id);
+      }
+
       let updatedNb: Notebook | undefined;
       const previousNotebooks = [...notebooks];
       setNotebooks(prev => prev.map(n => {
-         if (n.id !== id) return n;
+         if (n.id !== targetId) return n;
          const prevHistory = n.accuracyHistory ? [...n.accuracyHistory] : [];
          const history = [...prevHistory, { date: new Date().toISOString(), accuracy }];
          const updated = { ...n, accuracy, accuracyHistory: history.slice(-10), lastPractice: new Date().toISOString() };
          updatedNb = updated;
          return updated;
       }));
+      
       if (!isGuest && user && updatedNb) {
           try {
               const payload = { accuracy: updatedNb.accuracy, accuracy_history: updatedNb.accuracyHistory, last_practice: updatedNb.lastPractice };
-              await supabase.from('notebooks').update(payload).eq('id', id);
+              await supabase.from('notebooks').update(payload).eq('id', targetId);
           } catch (e) { console.error(e); setNotebooks(previousNotebooks); }
       }
   };
 
+  // ... (Rest of functions: updateCycleSchedule, moveNotebookToWeek etc. remain mostly same) ...
+  // Note: moveNotebookToWeek might also need to fork if dragging a global item to schedule
+  
   const updateCycleSchedule = async (cycleId: string, modifier: (schedule: Record<string, ScheduleItem[]>) => Record<string, ScheduleItem[]>) => {
       let newScheduleState: Record<string, ScheduleItem[]> | null = null;
       const previousCycles = [...cycles];
@@ -710,8 +779,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const moveNotebookToWeek = async (notebookId: string, weekId: string) => {
-      if (!activeCycleId) { editNotebook(notebookId, { weekId }); return; }
-      const newSlot: ScheduleItem = { instanceId: generateId(), notebookId, completed: false };
+      // Intercept Global
+      let targetId = notebookId;
+      const nb = notebooks.find(n => n.id === notebookId);
+      if (nb?.isGlobal) {
+          targetId = await ensureNotebookIsPrivate(notebookId);
+      }
+
+      if (!activeCycleId) { editNotebook(targetId, { weekId }); return; }
+      const newSlot: ScheduleItem = { instanceId: generateId(), notebookId: targetId, completed: false };
       await updateCycleSchedule(activeCycleId, (schedule) => {
           if (!schedule[weekId]) schedule[weekId] = [];
           schedule[weekId] = [...schedule[weekId], newSlot];
@@ -851,7 +927,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       a.click();
   };
 
-  const startSession = (notebook: Notebook) => setActiveSession(notebook);
+  // Start session might require forking if it's a global notebook
+  const startSession = async (notebook: Notebook) => {
+      let targetNb = notebook;
+      if (notebook.isGlobal) {
+          // Fork first immediately so session runs on the private copy
+          const newId = await ensureNotebookIsPrivate(notebook.id);
+          const freshNb = notebooks.find(n => n.id === newId); // notebooks state updated in ensureNotebookIsPrivate
+          // Wait a tick for state update or find it in the new state via a direct fetch if needed
+          // Actually state update is async. For simplicity, we construct the new object manually:
+          if (freshNb) targetNb = freshNb;
+          else targetNb = { ...notebook, id: newId, isGlobal: false }; 
+      }
+      setActiveSession(targetNb);
+  };
+  
   const endSession = () => setActiveSession(null);
 
   const value = {

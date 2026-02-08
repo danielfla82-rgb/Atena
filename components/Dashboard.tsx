@@ -201,132 +201,55 @@ const NIETZSCHE_DATA = [
   { quote: "A disciplina é a mãe do sucesso.", source: "Aforismos", context: "A inspiração é para amadores. A elite opera baseada em disciplina inegociável." }
 ];
 
-const FIX_SQL = `-- SCRIPT DE BLINDAGEM DE DADOS (V2 - DEEP CLEAN)
--- Este script remove TODAS as políticas antigas e recria a segurança do zero.
+const FIX_SQL = `-- SCRIPT DE CATÁLOGO MESTRE (V3)
+-- Este script permite cadernos públicos (user_id = NULL) e reinsere a base padrão.
 
--- 1. HABILITAR RLS (Segurança)
-ALTER TABLE notebooks ENABLE ROW LEVEL SECURITY;
-ALTER TABLE cycles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE reports ENABLE ROW LEVEL SECURITY;
-ALTER TABLE protocol ENABLE ROW LEVEL SECURITY;
-ALTER TABLE frameworks ENABLE ROW LEVEL SECURITY;
-ALTER TABLE notes ENABLE ROW LEVEL SECURITY;
+-- 1. ALTERAR TABELA NOTEBOOKS (Permitir user_id NULL)
+ALTER TABLE notebooks ALTER COLUMN user_id DROP NOT NULL;
 
--- 2. REMOVER POLÍTICAS PADRÃO DO SUPABASE (O problema costuma estar aqui)
--- O Supabase cria políticas como "Enable read access for all users". Vamos deletar todas.
-
--- Tabela: notebooks
-DROP POLICY IF EXISTS "Enable read access for all users" ON notebooks;
-DROP POLICY IF EXISTS "Enable insert access for all users" ON notebooks;
-DROP POLICY IF EXISTS "Enable update access for all users" ON notebooks;
-DROP POLICY IF EXISTS "Enable delete access for all users" ON notebooks;
-DROP POLICY IF EXISTS "Enable all access for authenticated users" ON notebooks;
-DROP POLICY IF EXISTS "Users can only access their own notebooks" ON notebooks;
+-- 2. LIMPEZA DE POLÍTICAS ANTIGAS (Evita conflitos)
 DROP POLICY IF EXISTS "Strict Access Policy" ON notebooks;
+DROP POLICY IF EXISTS "Read Public and Private" ON notebooks;
+DROP POLICY IF EXISTS "Modify Own" ON notebooks;
+DROP POLICY IF EXISTS "Enable read access for all users" ON notebooks;
+DROP POLICY IF EXISTS "Enable insert for authenticated users only" ON notebooks;
+DROP POLICY IF EXISTS "Enable update for users based on email" ON notebooks;
+DROP POLICY IF EXISTS "Enable delete for users based on user_id" ON notebooks;
 
--- Tabela: cycles
-DROP POLICY IF EXISTS "Enable read access for all users" ON cycles;
-DROP POLICY IF EXISTS "Enable insert access for all users" ON cycles;
-DROP POLICY IF EXISTS "Enable update access for all users" ON cycles;
-DROP POLICY IF EXISTS "Enable delete access for all users" ON cycles;
-DROP POLICY IF EXISTS "Enable all access for authenticated users" ON cycles;
-DROP POLICY IF EXISTS "Users can only access their own cycles" ON cycles;
-DROP POLICY IF EXISTS "Strict Access Policy" ON cycles;
+-- 3. HABILITAR RLS (Segurança)
+ALTER TABLE notebooks ENABLE ROW LEVEL SECURITY;
 
--- Tabela: reports
-DROP POLICY IF EXISTS "Enable read access for all users" ON reports;
-DROP POLICY IF EXISTS "Enable insert access for all users" ON reports;
-DROP POLICY IF EXISTS "Enable update access for all users" ON reports;
-DROP POLICY IF EXISTS "Enable delete access for all users" ON reports;
-DROP POLICY IF EXISTS "Enable all access for authenticated users" ON reports;
-DROP POLICY IF EXISTS "Users can only access their own reports" ON reports;
-DROP POLICY IF EXISTS "Strict Access Policy" ON reports;
+-- 4. CRIAR POLÍTICAS HÍBRIDAS
+-- Leitura: Permite ler se for dono OU se for item público (NULL)
+CREATE POLICY "Read Public and Private" ON notebooks 
+FOR SELECT TO authenticated 
+USING (auth.uid() = user_id OR user_id IS NULL);
 
--- Tabela: protocol
-DROP POLICY IF EXISTS "Enable read access for all users" ON protocol;
-DROP POLICY IF EXISTS "Enable insert access for all users" ON protocol;
-DROP POLICY IF EXISTS "Enable update access for all users" ON protocol;
-DROP POLICY IF EXISTS "Enable delete access for all users" ON protocol;
-DROP POLICY IF EXISTS "Enable all access for authenticated users" ON protocol;
-DROP POLICY IF EXISTS "Users can only access their own protocol" ON protocol;
-DROP POLICY IF EXISTS "Strict Access Policy" ON protocol;
-
--- Tabela: frameworks
-DROP POLICY IF EXISTS "Enable read access for all users" ON frameworks;
-DROP POLICY IF EXISTS "Enable insert access for all users" ON frameworks;
-DROP POLICY IF EXISTS "Enable update access for all users" ON frameworks;
-DROP POLICY IF EXISTS "Enable delete access for all users" ON frameworks;
-DROP POLICY IF EXISTS "Enable all access for authenticated users" ON frameworks;
-DROP POLICY IF EXISTS "Users can only access their own frameworks" ON frameworks;
-DROP POLICY IF EXISTS "Strict Access Policy" ON frameworks;
-
--- Tabela: notes
-DROP POLICY IF EXISTS "Enable read access for all users" ON notes;
-DROP POLICY IF EXISTS "Enable insert access for all users" ON notes;
-DROP POLICY IF EXISTS "Enable update access for all users" ON notes;
-DROP POLICY IF EXISTS "Enable delete access for all users" ON notes;
-DROP POLICY IF EXISTS "Enable all access for authenticated users" ON notes;
-DROP POLICY IF EXISTS "Users can only access their own notes" ON notes;
-DROP POLICY IF EXISTS "Strict Access Policy" ON notes;
-
--- 3. GARANTIR COLUNA USER_ID EM TUDO
-ALTER TABLE notebooks ADD COLUMN IF NOT EXISTS user_id UUID DEFAULT auth.uid();
-ALTER TABLE cycles ADD COLUMN IF NOT EXISTS user_id UUID DEFAULT auth.uid();
-ALTER TABLE reports ADD COLUMN IF NOT EXISTS user_id UUID DEFAULT auth.uid();
-ALTER TABLE protocol ADD COLUMN IF NOT EXISTS user_id UUID DEFAULT auth.uid();
-ALTER TABLE frameworks ADD COLUMN IF NOT EXISTS user_id UUID DEFAULT auth.uid();
-ALTER TABLE notes ADD COLUMN IF NOT EXISTS user_id UUID DEFAULT auth.uid();
-
--- 4. CRIAR A POLÍTICA ÚNICA DE ACESSO RESTRITO
--- Permite tudo (ALL) apenas se o ID do usuário bater com o user_id da linha.
-
-CREATE POLICY "Strict Access Policy" ON notebooks 
-AS PERMISSIVE FOR ALL 
-TO authenticated 
+-- Escrita/Modificação: Permite apenas se for o DONO
+CREATE POLICY "Modify Own" ON notebooks 
+FOR ALL TO authenticated 
 USING (auth.uid() = user_id) 
 WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Strict Access Policy" ON cycles 
-AS PERMISSIVE FOR ALL 
-TO authenticated 
-USING (auth.uid() = user_id) 
-WITH CHECK (auth.uid() = user_id);
+-- 5. POVOAR CATÁLOGO PADRÃO (Se não existir)
+-- Inserimos apenas se não houver conflito. Como usamos UUID, inserimos direto.
+INSERT INTO notebooks (id, user_id, discipline, name, subtitle, weight, relevance, accuracy, target_accuracy, status)
+VALUES 
+  (gen_random_uuid(), NULL, 'Língua Portuguesa', 'Interpretação de Texto', 'Compreensão e Tipologia', 'Alto', 'Alta', 0, 90, 'Não Iniciado'),
+  (gen_random_uuid(), NULL, 'Língua Portuguesa', 'Gramática', 'Sintaxe e Morfologia', 'Médio', 'Média', 0, 90, 'Não Iniciado'),
+  (gen_random_uuid(), NULL, 'Direito Constitucional', 'Direitos Fundamentais', 'Art. 5º ao 17', 'Muito Alto', 'Altíssima', 0, 90, 'Não Iniciado'),
+  (gen_random_uuid(), NULL, 'Direito Constitucional', 'Organização do Estado', 'Competências e Repartição', 'Alto', 'Média', 0, 90, 'Não Iniciado'),
+  (gen_random_uuid(), NULL, 'Direito Administrativo', 'Atos Administrativos', 'Requisitos e Atributos', 'Muito Alto', 'Média', 0, 90, 'Não Iniciado'),
+  (gen_random_uuid(), NULL, 'Direito Administrativo', 'Licitações (Lei 14.133)', 'Modalidades e Contratos', 'Alto', 'Alta', 0, 90, 'Não Iniciado'),
+  (gen_random_uuid(), NULL, 'Raciocínio Lógico', 'Lógica Proposicional', 'Tabelas Verdade e Conectivos', 'Médio', 'Baixa', 0, 90, 'Não Iniciado'),
+  (gen_random_uuid(), NULL, 'Direito Tributário', 'Imunidades Tributárias', 'Vedações ao Poder de Tributar', 'Alto', 'Alta', 0, 90, 'Não Iniciado'),
+  (gen_random_uuid(), NULL, 'Contabilidade Geral', 'CPC 00 - Estrutura Conceitual', 'Características Qualitativas', 'Baixo', 'Média', 0, 90, 'Não Iniciado'),
+  (gen_random_uuid(), NULL, 'Auditoria', 'NBC TA 200', 'Objetivos Gerais do Auditor', 'Baixo', 'Baixa', 0, 90, 'Não Iniciado'),
+  (gen_random_uuid(), NULL, 'Revisão Geral', 'Simulados', 'Desempenho Global', 'Muito Alto', 'Altíssima', 0, 90, 'Não Iniciado');
 
-CREATE POLICY "Strict Access Policy" ON reports 
-AS PERMISSIVE FOR ALL 
-TO authenticated 
-USING (auth.uid() = user_id) 
-WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Strict Access Policy" ON protocol 
-AS PERMISSIVE FOR ALL 
-TO authenticated 
-USING (auth.uid() = user_id) 
-WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Strict Access Policy" ON frameworks 
-AS PERMISSIVE FOR ALL 
-TO authenticated 
-USING (auth.uid() = user_id) 
-WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Strict Access Policy" ON notes 
-AS PERMISSIVE FOR ALL 
-TO authenticated 
-USING (auth.uid() = user_id) 
-WITH CHECK (auth.uid() = user_id);
-
--- 5. LIMPAR DADOS "FANTASMAS" (OPCIONAL)
--- Remove dados antigos que não tem dono (user_id NULL) para evitar confusão
-DELETE FROM notebooks WHERE user_id IS NULL;
-DELETE FROM cycles WHERE user_id IS NULL;
-DELETE FROM reports WHERE user_id IS NULL;
-DELETE FROM protocol WHERE user_id IS NULL;
-DELETE FROM frameworks WHERE user_id IS NULL;
-DELETE FROM notes WHERE user_id IS NULL;
-
--- 6. REFRESH SCHEMA
-NOTIFY pgrst, 'reload schema';`;
+-- 6. REFRESH
+NOTIFY pgrst, 'reload schema';
+`;
 
 interface Props {
     onNavigate: (view: string) => void;
@@ -653,7 +576,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
 
   // Static Recommendation (Instant)
   const staticRecommendation = useMemo(() => {
-    const candidates = notebooks.filter(n => n.discipline !== 'Revisão Geral');
+    const candidates = notebooks.filter(n => n.discipline !== 'Revisão Geral' && !n.isGlobal);
     if (candidates.length === 0) return null;
 
     const critical = candidates.find(n => (n.weight === Weight.MUITO_ALTO || n.weight === Weight.ALTO) && n.accuracy < 60);
@@ -687,7 +610,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           const ai = createAIClient();
           // Filter top 30 most active/critical notebooks to save context
           const simplifiedData = notebooks
-              .filter(n => n.discipline !== 'Revisão Geral')
+              .filter(n => n.discipline !== 'Revisão Geral' && !n.isGlobal)
               .sort((a, b) => (new Date(a.lastPractice || 0).getTime()) - (new Date(b.lastPractice || 0).getTime())) // Oldest practice first
               .slice(0, 30)
               .map(n => ({

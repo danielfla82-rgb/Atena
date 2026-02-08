@@ -1,5 +1,4 @@
 
-
 /**
  * DOCUMENTAÇÃO TÉCNICA - PROJETO ATENA V10.0.0
  * ===========================================
@@ -103,6 +102,10 @@ export interface Notebook {
   weekId?: string | null;
   /** Marcador legado */
   isWeekCompleted?: boolean;
+  /** 
+   * V10.3: Indica se é um caderno do catálogo global (read-only até interagir) 
+   */
+  isGlobal?: boolean;
 }
 
 /** Item do Protocolo Fisiológico */
