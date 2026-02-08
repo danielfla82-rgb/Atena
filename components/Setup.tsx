@@ -34,7 +34,8 @@ const DraggableCard = React.memo(({
     allocationCount,
     isCompleted,
     index,
-    startDate
+    startDate,
+    scheduledWeekId // NEW: Explicit Schedule Info
 }: {
     notebook: Notebook;
     instanceId?: string;
@@ -50,13 +51,16 @@ const DraggableCard = React.memo(({
     isCompleted?: boolean;
     index?: number;
     startDate?: string;
+    scheduledWeekId?: string | null;
 }) => {
     const statusColor = getStatusColor(notebook.accuracy, notebook.targetAccuracy);
     const isLibrary = origin === 'library';
     const isWeek = origin === 'week';
     
     // --- LÓGICA DE ALOCAÇÃO (VISUAL FEEDBACK) ---
-    const allocatedWeek = isLibrary && notebook.weekId ? notebook.weekId.replace('week-', '') : null;
+    // Prioriza a informação do Ciclo Ativo (Schedule) sobre a propriedade legada weekId
+    const effectiveWeekId = scheduledWeekId || notebook.weekId;
+    const allocatedWeek = isLibrary && effectiveWeekId ? effectiveWeekId.replace('week-', '') : null;
 
     // --- LÓGICA DE CORES POR DESEMPENHO ---
     const target = notebook.targetAccuracy || 90;
@@ -213,11 +217,10 @@ const DraggableCard = React.memo(({
 const normalizeStr = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
 const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: number } }) => {
-    // ... (rest of the file remains unchanged)
     const { notebooks, config, updateConfig } = useStore();
     const [newDiscName, setNewDiscName] = useState('');
     
-    // ... (CycleCalculator implementation continues) ...
+    // ... (CycleCalculator implementation remains same)
     const availableDisciplines = useMemo<string[]>(() => {
         const set = new Set<string>();
         const safeNotebooks: Notebook[] = notebooks || [];
@@ -252,25 +255,17 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
     const selectedDiscs = new Set<string>(config.calculatorState?.selectedDisciplines || []);
     const customDiscs: string[] = config.calculatorState?.customDisciplines || [];
 
-    // Helper: Contar tópicos pendentes por disciplina
     const getTopicCount = useCallback((discName: string) => {
-        // V10.3: Prioritize Edital Structure for accurate pending count
         if (config.structuredEdital && config.structuredEdital.length > 0) {
-            // Try exact match
             let editalDisc = config.structuredEdital.find(d => d.name === discName);
-            
-            // Try normalized match if exact fails
             if (!editalDisc) {
                 const normDisc = normalizeStr(discName);
                 editalDisc = config.structuredEdital.find(d => normalizeStr(d.name) === normDisc);
             }
-
             if (editalDisc) {
                 return editalDisc.topics.filter(t => !t.checked).length;
             }
         }
-
-        // Fallback for active notebooks
         return notebooks.filter(n => 
             n.discipline === discName && 
             n.status !== NotebookStatus.MASTERED && 
@@ -317,8 +312,6 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
 
     const projection = useMemo(() => {
         let totalItemsToStudy = 0;
-
-        // V10.3: Calculate total pending based on Edital vs Notebooks
         if (config.structuredEdital && config.structuredEdital.length > 0) {
              let total = 0;
              let checked = 0;
@@ -332,7 +325,6 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
         }
 
         const weeklyCapacity = paceTarget.blocks;
-        
         if (totalItemsToStudy === 0 || weeklyCapacity === 0) return null;
 
         const REVIEW_COST_BLOCKS = 0.2; 
@@ -366,11 +358,7 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
             const timeToFinish = finishDate.getTime() - today.getTime();
             const safeTime = timeToFinish + (1000 * 60 * 60 * 24 * 14); 
 
-            // Calculate Required Pace (Reverse Engineering)
-            const weeksToExam = Math.max(1, timeToExam / (1000 * 60 * 60 * 24 * 7)); // Float weeks for precision
-            
-            // Formula: (Total Items + Maintenance Overhead) / Weeks Remaining
-            // Maintenance Overhead est. ~25% (1.25 multiplier)
+            const weeksToExam = Math.max(1, timeToExam / (1000 * 60 * 60 * 24 * 7)); 
             requiredPace = Math.ceil((totalItemsToStudy * 1.25) / weeksToExam);
 
             if (safeTime > timeToExam) {
@@ -383,15 +371,7 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
             }
         }
 
-        return { 
-            weeks: Math.ceil(weeksElapsed), 
-            date: finishDate, 
-            status, 
-            suggestion,
-            totalItems: totalItemsToStudy,
-            requiredPace
-        };
-
+        return { weeks: Math.ceil(weeksElapsed), date: finishDate, status, suggestion, totalItems: totalItemsToStudy, requiredPace };
     }, [notebooks, paceTarget.blocks, config.examDate, config.structuredEdital]);
 
     const totalAllocated = distribution.reduce((sum, item) => sum + item.blocks, 0);
@@ -449,13 +429,10 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
                         <h3 className="font-bold text-white mb-4 text-sm uppercase tracking-wide">Auditoria de Viabilidade</h3>
                         
                         <div className="space-y-4 relative z-10">
-                            {/* Current Capacity */}
                             <div className="flex justify-between items-center pb-2 border-b border-slate-800">
                                 <span className="text-xs text-slate-400">Ritmo Atual</span>
                                 <span className="text-sm font-bold text-white">{paceTarget.blocks} Blocos/sem</span>
                             </div>
-
-                            {/* Required Capacity */}
                             {projection && projection.requiredPace > 0 && (
                                 <div className="flex justify-between items-center pb-2 border-b border-slate-800">
                                     <span className="text-xs text-slate-400">Ritmo Necessário</span>
@@ -464,8 +441,6 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
                                     </span>
                                 </div>
                             )}
-
-                            {/* Allocation Status */}
                             <div className="flex justify-between items-center pb-2 border-b border-slate-800">
                                 <span className="text-xs text-slate-400">Total Alocado</span>
                                 <span className={`text-sm font-bold ${isBalanced ? 'text-emerald-400' : isOver ? 'text-red-400' : 'text-amber-400'}`}>{totalAllocated} Blocos</span>
@@ -478,7 +453,6 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
                                 </div>
                             )}
 
-                            {/* Pace Warning */}
                             {projection && projection.requiredPace > paceTarget.blocks && (
                                 <div className="bg-red-900/20 border border-red-500/20 p-3 rounded-lg text-xs text-red-200 flex items-start gap-2 mt-2">
                                     <Target size={14} className="flex-shrink-0 mt-0.5" />
@@ -521,9 +495,6 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
     );
 };
 
-// ... (Rest of Setup component)
-// ... (The Setup component implementation continues with no changes to the main export, just the internal DraggableCard updated)
-
 interface Props {
   onNavigate: (view: string) => void;
 }
@@ -538,17 +509,8 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
   const [disciplineFilter, setDisciplineFilter] = useState<string>('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [expandedWeekId, setExpandedWeekId] = useState<string | null>(null);
-  
-  // NEW: Dropdown State for Pace Selector
   const [showPaceSelector, setShowPaceSelector] = useState(false);
-
-  // NEW: State for tracking collapsed completed lists per week
   const [expandedCompletedWeeks, setExpandedCompletedWeeks] = useState<Record<string, boolean>>({});
-
-  const toggleCompletedWeek = (weekId: string, e: React.MouseEvent) => {
-      e.stopPropagation();
-      setExpandedCompletedWeeks(prev => ({ ...prev, [weekId]: !prev[weekId] }));
-  };
 
   // State for Configuration Modal
   const [isConfigOpen, setIsConfigOpen] = useState(false);
@@ -568,95 +530,66 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
       setIsSaving(true);
       try {
           await updateConfig(localConfig);
-          
           const oldKey = localStorage.getItem('atena_api_key');
-          let keyChanged = false;
-
-          if (apiKey.trim()) {
-              if (apiKey.trim() !== oldKey) {
-                  localStorage.setItem('atena_api_key', apiKey.trim());
-                  keyChanged = true;
-              }
-          } else {
-              if (oldKey) {
-                  localStorage.removeItem('atena_api_key');
-                  keyChanged = true;
-              }
-          }
-          
-          setIsConfigOpen(false);
-          
-          if (keyChanged) {
+          if (apiKey.trim() && apiKey.trim() !== oldKey) {
+              localStorage.setItem('atena_api_key', apiKey.trim());
+              window.location.reload();
+          } else if (!apiKey.trim() && oldKey) {
+              localStorage.removeItem('atena_api_key');
               window.location.reload();
           }
+          setIsConfigOpen(false);
       } catch (error) {
           console.error("Failed to save configuration:", error);
-          alert("Erro ao salvar configurações no servidor. Tente novamente.");
+          alert("Erro ao salvar configurações no servidor.");
           setIsSaving(false);
       }
   };
 
   const handleUpdateAlgoInterval = (key: string, value: number) => {
-      // Prevent NaN from breaking state
       const safeValue = isNaN(value) ? 0 : value;
-
-      // Create deep copy to update local state safely
-      const currentIntervals = localConfig.algorithm?.baseIntervals || DEFAULT_ALGO_CONFIG.baseIntervals;
-      const currentMultipliers = localConfig.algorithm?.multipliers || DEFAULT_ALGO_CONFIG.multipliers;
-      
-      const newAlgorithm = {
-          baseIntervals: { ...currentIntervals, [key]: safeValue },
-          multipliers: currentMultipliers
-      };
-
       setLocalConfig({
           ...localConfig,
-          algorithm: newAlgorithm
+          algorithm: {
+              ...localConfig.algorithm!,
+              baseIntervals: { ...localConfig.algorithm!.baseIntervals, [key]: safeValue }
+          }
       });
   };
 
-  // ... (Rest of component logic until render return)
-  // ... (Existing useMemo hooks for pendingCount, allocationData, etc.) ...
-  const pendingCount = useMemo(() => {
-      if (!activeCycleId) return notebooks.filter(n => n.discipline !== 'Revisão Geral' && !n.weekId).length;
-      const cycle = cycles.find(c => c.id === activeCycleId);
-      if(!cycle?.schedule) return 0;
-      
-      const scheduledIds = new Set<string>();
-      const schedule = cycle.schedule as Record<string, ScheduleItem[]>;
-      
-      if (schedule) {
-          Object.values(schedule).forEach((slots) => {
+  const activeCycle = cycles.find(c => c.id === activeCycleId);
+
+  // --- MAPPING LOGIC FOR SCHEDULED WEEKS ---
+  const notebookScheduleMap = useMemo(() => {
+      const map = new Map<string, string>();
+      if (activeCycle?.schedule) {
+          Object.entries(activeCycle.schedule).forEach(([weekId, slots]) => {
               if (Array.isArray(slots)) {
-                  slots.forEach(slot => { 
-                      if(slot && slot.notebookId) scheduledIds.add(slot.notebookId); 
+                  slots.forEach(slot => {
+                      if (slot.notebookId) map.set(slot.notebookId, weekId);
                   });
               }
           });
       }
-      return notebooks.filter(n => n.discipline !== 'Revisão Geral' && !scheduledIds.has(n.id)).length;
-  }, [notebooks, activeCycleId, cycles]);
+      return map;
+  }, [activeCycle]);
+
+  const pendingCount = useMemo(() => {
+      if (!activeCycleId) return notebooks.filter(n => n.discipline !== 'Revisão Geral' && !n.weekId).length;
+      return notebooks.filter(n => n.discipline !== 'Revisão Geral' && !notebookScheduleMap.has(n.id)).length;
+  }, [notebooks, activeCycleId, notebookScheduleMap]);
 
   const existingDisciplines = useMemo(() => Array.from(new Set(notebooks.map(n => n.discipline))).sort(), [notebooks]);
-
   const currentPace = config.studyPace || 'Intermediário';
   const paceTarget = PACE_SETTINGS[currentPace] || PACE_SETTINGS['Intermediário'];
-  
-  const activeCycle = cycles.find(c => c.id === activeCycleId);
 
   const allocationData = useMemo(() => {
     const data: Record<string, number> = {};
     if (activeCycle?.schedule) {
-        const schedule = activeCycle.schedule as Record<string, ScheduleItem[]>;
-        Object.values(schedule).forEach((slots) => {
-            if (Array.isArray(slots)) {
-                slots.forEach(slot => {
-                    if (!slot || !slot.notebookId) return;
-                    const nb = notebooks.find(n => n.id === slot.notebookId);
-                    if (nb && nb.discipline !== 'Revisão Geral') {
-                        data[nb.discipline] = (data[nb.discipline] || 0) + 1;
-                    }
-                });
+        notebookScheduleMap.forEach((weekId, notebookId) => {
+            const nb = notebooks.find(n => n.id === notebookId);
+            if (nb && nb.discipline !== 'Revisão Geral') {
+                data[nb.discipline] = (data[nb.discipline] || 0) + 1;
             }
         });
     } else {
@@ -665,25 +598,17 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
         });
     }
     return Object.keys(data).map(key => ({ name: key, count: data[key] })).sort((a, b) => b.count - a.count).slice(0, 8);
-  }, [notebooks, activeCycleId, cycles]);
+  }, [notebooks, activeCycle, notebookScheduleMap]);
 
-  const totalAllocatedBlocks = useMemo(() => {
-      if (activeCycle?.schedule) {
-          let count = 0;
-          const schedule = activeCycle.schedule as Record<string, ScheduleItem[]>;
-          Object.values(schedule).forEach((slots) => {
-              if(Array.isArray(slots)) count += slots.length;
-          });
-          return count;
-      }
-      return notebooks.filter(n => n.weekId && n.weekId.startsWith('week-')).length;
-  }, [notebooks, activeCycleId, cycles]);
+  const totalAllocatedBlocks = useMemo(() => notebookScheduleMap.size, [notebookScheduleMap]);
 
   const libraryNotebooks = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
     const sorted = [...notebooks].sort((a, b) => {
-        if (!a.weekId && b.weekId) return -1;
-        if (a.weekId && !b.weekId) return 1;
+        const weekA = notebookScheduleMap.get(a.id);
+        const weekB = notebookScheduleMap.get(b.id);
+        if (!weekA && weekB) return -1;
+        if (weekA && !weekB) return 1;
         return 0;
     });
 
@@ -696,7 +621,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
     if (disciplineFilter) result = result.filter(nb => nb.discipline === disciplineFilter);
 
     if (libraryFilter === 'unallocated') {
-        result = result.filter(nb => !nb.weekId);
+        result = result.filter(nb => !notebookScheduleMap.has(nb.id));
     } else if (libraryFilter === 'overdue') {
         result = result.filter(nb => nb.nextReview && nb.nextReview.split('T')[0] < today);
     } else if (libraryFilter === 'zero_accuracy') {
@@ -707,7 +632,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
 
     result.sort((a, b) => a.discipline.localeCompare(b.discipline) || a.name.localeCompare(b.name));
     return result;
-  }, [notebooks, searchTerm, libraryFilter, disciplineFilter]);
+  }, [notebooks, searchTerm, libraryFilter, disciplineFilter, notebookScheduleMap]);
 
   const daysRemaining = useMemo(() => {
       if (!config.examDate) return null;
@@ -748,8 +673,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
   });
 
   const getWeekPace = useCallback((weekId: string) => {
-      const specific = config.weeklyPace?.[weekId];
-      return specific || config.studyPace || 'Intermediário';
+      return config.weeklyPace?.[weekId] || config.studyPace || 'Intermediário';
   }, [config.weeklyPace, config.studyPace]);
 
   const updateWeekPace = (weekId: string, newPace: string) => {
@@ -779,8 +703,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
       const id = e.dataTransfer.getData("notebookId");
 
       if (origin === 'week' && sourceIndexStr) {
-          const sourceIndex = parseInt(sourceIndexStr);
-          await reorderSlotInWeek(targetWeekId, sourceIndex, targetIndex);
+          await reorderSlotInWeek(targetWeekId, parseInt(sourceIndexStr), targetIndex);
       } else if (origin === 'library') {
           await moveNotebookToWeek(id, targetWeekId);
       }
@@ -788,26 +711,23 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
 
   const handleEditClick = useCallback((notebook: Notebook) => {
     setFocusedNotebookId(notebook.id);
-    if (onNavigate) {
-        onNavigate('library');
-    } else {
-        console.warn("Setup: onNavigate not provided");
-    }
+    onNavigate?.('library');
   }, [setFocusedNotebookId, onNavigate]);
 
   const handleRemoveFromWeek = useCallback((instanceId: string, weekId: string) => {
       removeSlotFromWeek(instanceId, weekId);
   }, [removeSlotFromWeek]);
 
-  // Safe Check for Algorithm Intervals
+  const toggleCompletedWeek = (weekId: string, e: React.MouseEvent) => {
+      e.stopPropagation();
+      setExpandedCompletedWeeks(prev => ({ ...prev, [weekId]: !prev[weekId] }));
+  };
+
   const currentIntervals = localConfig.algorithm?.baseIntervals || DEFAULT_ALGO_CONFIG.baseIntervals;
 
   return (
     <div className="flex flex-row h-full w-full overflow-hidden relative">
-      
-      {/* Sidebar */}
       <aside className={`flex-shrink-0 border-r border-slate-800 bg-slate-900/95 flex flex-col z-40 transition-all duration-300 ease-in-out h-full ${isSidebarCollapsed ? 'w-14' : 'absolute md:relative w-80 shadow-2xl md:shadow-none'}`}>
-          {/* ... (Sidebar content remains same) ... */}
           <div className={`p-4 border-b border-slate-800 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
             {!isSidebarCollapsed && (
                 <div className="flex items-center gap-2">
@@ -815,23 +735,15 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                     {pendingCount > 0 && <span className="bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded text-[9px] font-bold border border-blue-500/30" title="Pendentes">{pendingCount}</span>}
                 </div>
             )}
-            <button 
-                onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
-                className="text-slate-500 hover:text-white p-1 rounded hover:bg-slate-800 transition-colors"
-                title={isSidebarCollapsed ? "Expandir Lista" : "Recolher Lista"}
-            >
+            <button onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} className="text-slate-500 hover:text-white p-1 rounded hover:bg-slate-800 transition-colors">
                 {isSidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
             </button>
           </div>
           
           {isSidebarCollapsed && (
               <div className="flex-1 flex flex-col items-center py-6 gap-6">
-                  <div className="vertical-text text-slate-600 font-bold uppercase tracking-widest text-xs whitespace-nowrap" style={{ writingMode: 'vertical-rl' }}>
-                      Banco de Disciplinas ({libraryNotebooks.length})
-                  </div>
-                  <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-500">
-                      <Inbox size={14} />
-                  </div>
+                  <div className="vertical-text text-slate-600 font-bold uppercase tracking-widest text-xs whitespace-nowrap" style={{ writingMode: 'vertical-rl' }}>Banco de Disciplinas ({libraryNotebooks.length})</div>
+                  <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-500"><Inbox size={14} /></div>
               </div>
           )}
 
@@ -839,32 +751,23 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
               <>
                 <div className="px-4 pb-4 space-y-3 pt-2">
                     <div className="relative">
-                        <select 
-                            value={disciplineFilter} 
-                            onChange={(e) => setDisciplineFilter(e.target.value)}
-                            className="w-full bg-slate-950 border border-slate-800 rounded-lg py-2 pl-3 pr-8 text-xs text-white focus:border-emerald-500 outline-none appearance-none cursor-pointer hover:bg-slate-900"
-                        >
+                        <select value={disciplineFilter} onChange={(e) => setDisciplineFilter(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-lg py-2 pl-3 pr-8 text-xs text-white focus:border-emerald-500 outline-none appearance-none cursor-pointer hover:bg-slate-900">
                             <option value="">Filtrar por Disciplina (Todas)</option>
-                            {existingDisciplines.map(d => (
-                                <option key={d} value={d}>{d}</option>
-                            ))}
+                            {existingDisciplines.map(d => (<option key={d} value={d}>{d}</option>))}
                         </select>
                         <div className="absolute right-3 top-2.5 pointer-events-none text-slate-500"><ChevronDown size={12} /></div>
                     </div>
-
                     <div className="flex gap-2 flex-wrap">
-                        <button onClick={() => setLibraryFilter('all')} className={`flex-1 py-1.5 text-[10px] rounded border font-bold min-w-[60px] ${libraryFilter === 'all' ? 'bg-slate-800 border-slate-600 text-white' : 'bg-transparent border-slate-800 text-slate-500'}`}>Todos</button>
-                        <button onClick={() => setLibraryFilter('unallocated')} className={`flex-1 py-1.5 text-[10px] rounded border font-bold min-w-[60px] ${libraryFilter === 'unallocated' ? 'bg-blue-900/20 border-blue-500/30 text-blue-400' : 'bg-transparent border-slate-800 text-slate-500'}`}>Pendentes</button>
-                        <button onClick={() => setLibraryFilter('overdue')} className={`flex-1 py-1.5 text-[10px] rounded border font-bold min-w-[60px] ${libraryFilter === 'overdue' ? 'bg-red-900/20 border-red-500/30 text-red-400' : 'bg-transparent border-slate-800 text-slate-500'}`}>Atrasados</button>
-                        <button onClick={() => setLibraryFilter('zero_accuracy')} className={`flex-1 py-1.5 text-[10px] rounded border font-bold min-w-[60px] ${libraryFilter === 'zero_accuracy' ? 'bg-amber-900/20 border-amber-500/30 text-amber-400' : 'bg-transparent border-slate-800 text-slate-500'}`}>0% Acertos</button>
-                        <button onClick={() => setLibraryFilter('high_weight')} className={`flex-1 py-1.5 text-[10px] rounded border font-bold min-w-[60px] ${libraryFilter === 'high_weight' ? 'bg-purple-900/20 border-purple-500/30 text-purple-400' : 'bg-transparent border-slate-800 text-slate-500'}`}>Peso Alto</button>
+                        {['all', 'unallocated', 'overdue', 'zero_accuracy', 'high_weight'].map((f: any) => (
+                            <button key={f} onClick={() => setLibraryFilter(f)} className={`flex-1 py-1.5 text-[10px] rounded border font-bold min-w-[60px] ${libraryFilter === f ? 'bg-slate-800 border-slate-600 text-white' : 'bg-transparent border-slate-800 text-slate-500'}`}>
+                                {f === 'all' ? 'Todos' : f === 'unallocated' ? 'Pendentes' : f === 'overdue' ? 'Atrasados' : f === 'zero_accuracy' ? '0% Acertos' : 'Peso Alto'}
+                            </button>
+                        ))}
                     </div>
-
                     <div className="relative">
                         <Search className="absolute left-3 top-2.5 text-slate-500" size={14} />
                         <input type="text" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-lg py-2 pl-9 pr-3 text-xs text-white focus:border-emerald-500 outline-none" />
                     </div>
-                    
                     <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold">
                         <span>Total: {libraryNotebooks.length}</span>
                         <span className="text-emerald-500 flex items-center gap-1">Arraste <ArrowRight size={10} /></span>
@@ -879,11 +782,11 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                             onDragStart={onDragStart} 
                             onEdit={handleEditClick} 
                             origin="library" 
-                            allocationCount={nb.weekId ? 1 : 0}
+                            allocationCount={notebookScheduleMap.has(nb.id) ? 1 : 0}
+                            scheduledWeekId={notebookScheduleMap.get(nb.id)}
                             startDate={config.startDate}
                         />
                     ))}
-                    
                     {libraryNotebooks.length === 0 && (
                         <div className="flex flex-col items-center justify-center py-10 text-slate-600 gap-2 opacity-50 px-4 text-center">
                             <Settings2 size={24} />
@@ -895,12 +798,9 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
           )}
       </aside>
 
-      {/* Main Area */}
       <main className="flex-1 flex flex-col min-w-0 bg-slate-950 relative">
-         {/* ... (Header and Timeline/Calculator content remains identical) ... */}
          <header className="flex flex-col lg:flex-row items-center justify-between gap-4 px-6 py-4 border-b border-slate-800 bg-slate-900/90 backdrop-blur-xl sticky top-0 z-30 shadow-lg">
             <div className="flex items-center gap-6 w-full lg:w-auto lg:flex-1">
-                 {/* ... Date/Exam Stats ... */}
                  <div className="flex flex-col">
                     <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Início</span>
                     <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5">
@@ -908,28 +808,17 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                         <input type="date" value={config.startDate || ''} onChange={(e) => updateConfig({...config, startDate: e.target.value})} className="bg-transparent outline-none text-xs text-white cursor-pointer font-medium" />
                     </div>
                  </div>
-
-                 {/* New: Exam Date Input */}
                  <div className="flex flex-col">
                     <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Data da Prova</span>
                     <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5">
                         <Flag size={14} className="text-red-500" />
-                        <input 
-                            type="date" 
-                            value={config.examDate || ''} 
-                            onChange={(e) => updateConfig({...config, examDate: e.target.value})} 
-                            className="bg-transparent outline-none text-xs text-white cursor-pointer font-medium" 
-                        />
+                        <input type="date" value={config.examDate || ''} onChange={(e) => updateConfig({...config, examDate: e.target.value})} className="bg-transparent outline-none text-xs text-white cursor-pointer font-medium" />
                     </div>
                  </div>
-
-                 {/* ... More Stats ... */}
                  {daysRemaining !== null && (
                      <div className="flex flex-col">
                         <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Restam</span>
-                        <div className={`px-3 py-1.5 rounded-lg border text-xs font-bold ${daysRemaining < 30 ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-slate-800 text-white border-slate-700'}`}>
-                            {daysRemaining} dias
-                        </div>
+                        <div className={`px-3 py-1.5 rounded-lg border text-xs font-bold ${daysRemaining < 30 ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-slate-800 text-white border-slate-700'}`}>{daysRemaining} dias</div>
                      </div>
                  )}
             </div>
@@ -942,43 +831,21 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
             </div>
 
             <div className="flex items-center gap-3 w-full lg:w-auto lg:flex-1 justify-between lg:justify-end order-2 lg:order-3">
-                 
-                 {/* PACE SELECTOR (CUSTOM DROPDOWN) */}
                  <div className="relative group w-full md:w-auto min-w-[180px]">
-                    <button 
-                        onClick={() => setShowPaceSelector(!showPaceSelector)}
-                        className="relative w-full flex items-center px-4 py-2 gap-3 bg-slate-800 rounded-xl border border-slate-700 hover:border-emerald-500/50 transition-all shadow-sm group"
-                    >
-                        <div className="flex items-center justify-center bg-slate-900 p-1.5 rounded-lg border border-slate-700 text-emerald-500 group-hover:text-emerald-400 transition-colors">
-                            <Timer size={16} />
-                        </div>
+                    <button onClick={() => setShowPaceSelector(!showPaceSelector)} className="relative w-full flex items-center px-4 py-2 gap-3 bg-slate-800 rounded-xl border border-slate-700 hover:border-emerald-500/50 transition-all shadow-sm group">
+                        <div className="flex items-center justify-center bg-slate-900 p-1.5 rounded-lg border border-slate-700 text-emerald-500 group-hover:text-emerald-400 transition-colors"><Timer size={16} /></div>
                         <div className="flex flex-col items-start flex-1 min-w-0">
                              <span className="text-[9px] text-slate-500 font-bold uppercase leading-tight">Ritmo Padrão</span>
-                             <span className="text-white text-xs font-bold truncate">
-                                {config.studyPace} ({PACE_SETTINGS[config.studyPace || 'Intermediário'].blocks} bl)
-                             </span>
+                             <span className="text-white text-xs font-bold truncate">{config.studyPace} ({PACE_SETTINGS[config.studyPace || 'Intermediário'].blocks} bl)</span>
                         </div>
                         <ChevronDown size={14} className={`text-slate-500 transition-transform ${showPaceSelector ? 'rotate-180' : ''}`} />
                     </button>
-
                     {showPaceSelector && (
                         <>
                             <div className="fixed inset-0 z-40" onClick={() => setShowPaceSelector(false)}></div>
                             <div className="absolute top-full right-0 mt-2 w-full bg-slate-900 border border-slate-700 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100 flex flex-col p-1">
                                 {Object.keys(PACE_SETTINGS).map((paceKey) => (
-                                    <button
-                                        key={paceKey}
-                                        onClick={() => {
-                                            updateConfig({...config, studyPace: paceKey as any});
-                                            setShowPaceSelector(false);
-                                        }}
-                                        className={`
-                                            flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-bold transition-all
-                                            ${config.studyPace === paceKey 
-                                                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/20' 
-                                                : 'text-slate-400 hover:bg-slate-800 hover:text-white'}
-                                        `}
-                                    >
+                                    <button key={paceKey} onClick={() => { updateConfig({...config, studyPace: paceKey as any}); setShowPaceSelector(false); }} className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-bold transition-all ${config.studyPace === paceKey ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
                                         <span>{paceKey}</span>
                                         <span className="opacity-70 text-[10px] font-mono bg-black/20 px-1.5 rounded">{PACE_SETTINGS[paceKey].blocks} bl</span>
                                     </button>
@@ -987,26 +854,14 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                         </>
                     )}
                  </div>
-                 
-                 <button 
-                    onClick={exportDatabase} 
-                    className="h-[42px] w-[42px] flex items-center justify-center rounded-xl transition-all border bg-slate-800 text-slate-400 border-slate-700 hover:text-white hover:bg-slate-700 hover:border-emerald-500/50"
-                    title="Fazer Backup Manual (.json)"
-                 >
-                    <Download size={18} />
-                 </button>
-
+                 <button onClick={exportDatabase} className="h-[42px] w-[42px] flex items-center justify-center rounded-xl transition-all border bg-slate-800 text-slate-400 border-slate-700 hover:text-white hover:bg-slate-700 hover:border-emerald-500/50" title="Fazer Backup Manual (.json)"><Download size={18} /></button>
                  <button onClick={() => { setLocalConfig(config); setIsConfigOpen(true); }} className={`h-[42px] w-[42px] flex items-center justify-center rounded-xl transition-all border flex-shrink-0 ${isConfigOpen ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white hover:bg-slate-700'}`}><Settings2 size={18} /></button>
             </div>
          </header>
 
          {viewMode === 'timeline' ? (
              <div className="flex flex-col h-full overflow-hidden">
-                 {/* Timeline Content */}
-                 {/* ... (Existing Timeline implementation) ... */}
-                 {/* The timeline render code is identical to previous, just wrapped in this condition */}
                  <div className={`overflow-hidden transition-all duration-300 ease-in-out bg-slate-900 border-b border-slate-800 flex-shrink-0 ${showStats ? 'max-h-64 opacity-100' : 'max-h-0 opacity-0 border-none'}`}>
-                    {/* ... Stats Panel ... */}
                     <div className="p-4 h-64 flex gap-6">
                         <div className="flex-1">
                             <h3 className="text-xs font-bold text-slate-400 mb-2 uppercase flex items-center gap-2"><BarChart3 size={14} className="text-emerald-500"/> Distribuição de Matérias</h3>
@@ -1036,7 +891,6 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                  <div className="flex-1 overflow-x-auto overflow-y-hidden bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px]">
                     <div className="flex h-full p-6 gap-6 min-w-max items-start">
                         {weeks.map(week => {
-                        
                         let weekSlots: ScheduleItem[] = [];
                         if (activeCycle?.schedule && activeCycle.schedule[week.id]) {
                             weekSlots = activeCycle.schedule[week.id];
@@ -1060,7 +914,6 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                         const isLate = week.isPast && !isTargetMet;
                         const dailyAvg = (blocksCount / 7).toFixed(1);
 
-                        // --- NEW vs REVIEW COUNT ---
                         const newItemsCount = weekSlots.reduce((acc, slot) => {
                             if (!slot.notebookId) return acc;
                             const nb = notebooks.find(n => n.id === slot.notebookId);
@@ -1068,20 +921,13 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                         }, 0);
                         const reviewItemsCount = blocksCount - newItemsCount;
 
-                        // --- PERFORMANCE SUMMARY ---
                         const summaryStats = { success: 0, warning: 0, critical: 0, totalAcc: 0, countAcc: 0 };
                         if (week.isPast || blocksCompleted > 0) {
                             weekSlots.forEach(slot => {
                                 if (!slot.completed || !slot.notebookId) return;
                                 const nb = notebooks.find(n => n.id === slot.notebookId);
                                 if (!nb) return;
-                                
-                                // Accumulate accuracy for average
-                                if (nb.accuracy > 0) {
-                                    summaryStats.totalAcc += nb.accuracy;
-                                    summaryStats.countAcc++;
-                                }
-
+                                if (nb.accuracy > 0) { summaryStats.totalAcc += nb.accuracy; summaryStats.countAcc++; }
                                 if (nb.accuracy >= nb.targetAccuracy) summaryStats.success++;
                                 else if (nb.accuracy < 60) summaryStats.critical++;
                                 else summaryStats.warning++;
@@ -1089,240 +935,71 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                         }
                         const hasActivity = summaryStats.success + summaryStats.warning + summaryStats.critical > 0;
                         const avgAccuracy = summaryStats.countAcc > 0 ? Math.round(summaryStats.totalAcc / summaryStats.countAcc) : 0;
-
-                        // COLLAPSED LOGIC
                         const isCollapsed = week.isPast && expandedWeekId !== week.id;
 
                         if (isCollapsed) {
                             return (
-                                <div 
-                                    key={week.id}
-                                    onClick={() => setExpandedWeekId(week.id)}
-                                    className="w-24 h-full bg-slate-900/60 border border-slate-800 hover:border-emerald-500/50 hover:bg-slate-900 rounded-2xl flex flex-col items-center py-4 cursor-pointer transition-all duration-300 group shadow-sm hover:shadow-xl relative overflow-hidden"
-                                    title={`Semana ${week.index} - Clique para expandir`}
-                                >
+                                <div key={week.id} onClick={() => setExpandedWeekId(week.id)} className="w-24 h-full bg-slate-900/60 border border-slate-800 hover:border-emerald-500/50 hover:bg-slate-900 rounded-2xl flex flex-col items-center py-4 cursor-pointer transition-all duration-300 group shadow-sm hover:shadow-xl relative overflow-hidden" title={`Semana ${week.index} - Clique para expandir`}>
                                     <div className="absolute inset-0 bg-slate-950/30 group-hover:bg-transparent transition-colors" />
-                                    
-                                    {/* Top: Status Dots (Mini Dashboard) - ENHANCED */}
                                     <div className="flex flex-col gap-1 mb-2 z-10 w-full items-center">
-                                        {/* Counter: Completed / Total */}
-                                        <div className={`mb-2 px-2 py-0.5 rounded text-[10px] font-bold border ${isTargetMet ? 'bg-emerald-900/20 text-emerald-400 border-emerald-500/30' : 'bg-slate-950 text-slate-300 border-slate-800'}`}>
-                                            {blocksCompleted}/{blocksCount}
-                                        </div>
-
+                                        <div className={`mb-2 px-2 py-0.5 rounded text-[10px] font-bold border ${isTargetMet ? 'bg-emerald-900/20 text-emerald-400 border-emerald-500/30' : 'bg-slate-950 text-slate-300 border-slate-800'}`}>{blocksCompleted}/{blocksCount}</div>
                                         {hasActivity ? (
                                             <div className="flex flex-col gap-1 w-full px-5">
-                                                {summaryStats.success > 0 && (
-                                                    <div className="flex items-center justify-between text-[9px] text-emerald-400 font-bold w-full">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></span>
-                                                        <span>{summaryStats.success}</span>
-                                                    </div>
-                                                )}
-                                                {summaryStats.warning > 0 && (
-                                                    <div className="flex items-center justify-between text-[9px] text-amber-400 font-bold w-full">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-sm"></span>
-                                                        <span>{summaryStats.warning}</span>
-                                                    </div>
-                                                )}
-                                                {summaryStats.critical > 0 && (
-                                                    <div className="flex items-center justify-between text-[9px] text-red-400 font-bold w-full">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-sm"></span>
-                                                        <span>{summaryStats.critical}</span>
-                                                    </div>
-                                                )}
+                                                {summaryStats.success > 0 && (<div className="flex items-center justify-between text-[9px] text-emerald-400 font-bold w-full"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></span><span>{summaryStats.success}</span></div>)}
+                                                {summaryStats.warning > 0 && (<div className="flex items-center justify-between text-[9px] text-amber-400 font-bold w-full"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-sm"></span><span>{summaryStats.warning}</span></div>)}
+                                                {summaryStats.critical > 0 && (<div className="flex items-center justify-between text-[9px] text-red-400 font-bold w-full"><span className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-sm"></span><span>{summaryStats.critical}</span></div>)}
                                             </div>
-                                        ) : (
-                                            <span className="w-1.5 h-1.5 rounded-full bg-slate-700 mt-1"></span>
-                                        )}
+                                        ) : (<span className="w-1.5 h-1.5 rounded-full bg-slate-700 mt-1"></span>)}
                                     </div>
-
-                                    {/* Middle: Vertical Text */}
-                                    <div className="flex-1 flex items-center justify-center z-10 w-full relative">
-                                        <span className="text-xs font-bold text-slate-500 group-hover:text-white whitespace-nowrap tracking-widest uppercase absolute" style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}>
-                                            Semana {week.index}
-                                        </span>
-                                    </div>
-
-                                    {/* Bottom: Pace Indicator */}
-                                    <div className="mt-4 z-10 flex flex-col items-center gap-1">
-                                        <Activity size={14} className={isTargetMet ? "text-emerald-500" : "text-slate-600"} />
-                                        {avgAccuracy > 0 && <span className={`text-[9px] font-mono font-bold ${avgAccuracy >= 80 ? 'text-emerald-400' : 'text-slate-500'}`}>{avgAccuracy}%</span>}
-                                    </div>
+                                    <div className="flex-1 flex items-center justify-center z-10 w-full relative"><span className="text-xs font-bold text-slate-500 group-hover:text-white whitespace-nowrap tracking-widest uppercase absolute" style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}>Semana {week.index}</span></div>
+                                    <div className="mt-4 z-10 flex flex-col items-center gap-1"><Activity size={14} className={isTargetMet ? "text-emerald-500" : "text-slate-600"} />{avgAccuracy > 0 && <span className={`text-[9px] font-mono font-bold ${avgAccuracy >= 80 ? 'text-emerald-400' : 'text-slate-500'}`}>{avgAccuracy}%</span>}</div>
                                 </div>
                             );
                         }
 
-                        // PREPARE LISTS: Pending vs Completed (Preserving Original Index for Drag & Drop Safety)
                         const pendingItems: { slot: ScheduleItem, originalIndex: number }[] = [];
                         const completedItems: { slot: ScheduleItem, originalIndex: number }[] = [];
-
-                        weekSlots.forEach((slot, index) => {
-                            if (slot.completed) completedItems.push({ slot, originalIndex: index });
-                            else pendingItems.push({ slot, originalIndex: index });
-                        });
-
+                        weekSlots.forEach((slot, index) => { if (slot.completed) completedItems.push({ slot, originalIndex: index }); else pendingItems.push({ slot, originalIndex: index }); });
                         const isCompletedListExpanded = expandedCompletedWeeks[week.id];
 
                         return (
                             <div key={week.id} className={`w-80 flex-shrink-0 flex flex-col rounded-2xl border transition-all duration-300 relative h-full max-h-full ${week.isPast ? 'bg-slate-900/30 border-slate-800/50 opacity-100' : 'bg-slate-900 border-slate-800 shadow-2xl hover:border-slate-700'}`} onDragOver={week.isPast ? undefined : onDragOver} onDrop={(e) => onDrop(e, week.id, week.isPast)}>
-                            
-                            <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-950 px-2 py-0.5 rounded border border-slate-800 shadow-sm z-20">
-                                ~{dailyAvg} / dia
-                            </div>
-
-                            {/* Collapse Button for Past Weeks */}
-                            {week.isPast && (
-                                <button 
-                                    onClick={(e) => { e.stopPropagation(); setExpandedWeekId(null); }}
-                                    className="absolute -right-3 top-1/2 -translate-y-1/2 bg-slate-800 text-slate-400 hover:text-white p-1 rounded-full shadow-lg border border-slate-700 z-50 hover:scale-110 transition-transform"
-                                    title="Recolher Semana"
-                                >
-                                    <ChevronRight size={16} />
-                                </button>
-                            )}
-
+                            <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-950 px-2 py-0.5 rounded border border-slate-800 shadow-sm z-20">~{dailyAvg} / dia</div>
+                            {week.isPast && (<button onClick={(e) => { e.stopPropagation(); setExpandedWeekId(null); }} className="absolute -right-3 top-1/2 -translate-y-1/2 bg-slate-800 text-slate-400 hover:text-white p-1 rounded-full shadow-lg border border-slate-700 z-50 hover:scale-110 transition-transform" title="Recolher Semana"><ChevronRight size={16} /></button>)}
                             <div className={`p-4 rounded-t-2xl border-b flex flex-col gap-3 z-10 relative ${week.isPast ? 'bg-slate-950/30 border-slate-800/50 text-slate-600' : 'bg-slate-900 border-slate-700 text-slate-200'}`}>
                                 <div className="flex justify-between items-start">
                                     <div><span className="font-black block text-base flex items-center gap-2 text-white">SEMANA {week.index} {week.isPast && <Lock size={14} />}</span><span className={`text-[10px] font-bold uppercase tracking-widest ${week.isPast ? 'line-through decoration-slate-600 opacity-50' : 'text-slate-500'}`}>{week.label}</span></div>
                                     <div className="flex flex-col items-end">
-                                        <div className="flex items-baseline gap-1">
-                                            <span className={`text-lg font-black ${isTargetMet ? 'text-emerald-400' : 'text-white'}`}>
-                                                {blocksCompleted}
-                                            </span>
-                                            <span className="text-sm font-medium text-slate-600">/</span>
-                                            <span className={`text-lg font-black ${isOverloaded ? 'text-red-400' : isAllocated ? 'text-emerald-400' : 'text-white'}`}>
-                                                {blocksCount}
-                                            </span>
-                                        </div>
-                                        <span className="text-[9px] text-slate-500 uppercase font-bold flex items-center gap-1">
-                                            {blocksRemaining > 0 ? (
-                                                <span className="text-amber-500">{blocksRemaining} Restantes</span>
-                                            ) : blocksCount > 0 ? (
-                                                <span className="text-emerald-500 flex items-center gap-1"><Check size={8}/> Feito</span>
-                                            ) : (
-                                                "Vazio"
-                                            )}
-                                        </span>
+                                        <div className="flex items-baseline gap-1"><span className={`text-lg font-black ${isTargetMet ? 'text-emerald-400' : 'text-white'}`}>{blocksCompleted}</span><span className="text-sm font-medium text-slate-600">/</span><span className={`text-lg font-black ${isOverloaded ? 'text-red-400' : isAllocated ? 'text-emerald-400' : 'text-white'}`}>{blocksCount}</span></div>
+                                        <span className="text-[9px] text-slate-500 uppercase font-bold flex items-center gap-1">{blocksRemaining > 0 ? (<span className="text-amber-500">{blocksRemaining} Restantes</span>) : blocksCount > 0 ? (<span className="text-emerald-500 flex items-center gap-1"><Check size={8}/> Feito</span>) : ("Vazio")}</span>
                                     </div>
                                 </div>
-                                {!week.isPast && (
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <div className="relative w-full">
-                                            <select value={weekPaceName} onChange={(e) => updateWeekPace(week.id, e.target.value)} className="w-full bg-slate-950/50 border border-slate-700 rounded px-2 py-1 text-[10px] text-slate-300 outline-none focus:border-emerald-500 appearance-none font-medium cursor-pointer hover:bg-slate-800">
-                                                <option value="Iniciante">Iniciante (15)</option>
-                                                <option value="Básico">Básico (30)</option>
-                                                <option value="Intermediário">Interm. (45)</option>
-                                                <option value="Avançado">Avançado (66)</option>
-                                            </select>
-                                            <div className="absolute right-2 top-1.5 pointer-events-none text-slate-500"><ChevronDown size={10} /></div>
-                                        </div>
-                                    </div>
-                                )}
+                                {!week.isPast && (<div className="flex items-center gap-2 mt-1"><div className="relative w-full"><select value={weekPaceName} onChange={(e) => updateWeekPace(week.id, e.target.value)} className="w-full bg-slate-950/50 border border-slate-700 rounded px-2 py-1 text-[10px] text-slate-300 outline-none focus:border-emerald-500 appearance-none font-medium cursor-pointer hover:bg-slate-800"><option value="Iniciante">Iniciante (15)</option><option value="Básico">Básico (30)</option><option value="Intermediário">Interm. (45)</option><option value="Avançado">Avançado (66)</option></select><div className="absolute right-2 top-1.5 pointer-events-none text-slate-500"><ChevronDown size={10} /></div></div></div>)}
                                 <div className="space-y-2 mt-1">
                                     <div className="w-full h-1 bg-slate-950 rounded-full overflow-hidden flex relative group border border-slate-800"><div className={`h-full transition-all duration-500 ${isOverloaded ? 'bg-red-500' : 'bg-slate-600'}`} style={{ width: `${loadPercentage}%` }}></div></div>
                                     <div className="flex justify-between items-center h-5">
-                                        {isTargetMet ? (
-                                            <span className="text-[10px] text-emerald-500 font-bold flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 w-full justify-center"><Check size={10} /> Meta Batida</span>
-                                        ) : isAllAllocatedDone ? (
-                                            <span className="text-[10px] text-amber-400 font-bold flex items-center gap-1 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 w-full justify-center"><Meh size={10} /> Ritmo Baixo ({blocksCompleted}/{weekTarget.blocks})</span>
-                                        ) : isLate ? (
-                                            <span className="text-[10px] text-red-400 font-bold flex items-center gap-1 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20 w-full justify-center"><AlertCircle size={10} /> Atrasado ({blocksCount - blocksCompleted} pendentes)</span>
-                                        ) : missingBlocks > 0 ? (
-                                            <div className="flex w-full justify-between items-center">
-                                                <span className="text-[10px] text-slate-500 font-bold flex items-center gap-1">Planejar: +{missingBlocks}</span>
-                                                {blocksCount > 0 && (
-                                                    <div className="flex items-center gap-2 text-[9px] font-mono">
-                                                        <span className="text-blue-400 flex items-center gap-0.5" title="Disciplinas Novas (0% acerto)">
-                                                            <Sparkles size={8} /> {newItemsCount} <span className="opacity-60">({Math.round((newItemsCount/blocksCount)*100)}%)</span>
-                                                        </span>
-                                                        <span className="text-purple-400 flex items-center gap-0.5" title="Revisões (>0% acerto)">
-                                                            <RefreshCw size={8} /> {reviewItemsCount} <span className="opacity-60">({Math.round((reviewItemsCount/blocksCount)*100)}%)</span>
-                                                        </span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ) : (
-                                            <span className="text-[10px] text-blue-400 font-bold flex items-center gap-1"><Archive size={10} /> Planejamento OK</span>
-                                        )}
+                                        {isTargetMet ? (<span className="text-[10px] text-emerald-500 font-bold flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 w-full justify-center"><Check size={10} /> Meta Batida</span>) : isAllAllocatedDone ? (<span className="text-[10px] text-amber-400 font-bold flex items-center gap-1 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 w-full justify-center"><Meh size={10} /> Ritmo Baixo ({blocksCompleted}/{weekTarget.blocks})</span>) : isLate ? (<span className="text-[10px] text-red-400 font-bold flex items-center gap-1 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20 w-full justify-center"><AlertCircle size={10} /> Atrasado ({blocksCount - blocksCompleted} pendentes)</span>) : missingBlocks > 0 ? (
+                                            <div className="flex w-full justify-between items-center"><span className="text-[10px] text-slate-500 font-bold flex items-center gap-1">Planejar: +{missingBlocks}</span>{blocksCount > 0 && (<div className="flex items-center gap-2 text-[9px] font-mono"><span className="text-blue-400 flex items-center gap-0.5" title="Disciplinas Novas (0% acerto)"><Sparkles size={8} /> {newItemsCount} <span className="opacity-60">({Math.round((newItemsCount/blocksCount)*100)}%)</span></span><span className="text-purple-400 flex items-center gap-0.5" title="Revisões (>0% acerto)"><RefreshCw size={8} /> {reviewItemsCount} <span className="opacity-60">({Math.round((reviewItemsCount/blocksCount)*100)}%)</span></span></div>)}</div>
+                                        ) : (<span className="text-[10px] text-blue-400 font-bold flex items-center gap-1"><Archive size={10} /> Planejamento OK</span>)}
                                     </div>
                                 </div>
-                                {hasActivity && (
-                                    <div className="flex justify-between items-center pt-2 border-t border-slate-800/50 mt-1">
-                                        <div className="flex items-center gap-3">
-                                            {summaryStats.success > 0 && <span className="text-[9px] font-bold text-emerald-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> {summaryStats.success}</span>}
-                                            {summaryStats.warning > 0 && <span className="text-[9px] font-bold text-amber-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span> {summaryStats.warning}</span>}
-                                            {summaryStats.critical > 0 && <span className="text-[9px] font-bold text-red-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-500"></span> {summaryStats.critical}</span>}
-                                        </div>
-                                    </div>
-                                )}
+                                {hasActivity && (<div className="flex justify-between items-center pt-2 border-t border-slate-800/50 mt-1"><div className="flex items-center gap-3">{summaryStats.success > 0 && <span className="text-[9px] font-bold text-emerald-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> {summaryStats.success}</span>}{summaryStats.warning > 0 && <span className="text-[9px] font-bold text-amber-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span> {summaryStats.warning}</span>}{summaryStats.critical > 0 && <span className="text-[9px] font-bold text-red-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-500"></span> {summaryStats.critical}</span>}</div></div>)}
                             </div>
                             <div className="p-3 space-y-2 overflow-y-auto flex-1 custom-scrollbar relative bg-slate-900/50">
                                 {week.isPast && <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagmonds-light.png')] opacity-10 pointer-events-none z-0"></div>}
-                                
-                                {/* PENDING ITEMS (Always visible) */}
                                 {pendingItems.map(({ slot, originalIndex }) => {
                                     if (!slot || !slot.notebookId) return null; 
                                     const nb = notebooks.find(n => n.id === slot.notebookId);
                                     if (!nb) return null;
-                                    return (
-                                        <DraggableCard 
-                                            key={slot.instanceId || `fallback-${originalIndex}`} 
-                                            instanceId={slot.instanceId}
-                                            notebook={nb} 
-                                            isCompleted={slot.completed}
-                                            onDragStart={onDragStart} 
-                                            onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)}
-                                            onEdit={handleEditClick} 
-                                            onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} 
-                                            onRemove={(instId) => handleRemoveFromWeek(instId, week.id)}
-                                            isCompact 
-                                            origin="week" 
-                                            disabled={week.isPast}
-                                            index={originalIndex}
-                                        />
-                                    );
+                                    return (<DraggableCard key={slot.instanceId || `fallback-${originalIndex}`} instanceId={slot.instanceId} notebook={nb} isCompleted={slot.completed} onDragStart={onDragStart} onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)} onEdit={handleEditClick} onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} onRemove={(instId) => handleRemoveFromWeek(instId, week.id)} isCompact origin="week" disabled={week.isPast} index={originalIndex} />);
                                 })}
-
-                                {/* COMPLETED SECTION TOGGLE */}
-                                {completedItems.length > 0 && (
-                                    <div className="pt-2">
-                                        <button 
-                                            onClick={(e) => toggleCompletedWeek(week.id, e)}
-                                            className="w-full flex items-center justify-between px-3 py-2 bg-slate-800/50 border border-slate-800 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 hover:border-slate-700 transition-all group"
-                                        >
-                                            <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-2">
-                                                <CheckCircle2 size={12} className="text-emerald-500" />
-                                                {isCompletedListExpanded ? 'Ocultar' : 'Mostrar'} {completedItems.length} Concluídos
-                                            </span>
-                                            {isCompletedListExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                                        </button>
-                                    </div>
-                                )}
-
-                                {/* COMPLETED ITEMS (Conditionally Visible) */}
+                                {completedItems.length > 0 && (<div className="pt-2"><button onClick={(e) => toggleCompletedWeek(week.id, e)} className="w-full flex items-center justify-between px-3 py-2 bg-slate-800/50 border border-slate-800 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 hover:border-slate-700 transition-all group"><span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-2"><CheckCircle2 size={12} className="text-emerald-500" />{isCompletedListExpanded ? 'Ocultar' : 'Mostrar'} {completedItems.length} Concluídos</span>{isCompletedListExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</button></div>)}
                                 {isCompletedListExpanded && completedItems.map(({ slot, originalIndex }) => {
                                     if (!slot || !slot.notebookId) return null; 
                                     const nb = notebooks.find(n => n.id === slot.notebookId);
                                     if (!nb) return null;
-                                    return (
-                                        <DraggableCard 
-                                            key={slot.instanceId || `fallback-${originalIndex}`} 
-                                            instanceId={slot.instanceId}
-                                            notebook={nb} 
-                                            isCompleted={slot.completed}
-                                            onDragStart={onDragStart} 
-                                            onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)}
-                                            onEdit={handleEditClick} 
-                                            onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} 
-                                            onRemove={(instId) => handleRemoveFromWeek(instId, week.id)}
-                                            isCompact 
-                                            origin="week" 
-                                            disabled={week.isPast}
-                                            index={originalIndex}
-                                        />
-                                    );
+                                    return (<DraggableCard key={slot.instanceId || `fallback-${originalIndex}`} instanceId={slot.instanceId} notebook={nb} isCompleted={slot.completed} onDragStart={onDragStart} onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)} onEdit={handleEditClick} onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} onRemove={(instId) => handleRemoveFromWeek(instId, week.id)} isCompact origin="week" disabled={week.isPast} index={originalIndex} />);
                                 })}
-
                                 {weekSlots.length === 0 && !week.isPast && <div className="h-full flex flex-col items-center justify-center text-slate-700 text-xs italic opacity-50 border-2 border-dashed border-slate-800 rounded-xl m-2 bg-slate-950/50 min-h-[100px]">Arraste matérias aqui</div>}
                             </div>
                             </div>
@@ -1333,7 +1010,6 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
              </div>
          ) : (<CycleCalculator paceTarget={paceTarget} />)}
 
-      {/* ... CONFIGURATION MODAL ... */}
       {isConfigOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
@@ -1343,114 +1019,34 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
             </div>
             
             <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-8">
-              
-              {/* SECTION: EDITAL CONFIG */}
               <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2 flex items-center gap-2">
-                      <FileText size={16} /> Configuração do Edital
-                  </h3>
-                  
+                  <h3 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2 flex items-center gap-2"><FileText size={16} /> Configuração do Edital</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                          <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Cargo Alvo</label>
-                          <input type="text" value={localConfig.targetRole} onChange={(e) => setLocalConfig({...localConfig, targetRole: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" />
-                      </div>
-                      <div>
-                          <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Banca Examinadora</label>
-                          <input type="text" value={localConfig.banca || ''} onChange={(e) => setLocalConfig({...localConfig, banca: e.target.value})} placeholder="Ex: FGV, Cebraspe" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" />
-                      </div>
+                      <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Cargo Alvo</label><input type="text" value={localConfig.targetRole} onChange={(e) => setLocalConfig({...localConfig, targetRole: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /></div>
+                      <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Banca Examinadora</label><input type="text" value={localConfig.banca || ''} onChange={(e) => setLocalConfig({...localConfig, banca: e.target.value})} placeholder="Ex: FGV, Cebraspe" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /></div>
                   </div>
-
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                          <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Data da Prova</label>
-                          <div className="relative">
-                              <Calendar className="absolute left-3 top-3 text-slate-500" size={16} />
-                              <input type="date" value={localConfig.examDate || ''} onChange={(e) => setLocalConfig({...localConfig, examDate: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg py-3 pl-10 text-white outline-none focus:border-emerald-500 cursor-pointer" />
-                          </div>
-                      </div>
-                      <div>
-                          <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Link do Edital</label>
-                          <input type="url" value={localConfig.editalLink || ''} onChange={(e) => setLocalConfig({...localConfig, editalLink: e.target.value})} placeholder="https://..." className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" />
-                      </div>
+                      <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Data da Prova</label><div className="relative"><Calendar className="absolute left-3 top-3 text-slate-500" size={16} /><input type="date" value={localConfig.examDate || ''} onChange={(e) => setLocalConfig({...localConfig, examDate: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg py-3 pl-10 text-white outline-none focus:border-emerald-500 cursor-pointer" /></div></div>
+                      <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Link do Edital</label><input type="url" value={localConfig.editalLink || ''} onChange={(e) => setLocalConfig({...localConfig, editalLink: e.target.value})} placeholder="https://..." className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /></div>
                   </div>
-
-                  <div>
-                      <label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Conteúdo Programático (Texto Completo)</label>
-                      <textarea 
-                          value={localConfig.editalText || ''}
-                          onChange={(e) => setLocalConfig({...localConfig, editalText: e.target.value})}
-                          placeholder="Cole aqui o texto do edital para a IA processar..."
-                          className="w-full h-32 bg-slate-950 border border-slate-700 rounded-lg p-3 text-xs text-slate-300 font-mono outline-none focus:border-emerald-500 resize-none custom-scrollbar"
-                      />
-                      <p className="text-[10px] text-slate-500 mt-1 italic">Este texto é usado pela IA para gerar o Edital Verticalizado e os Diagnósticos.</p>
-                  </div>
+                  <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Conteúdo Programático (Texto Completo)</label><textarea value={localConfig.editalText || ''} onChange={(e) => setLocalConfig({...localConfig, editalText: e.target.value})} placeholder="Cole aqui o texto do edital para a IA processar..." className="w-full h-32 bg-slate-950 border border-slate-700 rounded-lg p-3 text-xs text-slate-300 font-mono outline-none focus:border-emerald-500 resize-none custom-scrollbar" /><p className="text-[10px] text-slate-500 mt-1 italic">Este texto é usado pela IA para gerar o Edital Verticalizado e os Diagnósticos.</p></div>
               </div>
-
-              {/* SECTION: INTEGRATION CONFIG */}
               <div className="space-y-4 pt-4 border-t border-slate-800">
-                  <h3 className="text-sm font-bold text-cyan-500 uppercase tracking-widest border-b border-cyan-500/20 pb-2 flex items-center gap-2">
-                      <Key size={16} /> Integração IA (Google Gemini)
-                  </h3>
-                  
-                  <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl">
-                      <label className="block text-xs font-bold text-slate-400 mb-2 uppercase">Google Gemini API Key</label>
-                      <div className="flex gap-2">
-                          <input 
-                            type="password" 
-                            value={apiKey} 
-                            onChange={(e) => setApiKey(e.target.value)} 
-                            placeholder="AIzaSy..." 
-                            className="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-cyan-500 font-mono text-sm" 
-                          />
-                      </div>
-                      <p className="text-[10px] text-slate-500 mt-2 flex items-center gap-1">
-                          <CheckCircle2 size={12} /> Salvo apenas no seu navegador (LocalStorage). Necessário para Nietzsche, Diagnóstico e Notícias.
-                      </p>
-                  </div>
+                  <h3 className="text-sm font-bold text-cyan-500 uppercase tracking-widest border-b border-cyan-500/20 pb-2 flex items-center gap-2"><Key size={16} /> Integração IA (Google Gemini)</h3>
+                  <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl"><label className="block text-xs font-bold text-slate-400 mb-2 uppercase">Google Gemini API Key</label><div className="flex gap-2"><input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="AIzaSy..." className="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-cyan-500 font-mono text-sm" /></div><p className="text-[10px] text-slate-500 mt-2 flex items-center gap-1"><CheckCircle2 size={12} /> Salvo apenas no seu navegador (LocalStorage). Necessário para Nietzsche, Diagnóstico e Notícias.</p></div>
               </div>
-
-              {/* SECTION: ALGORITHM TUNING - WITH TOOLTIPS */}
               <div className="space-y-4 pt-4 border-t border-slate-800">
-                  <h3 className="text-sm font-bold text-purple-500 uppercase tracking-widest border-b border-purple-500/20 pb-2 flex items-center gap-2">
-                      <BrainCircuit size={16} /> Ajuste Fino do Algoritmo
-                  </h3>
-                  
+                  <h3 className="text-sm font-bold text-purple-500 uppercase tracking-widest border-b border-purple-500/20 pb-2 flex items-center gap-2"><BrainCircuit size={16} /> Ajuste Fino do Algoritmo</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {Object.entries(currentIntervals).map(([key, val]) => (
-                          <div key={key} className="group relative">
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-help flex items-center gap-1">
-                                  {ALGO_TOOLTIPS[key]?.title || key} 
-                                  <HelpCircle size={10} className="text-slate-600"/>
-                              </label>
-                              <input 
-                                type="number" 
-                                value={val} 
-                                onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} 
-                                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-center font-bold outline-none focus:border-purple-500" 
-                              />
-                              
-                              {/* TOOLTIP ON HOVER */}
-                              {ALGO_TOOLTIPS[key] && (
-                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-slate-800 border border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                                      <strong className="block text-emerald-400 mb-1">{ALGO_TOOLTIPS[key].title}</strong>
-                                      <span className="text-slate-300 leading-tight block">{ALGO_TOOLTIPS[key].desc}</span>
-                                      <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800"></div>
-                                  </div>
-                              )}
-                          </div>
+                          <div key={key} className="group relative"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-help flex items-center gap-1">{ALGO_TOOLTIPS[key]?.title || key} <HelpCircle size={10} className="text-slate-600"/></label><input type="number" value={val} onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-center font-bold outline-none focus:border-purple-500" />{ALGO_TOOLTIPS[key] && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-slate-800 border border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"><strong className="block text-emerald-400 mb-1">{ALGO_TOOLTIPS[key].title}</strong><span className="text-slate-300 leading-tight block">{ALGO_TOOLTIPS[key].desc}</span><div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800"></div></div>)}</div>
                       ))}
                   </div>
               </div>
-
             </div>
-
             <div className="p-6 border-t border-slate-800 bg-slate-900 flex justify-end gap-3">
               <button onClick={() => !isSaving && setIsConfigOpen(false)} disabled={isSaving} className="px-4 py-2 text-slate-400 hover:text-white font-medium transition-colors">Cancelar</button>
-              <button onClick={handleSaveConfig} disabled={isSaving} className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-900/20 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-                  {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Settings2 size={18} />}
-                  {isSaving ? "Salvando..." : "Salvar Alterações"}
-              </button>
+              <button onClick={handleSaveConfig} disabled={isSaving} className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-900/20 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">{isSaving ? <Loader2 size={18} className="animate-spin" /> : <Settings2 size={18} />}{isSaving ? "Salvando..." : "Salvar Alterações"}</button>
             </div>
           </div>
         </div>

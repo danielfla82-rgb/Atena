@@ -37,6 +37,7 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
   const uniqueDisciplines = useMemo(() => Array.from(new Set(notebooks.map(n => n.discipline))).sort(), [notebooks]);
 
   // --- CHECK PLANNED STATUS ---
+  // Identifica quais cadernos já estão agendados no ciclo ativo
   const scheduledIds = useMemo(() => {
       const activeCycle = cycles.find(c => c.id === activeCycleId);
       const ids = new Set<string>();
