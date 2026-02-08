@@ -638,7 +638,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           accuracy: notebook.accuracy || 0, targetAccuracy: notebook.targetAccuracy || 90, weight: notebook.weight || Weight.MEDIO,
           relevance: notebook.relevance || Relevance.MEDIA, trend: notebook.trend || Trend.ESTAVEL, status: NotebookStatus.NOT_STARTED,
           images: notebook.images || [], notes: notebook.notes || '', ...notebook,
-          isGlobal: false // Always false for new items
+          isGlobal: notebook.isGlobal || false // Default false
       };
       
       const previousNotebooks = [...notebooks];
@@ -646,7 +646,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       
       if (!isGuest && user) {
           try {
-              const payload = { ...mapNotebookToDB(newNb), user_id: user.id };
+              // V4 LOGIC: If isGlobal is true, set user_id to NULL
+              const payload = { 
+                  ...mapNotebookToDB(newNb), 
+                  user_id: newNb.isGlobal ? null : user.id 
+              };
+              
               const { error } = await supabase.from('notebooks').insert(payload);
               if (error) { throw error; }
           } catch (e: any) { 
@@ -673,6 +678,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const newId = await addNotebook({
           ...dataToCopy,
           // Reset status if needed, or keep it. Let's keep it 'Not Started' usually, but here we clone exactly.
+          isGlobal: false // Explicitly private
       });
 
       // UI Trick: Remove the global one from view immediately so it looks like it "transformed"
@@ -682,11 +688,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const editNotebook = async (id: string, data: Partial<Notebook>) => {
-      // Intercept: If editing a global notebook, fork it first!
+      // Logic: 
+      // 1. If we are editing a GLOBAL notebook and turning it PRIVATE (isGlobal: false), we fork it.
+      // 2. If we are editing a GLOBAL notebook and keeping it GLOBAL, we update it (only allowed if RLS permits).
+      // 3. If we are editing a PRIVATE notebook and turning it PUBLIC (isGlobal: true), we update user_id to NULL.
+
       let targetId = id;
       const nb = notebooks.find(n => n.id === id);
       
-      if (nb?.isGlobal) {
+      // If editing a global notebook but NOT explicitly setting isGlobal (e.g. just accuracy update),
+      // we assume it should become private (Fork) UNLESS the user is an admin managing the catalog.
+      // Current behavior: Standard edits on Global items -> Fork.
+      // Exception: If we are in the "Edit Modal" and specifically toggling isGlobal, handled below.
+      
+      if (nb?.isGlobal && data.isGlobal === undefined) {
+          // Implicit edit (like drag and drop or quick accuracy update) on a global item -> Fork it to private
           targetId = await ensureNotebookIsPrivate(id);
       }
 
@@ -697,10 +713,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           try {
               const payload = mapNotebookToDB({ ...data, id: targetId });
               delete (payload as any).id;
+              
+              // Handle Ownership Transfer
+              if (data.isGlobal !== undefined) {
+                  // If explicitly changing global status
+                  // @ts-ignore
+                  payload.user_id = data.isGlobal ? null : user.id;
+              }
+
               const { error } = await supabase.from('notebooks').update(payload).eq('id', targetId);
               if (error) throw error;
           } catch (e: any) { 
-              // Revert logic is complex with forking, usually we just reload or show error
               console.error(e);
               throw new Error(e.message);
           }
@@ -708,18 +731,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const deleteNotebook = async (id: string) => {
-      // Cannot delete global notebooks (RLS prevents it anyway), just remove from local view?
-      // Actually, standard behavior: delete removes it from User view.
-      // If it was global, we can't "delete" it from DB. We just hide it? 
-      // Current logic: If global, do nothing (or maybe add to a 'hidden' list).
-      // For now, let's allow deleting only private ones.
-      
       const nb = notebooks.find(n => n.id === id);
-      if (nb?.isGlobal) {
-          alert("Você não pode excluir um caderno do catálogo mestre. Ele sumirá automaticamente se você criar uma versão própria.");
-          return;
-      }
-
+      
+      // If global, we usually block delete unless admin.
+      // But RLS "Manage All Notebooks" policy handles this check at DB level.
+      // If user tries to delete a global item without permission, DB throws error.
+      
       const previousNotebooks = [...notebooks];
       setNotebooks(prev => prev.filter(n => n.id !== id));
       // Cleanup cycles
@@ -727,12 +744,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setCycles(prev => prev.map(c => sanitizeCycleData(c, validNotebookIds)));
       
       if (!isGuest && user) {
-          try { await supabase.from('notebooks').delete().eq('id', id); } catch (e) { console.error(e); setNotebooks(previousNotebooks); }
+          try { 
+              const { error } = await supabase.from('notebooks').delete().eq('id', id); 
+              if (error) {
+                  // Revert UI if DB failed (e.g. RLS blocked deleting global item)
+                  console.error("Delete failed", error);
+                  setNotebooks(previousNotebooks);
+                  alert("Erro: Você não tem permissão para excluir este caderno (Público).");
+              }
+          } catch (e) { 
+              console.error(e); 
+              setNotebooks(previousNotebooks); 
+          }
       }
   };
 
   const updateNotebookAccuracy = async (id: string, accuracy: number) => {
-      // Intercept Global
+      // Intercept Global -> Fork to Private
       let targetId = id;
       const nb = notebooks.find(n => n.id === id);
       if (nb?.isGlobal) {
@@ -779,7 +807,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const moveNotebookToWeek = async (notebookId: string, weekId: string) => {
-      // Intercept Global
+      // Intercept Global -> Fork
       let targetId = notebookId;
       const nb = notebooks.find(n => n.id === notebookId);
       if (nb?.isGlobal) {

@@ -8,7 +8,7 @@ import {
     BookOpen, Layers, CheckCircle2, LayoutGrid, Clock, AlertTriangle, Star, 
     History, Sparkles, X, Save, Maximize2, Thermometer,
     Pencil, Link as LinkIcon, XCircle, ZoomIn, ChevronLeft, Calendar, Loader2, TrendingUp, Info, Scale, FileCode, Flag, List, Book, Brain, BrainCircuit, AlertCircle, PlayCircle,
-    Zap, Gauge, HelpCircle
+    Zap, Gauge, HelpCircle, Globe, Lock
 } from 'lucide-react';
 
 // ORDEM LÓGICA CORRETA PARA EXIBIÇÃO
@@ -57,7 +57,8 @@ export const Library: React.FC = () => {
     customScore: '' as string | number, 
     status: NotebookStatus.NOT_STARTED,
     notes: '', images: [] as string[], accuracyHistory: [] as { date: string, accuracy: number }[],
-    nextReview: '' as string | undefined | null
+    nextReview: '' as string | undefined | null,
+    isGlobal: false
   };
 
   const [formData, setFormData] = useState(initialFormState);
@@ -151,7 +152,8 @@ export const Library: React.FC = () => {
           customScore: notebook.customScore || '', // Load custom score if exists
           status: notebook.status,
           images: currentImages, accuracyHistory: notebook.accuracyHistory || [],
-          nextReview: notebook.nextReview || '' 
+          nextReview: notebook.nextReview || '',
+          isGlobal: !!notebook.isGlobal
       });
       setIsModalOpen(true);
   }, [fetchNotebookImages, isGuest]);
@@ -607,6 +609,7 @@ export const Library: React.FC = () => {
                                               <span className="text-[9px] bg-slate-800 text-slate-400 border border-slate-700 px-1.5 rounded uppercase font-bold">
                                                   Score: {displayScore}
                                               </span>
+                                              {nb.isGlobal && <span className="text-[9px] bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 px-1.5 rounded uppercase font-bold flex items-center gap-1"><Globe size={8}/> Global</span>}
                                               {nb.weight === Weight.MUITO_ALTO && <span className="text-[9px] bg-red-500/10 text-red-400 border border-red-500/20 px-1.5 rounded uppercase font-bold">Peso Max</span>}
                                               {viewMode === 'status' && <span className="text-[9px] text-slate-500 border border-slate-700 px-1.5 rounded uppercase font-bold">{nb.discipline}</span>}
                                               {isScheduled && <span className="text-[9px] bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 px-1.5 rounded uppercase font-bold flex items-center gap-1"><span className="w-1 h-1 bg-indigo-400 rounded-full animate-pulse"></span> No Ciclo</span>}
@@ -679,7 +682,28 @@ export const Library: React.FC = () => {
             </div>
             <form onSubmit={handleSave} className="overflow-y-auto p-6 space-y-6 custom-scrollbar">
               <div className="space-y-4">
-                  <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">1. Identificação</h4>
+                  <div className="flex justify-between items-center border-b border-emerald-500/20 pb-2">
+                      <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest">1. Identificação</h4>
+                      
+                      {/* GLOBAL TOGGLE */}
+                      <div className="flex items-center gap-3 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                              {formData.isGlobal ? <Globe size={12}/> : <Lock size={12}/>} 
+                              Visibilidade:
+                          </span>
+                          <button 
+                              type="button"
+                              onClick={() => setFormData(prev => ({...prev, isGlobal: !prev.isGlobal}))}
+                              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${formData.isGlobal ? 'bg-indigo-600' : 'bg-slate-700'}`}
+                          >
+                              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${formData.isGlobal ? 'translate-x-4.5' : 'translate-x-1'}`} />
+                          </button>
+                          <span className={`text-xs font-bold ${formData.isGlobal ? 'text-indigo-400' : 'text-slate-400'}`}>
+                              {formData.isGlobal ? 'Público (Global)' : 'Privado'}
+                          </span>
+                      </div>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Disciplina</label><input required list="disciplines" value={formData.discipline} onChange={e => handleChange('discipline', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /><datalist id="disciplines">{existingDisciplines.map(d => <option key={d} value={d} />)}</datalist></div>
                     <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Nome do Tópico</label><input required value={formData.name} onChange={e => handleChange('name', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /></div>

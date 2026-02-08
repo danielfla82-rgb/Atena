@@ -201,13 +201,13 @@ const NIETZSCHE_DATA = [
   { quote: "A disciplina é a mãe do sucesso.", source: "Aforismos", context: "A inspiração é para amadores. A elite opera baseada em disciplina inegociável." }
 ];
 
-const FIX_SQL = `-- SCRIPT DE CATÁLOGO MESTRE (V3)
--- Este script permite cadernos públicos (user_id = NULL) e reinsere a base padrão.
+const FIX_SQL = `-- SCRIPT DE CATÁLOGO MESTRE & PERMISSÕES (V4)
+-- Habilita cadernos públicos e permissões de edição para o criador.
 
 -- 1. ALTERAR TABELA NOTEBOOKS (Permitir user_id NULL)
 ALTER TABLE notebooks ALTER COLUMN user_id DROP NOT NULL;
 
--- 2. LIMPEZA DE POLÍTICAS ANTIGAS (Evita conflitos)
+-- 2. LIMPEZA DE POLÍTICAS ANTIGAS
 DROP POLICY IF EXISTS "Strict Access Policy" ON notebooks;
 DROP POLICY IF EXISTS "Read Public and Private" ON notebooks;
 DROP POLICY IF EXISTS "Modify Own" ON notebooks;
@@ -215,39 +215,26 @@ DROP POLICY IF EXISTS "Enable read access for all users" ON notebooks;
 DROP POLICY IF EXISTS "Enable insert for authenticated users only" ON notebooks;
 DROP POLICY IF EXISTS "Enable update for users based on email" ON notebooks;
 DROP POLICY IF EXISTS "Enable delete for users based on user_id" ON notebooks;
+DROP POLICY IF EXISTS "Public Catalog Management" ON notebooks;
 
--- 3. HABILITAR RLS (Segurança)
+-- 3. HABILITAR RLS
 ALTER TABLE notebooks ENABLE ROW LEVEL SECURITY;
 
--- 4. CRIAR POLÍTICAS HÍBRIDAS
--- Leitura: Permite ler se for dono OU se for item público (NULL)
+-- 4. POLÍTICAS DE ACESSO
+-- Leitura: Ver meus cadernos OU cadernos públicos
 CREATE POLICY "Read Public and Private" ON notebooks 
 FOR SELECT TO authenticated 
 USING (auth.uid() = user_id OR user_id IS NULL);
 
--- Escrita/Modificação: Permite apenas se for o DONO
-CREATE POLICY "Modify Own" ON notebooks 
+-- Escrita (Insert/Update/Delete):
+-- Permite gerenciar seus próprios cadernos E criar/editar cadernos públicos (NULL)
+-- OBS: Em produção, restrinja 'user_id IS NULL' apenas para admins.
+CREATE POLICY "Manage All Notebooks" ON notebooks 
 FOR ALL TO authenticated 
-USING (auth.uid() = user_id) 
-WITH CHECK (auth.uid() = user_id);
+USING (auth.uid() = user_id OR user_id IS NULL)
+WITH CHECK (auth.uid() = user_id OR user_id IS NULL);
 
--- 5. POVOAR CATÁLOGO PADRÃO (Se não existir)
--- Inserimos apenas se não houver conflito. Como usamos UUID, inserimos direto.
-INSERT INTO notebooks (id, user_id, discipline, name, subtitle, weight, relevance, accuracy, target_accuracy, status)
-VALUES 
-  (gen_random_uuid(), NULL, 'Língua Portuguesa', 'Interpretação de Texto', 'Compreensão e Tipologia', 'Alto', 'Alta', 0, 90, 'Não Iniciado'),
-  (gen_random_uuid(), NULL, 'Língua Portuguesa', 'Gramática', 'Sintaxe e Morfologia', 'Médio', 'Média', 0, 90, 'Não Iniciado'),
-  (gen_random_uuid(), NULL, 'Direito Constitucional', 'Direitos Fundamentais', 'Art. 5º ao 17', 'Muito Alto', 'Altíssima', 0, 90, 'Não Iniciado'),
-  (gen_random_uuid(), NULL, 'Direito Constitucional', 'Organização do Estado', 'Competências e Repartição', 'Alto', 'Média', 0, 90, 'Não Iniciado'),
-  (gen_random_uuid(), NULL, 'Direito Administrativo', 'Atos Administrativos', 'Requisitos e Atributos', 'Muito Alto', 'Média', 0, 90, 'Não Iniciado'),
-  (gen_random_uuid(), NULL, 'Direito Administrativo', 'Licitações (Lei 14.133)', 'Modalidades e Contratos', 'Alto', 'Alta', 0, 90, 'Não Iniciado'),
-  (gen_random_uuid(), NULL, 'Raciocínio Lógico', 'Lógica Proposicional', 'Tabelas Verdade e Conectivos', 'Médio', 'Baixa', 0, 90, 'Não Iniciado'),
-  (gen_random_uuid(), NULL, 'Direito Tributário', 'Imunidades Tributárias', 'Vedações ao Poder de Tributar', 'Alto', 'Alta', 0, 90, 'Não Iniciado'),
-  (gen_random_uuid(), NULL, 'Contabilidade Geral', 'CPC 00 - Estrutura Conceitual', 'Características Qualitativas', 'Baixo', 'Média', 0, 90, 'Não Iniciado'),
-  (gen_random_uuid(), NULL, 'Auditoria', 'NBC TA 200', 'Objetivos Gerais do Auditor', 'Baixo', 'Baixa', 0, 90, 'Não Iniciado'),
-  (gen_random_uuid(), NULL, 'Revisão Geral', 'Simulados', 'Desempenho Global', 'Muito Alto', 'Altíssima', 0, 90, 'Não Iniciado');
-
--- 6. REFRESH
+-- 5. REFRESH
 NOTIFY pgrst, 'reload schema';
 `;
 
@@ -256,7 +243,7 @@ interface Props {
 }
 
 export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
-// ... (Component logic remains identical until render)
+// ... (rest of the component remains unchanged)
   const { notebooks, config, updateConfig, setFocusedNotebookId, cycles, activeCycleId, startSession, dbError } = useStore();
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [localConfig, setLocalConfig] = useState(config);
@@ -981,6 +968,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           </div>
       </div>
 
+      {/* ... (rest of the component) */}
       <DashboardSection title="Radiografia Tática" subtitle="Matriz Estratégica" icon={<Target size={20} />} defaultOpen={true}>
           <div className="w-full">
               <QuadrantChart data={notebooks.filter(n => n.discipline !== 'Revisão Geral')} onNavigate={onNavigate} />
