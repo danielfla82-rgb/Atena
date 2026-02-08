@@ -24,39 +24,44 @@ const DEFAULT_FRAMEWORK: FrameworkData = {
 
 // --- SECURITY & INTEGRITY: PURE DATA MAPPERS ---
 
-const mapNotebookFromDB = (db: any): Notebook => ({
-    id: db.id,
-    discipline: db.discipline,
-    name: db.name,
-    subtitle: db.subtitle || '',
-    tecLink: db.tec_link || db.tecLink || '',
-    errorNotebookLink: db.error_notebook_link || db.errorNotebookLink || '',
-    favoriteQuestionsLink: db.favorite_questions_link || db.favoriteQuestionsLink || '',
-    lawLink: db.law_link || db.lawLink || '',
-    obsidianLink: db.obsidian_link || db.obsidianLink || '',
-    geminiLink1: db.gemini_link_1 || db.geminiLink1 || '',
-    geminiLink2: db.gemini_link_2 || db.gemini_link_2 || '',
-    targetAccuracy: Number(db.target_accuracy || db.targetAccuracy || 90),
-    accuracy: Number(db.accuracy || 0),
-    weight: db.weight || Weight.MEDIO,
-    relevance: db.relevance || Relevance.MEDIA,
-    trend: db.trend || Trend.ESTAVEL,
-    customScore: db.custom_score || db.customScore || undefined,
-    status: db.status || NotebookStatus.NOT_STARTED,
-    weekId: db.week_id || db.weekId || null,
-    isWeekCompleted: !!(db.is_week_completed || db.isWeekCompleted),
-    lastPractice: db.last_practice || db.lastPractice || null,
-    nextReview: db.next_review || db.nextReview || null,
-    accuracyHistory: Array.isArray(db.accuracy_history) ? db.accuracy_history : [],
-    notes: db.notes || '',
-    // Logic: If images is an array, use it. If 'image' (legacy base64) exists, wrap it.
-    // NOTE: In the main list, we might receive stripped data, handled in fetchCloudData.
-    images: Array.isArray(db.images) ? db.images : (db.image ? [db.image] : []),
-    // V3: Detect Global (user_id is null)
-    isGlobal: db.user_id === null
-});
+const mapNotebookFromDB = (db: any): Notebook => {
+    // CORREÇÃO: Não forçar limpeza de dados na leitura.
+    // Se o dado existe no banco, deve ser mostrado. A sanitização deve ocorrer apenas na criação do template público.
+    const isGlobal = db.user_id === null;
+
+    return {
+        id: db.id,
+        discipline: db.discipline,
+        name: db.name,
+        subtitle: db.subtitle || '',
+        tecLink: db.tec_link || db.tecLink || '',
+        errorNotebookLink: db.error_notebook_link || db.errorNotebookLink || '',
+        favoriteQuestionsLink: db.favorite_questions_link || db.favoriteQuestionsLink || '',
+        lawLink: db.law_link || db.lawLink || '',
+        obsidianLink: db.obsidian_link || db.obsidianLink || '',
+        geminiLink1: db.gemini_link_1 || db.geminiLink1 || '',
+        geminiLink2: db.gemini_link_2 || db.geminiLink2 || '',
+        targetAccuracy: Number(db.target_accuracy || db.targetAccuracy || 90),
+        accuracy: Number(db.accuracy || 0),
+        weight: db.weight || Weight.MEDIO,
+        relevance: db.relevance || Relevance.MEDIA,
+        trend: db.trend || Trend.ESTAVEL,
+        customScore: db.custom_score || db.customScore || undefined,
+        status: db.status || NotebookStatus.NOT_STARTED,
+        weekId: db.week_id || db.weekId || null,
+        isWeekCompleted: !!(db.is_week_completed || db.isWeekCompleted),
+        lastPractice: db.last_practice || db.lastPractice || null,
+        nextReview: db.next_review || db.nextReview || null,
+        accuracyHistory: Array.isArray(db.accuracy_history) ? db.accuracy_history : [],
+        notes: db.notes || '',
+        images: Array.isArray(db.images) ? db.images : (db.image ? [db.image] : []),
+        isGlobal: isGlobal
+    };
+};
 
 const mapNotebookToDB = (nb: Partial<Notebook>) => {
+    // CORREÇÃO: Salvar EXATAMENTE o que está no objeto.
+    // A lógica de limpar dados para o público será feita criando um NOVO registro, não alterando este.
     return {
         id: nb.id,
         discipline: nb.discipline,
@@ -71,16 +76,16 @@ const mapNotebookToDB = (nb: Partial<Notebook>) => {
         gemini_link_2: nb.geminiLink2 || null,
         target_accuracy: nb.targetAccuracy,
         accuracy: nb.accuracy,
+        status: nb.status,
+        last_practice: nb.lastPractice || null,
+        next_review: nb.nextReview || null,
+        accuracy_history: nb.accuracyHistory || [],
+        week_id: nb.weekId || null,
         weight: nb.weight,
         relevance: nb.relevance,
         trend: nb.trend,
         custom_score: nb.customScore || null,
-        status: nb.status,
-        week_id: nb.weekId || null,
         is_week_completed: nb.isWeekCompleted,
-        last_practice: nb.lastPractice || null,
-        next_review: nb.nextReview || null,
-        accuracy_history: nb.accuracyHistory || [],
         notes: nb.notes || '',
         images: nb.images || []
     };
@@ -638,7 +643,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           accuracy: notebook.accuracy || 0, targetAccuracy: notebook.targetAccuracy || 90, weight: notebook.weight || Weight.MEDIO,
           relevance: notebook.relevance || Relevance.MEDIA, trend: notebook.trend || Trend.ESTAVEL, status: NotebookStatus.NOT_STARTED,
           images: notebook.images || [], notes: notebook.notes || '', ...notebook,
-          isGlobal: notebook.isGlobal || false // Default false
+          isGlobal: false // Default false for the USER'S copy
       };
       
       const previousNotebooks = [...notebooks];
@@ -646,14 +651,42 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       
       if (!isGuest && user) {
           try {
-              // V4 LOGIC: If isGlobal is true, set user_id to NULL
+              // 1. Save PRIVATE copy
               const payload = { 
                   ...mapNotebookToDB(newNb), 
-                  user_id: newNb.isGlobal ? null : user.id 
+                  user_id: user.id 
               };
               
               const { error } = await supabase.from('notebooks').insert(payload);
               if (error) { throw error; }
+
+              // 2. If 'isGlobal' was requested, create a SEPARATE public copy
+              if (notebook.isGlobal) {
+                  const publicPayload = {
+                      ...mapNotebookToDB(newNb),
+                      id: generateId(), // NEW ID for the public version
+                      user_id: null, // PUBLIC
+                      
+                      // SANITIZATION (Content & Progress)
+                      notes: '', 
+                      images: [], 
+                      accuracy: 0,
+                      status: NotebookStatus.NOT_STARTED,
+                      accuracy_history: [],
+                      week_id: null,
+                      
+                      // SANITIZATION (Links) - CRITICAL UPDATE
+                      tec_link: null,
+                      error_notebook_link: null,
+                      favorite_questions_link: null,
+                      law_link: null,
+                      obsidian_link: null,
+                      gemini_link_1: null,
+                      gemini_link_2: null
+                  };
+                  await supabase.from('notebooks').insert(publicPayload);
+              }
+
           } catch (e: any) { 
               setNotebooks(previousNotebooks); 
               let msg = e.message || JSON.stringify(e);
@@ -707,22 +740,56 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
 
       const previousNotebooks = [...notebooks];
-      setNotebooks(prev => prev.map(n => n.id === targetId ? { ...n, ...data } : n));
+      // Force local update to reflect data immediately (keeping it private in local state)
+      const dataToUpdate = { ...data };
+      if (data.isGlobal === true) {
+          // If trying to publish, we keep the LOCAL version as private
+          dataToUpdate.isGlobal = false; 
+      }
+
+      setNotebooks(prev => prev.map(n => n.id === targetId ? { ...n, ...dataToUpdate } : n));
       
       if (!isGuest && user) {
           try {
-              const payload = mapNotebookToDB({ ...data, id: targetId });
+              // 1. Update the PRIVATE version
+              const payload = mapNotebookToDB({ ...dataToUpdate, id: targetId });
               delete (payload as any).id;
-              
-              // Handle Ownership Transfer
-              if (data.isGlobal !== undefined) {
-                  // If explicitly changing global status
-                  // @ts-ignore
-                  payload.user_id = data.isGlobal ? null : user.id;
-              }
+              // @ts-ignore
+              payload.user_id = user.id; // Ensure it stays/becomes private
 
               const { error } = await supabase.from('notebooks').update(payload).eq('id', targetId);
               if (error) throw error;
+
+              // 2. If Publish Requested (isGlobal = true), create/update PUBLIC copy
+              if (data.isGlobal === true) {
+                  const combinedData = { ...nb, ...data };
+                  
+                  // Basic logic: Insert a new public record based on this one
+                  const publicPayload = {
+                      ...mapNotebookToDB(combinedData), // Use combined data
+                      id: generateId(),
+                      user_id: null,
+                      
+                      // SANITIZATION (Content & Progress)
+                      notes: '', 
+                      images: [], 
+                      accuracy: 0,
+                      status: NotebookStatus.NOT_STARTED,
+                      accuracy_history: [],
+                      week_id: null,
+
+                      // SANITIZATION (Links) - CRITICAL UPDATE
+                      tec_link: null,
+                      error_notebook_link: null,
+                      favorite_questions_link: null,
+                      law_link: null,
+                      obsidian_link: null,
+                      gemini_link_1: null,
+                      gemini_link_2: null
+                  };
+                  await supabase.from('notebooks').insert(publicPayload);
+              }
+
           } catch (e: any) { 
               console.error(e);
               throw new Error(e.message);

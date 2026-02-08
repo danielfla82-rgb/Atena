@@ -8,7 +8,7 @@ import {
     BookOpen, Layers, CheckCircle2, LayoutGrid, Clock, AlertTriangle, Star, 
     History, Sparkles, X, Save, Maximize2, Thermometer,
     Pencil, Link as LinkIcon, XCircle, ZoomIn, ChevronLeft, Calendar, Loader2, TrendingUp, Info, Scale, FileCode, Flag, List, Book, Brain, BrainCircuit, AlertCircle, PlayCircle,
-    Zap, Gauge, HelpCircle, Globe, Lock
+    Zap, Gauge, HelpCircle, Globe, Lock, Copy
 } from 'lucide-react';
 
 // ORDEM LÓGICA CORRETA PARA EXIBIÇÃO
@@ -142,18 +142,34 @@ export const Library: React.FC = () => {
 
       if (currentImages.length === 0 && notebook.image) currentImages = [notebook.image];
       
+      // CORREÇÃO: Não forçar limpeza visual se o caderno for global.
+      // O usuário precisa ver seus dados.
+      const isGlobalView = !!notebook.isGlobal;
+
       setFormData({
           discipline: notebook.discipline, name: notebook.name, subtitle: notebook.subtitle,
-          tecLink: notebook.tecLink || '', errorNotebookLink: notebook.errorNotebookLink || '', favoriteQuestionsLink: notebook.favoriteQuestionsLink || '',
-          lawLink: notebook.lawLink || '', obsidianLink: notebook.obsidianLink || '',
-          geminiLink1: notebook.geminiLink1 || '', geminiLink2: notebook.geminiLink2 || '',
-          accuracy: notebook.accuracy, targetAccuracy: notebook.targetAccuracy, weight: notebook.weight,
-          relevance: notebook.relevance, trend: notebook.trend, notes: notebook.notes || '',
-          customScore: notebook.customScore || '', // Load custom score if exists
+          
+          tecLink: notebook.tecLink || '',
+          errorNotebookLink: notebook.errorNotebookLink || '',
+          favoriteQuestionsLink: notebook.favoriteQuestionsLink || '',
+          lawLink: notebook.lawLink || '',
+          obsidianLink: notebook.obsidianLink || '',
+          geminiLink1: notebook.geminiLink1 || '',
+          geminiLink2: notebook.geminiLink2 || '',
+
+          accuracy: notebook.accuracy, 
           status: notebook.status,
-          images: currentImages, accuracyHistory: notebook.accuracyHistory || [],
+          accuracyHistory: notebook.accuracyHistory || [],
           nextReview: notebook.nextReview || '',
-          isGlobal: !!notebook.isGlobal
+          notes: notebook.notes || '',
+          images: currentImages,
+          
+          targetAccuracy: notebook.targetAccuracy, 
+          weight: notebook.weight,
+          relevance: notebook.relevance, 
+          trend: notebook.trend, 
+          customScore: notebook.customScore || '',
+          isGlobal: isGlobalView
       });
       setIsModalOpen(true);
   }, [fetchNotebookImages, isGuest]);
@@ -167,6 +183,7 @@ export const Library: React.FC = () => {
       }
   }, [pendingCreateData]);
 
+  // ... (rest of useEffects and functions remain same until JSX)
   useEffect(() => {
       if (focusedNotebookId) {
           const nb = notebooks.find(n => n.id === focusedNotebookId);
@@ -210,7 +227,6 @@ export const Library: React.FC = () => {
       return { date: nextDate, label: weekLabel, isNotStarted: false };
   }, [formData.accuracy, formData.relevance, formData.trend, formData.nextReview, config.algorithm, isModalOpen, config.startDate, formData.status]);
 
-  // ... (Stats and Grouped Data logic remains same)
   const stats = useMemo(() => {
       const validNotebooks = notebooks.filter(n => n.discipline !== 'Revisão Geral');
       const total = validNotebooks.length;
@@ -401,9 +417,6 @@ export const Library: React.FC = () => {
         setIsModalOpen(false);
     } catch (error: any) {
         console.error("Failed to save:", error);
-        // Alert handled in store, but we keep modal open
-        // Error message already shown by store alert logic or we can show it here if needed
-        // Since store alerts, we just stop here.
     } finally {
         setIsSaving(false);
     }
@@ -422,12 +435,10 @@ export const Library: React.FC = () => {
           const nextDate = calculateNextReview(newAccuracy, formData.relevance, formData.trend, config.algorithm);
           const newHistory = [...(formData.accuracyHistory || []), { date: new Date().toISOString(), accuracy: newAccuracy }].slice(-3);
           
-          // Se estava "Não Iniciado" e concluiu revisão, muda para "Em Andamento" automaticamente
           let newStatus = formData.status;
           if (formData.status === NotebookStatus.NOT_STARTED && newAccuracy > 0) {
               newStatus = NotebookStatus.REVIEWING;
           }
-          // Se bateu a meta, sugere "Dominado" (opcional, por enquanto mantemos manual ou apenas visual)
           
           if(editingId) {
               await editNotebook(editingId, { 
@@ -493,6 +504,7 @@ export const Library: React.FC = () => {
           </div>
       )}
 
+      {/* ... (Header and Stats Render Code - Unchanged) ... */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-slate-800 pb-6 gap-4 flex-shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-3">
@@ -592,7 +604,6 @@ export const Library: React.FC = () => {
                           <div className="border-t border-slate-800 divide-y divide-slate-800/50">
                               {items.map(nb => {
                                   const isScheduled = isScheduledInActiveCycle(nb.id);
-                                  // SCORE Display Logic
                                   const displayScore = nb.customScore !== null && nb.customScore !== undefined 
                                       ? nb.customScore 
                                       : calculateUrgencyScore(nb.weight, nb.relevance, nb.trend);
@@ -675,12 +686,31 @@ export const Library: React.FC = () => {
       {isModalOpen && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
-            {/* ... Modal content remains the same ... */}
+            
+            {/* Modal Header */}
             <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900">
-                <h3 className="text-xl font-bold text-white flex items-center gap-2"><Pencil size={20} className="text-emerald-500"/> {editingId ? 'Editar Caderno' : 'Novo Caderno'}</h3>
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                    <Pencil size={20} className="text-emerald-500"/> {editingId ? (formData.isGlobal ? 'Caderno Público (Template)' : 'Editar Caderno') : 'Novo Caderno'}
+                </h3>
                 <button onClick={() => !isSaving && setIsModalOpen(false)} className="text-slate-400 hover:text-white" disabled={isSaving}><X size={24} /></button>
             </div>
+
             <form onSubmit={handleSave} className="overflow-y-auto p-6 space-y-6 custom-scrollbar">
+              
+              {/* WARNING FOR GLOBAL NOTEBOOKS */}
+              {formData.isGlobal && (
+                  <div className="bg-indigo-900/20 border border-indigo-500/20 p-4 rounded-xl flex items-start gap-3">
+                      <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400"><Copy size={18} /></div>
+                      <div>
+                          <h4 className="text-sm font-bold text-indigo-300">Modo Template Global</h4>
+                          <p className="text-xs text-indigo-200/70 mt-1 leading-relaxed">
+                              Este caderno é um template público. Ao editar, você está trabalhando na sua versão pessoal privada.
+                              Se você publicar alterações, uma cópia será atualizada no catálogo público.
+                          </p>
+                      </div>
+                  </div>
+              )}
+
               <div className="space-y-4">
                   <div className="flex justify-between items-center border-b border-emerald-500/20 pb-2">
                       <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest">1. Identificação</h4>
@@ -699,7 +729,7 @@ export const Library: React.FC = () => {
                               <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${formData.isGlobal ? 'translate-x-4.5' : 'translate-x-1'}`} />
                           </button>
                           <span className={`text-xs font-bold ${formData.isGlobal ? 'text-indigo-400' : 'text-slate-400'}`}>
-                              {formData.isGlobal ? 'Público (Global)' : 'Privado'}
+                              {formData.isGlobal ? 'Publicar Cópia' : 'Privado'}
                           </span>
                       </div>
                   </div>
@@ -710,6 +740,7 @@ export const Library: React.FC = () => {
                   </div>
                   <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Subtópico / Foco</label><input value={formData.subtitle} onChange={e => handleChange('subtitle', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /></div>
                   
+                  {/* ... Links Section (Unchanged) ... */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Caderno TEC</label>
@@ -740,6 +771,7 @@ export const Library: React.FC = () => {
                     </div>
                   </div>
               </div>
+              
               <div className="space-y-4 pt-2">
                   <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">2. Estratégia & Performance</h4>
                   
@@ -784,7 +816,7 @@ export const Library: React.FC = () => {
                       <div><label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Meta (%)</label><input type="number" min="0" max="100" value={formData.targetAccuracy} onChange={e => handleChange('targetAccuracy', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm text-center font-bold" /></div>
                   </div>
 
-                  {/* SCORE BOX (New V10.2 Feature) */}
+                  {/* SCORE BOX */}
                   <div className="bg-slate-950 border border-slate-800 rounded-lg p-3 flex items-center justify-between shadow-inner">
                       <div className="flex flex-col">
                           <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Score Atena (Urgência)</span>
@@ -837,6 +869,7 @@ export const Library: React.FC = () => {
                                 </button>
                              </div>
                              
+                             {/* ALGORITHM STATUS */}
                              {computedNextReviewData?.isNotStarted ? (
                                  <div className="flex flex-col mt-3 gap-1 p-2 bg-slate-900/50 rounded-lg border border-slate-700/50">
                                      <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
@@ -879,68 +912,24 @@ export const Library: React.FC = () => {
                   </div>
               </div>
 
+              {/* ... (Algorithm Tuning Section - Unchanged) ... */}
               <div className="space-y-4 pt-4 border-t border-slate-800">
                   <div className="flex items-center justify-between border-b border-purple-500/20 pb-2">
                       <h3 className="text-sm font-bold text-purple-500 uppercase tracking-widest flex items-center gap-2">
                           <BrainCircuit size={16} /> Ajuste Fino do Algoritmo
                       </h3>
-                      
-                      {/* ACCELERATED MODE BUTTONS */}
                       <div className="flex items-center gap-1">
-                          {[
-                              { factor: 1, label: 'Normal' },
-                              { factor: 2, label: 'Turbo 2x' },
-                              { factor: 3, label: 'Turbo 3x' },
-                              { factor: 4, label: 'Max 4x' }
-                          ].map(mode => (
-                              <button
-                                  type="button"
-                                  key={mode.factor}
-                                  onClick={() => applyAcceleration(mode.factor)}
-                                  className={`
-                                      px-2 py-1 rounded text-[10px] font-bold transition-all flex items-center gap-1 border
-                                      ${currentFactor === mode.factor 
-                                          ? 'bg-purple-600 text-white border-purple-500' 
-                                          : 'bg-slate-900 text-slate-500 border-slate-700 hover:text-white'}
-                                  `}
-                                  title={`Multiplicar intervalos por ${mode.factor}`}
-                              >
-                                  {mode.factor > 1 && <Zap size={8} />}
-                                  {mode.label}
-                              </button>
+                          {[ { factor: 1, label: 'Normal' }, { factor: 2, label: 'Turbo 2x' }, { factor: 3, label: 'Turbo 3x' }, { factor: 4, label: 'Max 4x' } ].map(mode => (
+                              <button type="button" key={mode.factor} onClick={() => applyAcceleration(mode.factor)} className={`px-2 py-1 rounded text-[10px] font-bold transition-all flex items-center gap-1 border ${currentFactor === mode.factor ? 'bg-purple-600 text-white border-purple-500' : 'bg-slate-900 text-slate-500 border-slate-700 hover:text-white'}`}>{mode.factor > 1 && <Zap size={8} />}{mode.label}</button>
                           ))}
                       </div>
                   </div>
-
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {ORDERED_ALGO_KEYS.map((key) => {
-                          const val = currentIntervals[key as keyof typeof currentIntervals];
-                          return (
-                          <div key={key} className="group relative">
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-help flex items-center gap-1">
-                                  {INTERVAL_LABELS[key] || key}
-                                  <HelpCircle size={10} className="text-slate-600"/>
-                              </label>
-                              <input 
-                                  type="number" 
-                                  value={val} 
-                                  onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} 
-                                  className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-center font-bold outline-none focus:border-purple-500" 
-                              />
-                              
-                              {/* TOOLTIP ON HOVER */}
-                              {ALGO_TOOLTIPS[key] && (
-                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-slate-800 border border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                                      <strong className="block text-emerald-400 mb-1">{ALGO_TOOLTIPS[key].title}</strong>
-                                      <span className="text-slate-300 leading-tight block">{ALGO_TOOLTIPS[key].desc}</span>
-                                      <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800"></div>
-                                  </div>
-                              )}
-                          </div>
-                      )})}
+                      {ORDERED_ALGO_KEYS.map((key) => { const val = currentIntervals[key as keyof typeof currentIntervals]; return (<div key={key} className="group relative"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-help flex items-center gap-1">{INTERVAL_LABELS[key] || key}<HelpCircle size={10} className="text-slate-600"/></label><input type="number" value={val} onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-center font-bold outline-none focus:border-purple-500" />{ALGO_TOOLTIPS[key] && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-slate-800 border border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"><strong className="block text-emerald-400 mb-1">{ALGO_TOOLTIPS[key].title}</strong><span className="text-slate-300 leading-tight block">{ALGO_TOOLTIPS[key].desc}</span><div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800"></div></div>)}</div>)})}
                   </div>
               </div>
 
+              {/* ... (Images and Notes Section - Unchanged) ... */}
               <div className="space-y-4 pt-2">
                 <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">3. Rascunhos & Anotações</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -969,7 +958,7 @@ export const Library: React.FC = () => {
                 <button type="button" onClick={() => !isSaving && setIsModalOpen(false)} disabled={isSaving} className="flex-1 bg-slate-800 text-slate-300 py-3 rounded-xl hover:bg-slate-700 font-medium transition-colors disabled:opacity-50">Cancelar</button>
                 <button type="button" onClick={handleSave} disabled={isSaving} className="flex-1 bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-500 font-bold shadow-lg shadow-emerald-900/20 transition-all flex items-center justify-center gap-2 disabled:bg-emerald-800 disabled:text-emerald-400 disabled:cursor-wait">
                     {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                    {isSaving ? "Salvando..." : "Salvar Alterações"}
+                    {isSaving ? "Salvando..." : (formData.isGlobal ? "Salvar e Publicar Cópia" : "Salvar Alterações")}
                 </button>
             </div>
           </div>
