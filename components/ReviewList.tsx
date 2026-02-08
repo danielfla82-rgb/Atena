@@ -14,7 +14,7 @@ interface Props {
 type FilterType = 'all' | 'critical' | 'today' | 'future';
 
 export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
-  const { notebooks, setFocusedNotebookId, config } = useStore();
+  const { notebooks, setFocusedNotebookId, config, cycles, activeCycleId } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   
@@ -35,6 +35,23 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
 
   // Derived Data
   const uniqueDisciplines = useMemo(() => Array.from(new Set(notebooks.map(n => n.discipline))).sort(), [notebooks]);
+
+  // --- CHECK PLANNED STATUS ---
+  const scheduledIds = useMemo(() => {
+      const activeCycle = cycles.find(c => c.id === activeCycleId);
+      const ids = new Set<string>();
+      
+      if (activeCycle?.schedule) {
+          Object.values(activeCycle.schedule).forEach((slots: any) => {
+              if (Array.isArray(slots)) {
+                  slots.forEach(s => {
+                      if (s && s.notebookId) ids.add(s.notebookId);
+                  });
+              }
+          });
+      }
+      return ids;
+  }, [cycles, activeCycleId]);
 
   // --- DATA PROCESSING ---
   const categorizedData = useMemo(() => {
@@ -406,6 +423,8 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
                           {categorizedData.future.slice(0, activeFilter === 'future' ? 100 : 20).map(nb => {
                               const days = getDaysDiff(nb.nextReview!);
                               const weekLabel = getWeekLabel(nb.nextReview!);
+                              const isPlanned = scheduledIds.has(nb.id);
+
                               return (
                                   <div key={nb.id} className="group bg-slate-900 border border-slate-800 p-3 rounded-lg flex items-center justify-between cursor-pointer" onClick={() => handleEdit(nb)}>
                                       <div className="flex-1 min-w-0 pr-4">
@@ -416,8 +435,8 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
                                                       Em {days} dias
                                                   </span>
                                                   {weekLabel && (
-                                                      <span className="text-[10px] text-emerald-500 bg-emerald-900/10 px-1.5 rounded border border-emerald-500/20 flex items-center gap-1">
-                                                          <Calendar size={8} /> {weekLabel}
+                                                      <span className={`text-[10px] px-1.5 rounded border flex items-center gap-1 ${isPlanned ? 'bg-indigo-900/20 text-indigo-400 border-indigo-500/20' : 'bg-emerald-900/10 text-emerald-500 border-emerald-500/20'}`}>
+                                                          <Calendar size={8} /> {weekLabel} {isPlanned && <CheckCircle2 size={8} className="ml-0.5" />}
                                                       </span>
                                                   )}
                                               </div>
