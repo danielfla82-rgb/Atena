@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, NotebookStatus, ScheduleItem } from '../types';
-import { Plus, Search, Pencil, BarChart3, Calendar, Lock, ChevronDown, Layout, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, Flag, Inbox, Scale, Download, PanelLeftClose, PanelLeftOpen, Archive, Minus, Meh, Frown, Smile, History, ChevronRight, Maximize2, Activity, ChevronUp, Layers, CheckCircle2, Loader2, X, FileText, Key, BrainCircuit, HelpCircle } from 'lucide-react';
+import { Plus, Search, Pencil, BarChart3, Calendar, Lock, ChevronDown, Layout, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, Flag, Inbox, Scale, Download, PanelLeftClose, PanelLeftOpen, Archive, Minus, Meh, Frown, Smile, History, ChevronRight, Maximize2, Activity, ChevronUp, Layers, CheckCircle2, Loader2, X, FileText, Key, BrainCircuit, HelpCircle, Target, TrendingUp } from 'lucide-react';
 import { getStatusColor, DEFAULT_ALGO_CONFIG } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 
@@ -201,7 +201,6 @@ const DraggableCard = React.memo(({
 const normalizeStr = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
 const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: number } }) => {
-// ... (CycleCalculator implementation remains identical until render)
     const { notebooks, config, updateConfig } = useStore();
     const [newDiscName, setNewDiscName] = useState('');
     
@@ -239,6 +238,32 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
     const weights: Record<string, number> = config.calculatorState?.weights || {};
     const selectedDiscs = new Set<string>(config.calculatorState?.selectedDisciplines || []);
     const customDiscs: string[] = config.calculatorState?.customDisciplines || [];
+
+    // Helper: Contar tópicos pendentes por disciplina
+    const getTopicCount = useCallback((discName: string) => {
+        // V10.3: Prioritize Edital Structure for accurate pending count
+        if (config.structuredEdital && config.structuredEdital.length > 0) {
+            // Try exact match
+            let editalDisc = config.structuredEdital.find(d => d.name === discName);
+            
+            // Try normalized match if exact fails
+            if (!editalDisc) {
+                const normDisc = normalizeStr(discName);
+                editalDisc = config.structuredEdital.find(d => normalizeStr(d.name) === normDisc);
+            }
+
+            if (editalDisc) {
+                return editalDisc.topics.filter(t => !t.checked).length;
+            }
+        }
+
+        // Fallback to active notebooks
+        return notebooks.filter(n => 
+            n.discipline === discName && 
+            n.status !== NotebookStatus.MASTERED && 
+            n.discipline !== 'Revisão Geral'
+        ).length;
+    }, [notebooks, config.structuredEdital]);
 
     const totalWeight = useMemo(() => {
         return Array.from(selectedDiscs).reduce((acc, d) => acc + (weights[d] || 1), 0);
@@ -278,7 +303,21 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
     };
 
     const projection = useMemo(() => {
-        const totalItemsToStudy = notebooks.filter(n => n.discipline !== 'Revisão Geral' && n.status !== NotebookStatus.MASTERED).length;
+        let totalItemsToStudy = 0;
+
+        // V10.3: Calculate total pending based on Edital vs Notebooks
+        if (config.structuredEdital && config.structuredEdital.length > 0) {
+             let total = 0;
+             let checked = 0;
+             config.structuredEdital.forEach(d => {
+                 total += d.topics.length;
+                 checked += d.topics.filter(t => t.checked).length;
+             });
+             totalItemsToStudy = total - checked;
+        } else {
+             totalItemsToStudy = notebooks.filter(n => n.discipline !== 'Revisão Geral' && n.status !== NotebookStatus.MASTERED).length;
+        }
+
         const weeklyCapacity = paceTarget.blocks;
         
         if (totalItemsToStudy === 0 || weeklyCapacity === 0) return null;
@@ -306,12 +345,20 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
         
         let status = 'safe'; 
         let suggestion = 0; 
+        let requiredPace = 0;
 
         if (config.examDate) {
             const exam = new Date(config.examDate);
             const timeToExam = exam.getTime() - today.getTime();
             const timeToFinish = finishDate.getTime() - today.getTime();
             const safeTime = timeToFinish + (1000 * 60 * 60 * 24 * 14); 
+
+            // Calculate Required Pace (Reverse Engineering)
+            const weeksToExam = Math.max(1, timeToExam / (1000 * 60 * 60 * 24 * 7)); // Float weeks for precision
+            
+            // Formula: (Total Items + Maintenance Overhead) / Weeks Remaining
+            // Maintenance Overhead est. ~25% (1.25 multiplier)
+            requiredPace = Math.ceil((totalItemsToStudy * 1.25) / weeksToExam);
 
             if (safeTime > timeToExam) {
                 status = 'danger';
@@ -328,10 +375,11 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
             date: finishDate, 
             status, 
             suggestion,
-            totalItems: totalItemsToStudy
+            totalItems: totalItemsToStudy,
+            requiredPace
         };
 
-    }, [notebooks, paceTarget.blocks, config.examDate]);
+    }, [notebooks, paceTarget.blocks, config.examDate, config.structuredEdital]);
 
     const totalAllocated = distribution.reduce((sum, item) => sum + item.blocks, 0);
     const diff = totalAllocated - paceTarget.blocks;
@@ -353,21 +401,27 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
                             <div className="text-xs font-bold text-slate-500 bg-slate-950 px-3 py-1 rounded-full border border-slate-800">Total: {totalWeight.toFixed(1)} pts</div>
                         </div>
                         <div className="space-y-3">
-                            {availableDisciplines.map(d => (
-                                <div key={d} className={`flex items-center gap-4 p-3 rounded-lg border transition-all ${selectedDiscs.has(d) ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-950/30 border-slate-800 opacity-60'}`}>
-                                    <input type="checkbox" checked={selectedDiscs.has(d)} onChange={() => toggleDisc(d)} className="w-4 h-4 rounded border-slate-600 text-emerald-600 focus:ring-offset-0 focus:ring-0 cursor-pointer accent-emerald-500" />
-                                    <div className="flex-1 min-w-0">
-                                        <div className="font-bold text-sm text-slate-200 truncate">{d}</div>
-                                        {selectedDiscs.has(d) && <div className="text-[10px] text-emerald-500 font-mono mt-0.5">{weights[d] || 1} pts • {((weights[d] || 1) / totalWeight * 100).toFixed(1)}%</div>}
-                                    </div>
-                                    {selectedDiscs.has(d) && (
-                                        <div className="flex items-center gap-2">
-                                            <input type="range" min="0.5" max="5" step="0.5" value={weights[d] || 1} onChange={(e) => updateWeight(d, parseFloat(e.target.value))} className="w-24 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500" />
-                                            <span className="text-xs font-bold w-6 text-center text-white">{weights[d] || 1}</span>
+                            {availableDisciplines.map(d => {
+                                const count = getTopicCount(d);
+                                return (
+                                    <div key={d} className={`flex items-center gap-4 p-3 rounded-lg border transition-all ${selectedDiscs.has(d) ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-950/30 border-slate-800 opacity-60'}`}>
+                                        <input type="checkbox" checked={selectedDiscs.has(d)} onChange={() => toggleDisc(d)} className="w-4 h-4 rounded border-slate-600 text-emerald-600 focus:ring-offset-0 focus:ring-0 cursor-pointer accent-emerald-500" />
+                                        <div className="flex-1 min-w-0">
+                                            <div className="font-bold text-sm text-slate-200 truncate flex items-center gap-2">
+                                                {d} 
+                                                {count > 0 && <span className="text-[9px] text-slate-500 bg-slate-900 px-1.5 rounded border border-slate-700">{count} tópicos</span>}
+                                            </div>
+                                            {selectedDiscs.has(d) && <div className="text-[10px] text-emerald-500 font-mono mt-0.5">{weights[d] || 1} pts • {((weights[d] || 1) / totalWeight * 100).toFixed(1)}%</div>}
                                         </div>
-                                    )}
-                                </div>
-                            ))}
+                                        {selectedDiscs.has(d) && (
+                                            <div className="flex items-center gap-2">
+                                                <input type="range" min="0.5" max="5" step="0.5" value={weights[d] || 1} onChange={(e) => updateWeight(d, parseFloat(e.target.value))} className="w-24 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500" />
+                                                <span className="text-xs font-bold w-6 text-center text-white">{weights[d] || 1}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
                             <div className="pt-2 flex gap-2">
                                 <input type="text" value={newDiscName} onChange={(e) => setNewDiscName(e.target.value)} placeholder="Nova Disciplina..." className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-emerald-500" />
                                 <button onClick={handleAddDiscipline} disabled={!newDiscName} className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition-colors disabled:opacity-50"><Plus size={14} /></button>
@@ -379,13 +433,26 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
                 <div className="space-y-6">
                     <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 relative overflow-hidden">
                         <div className="absolute top-0 right-0 p-4 opacity-10"><Calculator size={64} /></div>
-                        <h3 className="font-bold text-white mb-4 text-sm uppercase tracking-wide">Projeção do Ciclo</h3>
+                        <h3 className="font-bold text-white mb-4 text-sm uppercase tracking-wide">Auditoria de Viabilidade</h3>
                         
                         <div className="space-y-4 relative z-10">
+                            {/* Current Capacity */}
                             <div className="flex justify-between items-center pb-2 border-b border-slate-800">
-                                <span className="text-xs text-slate-400">Capacidade Semanal</span>
-                                <span className="text-sm font-bold text-white">{paceTarget.blocks} Blocos</span>
+                                <span className="text-xs text-slate-400">Ritmo Atual</span>
+                                <span className="text-sm font-bold text-white">{paceTarget.blocks} Blocos/sem</span>
                             </div>
+
+                            {/* Required Capacity */}
+                            {projection && projection.requiredPace > 0 && (
+                                <div className="flex justify-between items-center pb-2 border-b border-slate-800">
+                                    <span className="text-xs text-slate-400">Ritmo Necessário</span>
+                                    <span className={`text-sm font-bold ${projection.requiredPace > paceTarget.blocks ? 'text-red-400' : 'text-emerald-400'}`}>
+                                        {projection.requiredPace} Blocos/sem
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* Allocation Status */}
                             <div className="flex justify-between items-center pb-2 border-b border-slate-800">
                                 <span className="text-xs text-slate-400">Total Alocado</span>
                                 <span className={`text-sm font-bold ${isBalanced ? 'text-emerald-400' : isOver ? 'text-red-400' : 'text-amber-400'}`}>{totalAllocated} Blocos</span>
@@ -398,11 +465,22 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
                                 </div>
                             )}
 
+                            {/* Pace Warning */}
+                            {projection && projection.requiredPace > paceTarget.blocks && (
+                                <div className="bg-red-900/20 border border-red-500/20 p-3 rounded-lg text-xs text-red-200 flex items-start gap-2 mt-2">
+                                    <Target size={14} className="flex-shrink-0 mt-0.5" />
+                                    <span>
+                                        <strong>Déficit de {projection.requiredPace - paceTarget.blocks} blocos!</strong> Para fechar o edital até a prova, aumente sua carga horária ou reduza o material.
+                                    </span>
+                                </div>
+                            )}
+
                             {projection && (
                                 <div className="pt-2">
-                                    <div className="text-[10px] text-slate-500 font-bold uppercase mb-2">Estimativa de Conclusão</div>
+                                    <div className="text-[10px] text-slate-500 font-bold uppercase mb-2">Estimativa de Conclusão (Ritmo Atual)</div>
                                     <div className="text-2xl font-bold text-white mb-1">{projection.weeks} Semanas</div>
-                                    <div className="text-xs text-slate-400">Data Prevista: <span className="text-emerald-400">{projection.date.toLocaleDateString()}</span></div>
+                                    <div className="text-xs text-slate-400">Data Prevista: <span className={`${projection.status === 'danger' ? 'text-red-400 line-through decoration-red-500/50' : 'text-emerald-400'}`}>{projection.date.toLocaleDateString()}</span></div>
+                                    {projection.totalItems > 0 && <div className="text-[10px] text-slate-500 mt-1">Baseado em {projection.totalItems} tópicos pendentes.</div>}
                                 </div>
                             )}
                         </div>
@@ -445,6 +523,9 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [expandedWeekId, setExpandedWeekId] = useState<string | null>(null);
   
+  // NEW: Dropdown State for Pace Selector
+  const [showPaceSelector, setShowPaceSelector] = useState(false);
+
   // NEW: State for tracking collapsed completed lists per week
   const [expandedCompletedWeeks, setExpandedCompletedWeeks] = useState<Record<string, boolean>>({});
 
@@ -846,21 +927,49 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
 
             <div className="flex items-center gap-3 w-full lg:w-auto lg:flex-1 justify-between lg:justify-end order-2 lg:order-3">
                  
-                 {/* PACE SELECTOR */}
-                 <div className="relative group w-full md:w-auto max-w-[200px]">
-                    <div className="absolute inset-0 bg-slate-800 rounded-xl border border-slate-700 pointer-events-none group-hover:border-emerald-500/50 transition-colors shadow-sm"></div>
-                    <div className="relative flex items-center px-4 py-2 gap-3 cursor-pointer">
-                        <div className="flex items-center justify-center bg-slate-900 p-1.5 rounded-lg border border-slate-700 text-emerald-500"><Timer size={16} /></div>
-                        <div className="flex flex-col flex-1 min-w-0">
-                             <span className="text-[9px] text-slate-500 font-bold uppercase leading-tight">Ritmo Padrão</span>
-                             <select value={config.studyPace} onChange={(e) => updateConfig({...config, studyPace: e.target.value as any})} className="bg-transparent text-white text-xs font-bold outline-none cursor-pointer w-full z-10 appearance-none">
-                                <option value="Iniciante">Iniciante (15 bl)</option>
-                                <option value="Básico">Básico (30 bl)</option>
-                                <option value="Intermediário">Interm. (45 bl)</option>
-                                <option value="Avançado">Avançado (66 bl)</option>
-                             </select>
+                 {/* PACE SELECTOR (CUSTOM DROPDOWN) */}
+                 <div className="relative group w-full md:w-auto min-w-[180px]">
+                    <button 
+                        onClick={() => setShowPaceSelector(!showPaceSelector)}
+                        className="relative w-full flex items-center px-4 py-2 gap-3 bg-slate-800 rounded-xl border border-slate-700 hover:border-emerald-500/50 transition-all shadow-sm group"
+                    >
+                        <div className="flex items-center justify-center bg-slate-900 p-1.5 rounded-lg border border-slate-700 text-emerald-500 group-hover:text-emerald-400 transition-colors">
+                            <Timer size={16} />
                         </div>
-                    </div>
+                        <div className="flex flex-col items-start flex-1 min-w-0">
+                             <span className="text-[9px] text-slate-500 font-bold uppercase leading-tight">Ritmo Padrão</span>
+                             <span className="text-white text-xs font-bold truncate">
+                                {config.studyPace} ({PACE_SETTINGS[config.studyPace || 'Intermediário'].blocks} bl)
+                             </span>
+                        </div>
+                        <ChevronDown size={14} className={`text-slate-500 transition-transform ${showPaceSelector ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {showPaceSelector && (
+                        <>
+                            <div className="fixed inset-0 z-40" onClick={() => setShowPaceSelector(false)}></div>
+                            <div className="absolute top-full right-0 mt-2 w-full bg-slate-900 border border-slate-700 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100 flex flex-col p-1">
+                                {Object.keys(PACE_SETTINGS).map((paceKey) => (
+                                    <button
+                                        key={paceKey}
+                                        onClick={() => {
+                                            updateConfig({...config, studyPace: paceKey as any});
+                                            setShowPaceSelector(false);
+                                        }}
+                                        className={`
+                                            flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-bold transition-all
+                                            ${config.studyPace === paceKey 
+                                                ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/20' 
+                                                : 'text-slate-400 hover:bg-slate-800 hover:text-white'}
+                                        `}
+                                    >
+                                        <span>{paceKey}</span>
+                                        <span className="opacity-70 text-[10px] font-mono bg-black/20 px-1.5 rounded">{PACE_SETTINGS[paceKey].blocks} bl</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </>
+                    )}
                  </div>
                  
                  <button 
