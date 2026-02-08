@@ -201,8 +201,34 @@ const NIETZSCHE_DATA = [
   { quote: "A disciplina é a mãe do sucesso.", source: "Aforismos", context: "A inspiração é para amadores. A elite opera baseada em disciplina inegociável." }
 ];
 
-const FIX_SQL = `-- 1. ATUALIZAÇÃO DE COLUNAS (V10)
--- Garante que todas as colunas necessárias existam
+const FIX_SQL = `-- 1. HABILITAR RLS (Row Level Security)
+-- Garante que o banco exija políticas de segurança
+alter table notebooks enable row level security;
+alter table cycles enable row level security;
+alter table reports enable row level security;
+alter table protocol enable row level security;
+alter table frameworks enable row level security;
+alter table notes enable row level security;
+
+-- 2. REMOVER POLÍTICAS ANTIGAS (PERMISSIVAS)
+-- Removemos as políticas que permitiam 'using (true)'
+drop policy if exists "Enable all access for authenticated users" on notebooks;
+drop policy if exists "Enable all access for authenticated users" on cycles;
+drop policy if exists "Enable all access for authenticated users" on reports;
+drop policy if exists "Enable all access for authenticated users" on protocol;
+drop policy if exists "Enable all access for authenticated users" on frameworks;
+drop policy if exists "Enable all access for authenticated users" on notes;
+
+-- 3. CRIAR POLÍTICAS ESTRITAS (PRIVACIDADE)
+-- O usuário só pode ver/editar linhas onde user_id é igual ao seu ID de login
+create policy "Users can only access their own notebooks" on notebooks for all using (auth.uid() = user_id);
+create policy "Users can only access their own cycles" on cycles for all using (auth.uid() = user_id);
+create policy "Users can only access their own reports" on reports for all using (auth.uid() = user_id);
+create policy "Users can only access their own protocol" on protocol for all using (auth.uid() = user_id);
+create policy "Users can only access their own frameworks" on frameworks for all using (auth.uid() = user_id);
+create policy "Users can only access their own notes" on notes for all using (auth.uid() = user_id);
+
+-- 4. ATUALIZAÇÃO DE COLUNAS (V10)
 alter table notebooks add column if not exists week_id text;
 alter table notebooks add column if not exists is_week_completed boolean default false;
 alter table notebooks add column if not exists gemini_link_1 text;
@@ -215,31 +241,7 @@ alter table notebooks add column if not exists tec_link text;
 alter table notebooks add column if not exists images text[];
 alter table notebooks add column if not exists custom_score numeric;
 
--- 2. PERMISSÕES DE ACESSO (RLS)
-alter table notebooks enable row level security;
-alter table cycles enable row level security;
-alter table reports enable row level security;
-alter table protocol enable row level security;
-alter table frameworks enable row level security;
-alter table notes enable row level security;
-
--- Políticas Permissivas (Ajuste conforme necessidade de segurança real)
-create policy "Enable all access for authenticated users" on "public"."notebooks" as PERMISSIVE for all to authenticated using (true) with check (true);
-create policy "Enable all access for authenticated users" on "public"."cycles" as PERMISSIVE for all to authenticated using (true) with check (true);
-create policy "Enable all access for authenticated users" on "public"."reports" as PERMISSIVE for all to authenticated using (true) with check (true);
-create policy "Enable all access for authenticated users" on "public"."protocol" as PERMISSIVE for all to authenticated using (true) with check (true);
-create policy "Enable all access for authenticated users" on "public"."frameworks" as PERMISSIVE for all to authenticated using (true) with check (true);
-create policy "Enable all access for authenticated users" on "public"."notes" as PERMISSIVE for all to authenticated using (true) with check (true);
-
--- 3. CORREÇÃO DO STORAGE
-insert into storage.buckets (id, name, public) values ('notebook-images', 'notebook-images', true) on conflict (id) do nothing;
-create policy "Public Access" on storage.objects for select using ( bucket_id = 'notebook-images' );
-create policy "Authenticated Upload" on storage.objects for insert to authenticated with check ( bucket_id = 'notebook-images' );
-create policy "Authenticated Update" on storage.objects for update to authenticated using ( bucket_id = 'notebook-images' );
-create policy "Authenticated Delete" on storage.objects for delete to authenticated using ( bucket_id = 'notebook-images' );
-
--- 4. REFRESH SCHEMA CACHE
--- Força o PostgREST a reconhecer as novas colunas imediatamente
+-- 5. REFRESH SCHEMA CACHE
 NOTIFY pgrst, 'reload schema';`;
 
 interface Props {
