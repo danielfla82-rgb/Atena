@@ -55,6 +55,9 @@ const DraggableCard = React.memo(({
     const isLibrary = origin === 'library';
     const isWeek = origin === 'week';
     
+    // --- LÓGICA DE ALOCAÇÃO (VISUAL FEEDBACK) ---
+    const allocatedWeek = isLibrary && notebook.weekId ? notebook.weekId.replace('week-', '') : null;
+
     // --- LÓGICA DE CORES POR DESEMPENHO ---
     const target = notebook.targetAccuracy || 90;
     const accuracy = notebook.accuracy || 0;
@@ -105,6 +108,7 @@ const DraggableCard = React.memo(({
                 ${disabled ? 'opacity-50 pointer-events-none' : ''}
                 ${isCompact ? 'text-xs' : 'text-sm'}
                 ${isCompleted && isWeek ? 'bg-slate-900/50 border-slate-800 opacity-70 hover:opacity-100' : ''}
+                ${isLibrary && allocatedWeek ? 'border-l-2 border-l-indigo-500' : ''}
             `}
         >
             {isLibrary && (
@@ -138,10 +142,10 @@ const DraggableCard = React.memo(({
                             {notebook.discipline}
                         </h4>
                         
-                        {isLibrary && allocationCount && allocationCount > 0 ? (
+                        {isLibrary && allocatedWeek ? (
                             <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[9px] font-bold text-indigo-300 uppercase tracking-wide shadow-[0_0_10px_rgba(99,102,241,0.1)]">
                                 <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></span>
-                                No Ciclo
+                                Sem {allocatedWeek}
                             </span>
                         ) : null}
                     </div>
@@ -154,8 +158,16 @@ const DraggableCard = React.memo(({
                          {notebook.accuracy}%
                      </span>
                      {nextReviewWeek && (
-                         <span className="flex items-center gap-1 text-[9px] text-slate-500 bg-slate-900 border border-slate-700 px-1.5 py-0.5 rounded" title={`Próxima revisão na Semana ${nextReviewWeek}`}>
-                             <Calendar size={8} /> Sem {nextReviewWeek}
+                         <span 
+                            className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded border transition-colors
+                                ${allocatedWeek 
+                                    ? 'text-emerald-400 bg-emerald-900/20 border-emerald-500/30 opacity-90' 
+                                    : 'text-slate-500 bg-slate-900 border-slate-700'
+                                }
+                            `} 
+                            title={allocatedWeek ? "Revisão já planejada" : `Próxima revisão recomendada para Semana ${nextReviewWeek}`}
+                         >
+                             {allocatedWeek ? <CheckCircle2 size={8} /> : <Calendar size={8} />} Sem {nextReviewWeek}
                          </span>
                      )}
                      <div className="flex gap-1 mt-1">
@@ -201,10 +213,11 @@ const DraggableCard = React.memo(({
 const normalizeStr = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
 const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: number } }) => {
+    // ... (rest of the file remains unchanged)
     const { notebooks, config, updateConfig } = useStore();
     const [newDiscName, setNewDiscName] = useState('');
     
-    // --- PERSISTENT STATE MANAGEMENT ---
+    // ... (CycleCalculator implementation continues) ...
     const availableDisciplines = useMemo<string[]>(() => {
         const set = new Set<string>();
         const safeNotebooks: Notebook[] = notebooks || [];
@@ -257,7 +270,7 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
             }
         }
 
-        // Fallback to active notebooks
+        // Fallback for active notebooks
         return notebooks.filter(n => 
             n.discipline === discName && 
             n.status !== NotebookStatus.MASTERED && 
@@ -507,6 +520,9 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
         </div>
     );
 };
+
+// ... (Rest of Setup component)
+// ... (The Setup component implementation continues with no changes to the main export, just the internal DraggableCard updated)
 
 interface Props {
   onNavigate: (view: string) => void;
