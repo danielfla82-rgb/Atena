@@ -24,7 +24,6 @@ const COLOR_MAP = {
 const StickyNoteItem: React.FC<{ note: Note }> = ({ note }) => {
     const { updateNote, deleteNote } = useStore();
     const [content, setContent] = useState(note.content);
-    const [isExpanded, setIsExpanded] = useState(false);
     
     // Track the latest content for unmount save
     const contentRef = useRef(content);
@@ -52,23 +51,18 @@ const StickyNoteItem: React.FC<{ note: Note }> = ({ note }) => {
     };
 
     return (
-        <div className={`min-h-[250px] w-full rounded-xl p-4 shadow-lg transition-all flex flex-col group relative border-2 ${COLORS[note.color] || COLORS.yellow} ${isExpanded ? 'col-span-2 md:col-span-2' : ''}`}>
+        <div className={`relative rounded-xl p-4 shadow-lg transition-all border-2 group ${COLORS[note.color] || COLORS.yellow}`}>
             <textarea 
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 onBlur={handleBlur}
                 placeholder="Digite sua anotação..."
-                className="w-full h-full bg-transparent border-none resize-y outline-none text-sm font-medium leading-relaxed custom-scrollbar flex-1"
+                // Alterado para permitir redimensionamento livre e layout flexivel
+                className="bg-transparent border-none resize outline-none text-sm font-medium leading-relaxed custom-scrollbar block min-w-[280px] min-h-[250px]"
+                style={{ width: '280px', height: '250px' }} // Tamanho inicial padrão inline
             />
             
             <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                <button 
-                    onClick={() => setIsExpanded(!isExpanded)}
-                    className="p-1.5 bg-black/10 rounded-full hover:bg-black/20 text-current transition-colors"
-                    title={isExpanded ? "Contrair" : "Expandir"}
-                >
-                    {isExpanded ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-                </button>
                 <div className="group/palette relative">
                     <button className="p-1.5 bg-black/10 rounded-full hover:bg-black/20 text-current transition-colors">
                         <Palette size={14} />
@@ -92,7 +86,7 @@ const StickyNoteItem: React.FC<{ note: Note }> = ({ note }) => {
                 </button>
             </div>
             
-            <div className="text-[9px] opacity-50 font-bold uppercase tracking-wider text-right mt-2 select-none">
+            <div className="text-[9px] opacity-50 font-bold uppercase tracking-wider text-right mt-2 select-none pointer-events-none">
                 {new Date(note.updatedAt).toLocaleDateString()}
             </div>
         </div>
@@ -181,9 +175,10 @@ export const Notes: React.FC = () => {
       </div>
 
       {viewMode === 'sticky' ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 flex-1 overflow-y-auto custom-scrollbar content-start pb-20">
+          // Switch from Grid to Flex to allow variable width/height items via drag
+          <div className="flex flex-wrap gap-6 flex-1 overflow-y-auto custom-scrollbar content-start pb-20 items-start">
               {notes.length === 0 ? (
-                  <div className="col-span-full flex flex-col items-center justify-center py-20 text-slate-600 opacity-50 border-2 border-dashed border-slate-800 rounded-2xl">
+                  <div className="w-full flex flex-col items-center justify-center py-20 text-slate-600 opacity-50 border-2 border-dashed border-slate-800 rounded-2xl">
                       <StickyNote size={48} className="mb-4" />
                       <p>Seu quadro está vazio.</p>
                   </div>
