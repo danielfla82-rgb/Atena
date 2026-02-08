@@ -379,6 +379,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           }
 
           // PARALLEL FETCHING: Fetch all tables simultaneously
+          // DEFESA EM PROFUNDIDADE: Filtro explícito .eq('user_id', userToUse.id)
           const [
               notebooksResponse,
               cyclesResponse,
@@ -390,51 +391,37 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               // 1. Notebooks (Enhanced Recovery)
               (async () => {
                   try {
-                      // Attempt optimized fetch
-                      const { data, error } = await supabase.from('notebooks').select(OPTIMIZED_COLUMNS);
+                      // Attempt optimized fetch with explicit user_id filter
+                      const { data, error } = await supabase.from('notebooks').select(OPTIMIZED_COLUMNS).eq('user_id', userToUse.id);
                       if (error) throw error;
                       return { data, error: null };
                   } catch (optimizedError) {
-                      console.warn("⚠️ Optimized Fetch Failed (Schema Mismatch?). Trying Recovery Mode.", optimizedError);
-                      // Fallback: Select ALL (*) but manually filtering heavily in memory if needed.
-                      // Ideally, we depend on RLS, but if RLS is broken, this at least tries to get the data.
-                      const { data, error } = await supabase.from('notebooks').select('*');
+                      console.warn("⚠️ Optimized Fetch Failed. Trying Recovery Mode.", optimizedError);
+                      const { data, error } = await supabase.from('notebooks').select('*').eq('user_id', userToUse.id);
                       if (error) { 
                           const errString = JSON.stringify(error);
-                          console.error("❌ Recovery Fetch Failed. Check RLS Policies.", errString);
-                          
-                          // Code 42P01: undefined_table (Tabela não existe)
-                          // Code 42501: insufficient_privilege (RLS bloqueando)
-                          // Code PGRST204: Column not found in cache (rare but possible here too)
+                          console.error("❌ Recovery Fetch Failed.", errString);
                           if (error.code === '42P01' || error.code === '42501' || error.code === 'PGRST204') {
                               setDbError(errString);
                           }
                           return { data: [], error };
                       }
                       
-                      // CLIENT-SIDE STRIPPING: Ensure we don't hold massive base64 in memory if it was fetched via *
                       const cleanedData = data?.map((nb: any) => {
-                          // If 'image' or 'images' contain huge strings (starts with data:image), we NULL them here to save RAM
-                          // They will be re-fetched on demand via `fetchNotebookImages`
-                          // This simulates the behavior of OPTIMIZED_COLUMNS but safe for any schema
-                          return {
-                              ...nb,
-                              image: null, 
-                              images: [] // Strip images to match V10 logic
-                          };
+                          return { ...nb, image: null, images: [] };
                       });
                       return { data: cleanedData, error: null };
                   }
               })(),
-              // 2. Cycles
-              supabase.from('cycles').select('*'),
-              // 3. Reports
-              supabase.from('reports').select('*'),
-              // 4. Protocol
-              supabase.from('protocol').select('*'),
-              // 5. Notes
-              supabase.from('notes').select('*'),
-              // 6. Framework
+              // 2. Cycles - Filtered
+              supabase.from('cycles').select('*').eq('user_id', userToUse.id),
+              // 3. Reports - Filtered
+              supabase.from('reports').select('*').eq('user_id', userToUse.id),
+              // 4. Protocol - Filtered
+              supabase.from('protocol').select('*').eq('user_id', userToUse.id),
+              // 5. Notes - Filtered
+              supabase.from('notes').select('*').eq('user_id', userToUse.id),
+              // 6. Framework - Filtered
               supabase.from('frameworks').select('*').eq('user_id', userToUse.id).maybeSingle()
           ]);
 
@@ -517,14 +504,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }
     };
     init();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    
+    // AUTH STATE LISTENER
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
+      
+      if (event === 'SIGNED_OUT') {
+          // *** NUCLEAR OPTION ***
+          // Se o usuário deslogou, forçamos um reload da página.
+          // Isso garante que a memória RAM seja limpa e nenhum dado do usuário anterior persista.
+          window.location.reload();
+          return;
+      }
+
       if (session?.user) {
           setIsGuest(false);
-          // Optimization: Pass user directly
           fetchCloudData(session.user);
       } else {
-          // CRITICAL FIX: Clear state on logout to prevent data leak between users in same session
           setNotebooks([]);
           setCycles([]);
           setReports([]);
