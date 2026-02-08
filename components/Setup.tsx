@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, NotebookStatus, ScheduleItem } from '../types';
-import { Plus, Search, Pencil, BarChart3, Calendar, Lock, ChevronDown, Layout, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, Flag, Inbox, Scale, Download, PanelLeftClose, PanelLeftOpen, Archive, Minus, Meh, Frown, Smile, History, ChevronRight, Maximize2, Activity, ChevronUp, Layers, CheckCircle2, Loader2, X, FileText, Key, BrainCircuit, HelpCircle, Target, TrendingUp } from 'lucide-react';
+import { Plus, Search, Pencil, BarChart3, Calendar, Lock, ChevronDown, Layout, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, Flag, Inbox, Scale, Download, PanelLeftClose, PanelLeftOpen, Archive, Minus, Meh, Frown, Smile, History, ChevronRight, Maximize2, Activity, ChevronUp, Layers, CheckCircle2, Loader2, X, FileText, Key, BrainCircuit, HelpCircle, Target, TrendingUp, Sparkles, RefreshCw } from 'lucide-react';
 import { getStatusColor, DEFAULT_ALGO_CONFIG } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 
@@ -1044,6 +1044,14 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                         const isLate = week.isPast && !isTargetMet;
                         const dailyAvg = (blocksCount / 7).toFixed(1);
 
+                        // --- NEW vs REVIEW COUNT ---
+                        const newItemsCount = weekSlots.reduce((acc, slot) => {
+                            if (!slot.notebookId) return acc;
+                            const nb = notebooks.find(n => n.id === slot.notebookId);
+                            return acc + (nb && nb.accuracy === 0 ? 1 : 0);
+                        }, 0);
+                        const reviewItemsCount = blocksCount - newItemsCount;
+
                         // --- PERFORMANCE SUMMARY ---
                         const summaryStats = { success: 0, warning: 0, critical: 0, totalAcc: 0, countAcc: 0 };
                         if (week.isPast || blocksCompleted > 0) {
@@ -1204,7 +1212,19 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                                         ) : isLate ? (
                                             <span className="text-[10px] text-red-400 font-bold flex items-center gap-1 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20 w-full justify-center"><AlertCircle size={10} /> Atrasado ({blocksCount - blocksCompleted} pendentes)</span>
                                         ) : missingBlocks > 0 ? (
-                                            <span className="text-[10px] text-slate-500 font-bold flex items-center gap-1">Planejar: +{missingBlocks}</span>
+                                            <div className="flex w-full justify-between items-center">
+                                                <span className="text-[10px] text-slate-500 font-bold flex items-center gap-1">Planejar: +{missingBlocks}</span>
+                                                {blocksCount > 0 && (
+                                                    <div className="flex items-center gap-2 text-[9px] font-mono">
+                                                        <span className="text-blue-400 flex items-center gap-0.5" title="Disciplinas Novas (0% acerto)">
+                                                            <Sparkles size={8} /> {newItemsCount} <span className="opacity-60">({Math.round((newItemsCount/blocksCount)*100)}%)</span>
+                                                        </span>
+                                                        <span className="text-purple-400 flex items-center gap-0.5" title="Revisões (>0% acerto)">
+                                                            <RefreshCw size={8} /> {reviewItemsCount} <span className="opacity-60">({Math.round((reviewItemsCount/blocksCount)*100)}%)</span>
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
                                         ) : (
                                             <span className="text-[10px] text-blue-400 font-bold flex items-center gap-1"><Archive size={10} /> Planejamento OK</span>
                                         )}
