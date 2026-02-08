@@ -523,6 +523,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setIsGuest(false);
           // Optimization: Pass user directly
           fetchCloudData(session.user);
+      } else {
+          // CRITICAL FIX: Clear state on logout to prevent data leak between users in same session
+          setNotebooks([]);
+          setCycles([]);
+          setReports([]);
+          setProtocol([]);
+          setNotes([]);
+          setFramework(DEFAULT_FRAMEWORK);
+          setActiveCycleId(null);
+          setIsGuest(false); 
       }
     });
     return () => subscription.unsubscribe();
