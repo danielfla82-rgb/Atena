@@ -461,20 +461,20 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
                                                   </span>
                                                   {weekLabel && (
                                                       <span className={`text-[10px] px-1.5 rounded border flex items-center gap-1 
-                                                          ${isAllocatedFuture 
-                                                              ? 'bg-indigo-900/20 text-indigo-400 border-indigo-500/20' 
-                                                              : isAllocatedPastOnly 
-                                                                  ? 'bg-amber-900/20 text-amber-400 border-amber-500/20' 
-                                                                  : isPastWeek
-                                                                    ? 'bg-slate-800 text-slate-500 border-slate-700'
-                                                                    : 'bg-emerald-900/10 text-emerald-500 border-emerald-500/20'
+                                                          ${isPastWeek 
+                                                              ? 'bg-slate-800 text-slate-500 border-slate-700' 
+                                                              : isAllocatedFuture 
+                                                                  ? 'bg-indigo-900/20 text-indigo-400 border-indigo-500/20' 
+                                                                  : isAllocatedPastOnly 
+                                                                      ? 'bg-amber-900/20 text-amber-400 border-amber-500/20' 
+                                                                      : 'bg-emerald-900/10 text-emerald-500 border-emerald-500/20'
                                                           }
                                                       `}>
                                                           {isAllocatedPastOnly 
                                                               ? <><AlertTriangle size={8} /> Realocar</> 
                                                               : <><Calendar size={8} /> {weekLabel}</>
                                                           } 
-                                                          {isAllocatedFuture && <CheckCircle2 size={8} className="ml-0.5" />}
+                                                          {isAllocatedFuture && !isPastWeek && <CheckCircle2 size={8} className="ml-0.5" />}
                                                       </span>
                                                   )}
                                               </div>

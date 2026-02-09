@@ -35,7 +35,8 @@ const DraggableCard = React.memo(({
     isCompleted,
     index,
     startDate,
-    scheduledWeekId // NEW: Explicit Schedule Info
+    scheduledWeekId,
+    currentWeekIndex // NEW PROP
 }: {
     notebook: Notebook;
     instanceId?: string;
@@ -52,6 +53,7 @@ const DraggableCard = React.memo(({
     index?: number;
     startDate?: string;
     scheduledWeekId?: string | null;
+    currentWeekIndex?: number;
 }) => {
     const statusColor = getStatusColor(notebook.accuracy, notebook.targetAccuracy);
     const isLibrary = origin === 'library';
@@ -61,6 +63,9 @@ const DraggableCard = React.memo(({
     // Prioriza a informação do Ciclo Ativo (Schedule) sobre a propriedade legada weekId
     const effectiveWeekId = scheduledWeekId || notebook.weekId;
     const allocatedWeek = isLibrary && effectiveWeekId ? effectiveWeekId.replace('week-', '') : null;
+    
+    // Check if allocation is in the past
+    const isAllocatedPast = allocatedWeek && currentWeekIndex && parseInt(allocatedWeek) < currentWeekIndex;
 
     // --- LÓGICA DE CORES POR DESEMPENHO ---
     const target = notebook.targetAccuracy || 90;
@@ -147,8 +152,12 @@ const DraggableCard = React.memo(({
                         </h4>
                         
                         {isLibrary && allocatedWeek ? (
-                            <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[9px] font-bold text-indigo-300 uppercase tracking-wide shadow-[0_0_10px_rgba(99,102,241,0.1)]">
-                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></span>
+                            <span className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide shadow-sm
+                                ${isAllocatedPast 
+                                    ? 'bg-slate-700 border border-slate-600 text-slate-400' 
+                                    : 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.1)]'}
+                            `}>
+                                {!isAllocatedPast && <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></span>}
                                 Sem {allocatedWeek}
                             </span>
                         ) : null}
@@ -164,7 +173,7 @@ const DraggableCard = React.memo(({
                      {nextReviewWeek && (
                          <span 
                             className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded border transition-colors
-                                ${allocatedWeek 
+                                ${allocatedWeek && !isAllocatedPast
                                     ? 'text-emerald-400 bg-emerald-900/20 border-emerald-500/30 opacity-90' 
                                     : 'text-slate-500 bg-slate-900 border-slate-700'
                                 }
@@ -216,11 +225,12 @@ const DraggableCard = React.memo(({
 // Helper for normalization
 const normalizeStr = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
+// ... (CycleCalculator component remains identical) ...
 const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: number } }) => {
     const { notebooks, config, updateConfig } = useStore();
     const [newDiscName, setNewDiscName] = useState('');
     
-    // ... (CycleCalculator implementation remains same)
+    // ... (CycleCalculator logic remains same) ...
     const availableDisciplines = useMemo<string[]>(() => {
         const set = new Set<string>();
         const safeNotebooks: Notebook[] = notebooks || [];
@@ -672,6 +682,11 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
     return { id: `week-${i + 1}`, index: i + 1, label, isPast, fullDate };
   });
 
+  const currentWeekIndex = useMemo(() => {
+      const activeWeek = weeks.find(w => !w.isPast);
+      return activeWeek ? activeWeek.index : weeks.length + 1;
+  }, [weeks]);
+
   const getWeekPace = useCallback((weekId: string) => {
       return config.weeklyPace?.[weekId] || config.studyPace || 'Intermediário';
   }, [config.weeklyPace, config.studyPace]);
@@ -785,6 +800,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                             allocationCount={notebookScheduleMap.has(nb.id) ? 1 : 0}
                             scheduledWeekId={notebookScheduleMap.get(nb.id)}
                             startDate={config.startDate}
+                            currentWeekIndex={currentWeekIndex}
                         />
                     ))}
                     {libraryNotebooks.length === 0 && (
@@ -991,14 +1007,14 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                                     if (!slot || !slot.notebookId) return null; 
                                     const nb = notebooks.find(n => n.id === slot.notebookId);
                                     if (!nb) return null;
-                                    return (<DraggableCard key={slot.instanceId || `fallback-${originalIndex}`} instanceId={slot.instanceId} notebook={nb} isCompleted={slot.completed} onDragStart={onDragStart} onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)} onEdit={handleEditClick} onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} onRemove={(instId) => handleRemoveFromWeek(instId, week.id)} isCompact origin="week" disabled={week.isPast} index={originalIndex} />);
+                                    return (<DraggableCard key={slot.instanceId || `fallback-${originalIndex}`} instanceId={slot.instanceId} notebook={nb} isCompleted={slot.completed} onDragStart={onDragStart} onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)} onEdit={handleEditClick} onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} onRemove={(instId) => handleRemoveFromWeek(instId, week.id)} isCompact origin="week" disabled={week.isPast} index={originalIndex} currentWeekIndex={currentWeekIndex} />);
                                 })}
                                 {completedItems.length > 0 && (<div className="pt-2"><button onClick={(e) => toggleCompletedWeek(week.id, e)} className="w-full flex items-center justify-between px-3 py-2 bg-slate-800/50 border border-slate-800 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 hover:border-slate-700 transition-all group"><span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-2"><CheckCircle2 size={12} className="text-emerald-500" />{isCompletedListExpanded ? 'Ocultar' : 'Mostrar'} {completedItems.length} Concluídos</span>{isCompletedListExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</button></div>)}
                                 {isCompletedListExpanded && completedItems.map(({ slot, originalIndex }) => {
                                     if (!slot || !slot.notebookId) return null; 
                                     const nb = notebooks.find(n => n.id === slot.notebookId);
                                     if (!nb) return null;
-                                    return (<DraggableCard key={slot.instanceId || `fallback-${originalIndex}`} instanceId={slot.instanceId} notebook={nb} isCompleted={slot.completed} onDragStart={onDragStart} onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)} onEdit={handleEditClick} onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} onRemove={(instId) => handleRemoveFromWeek(instId, week.id)} isCompact origin="week" disabled={week.isPast} index={originalIndex} />);
+                                    return (<DraggableCard key={slot.instanceId || `fallback-${originalIndex}`} instanceId={slot.instanceId} notebook={nb} isCompleted={slot.completed} onDragStart={onDragStart} onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)} onEdit={handleEditClick} onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} onRemove={(instId) => handleRemoveFromWeek(instId, week.id)} isCompact origin="week" disabled={week.isPast} index={originalIndex} currentWeekIndex={currentWeekIndex} />);
                                 })}
                                 {weekSlots.length === 0 && !week.isPast && <div className="h-full flex flex-col items-center justify-center text-slate-700 text-xs italic opacity-50 border-2 border-dashed border-slate-800 rounded-xl m-2 bg-slate-950/50 min-h-[100px]">Arraste matérias aqui</div>}
                             </div>
