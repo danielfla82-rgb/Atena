@@ -145,6 +145,11 @@ const mapFrameworkFromDB = (db: any): FrameworkData => ({
 const sanitizeCycleData = (cycle: Cycle, validNotebookIds: Set<string>): Cycle => {
     if (!cycle.schedule) return cycle;
     
+    // FIX BUG: Não filtrar agressivamente com base em validNotebookIds.
+    // O carregamento assíncrono pode fazer com que notebooks válidos ainda não estejam no Set,
+    // causando a deleção indevida do agendamento.
+    // Mantemos apenas a verificação de estrutura básica.
+    
     const cleanSchedule: Record<string, ScheduleItem[]> = {};
     let hasChanges = false;
 
@@ -152,7 +157,9 @@ const sanitizeCycleData = (cycle: Cycle, validNotebookIds: Set<string>): Cycle =
         if (!Array.isArray(slots)) return;
         
         const validSlots = slots.filter(slot => {
-            return slot && slot.notebookId && validNotebookIds.has(slot.notebookId);
+            // Apenas verifica se o objeto slot é válido e tem um ID.
+            // Removemos '&& validNotebookIds.has(slot.notebookId)' para evitar o bug de sumiço.
+            return slot && slot.notebookId;
         });
 
         if (validSlots.length !== slots.length) {

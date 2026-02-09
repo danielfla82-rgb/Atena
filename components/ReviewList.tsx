@@ -445,6 +445,11 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
                               const isAllocatedFuture = allocatedWeeks.some(w => w >= currentCycleWeek);
                               const isAllocatedPastOnly = allocatedWeeks.length > 0 && !isAllocatedFuture;
 
+                              // NEW LOGIC: Check if calculated week is in past
+                              const weekNumStr = weekLabel ? weekLabel.replace('Semana ', '') : '0';
+                              const weekNum = parseInt(weekNumStr);
+                              const isPastWeek = weekNum > 0 && weekNum < currentCycleWeek;
+
                               return (
                                   <div key={nb.id} className="group bg-slate-900 border border-slate-800 p-3 rounded-lg flex items-center justify-between cursor-pointer" onClick={() => handleEdit(nb)}>
                                       <div className="flex-1 min-w-0 pr-4">
@@ -460,7 +465,9 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
                                                               ? 'bg-indigo-900/20 text-indigo-400 border-indigo-500/20' 
                                                               : isAllocatedPastOnly 
                                                                   ? 'bg-amber-900/20 text-amber-400 border-amber-500/20' 
-                                                                  : 'bg-emerald-900/10 text-emerald-500 border-emerald-500/20'
+                                                                  : isPastWeek
+                                                                    ? 'bg-slate-800 text-slate-500 border-slate-700'
+                                                                    : 'bg-emerald-900/10 text-emerald-500 border-emerald-500/20'
                                                           }
                                                       `}>
                                                           {isAllocatedPastOnly 
