@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useStore } from '../store';
 import { createAIClient } from '../utils/ai';
 import { Type } from "@google/genai";
-import { CheckSquare, Square, AlertCircle, ArrowUpCircle, CheckCircle2, ListChecks, Search, BrainCircuit, Loader2, Sparkles, ChevronDown, ChevronUp, FileWarning, ExternalLink, Plus, BookOpen, X, FileText, Calendar, Target, TrendingUp, Clock, Info, Medal, Layers } from 'lucide-react';
+import { CheckSquare, Square, AlertCircle, ArrowUpCircle, CheckCircle2, ListChecks, Search, BrainCircuit, Loader2, Sparkles, ChevronDown, ChevronUp, FileWarning, ExternalLink, Plus, BookOpen, X, FileText, Calendar, Target, TrendingUp, Clock, Info, Medal, Layers, Filter, AlertTriangle, PieChart } from 'lucide-react';
 import { EditalDiscipline, EditalTopic, Weight, Relevance, Trend, ScheduleItem, Notebook } from '../types';
 import { calculateUrgencyScore } from '../utils/algorithm';
 
@@ -13,6 +13,7 @@ interface Props {
 export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
   const { notebooks, config, updateConfig, setFocusedNotebookId, setPendingCreateData, activeCycleId, cycles } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterMode, setFilterMode] = useState<'all' | 'high_priority' | 'missing_notebooks' | 'low_accuracy'>('all');
   const [isProcessing, setIsProcessing] = useState(false);
   const [expandedDiscipline, setExpandedDiscipline] = useState<string | null>(null);
   
@@ -143,6 +144,47 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
 
       return { totalTopics, completedTopics, pendingTopics, daysRemaining, pace };
   }, [config.structuredEdital, config.examDate]);
+
+  // --- DISCIPLINE METRICS (NEW FEATURE) ---
+  const disciplineMetrics = useMemo(() => {
+      if (!config.structuredEdital) return { map: new Map(), totalScore: 0 };
+
+      const map = new Map<string, { createdCount: number, totalTopics: number, totalScore: number, avgAccuracy: number }>();
+      let grandTotalScore = 0;
+
+      config.structuredEdital.forEach(d => {
+          let createdCount = 0;
+          let discScore = 0;
+          let totalAcc = 0;
+          let accCount = 0;
+
+          d.topics.forEach(t => {
+              const match = findMatchingNotebook(t.name, d.name, notebooks);
+              if (match) {
+                  createdCount++;
+                  const score = match.customScore !== null && match.customScore !== undefined 
+                      ? match.customScore 
+                      : calculateUrgencyScore(match.weight, match.relevance, match.trend);
+                  discScore += score;
+                  
+                  if (match.accuracy > 0) {
+                      totalAcc += match.accuracy;
+                      accCount++;
+                  }
+              }
+          });
+
+          grandTotalScore += discScore;
+          map.set(d.name, {
+              createdCount,
+              totalTopics: d.topics.length,
+              totalScore: discScore,
+              avgAccuracy: accCount > 0 ? Math.round(totalAcc / accCount) : 0
+          });
+      });
+
+      return { map, totalScore: grandTotalScore };
+  }, [config.structuredEdital, notebooks, findMatchingNotebook]);
 
   // --- AI PROCESSING ---
   const processEditalWithAI = async () => {
@@ -322,16 +364,44 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
   // --- FILTERING ---
   const displayData = useMemo(() => {
       if (!config.structuredEdital) return [];
-      if (!searchTerm) return config.structuredEdital;
-      const lowerSearch = searchTerm.toLowerCase();
-      return config.structuredEdital.map(d => ({
-          ...d,
-          topics: d.topics.filter(t => 
-              t.name.toLowerCase().includes(lowerSearch) || 
-              d.name.toLowerCase().includes(lowerSearch)
-          )
-      })).filter(d => d.topics.length > 0);
-  }, [config.structuredEdital, searchTerm]);
+      
+      let data = config.structuredEdital;
+
+      // 1. Text Search
+      if (searchTerm) {
+          const lowerSearch = searchTerm.toLowerCase();
+          data = data.map(d => ({
+              ...d,
+              topics: d.topics.filter(t => 
+                  t.name.toLowerCase().includes(lowerSearch) || 
+                  d.name.toLowerCase().includes(lowerSearch)
+              )
+          })).filter(d => d.topics.length > 0);
+      }
+
+      // 2. Advanced Filters
+      if (filterMode !== 'all') {
+          data = data.filter(d => {
+              const metrics = disciplineMetrics.map.get(d.name);
+              if (!metrics) return false;
+
+              if (filterMode === 'high_priority') {
+                  // > 10% of total score OR high avg score per topic
+                  const scoreShare = disciplineMetrics.totalScore > 0 ? (metrics.totalScore / disciplineMetrics.totalScore) : 0;
+                  return scoreShare > 0.10; 
+              }
+              if (filterMode === 'missing_notebooks') {
+                  return metrics.createdCount < metrics.totalTopics;
+              }
+              if (filterMode === 'low_accuracy') {
+                  return metrics.createdCount > 0 && metrics.avgAccuracy < 60;
+              }
+              return true;
+          });
+      }
+
+      return data;
+  }, [config.structuredEdital, searchTerm, filterMode, disciplineMetrics]);
 
   // --- RENDER ---
   if (!config.structuredEdital || config.structuredEdital.length === 0) {
@@ -395,6 +465,26 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
         </div>
       </div>
 
+      {/* FILTER BAR */}
+      <div className="flex gap-2 overflow-x-auto pb-1 flex-shrink-0 no-scrollbar">
+          {[
+              { id: 'all', label: 'Todas Disciplinas' },
+              { id: 'high_priority', label: 'Alta Relevância (Score)', icon: PieChart },
+              { id: 'missing_notebooks', label: 'Faltam Cadernos', icon: AlertTriangle },
+              { id: 'low_accuracy', label: 'Baixa Acurácia', icon: ArrowUpCircle }
+          ].map(f => (
+              <button 
+                key={f.id} 
+                onClick={() => setFilterMode(f.id as any)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-bold whitespace-nowrap transition-all 
+                    ${filterMode === f.id ? 'bg-slate-800 text-white border-slate-600' : 'bg-transparent text-slate-500 border-slate-800 hover:border-slate-700'}
+                `}
+              >
+                  {f.icon && <f.icon size={12} />} {f.label}
+              </button>
+          ))}
+      </div>
+
       {/* --- INTELLIGENCE PANEL (STATS) --- */}
       {stats && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-2">
@@ -443,11 +533,18 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
               const progress = Math.round((checkedTopics / totalTopics) * 100);
               const isAllChecked = checkedTopics === totalTopics;
               
+              // NEW METRICS
+              const metrics = disciplineMetrics.map.get(discipline.name);
+              const created = metrics ? metrics.createdCount : 0;
+              const score = metrics ? metrics.totalScore : 0;
+              const scoreShare = disciplineMetrics.totalScore > 0 ? Math.round((score / disciplineMetrics.totalScore) * 100) : 0;
+              const isMissingNotebooks = created < totalTopics;
+
               return (
                   <div key={discipline.name} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden transition-all">
                       {/* Header */}
                       <div 
-                        className="px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-slate-800/50 transition-colors"
+                        className="px-6 py-4 flex flex-col md:flex-row md:items-center justify-between cursor-pointer hover:bg-slate-800/50 transition-colors gap-4"
                         onClick={() => setExpandedDiscipline(isExpanded ? null : discipline.name)}
                       >
                           <div className="flex items-center gap-4">
@@ -456,8 +553,20 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
                               </div>
                               <div>
                                   <h3 className="font-bold text-white text-lg">{discipline.name}</h3>
-                                  <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
+                                  <div className="flex items-center gap-3 text-xs text-slate-500 mt-1 flex-wrap">
                                       <span>{totalTopics} tópicos</span>
+                                      
+                                      {/* NEW: Created Notebooks Badge */}
+                                      <span className={`px-1.5 py-0.5 rounded border text-[10px] font-bold uppercase ${isMissingNotebooks ? 'bg-amber-900/20 text-amber-400 border-amber-500/20' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>
+                                          Cadernos: {created}/{totalTopics}
+                                      </span>
+
+                                      {/* NEW: Score Badge */}
+                                      {score > 0 && (
+                                          <span className={`px-1.5 py-0.5 rounded border text-[10px] font-bold uppercase flex items-center gap-1 ${scoreShare > 10 ? 'bg-indigo-900/20 text-indigo-400 border-indigo-500/20' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>
+                                              Score: {score} ({scoreShare}%)
+                                          </span>
+                                      )}
                                   </div>
                               </div>
                           </div>
