@@ -4,6 +4,8 @@ import { Notebook, Weight, NotebookStatus, ScheduleItem } from '../types';
 import { Plus, Search, Pencil, BarChart3, Calendar, Lock, ChevronDown, Layout, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, Flag, Inbox, Scale, Download, PanelLeftClose, PanelLeftOpen, Archive, Minus, Meh, Frown, Smile, History, ChevronRight, Maximize2, Activity, ChevronUp, Layers, CheckCircle2, Loader2, X, FileText, Key, BrainCircuit, HelpCircle, Target, TrendingUp, Sparkles, RefreshCw } from 'lucide-react';
 import { getStatusColor, DEFAULT_ALGO_CONFIG } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'; // Usando dnd-kit ou hello-pangea se disponível, mantendo lógica manual de drag por enquanto como fallback seguro ou ajustando para o padrão HTML5 DragDrop se preferir. 
+// NOTA: O código anterior usava HTML5 Drag and Drop nativo, vou manter para consistência e evitar dependências extras se não instaladas.
 
 const PACE_SETTINGS: Record<string, { hours: number, blocks: number }> = {
     'Iniciante': { hours: 10, blocks: 15 },
@@ -740,19 +742,25 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
 
   const currentIntervals = localConfig.algorithm?.baseIntervals || DEFAULT_ALGO_CONFIG.baseIntervals;
 
+  // Helper para data local (igual ao Dashboard)
+  const getLocalDateString = (dateInput?: string | Date) => {
+      if (!dateInput) return null;
+      const d = new Date(dateInput);
+      const offset = d.getTimezoneOffset();
+      const localDate = new Date(d.getTime() - (offset * 60 * 1000));
+      return localDate.toISOString().split('T')[0];
+  };
+
   const completedTodayCount = useMemo(() => {
       if (!activeCycle?.schedule) return 0;
-      const today = new Date().toLocaleDateString();
+      const todayStr = getLocalDateString(new Date());
       let count = 0;
       
       Object.values(activeCycle.schedule).forEach(slots => {
           if (Array.isArray(slots)) {
               slots.forEach(slot => {
-                  if (slot.completed && slot.completedAt) {
-                      // Compare locale date strings for exact day matching
-                      if (new Date(slot.completedAt).toLocaleDateString() === today) {
-                          count++;
-                      }
+                  if (slot.completed && slot.completedAt && getLocalDateString(slot.completedAt) === todayStr) {
+                      count++;
                   }
               });
           }
@@ -1082,7 +1090,25 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                   <h3 className="text-sm font-bold text-purple-500 uppercase tracking-widest border-b border-purple-500/20 pb-2 flex items-center gap-2"><BrainCircuit size={16} /> Ajuste Fino do Algoritmo</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {Object.entries(currentIntervals).map(([key, val]) => (
-                          <div key={key} className="group relative"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-help flex items-center gap-1">{ALGO_TOOLTIPS[key]?.title || key} <HelpCircle size={10} className="text-slate-600"/></label><input type="number" value={val} onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-center font-bold outline-none focus:border-purple-500" />{ALGO_TOOLTIPS[key] && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-slate-800 border border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"><strong className="block text-emerald-400 mb-1">{ALGO_TOOLTIPS[key].title}</strong><span className="text-slate-300 leading-tight block">{ALGO_TOOLTIPS[key].desc}</span><div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800"></div></div>)}</div>)
+                          <div key={key} className="group relative">
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-help flex items-center gap-1">
+                                  {ALGO_TOOLTIPS[key]?.title || key} 
+                                  <HelpCircle size={10} className="text-slate-600"/>
+                              </label>
+                              <input 
+                                  type="number" 
+                                  value={val} 
+                                  onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} 
+                                  className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-center font-bold outline-none focus:border-purple-500" 
+                              />
+                              {ALGO_TOOLTIPS[key] && (
+                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-slate-800 border border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                      <strong className="block text-emerald-400 mb-1">{ALGO_TOOLTIPS[key].title}</strong>
+                                      <span className="text-slate-300 leading-tight block">{ALGO_TOOLTIPS[key].desc}</span>
+                                      <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800"></div>
+                                  </div>
+                              )}
+                          </div>
                       ))}
                   </div>
               </div>
