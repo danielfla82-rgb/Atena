@@ -4,7 +4,7 @@ import { Notebook, NotebookStatus, Weight } from '../types';
 import { DEFAULT_ALGO_CONFIG } from '../utils/algorithm';
 import { 
     CalendarCheck, AlertCircle, Clock, CalendarCheck2, 
-    Edit2, Search, ArrowRight, Calendar, Filter, ChevronDown, ChevronRight, CheckCircle2
+    Edit2, Search, ArrowRight, Calendar, Filter, ChevronDown, ChevronRight, CheckCircle2, History, AlertTriangle
 } from 'lucide-react';
 
 interface Props {
@@ -36,22 +36,37 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
   // Derived Data
   const uniqueDisciplines = useMemo(() => Array.from(new Set(notebooks.map(n => n.discipline))).sort(), [notebooks]);
 
-  // --- CHECK PLANNED STATUS ---
-  // Identifica quais cadernos já estão agendados no ciclo ativo
-  const scheduledIds = useMemo(() => {
+  // --- CALCULA SEMANA ATUAL ---
+  const currentCycleWeek = useMemo(() => {
+      if (!config.startDate) return 1;
+      const start = new Date(config.startDate);
+      start.setHours(0,0,0,0);
+      const now = new Date();
+      now.setHours(0,0,0,0);
+      const diff = now.getTime() - start.getTime();
+      return Math.max(1, Math.floor(diff / (1000 * 60 * 60 * 24 * 7)) + 1);
+  }, [config.startDate]);
+
+  // --- MAPA DE ALOCAÇÃO (ID -> Array de Semanas) ---
+  const notebookWeekMap = useMemo(() => {
       const activeCycle = cycles.find(c => c.id === activeCycleId);
-      const ids = new Set<string>();
+      const map = new Map<string, number[]>();
       
       if (activeCycle?.schedule) {
-          Object.values(activeCycle.schedule).forEach((slots: any) => {
+          Object.entries(activeCycle.schedule).forEach(([weekId, slots]) => {
+              const weekNum = parseInt(weekId.replace('week-', '')) || 0;
               if (Array.isArray(slots)) {
                   slots.forEach(s => {
-                      if (s && s.notebookId) ids.add(s.notebookId);
+                      if (s && s.notebookId) {
+                          const list = map.get(s.notebookId) || [];
+                          list.push(weekNum);
+                          map.set(s.notebookId, list);
+                      }
                   });
               }
           });
       }
-      return ids;
+      return map;
   }, [cycles, activeCycleId]);
 
   // --- DATA PROCESSING ---
@@ -424,7 +439,11 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
                           {categorizedData.future.slice(0, activeFilter === 'future' ? 100 : 20).map(nb => {
                               const days = getDaysDiff(nb.nextReview!);
                               const weekLabel = getWeekLabel(nb.nextReview!);
-                              const isPlanned = scheduledIds.has(nb.id);
+                              
+                              // Check schedule status vs current week
+                              const allocatedWeeks = notebookWeekMap.get(nb.id) || [];
+                              const isAllocatedFuture = allocatedWeeks.some(w => w >= currentCycleWeek);
+                              const isAllocatedPastOnly = allocatedWeeks.length > 0 && !isAllocatedFuture;
 
                               return (
                                   <div key={nb.id} className="group bg-slate-900 border border-slate-800 p-3 rounded-lg flex items-center justify-between cursor-pointer" onClick={() => handleEdit(nb)}>
@@ -436,8 +455,19 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
                                                       Em {days} dias
                                                   </span>
                                                   {weekLabel && (
-                                                      <span className={`text-[10px] px-1.5 rounded border flex items-center gap-1 ${isPlanned ? 'bg-indigo-900/20 text-indigo-400 border-indigo-500/20' : 'bg-emerald-900/10 text-emerald-500 border-emerald-500/20'}`}>
-                                                          <Calendar size={8} /> {weekLabel} {isPlanned && <CheckCircle2 size={8} className="ml-0.5" />}
+                                                      <span className={`text-[10px] px-1.5 rounded border flex items-center gap-1 
+                                                          ${isAllocatedFuture 
+                                                              ? 'bg-indigo-900/20 text-indigo-400 border-indigo-500/20' 
+                                                              : isAllocatedPastOnly 
+                                                                  ? 'bg-amber-900/20 text-amber-400 border-amber-500/20' 
+                                                                  : 'bg-emerald-900/10 text-emerald-500 border-emerald-500/20'
+                                                          }
+                                                      `}>
+                                                          {isAllocatedPastOnly 
+                                                              ? <><AlertTriangle size={8} /> Realocar</> 
+                                                              : <><Calendar size={8} /> {weekLabel}</>
+                                                          } 
+                                                          {isAllocatedFuture && <CheckCircle2 size={8} className="ml-0.5" />}
                                                       </span>
                                                   )}
                                               </div>
