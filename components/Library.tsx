@@ -207,7 +207,15 @@ export const Library: React.FC = () => {
           return { isNotStarted: true };
       }
 
-      const dateStr = formData.nextReview || calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm).toISOString();
+      // UPDATE V10.5: Passando targetAccuracy para bonificação
+      const dateStr = formData.nextReview || calculateNextReview(
+          Number(formData.accuracy), 
+          formData.relevance, 
+          formData.trend, 
+          config.algorithm,
+          Number(formData.targetAccuracy) // <-- Target passado aqui
+      ).toISOString();
+
       const nextDate = new Date(dateStr);
       let weekLabel = '';
       if (config.startDate) {
@@ -225,7 +233,7 @@ export const Library: React.FC = () => {
           }
       }
       return { date: nextDate, label: weekLabel, isNotStarted: false };
-  }, [formData.accuracy, formData.relevance, formData.trend, formData.nextReview, config.algorithm, isModalOpen, config.startDate, formData.status]);
+  }, [formData.accuracy, formData.relevance, formData.trend, formData.nextReview, config.algorithm, isModalOpen, config.startDate, formData.status, formData.targetAccuracy]);
 
   const stats = useMemo(() => {
       const validNotebooks = notebooks.filter(n => n.discipline !== 'Revisão Geral');
@@ -381,7 +389,14 @@ export const Library: React.FC = () => {
             nextDateStr = null;
         } else if (!nextDateStr) {
             // Caso contrário, se não tiver data, calcula
-            const nextDate = calculateNextReview(Number(formData.accuracy), formData.relevance, formData.trend, config.algorithm);
+            // UPDATE V10.5: Adicionando targetAccuracy
+            const nextDate = calculateNextReview(
+                Number(formData.accuracy), 
+                formData.relevance, 
+                formData.trend, 
+                config.algorithm,
+                Number(formData.targetAccuracy) // <-- Target
+            );
             nextDateStr = nextDate.toISOString();
         }
 
@@ -432,7 +447,15 @@ export const Library: React.FC = () => {
       setIsSaving(true);
       try {
           const newAccuracy = Number(formData.accuracy);
-          const nextDate = calculateNextReview(newAccuracy, formData.relevance, formData.trend, config.algorithm);
+          // UPDATE V10.5: Adicionando targetAccuracy
+          const nextDate = calculateNextReview(
+              newAccuracy, 
+              formData.relevance, 
+              formData.trend, 
+              config.algorithm,
+              Number(formData.targetAccuracy) // <-- Target
+          );
+          
           const newHistory = [...(formData.accuracyHistory || []), { date: new Date().toISOString(), accuracy: newAccuracy }].slice(-3);
           
           let newStatus = formData.status;

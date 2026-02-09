@@ -22,12 +22,14 @@ export const DEFAULT_ALGO_CONFIG: AlgorithmConfig = {
 
 /**
  * Calcula a próxima data de revisão baseada na performance e configurações.
+ * UPDATE V10.5: Adicionado targetAccuracy para bonificação de meta batida.
  */
 export const calculateNextReview = (
     accuracy: number, 
     relevance: Relevance, 
     trend: Trend = Trend.ESTAVEL,
-    config: AlgorithmConfig = DEFAULT_ALGO_CONFIG
+    config: AlgorithmConfig = DEFAULT_ALGO_CONFIG,
+    targetAccuracy: number = 90 // Default safe
 ): Date => {
   
   // Safe Fallback se config vier parcial
@@ -64,6 +66,13 @@ export const calculateNextReview = (
 
   // 3. Cálculo Final
   let finalDays = baseDays * multiplier;
+
+  // 4. BÔNUS DE META BATIDA (V10.5)
+  // Se o aluno atingiu ou superou a meta estipulada, damos um "desconto"
+  // jogando a revisão mais para frente (x1.3), pois ele está performando bem.
+  if (accuracy >= targetAccuracy && accuracy > 0) {
+      finalDays = finalDays * 1.3;
+  }
 
   // CLAMPING INTELIGENTE (V7.6 UPDATE)
   // Se o aluno acertou mais que 60% (Fase de Revisão), o intervalo mínimo deve ser 2 dias

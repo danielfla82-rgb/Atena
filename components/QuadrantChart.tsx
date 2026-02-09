@@ -43,6 +43,9 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
 
     // Populate
     data.forEach(nb => {
+      // AJUSTE PONTUAL: Ignorar não iniciados (0%) para não distorcer a média
+      if (nb.accuracy === 0) return;
+
       const key = `${nb.weight}-${nb.relevance}`;
       if (grid[key]) {
         grid[key].count += 1;
@@ -84,16 +87,19 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
 
   // --- SCATTER PLOT LOGIC (Chart.js) ---
   const scatterData = useMemo(() => {
+    // AJUSTE PONTUAL: Filtrar apenas os ativos (accuracy > 0)
+    const activeNotebooks = data.filter(n => n.accuracy > 0);
+
     return {
         datasets: [{
             label: 'Cadernos',
-            data: data.map(nb => ({
+            data: activeNotebooks.map(nb => ({
                 x: RELEVANCE_SCORE[nb.relevance] + (Math.random() * 0.2 - 0.1), // Jitter
                 y: WEIGHT_SCORE[nb.weight] + (Math.random() * 0.2 - 0.1), // Jitter
                 r: 6, // Radius
                 notebook: nb
             })),
-            backgroundColor: data.map(nb => {
+            backgroundColor: activeNotebooks.map(nb => {
                 if (nb.accuracy >= nb.targetAccuracy) return '#10b981'; // Green
                 if (nb.accuracy < 60) return '#ef4444'; // Red
                 return '#f59e0b'; // Amber
@@ -152,7 +158,7 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
            <h3 className="text-white font-bold text-lg flex items-center gap-2">
              <Target className="text-emerald-500" /> Matriz Estratégica
            </h3>
-           <p className="text-slate-400 text-xs">Análise de Peso vs Relevância</p>
+           <p className="text-slate-400 text-xs">Análise de Peso vs Relevância (Apenas Tópicos Ativos)</p>
         </div>
         
         {/* View Toggle */}
