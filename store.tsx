@@ -119,6 +119,7 @@ const mapNoteFromDB = (db: any): Note => ({
     id: db.id,
     content: db.content,
     color: db.color,
+    isBold: db.is_bold || false,
     createdAt: db.created_at || db.createdAt,
     updatedAt: db.updated_at || db.updatedAt,
 });
@@ -128,6 +129,7 @@ const mapNoteToDB = (note: Partial<Note>) => {
         id: note.id,
         content: note.content,
         color: note.color,
+        is_bold: note.isBold,
         created_at: note.createdAt,
         updated_at: note.updatedAt
     };
@@ -338,7 +340,7 @@ interface StoreContextType {
   updateFramework: (data: FrameworkData) => Promise<void>;
 
   addNote: () => Promise<void>;
-  updateNote: (id: string, content: string, color?: Note['color']) => Promise<void>;
+  updateNote: (id: string, content: string, color?: Note['color'], isBold?: boolean) => Promise<void>;
   deleteNote: (id: string) => Promise<void>;
 
   enterGuestMode: () => void;
@@ -910,12 +912,43 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const toggleSlotCompletion = async (instanceId: string, weekId: string) => {
-      if (!activeCycleId) { const nb = notebooks.find(n => n.id === instanceId.replace('-legacy', '')); if(nb) editNotebook(nb.id, { isWeekCompleted: !nb.isWeekCompleted }); return; }
+      let notebookIdToUpdate: string | undefined;
+      let isCompletedNow = false;
+
+      // Legacy Handling
+      if (!activeCycleId) { 
+          const nb = notebooks.find(n => n.id === instanceId.replace('-legacy', '')); 
+          if(nb) {
+              const newStatus = !nb.isWeekCompleted;
+              const updates: any = { isWeekCompleted: newStatus };
+              if (newStatus) updates.lastPractice = new Date().toISOString();
+              editNotebook(nb.id, updates);
+          }
+          return; 
+      }
+      
       await updateCycleSchedule(activeCycleId, (schedule) => {
           if (!schedule[weekId]) return schedule;
-          schedule[weekId] = schedule[weekId].map(s => s.instanceId === instanceId ? { ...s, completed: !s.completed } : s);
+          schedule[weekId] = schedule[weekId].map(s => {
+              if (s.instanceId === instanceId) {
+                  notebookIdToUpdate = s.notebookId;
+                  isCompletedNow = !s.completed;
+                  return { 
+                      ...s, 
+                      completed: !s.completed,
+                      // Se marcando como concluído, salva a data atual. Se desmarcando, remove a data.
+                      completedAt: !s.completed ? new Date().toISOString() : undefined 
+                  };
+              }
+              return s;
+          });
           return schedule;
       });
+
+      // Update lastPractice if completing
+      if (notebookIdToUpdate && isCompletedNow) {
+          await editNotebook(notebookIdToUpdate, { lastPractice: new Date().toISOString() });
+      }
   };
 
   const removeSlotFromWeek = async (instanceId: string, weekId: string) => {
@@ -996,20 +1029,33 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const addNote = async () => {
-      const newNote: Note = { id: generateId(), content: '', color: 'yellow', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+      const newNote: Note = { id: generateId(), content: '', color: 'yellow', isBold: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
       const previousNotes = [...notes];
       setNotes(prev => [newNote, ...prev]);
       if (!isGuest && user) { try { const payload = { ...mapNoteToDB(newNote), user_id: user.id }; await supabase.from('notes').insert(payload); } catch (e) { console.error(e); setNotes(previousNotes); } }
   };
 
-  const updateNote = async (id: string, content: string, color?: Note['color']) => {
+  const updateNote = async (id: string, content: string, color?: Note['color'], isBold?: boolean) => {
       const now = new Date().toISOString();
       const previousNotes = [...notes];
-      setNotes(prev => prev.map(n => n.id === id ? { ...n, content, color: color || n.color, updatedAt: now } : n));
+      setNotes(prev => prev.map(n => n.id === id ? { 
+          ...n, 
+          content, 
+          color: color || n.color, 
+          isBold: isBold !== undefined ? isBold : n.isBold,
+          updatedAt: now 
+      } : n));
+      
       if (!isGuest && user) {
           const payload: any = { content, updatedAt: now };
           if (color) payload.color = color;
-          try { const dbPayload = mapNoteToDB(payload); await supabase.from('notes').update(dbPayload).eq('id', id); } catch(e) { console.error(e); }
+          if (isBold !== undefined) payload.is_bold = isBold;
+          
+          try { 
+              const dbPayload = mapNoteToDB({ ...previousNotes.find(n => n.id === id), ...payload, id });
+              delete (dbPayload as any).id; // Remove id from payload for update, though it's usually fine
+              await supabase.from('notes').update(dbPayload).eq('id', id); 
+          } catch(e) { console.error(e); }
       }
   };
 

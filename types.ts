@@ -179,6 +179,7 @@ export interface ScheduleItem {
     instanceId: string; // ID único deste "bloco" de estudo na semana
     notebookId: string; // Referência ao caderno original
     completed: boolean; // Status deste bloco específico
+    completedAt?: string; // Data exata da conclusão (ISO) para contagem diária correta
 }
 
 /** 
@@ -241,6 +242,7 @@ export interface Note {
   id: string;
   content: string;
   color: 'yellow' | 'blue' | 'green' | 'pink' | 'purple' | 'slate';
+  isBold?: boolean; // V10.6: Suporte a Negrito
   createdAt: string;
   updatedAt: string;
 }

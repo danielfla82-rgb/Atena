@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store';
 import { Note } from '../types';
-import { Plus, Trash2, StickyNote, Palette, Calendar, Layout, List, CalendarDays, CheckCircle2, Maximize2, Minimize2 } from 'lucide-react';
+import { Plus, Trash2, StickyNote, Palette, Calendar, Layout, List, CalendarDays, CheckCircle2, Maximize2, Minimize2, Bold } from 'lucide-react';
 
 const COLORS = {
     yellow: 'bg-yellow-200 text-yellow-900 border-yellow-300 placeholder-yellow-900/50',
@@ -24,6 +24,7 @@ const COLOR_MAP = {
 const StickyNoteItem: React.FC<{ note: Note }> = ({ note }) => {
     const { updateNote, deleteNote } = useStore();
     const [content, setContent] = useState(note.content);
+    const [showPalette, setShowPalette] = useState(false);
     
     // Track the latest content for unmount save
     const contentRef = useRef(content);
@@ -41,7 +42,12 @@ const StickyNoteItem: React.FC<{ note: Note }> = ({ note }) => {
 
     const handleColorChange = (color: Note['color']) => {
         // Pass current local content to avoid overwriting with stale props
-        updateNote(note.id, content, color);
+        updateNote(note.id, content, color, note.isBold);
+        setShowPalette(false);
+    };
+
+    const handleBoldToggle = () => {
+        updateNote(note.id, content, note.color, !note.isBold);
     };
 
     const handleBlur = () => {
@@ -58,25 +64,38 @@ const StickyNoteItem: React.FC<{ note: Note }> = ({ note }) => {
                 onBlur={handleBlur}
                 placeholder="Digite sua anotação..."
                 // Alterado para permitir redimensionamento livre e layout flexivel
-                className="bg-transparent border-none resize outline-none text-sm font-medium leading-relaxed custom-scrollbar block min-w-[280px] min-h-[250px]"
+                className={`bg-transparent border-none resize outline-none text-sm leading-relaxed custom-scrollbar block min-w-[280px] min-h-[250px] ${note.isBold ? 'font-bold' : 'font-medium'}`}
                 style={{ width: '280px', height: '250px' }} // Tamanho inicial padrão inline
             />
             
-            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-                <div className="group/palette relative">
-                    <button className="p-1.5 bg-black/10 rounded-full hover:bg-black/20 text-current transition-colors">
+            <div className={`absolute top-2 right-2 flex gap-1 transition-opacity ${showPalette ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                <button 
+                    onClick={handleBoldToggle}
+                    className={`p-1.5 rounded-full transition-colors ${note.isBold ? 'bg-black/20 text-current' : 'bg-black/10 hover:bg-black/20 text-current'}`}
+                    title="Negrito"
+                >
+                    <Bold size={14} />
+                </button>
+
+                <div className="relative">
+                    <button 
+                        onClick={() => setShowPalette(!showPalette)}
+                        className={`p-1.5 rounded-full transition-colors ${showPalette ? 'bg-black/20' : 'bg-black/10 hover:bg-black/20'} text-current`}
+                    >
                         <Palette size={14} />
                     </button>
-                    <div className="absolute right-0 top-full mt-2 bg-white rounded-lg shadow-xl p-2 flex gap-1 z-10 hidden group-hover/palette:flex w-[120px] flex-wrap justify-end border border-slate-200">
-                        {(Object.keys(COLORS) as Note['color'][]).map(c => (
-                            <button 
-                                key={c}
-                                onClick={(e) => { e.stopPropagation(); handleColorChange(c); }}
-                                className={`w-5 h-5 rounded-full border border-slate-300 ${COLOR_MAP[c] || 'bg-gray-200'} hover:scale-110 transition-transform`}
-                                title={c}
-                            />
-                        ))}
-                    </div>
+                    {showPalette && (
+                        <div className="absolute right-0 top-full mt-2 bg-white rounded-lg shadow-xl p-2 flex gap-1 z-20 w-[120px] flex-wrap justify-end border border-slate-200">
+                            {(Object.keys(COLORS) as Note['color'][]).map(c => (
+                                <button 
+                                    key={c}
+                                    onClick={(e) => { e.stopPropagation(); handleColorChange(c); }}
+                                    className={`w-5 h-5 rounded-full border border-slate-300 ${COLOR_MAP[c] || 'bg-gray-200'} hover:scale-110 transition-transform`}
+                                    title={c}
+                                />
+                            ))}
+                        </div>
+                    )}
                 </div>
                 <button 
                     onClick={() => deleteNote(note.id)}

@@ -740,6 +740,26 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
 
   const currentIntervals = localConfig.algorithm?.baseIntervals || DEFAULT_ALGO_CONFIG.baseIntervals;
 
+  const completedTodayCount = useMemo(() => {
+      if (!activeCycle?.schedule) return 0;
+      const today = new Date().toLocaleDateString();
+      let count = 0;
+      
+      Object.values(activeCycle.schedule).forEach(slots => {
+          if (Array.isArray(slots)) {
+              slots.forEach(slot => {
+                  if (slot.completed && slot.completedAt) {
+                      // Compare locale date strings for exact day matching
+                      if (new Date(slot.completedAt).toLocaleDateString() === today) {
+                          count++;
+                      }
+                  }
+              });
+          }
+      });
+      return count;
+  }, [activeCycle]);
+
   return (
     <div className="flex flex-row h-full w-full overflow-hidden relative">
       <aside className={`flex-shrink-0 border-r border-slate-800 bg-slate-900/95 flex flex-col z-40 transition-all duration-300 ease-in-out h-full ${isSidebarCollapsed ? 'w-14' : 'absolute md:relative w-80 shadow-2xl md:shadow-none'}`}>
@@ -980,7 +1000,14 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
 
                         return (
                             <div key={week.id} className={`w-80 flex-shrink-0 flex flex-col rounded-2xl border transition-all duration-300 relative h-full max-h-full ${week.isPast ? 'bg-slate-900/30 border-slate-800/50 opacity-100' : 'bg-slate-900 border-slate-800 shadow-2xl hover:border-slate-700'}`} onDragOver={week.isPast ? undefined : onDragOver} onDrop={(e) => onDrop(e, week.id, week.isPast)}>
-                            <div className="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-950 px-2 py-0.5 rounded border border-slate-800 shadow-sm z-20">~{dailyAvg} / dia</div>
+                            <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex items-center gap-2 z-20 whitespace-nowrap">
+                                <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-950 px-2 py-0.5 rounded border border-slate-800 shadow-sm">~{dailyAvg} / dia</div>
+                                {week.index === currentWeekIndex && (
+                                    <div className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest bg-emerald-950/30 px-2 py-0.5 rounded border border-emerald-500/30 shadow-sm flex items-center gap-1">
+                                        <CheckCircle2 size={10} /> HOJE: {completedTodayCount}
+                                    </div>
+                                )}
+                            </div>
                             {week.isPast && (<button onClick={(e) => { e.stopPropagation(); setExpandedWeekId(null); }} className="absolute -right-3 top-1/2 -translate-y-1/2 bg-slate-800 text-slate-400 hover:text-white p-1 rounded-full shadow-lg border border-slate-700 z-50 hover:scale-110 transition-transform" title="Recolher Semana"><ChevronRight size={16} /></button>)}
                             <div className={`p-4 rounded-t-2xl border-b flex flex-col gap-3 z-10 relative ${week.isPast ? 'bg-slate-950/30 border-slate-800/50 text-slate-600' : 'bg-slate-900 border-slate-700 text-slate-200'}`}>
                                 <div className="flex justify-between items-start">
@@ -1055,7 +1082,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                   <h3 className="text-sm font-bold text-purple-500 uppercase tracking-widest border-b border-purple-500/20 pb-2 flex items-center gap-2"><BrainCircuit size={16} /> Ajuste Fino do Algoritmo</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {Object.entries(currentIntervals).map(([key, val]) => (
-                          <div key={key} className="group relative"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-help flex items-center gap-1">{ALGO_TOOLTIPS[key]?.title || key} <HelpCircle size={10} className="text-slate-600"/></label><input type="number" value={val} onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-center font-bold outline-none focus:border-purple-500" />{ALGO_TOOLTIPS[key] && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-slate-800 border border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"><strong className="block text-emerald-400 mb-1">{ALGO_TOOLTIPS[key].title}</strong><span className="text-slate-300 leading-tight block">{ALGO_TOOLTIPS[key].desc}</span><div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800"></div></div>)}</div>
+                          <div key={key} className="group relative"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-help flex items-center gap-1">{ALGO_TOOLTIPS[key]?.title || key} <HelpCircle size={10} className="text-slate-600"/></label><input type="number" value={val} onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-center font-bold outline-none focus:border-purple-500" />{ALGO_TOOLTIPS[key] && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-slate-800 border border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"><strong className="block text-emerald-400 mb-1">{ALGO_TOOLTIPS[key].title}</strong><span className="text-slate-300 leading-tight block">{ALGO_TOOLTIPS[key].desc}</span><div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800"></div></div>)}</div>)
                       ))}
                   </div>
               </div>
