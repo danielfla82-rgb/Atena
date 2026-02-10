@@ -243,7 +243,6 @@ interface Props {
 }
 
 export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
-// ... (rest of the component remains unchanged)
   const { notebooks, config, updateConfig, setFocusedNotebookId, cycles, activeCycleId, startSession, dbError } = useStore();
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [localConfig, setLocalConfig] = useState(config);
@@ -309,8 +308,6 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
   const getLocalDateString = (dateInput?: string | Date) => {
       if (!dateInput) return null;
       const d = new Date(dateInput);
-      // Ajusta o offset para garantir que a data exibida seja a local do usuário, e não UTC
-      // Ex: 22:00 de dia 26/02 (Brasil) vira 01:00 de 27/02 (UTC). Queremos 26/02.
       const offset = d.getTimezoneOffset(); 
       const localDate = new Date(d.getTime() - (offset * 60 * 1000));
       return localDate.toISOString().split('T')[0];
@@ -332,15 +329,17 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       
       localStorage.setItem('atena_last_quote_index', newIndex.toString());
       setQuoteIndex(newIndex);
-  }, []); // Executa apenas no mount (login/refresh)
+  }, []);
 
   const nietzscheItem = NIETZSCHE_DATA[quoteIndex] || NIETZSCHE_DATA[0];
 
   // --- REFACTORED METRICS & STREAK LOGIC ---
   const metrics = useMemo(() => {
-      const activeNotebooks = notebooks.filter(n => n.accuracy > 0);
+      // AJUSTE: Filtra cadernos ativos E ignora "Revisão Geral" para a média
+      const activeNotebooks = notebooks.filter(n => n.accuracy > 0 && n.discipline !== 'Revisão Geral');
       const totalAcc = activeNotebooks.reduce((sum, n) => sum + n.accuracy, 0);
       const avgAccuracy = activeNotebooks.length > 0 ? Math.round(totalAcc / activeNotebooks.length) : 0;
+      
       const totalTopics = notebooks.filter(n => n.discipline !== 'Revisão Geral').length;
       const completedTopics = notebooks.filter(n => (n.status === 'Dominado' || n.accuracy >= n.targetAccuracy) && n.discipline !== 'Revisão Geral').length;
       const progressPercent = totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0;
@@ -1057,10 +1056,10 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                                   <HelpCircle size={10} className="text-slate-600"/>
                               </label>
                               <input 
-                                type="number" 
-                                value={val} 
-                                onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} 
-                                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-center font-bold outline-none focus:border-purple-500" 
+                                  type="number" 
+                                  value={val} 
+                                  onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} 
+                                  className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-center font-bold outline-none focus:border-purple-500" 
                               />
                               {ALGO_TOOLTIPS[key] && (
                                   <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-slate-800 border border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
@@ -1076,10 +1075,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
             </div>
             <div className="p-6 border-t border-slate-800 bg-slate-900 flex justify-end gap-3">
               <button onClick={() => !isSaving && setIsConfigOpen(false)} disabled={isSaving} className="px-4 py-2 text-slate-400 hover:text-white font-medium transition-colors">Cancelar</button>
-              <button onClick={handleSaveConfig} disabled={isSaving} className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-900/20 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-                  {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Settings2 size={18} />}
-                  {isSaving ? "Salvando..." : "Salvar Alterações"}
-              </button>
+              <button onClick={handleSaveConfig} disabled={isSaving} className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-900/20 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">{isSaving ? <Loader2 size={18} className="animate-spin" /> : <Settings2 size={18} />}{isSaving ? "Salvando..." : "Salvar Alterações"}</button>
             </div>
           </div>
         </div>
