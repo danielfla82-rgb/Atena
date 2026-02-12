@@ -289,14 +289,41 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
         return Array.from(selectedDiscs).reduce((acc, d) => acc + (weights[d] || 1), 0);
     }, [selectedDiscs, weights]);
 
+    // CORREÇÃO: Algoritmo de Distribuição com "Maior Resto" para soma exata
     const distribution = useMemo(() => {
         if (totalWeight === 0) return [];
-        return Array.from(selectedDiscs).map(d => {
+        
+        // 1. Calculate raw shares and floor values
+        const items = Array.from(selectedDiscs).map(d => {
             const w = weights[d] || 1;
             const percentage = w / totalWeight;
-            const blocks = Math.round(percentage * paceTarget.blocks);
-            return { name: d, percentage, blocks };
-        }).sort((a, b) => b.blocks - a.blocks);
+            const rawBlocks = percentage * paceTarget.blocks;
+            return { 
+                name: d, 
+                percentage, 
+                blocks: Math.floor(rawBlocks),
+                remainder: rawBlocks - Math.floor(rawBlocks)
+            };
+        });
+
+        // 2. Calculate deficit to reach target
+        const currentSum = items.reduce((sum, item) => sum + item.blocks, 0);
+        let deficit = paceTarget.blocks - currentSum;
+
+        // 3. Distribute deficit based on largest remainders
+        // Sort by remainder descending
+        items.sort((a, b) => b.remainder - a.remainder);
+
+        for (let i = 0; i < deficit; i++) {
+            if (i < items.length) {
+                items[i].blocks += 1;
+            }
+        }
+
+        // 4. Return final structure sorted by blocks count desc
+        return items.map(({ name, percentage, blocks }) => ({ name, percentage, blocks }))
+            .sort((a, b) => b.blocks - a.blocks || a.name.localeCompare(b.name));
+
     }, [selectedDiscs, weights, totalWeight, paceTarget.blocks]);
 
     const toggleDisc = (d: string) => {
@@ -523,6 +550,9 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
   const [expandedWeekId, setExpandedWeekId] = useState<string | null>(null);
   const [showPaceSelector, setShowPaceSelector] = useState(false);
   const [expandedCompletedWeeks, setExpandedCompletedWeeks] = useState<Record<string, boolean>>({});
+  
+  // NEW: State for collapsing past weeks
+  const [isPastExpanded, setIsPastExpanded] = useState(false);
 
   // State for Configuration Modal
   const [isConfigOpen, setIsConfigOpen] = useState(false);
@@ -688,6 +718,10 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
       const activeWeek = weeks.find(w => !w.isPast);
       return activeWeek ? activeWeek.index : weeks.length + 1;
   }, [weeks]);
+
+  // NEW: Calculate Grouping Logic
+  const firstPastWeekId = useMemo(() => weeks.find(w => w.isPast)?.id, [weeks]);
+  const pastWeeksCount = useMemo(() => weeks.filter(w => w.isPast).length, [weeks]);
 
   const getWeekPace = useCallback((weekId: string) => {
       return config.weeklyPace?.[weekId] || config.studyPace || 'Intermediário';
@@ -935,6 +969,23 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                  <div className="flex-1 overflow-x-auto overflow-y-hidden bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px]">
                     <div className="flex h-full p-6 gap-6 min-w-max items-start">
                         {weeks.map(week => {
+                        
+                        // --- NOVA LÓGICA DE AGRUPAMENTO (HISTÓRICO) ---
+                        if (week.isPast && !isPastExpanded) {
+                            if (week.id === firstPastWeekId) {
+                                return (
+                                    <div key="past-group" onClick={() => setIsPastExpanded(true)} className="w-16 h-full bg-slate-900/40 border border-slate-800 hover:bg-slate-800 hover:border-slate-700 rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group shadow-sm hover:shadow-xl relative overflow-hidden flex-shrink-0" title="Clique para expandir o histórico">
+                                        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagmonds-light.png')] opacity-5 pointer-events-none"></div>
+                                        <div className="vertical-text text-slate-500 font-bold uppercase tracking-widest text-xs whitespace-nowrap group-hover:text-emerald-400 transition-colors flex items-center gap-2" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
+                                            <History size={16} className="rotate-90" />
+                                            <span>Histórico ({pastWeeksCount})</span>
+                                        </div>
+                                    </div>
+                                );
+                            }
+                            return null; // Oculta as outras semanas passadas
+                        }
+                        
                         let weekSlots: ScheduleItem[] = [];
                         if (activeCycle?.schedule && activeCycle.schedule[week.id]) {
                             weekSlots = activeCycle.schedule[week.id];
@@ -1016,6 +1067,12 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                                     </div>
                                 )}
                             </div>
+                            
+                            {/* BOTÃO DE RECOLHER HISTÓRICO (Aparece apenas na primeira semana expandida) */}
+                            {week.isPast && isPastExpanded && week.id === firstPastWeekId && (
+                                <button onClick={(e) => { e.stopPropagation(); setIsPastExpanded(false); }} className="absolute -left-3 top-1/2 -translate-y-1/2 bg-slate-800 text-emerald-500 hover:text-white p-1 rounded-full shadow-lg border border-slate-700 z-50 hover:scale-110 transition-transform" title="Recolher Histórico"><PanelLeftClose size={16} /></button>
+                            )}
+
                             {week.isPast && (<button onClick={(e) => { e.stopPropagation(); setExpandedWeekId(null); }} className="absolute -right-3 top-1/2 -translate-y-1/2 bg-slate-800 text-slate-400 hover:text-white p-1 rounded-full shadow-lg border border-slate-700 z-50 hover:scale-110 transition-transform" title="Recolher Semana"><ChevronRight size={16} /></button>)}
                             <div className={`p-4 rounded-t-2xl border-b flex flex-col gap-3 z-10 relative ${week.isPast ? 'bg-slate-950/30 border-slate-800/50 text-slate-600' : 'bg-slate-900 border-slate-700 text-slate-200'}`}>
                                 <div className="flex justify-between items-start">
@@ -1060,67 +1117,3 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                  </div>
              </div>
          ) : (<CycleCalculator paceTarget={paceTarget} />)}
-
-      {isConfigOpen && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2"><Settings2 size={20} className="text-emerald-500"/> Configurações do Ciclo</h2>
-              <button onClick={() => !isSaving && setIsConfigOpen(false)} disabled={isSaving} className="text-slate-400 hover:text-white"><X size={24} /></button>
-            </div>
-            
-            <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-8">
-              <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2 flex items-center gap-2"><FileText size={16} /> Configuração do Edital</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Cargo Alvo</label><input type="text" value={localConfig.targetRole} onChange={(e) => setLocalConfig({...localConfig, targetRole: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /></div>
-                      <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Banca Examinadora</label><input type="text" value={localConfig.banca || ''} onChange={(e) => setLocalConfig({...localConfig, banca: e.target.value})} placeholder="Ex: FGV, Cebraspe" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /></div>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Data da Prova</label><div className="relative"><Calendar className="absolute left-3 top-3 text-slate-500" size={16} /><input type="date" value={localConfig.examDate || ''} onChange={(e) => setLocalConfig({...localConfig, examDate: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg py-3 pl-10 text-white outline-none focus:border-emerald-500 cursor-pointer" /></div></div>
-                      <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Link do Edital</label><input type="url" value={localConfig.editalLink || ''} onChange={(e) => setLocalConfig({...localConfig, editalLink: e.target.value})} placeholder="https://..." className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /></div>
-                  </div>
-                  <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Conteúdo Programático (Texto Completo)</label><textarea value={localConfig.editalText || ''} onChange={(e) => setLocalConfig({...localConfig, editalText: e.target.value})} placeholder="Cole aqui o texto do edital para a IA processar..." className="w-full h-32 bg-slate-950 border border-slate-700 rounded-lg p-3 text-xs text-slate-300 font-mono outline-none focus:border-emerald-500 resize-none custom-scrollbar" /><p className="text-[10px] text-slate-500 mt-1 italic">Este texto é usado pela IA para gerar o Edital Verticalizado e os Diagnósticos.</p></div>
-              </div>
-              <div className="space-y-4 pt-4 border-t border-slate-800">
-                  <h3 className="text-sm font-bold text-cyan-500 uppercase tracking-widest border-b border-cyan-500/20 pb-2 flex items-center gap-2"><Key size={16} /> Integração IA (Google Gemini)</h3>
-                  <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl"><label className="block text-xs font-bold text-slate-400 mb-2 uppercase">Google Gemini API Key</label><div className="flex gap-2"><input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="AIzaSy..." className="flex-1 bg-slate-900 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-cyan-500 font-mono text-sm" /></div><p className="text-[10px] text-slate-500 mt-2 flex items-center gap-1"><CheckCircle2 size={12} /> Salvo apenas no seu navegador (LocalStorage). Necessário para Nietzsche, Diagnóstico e Notícias.</p></div>
-              </div>
-              <div className="space-y-4 pt-4 border-t border-slate-800">
-                  <h3 className="text-sm font-bold text-purple-500 uppercase tracking-widest border-b border-purple-500/20 pb-2 flex items-center gap-2"><BrainCircuit size={16} /> Ajuste Fino do Algoritmo</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {Object.entries(currentIntervals).map(([key, val]) => (
-                          <div key={key} className="group relative">
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-help flex items-center gap-1">
-                                  {ALGO_TOOLTIPS[key]?.title || key} 
-                                  <HelpCircle size={10} className="text-slate-600"/>
-                              </label>
-                              <input 
-                                  type="number" 
-                                  value={val} 
-                                  onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} 
-                                  className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-center font-bold outline-none focus:border-purple-500" 
-                              />
-                              {ALGO_TOOLTIPS[key] && (
-                                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-slate-800 border border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                                      <strong className="block text-emerald-400 mb-1">{ALGO_TOOLTIPS[key].title}</strong>
-                                      <span className="text-slate-300 leading-tight block">{ALGO_TOOLTIPS[key].desc}</span>
-                                      <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800"></div>
-                                  </div>
-                              )}
-                          </div>
-                      ))}
-                  </div>
-              </div>
-            </div>
-            <div className="p-6 border-t border-slate-800 bg-slate-900 flex justify-end gap-3">
-              <button onClick={() => !isSaving && setIsConfigOpen(false)} disabled={isSaving} className="px-4 py-2 text-slate-400 hover:text-white font-medium transition-colors">Cancelar</button>
-              <button onClick={handleSaveConfig} disabled={isSaving} className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-900/20 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">{isSaving ? <Loader2 size={18} className="animate-spin" /> : <Settings2 size={18} />}{isSaving ? "Salvando..." : "Salvar Alterações"}</button>
-            </div>
-          </div>
-        </div>
-      )}
-      </main>
-    </div>
-  );
-};

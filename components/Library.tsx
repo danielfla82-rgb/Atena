@@ -31,7 +31,9 @@ export const Library: React.FC = () => {
     setFocusedNotebookId,
     startSession,
     fetchNotebookImages,
-    isGuest
+    isGuest,
+    removeSlotFromWeek,
+    moveNotebookToWeek
   } = useStore();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -58,13 +60,31 @@ export const Library: React.FC = () => {
     status: NotebookStatus.NOT_STARTED,
     notes: '', images: [] as string[], accuracyHistory: [] as { date: string, accuracy: number }[],
     nextReview: '' as string | undefined | null,
-    isGlobal: false
+    isGlobal: false,
+    scheduledWeek: ''
   };
 
   const [formData, setFormData] = useState(initialFormState);
+  const [initialScheduledWeek, setInitialScheduledWeek] = useState(''); // Track changes
   const [isSaving, setIsSaving] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // --- WEEK CALCULATION ---
+  const weeksCount = useMemo(() => {
+      if (config.startDate && config.examDate) {
+          const start = new Date(config.startDate);
+          const end = new Date(config.examDate);
+          const diffWeeks = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24 * 7));
+          return Math.max(1, diffWeeks);
+      }
+      return config.weeksUntilExam || 12;
+  }, [config.startDate, config.examDate, config.weeksUntilExam]);
+
+  const weeksList = useMemo(() => Array.from({ length: weeksCount }, (_, i) => ({ 
+      id: `week-${i + 1}`, 
+      label: `Semana ${i + 1}` 
+  })), [weeksCount]);
 
   // --- SCORE CALCULATION ON EDIT ---
   const calculatedScore = useMemo(() => {
@@ -142,9 +162,20 @@ export const Library: React.FC = () => {
 
       if (currentImages.length === 0 && notebook.image) currentImages = [notebook.image];
       
-      // CORREÇÃO: Não forçar limpeza visual se o caderno for global.
-      // O usuário precisa ver seus dados.
       const isGlobalView = !!notebook.isGlobal;
+
+      // Determine current scheduled week
+      let currentWeek = '';
+      if (activeCycleId) {
+          const cycle = cycles.find(c => c.id === activeCycleId);
+          if (cycle?.schedule) {
+              const foundEntry = Object.entries(cycle.schedule).find(([wId, slots]) => 
+                  (slots as ScheduleItem[]).some(s => s.notebookId === notebook.id)
+              );
+              if (foundEntry) currentWeek = foundEntry[0];
+          }
+      }
+      setInitialScheduledWeek(currentWeek);
 
       setFormData({
           discipline: notebook.discipline, name: notebook.name, subtitle: notebook.subtitle,
@@ -169,14 +200,16 @@ export const Library: React.FC = () => {
           relevance: notebook.relevance, 
           trend: notebook.trend, 
           customScore: notebook.customScore || '',
-          isGlobal: isGlobalView
+          isGlobal: isGlobalView,
+          scheduledWeek: currentWeek
       });
       setIsModalOpen(true);
-  }, [fetchNotebookImages, isGuest]);
+  }, [fetchNotebookImages, isGuest, activeCycleId, cycles]);
 
   useEffect(() => {
       if (pendingCreateData) {
           setFormData({ ...initialFormState, ...pendingCreateData });
+          setInitialScheduledWeek('');
           setEditingId(null);
           setIsModalOpen(true);
           setPendingCreateData(null);
@@ -307,6 +340,7 @@ export const Library: React.FC = () => {
   const handleOpenCreate = () => {
       setEditingId(null);
       setFormData(initialFormState);
+      setInitialScheduledWeek('');
       setIsModalOpen(true);
   };
 
@@ -427,8 +461,41 @@ export const Library: React.FC = () => {
             customScore: formData.customScore ? Number(formData.customScore) : null,
             nextReview: nextDateStr
         };
-        if (editingId) await editNotebook(editingId, payload);
-        else await addNotebook(payload);
+        
+        // Save Notebook first to get ID
+        let targetNbId = editingId;
+        if (editingId) {
+            await editNotebook(editingId, payload);
+        } else {
+            targetNbId = await addNotebook(payload);
+        }
+
+        // --- SCHEDULE UPDATE LOGIC ---
+        if (activeCycleId && targetNbId && formData.scheduledWeek !== initialScheduledWeek) {
+             const cycle = cycles.find(c => c.id === activeCycleId);
+             
+             // 1. Remove from old weeks (clean up all instances of this notebook)
+             if (cycle?.schedule) {
+                 const removals: {wId: string, iId: string}[] = [];
+                 Object.entries(cycle.schedule).forEach(([wId, slots]) => {
+                     (slots as ScheduleItem[]).forEach(slot => {
+                         if (slot.notebookId === targetNbId) {
+                             removals.push({ wId, iId: slot.instanceId });
+                         }
+                     });
+                 });
+                 // Execute removals
+                 for (const item of removals) {
+                     await removeSlotFromWeek(item.iId, item.wId);
+                 }
+             }
+
+             // 2. Add to new week if scheduled
+             if (formData.scheduledWeek) {
+                 await moveNotebookToWeek(targetNbId, formData.scheduledWeek);
+             }
+        }
+
         setIsModalOpen(false);
     } catch (error: any) {
         console.error("Failed to save:", error);
@@ -865,11 +932,16 @@ export const Library: React.FC = () => {
                   </div>
 
                   <div>
-                      <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Status do Caderno</label>
-                      <select value={formData.status} onChange={(e) => handleChange('status', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm">
-                          <option value={NotebookStatus.NOT_STARTED}>Não Iniciado</option>
-                          <option value={NotebookStatus.REVIEWING}>Em Andamento</option>
-                          <option value={NotebookStatus.MASTERED}>Concluído</option>
+                      <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Planejamento (Semana)</label>
+                      <select 
+                          value={formData.scheduledWeek || ''} 
+                          onChange={(e) => handleChange('scheduledWeek', e.target.value)} 
+                          className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm"
+                      >
+                          <option value="">Não Agendado</option>
+                          {weeksList.map(w => (
+                              <option key={w.id} value={w.id}>{w.label}</option>
+                          ))}
                       </select>
                   </div>
 
