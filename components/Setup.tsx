@@ -1117,3 +1117,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                  </div>
              </div>
          ) : (<CycleCalculator paceTarget={paceTarget} />)}
+      </main>
+    </div>
+  );
+};
