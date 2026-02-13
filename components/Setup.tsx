@@ -4,8 +4,7 @@ import { Notebook, Weight, NotebookStatus, ScheduleItem } from '../types';
 import { Plus, Search, Pencil, BarChart3, Calendar, Lock, ChevronDown, Layout, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, Flag, Inbox, Scale, Download, PanelLeftClose, PanelLeftOpen, Archive, Minus, Meh, Frown, Smile, History, ChevronRight, Maximize2, Activity, ChevronUp, Layers, CheckCircle2, Loader2, X, FileText, Key, BrainCircuit, HelpCircle, Target, TrendingUp, Sparkles, RefreshCw } from 'lucide-react';
 import { getStatusColor, DEFAULT_ALGO_CONFIG } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
-import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'; // Usando dnd-kit ou hello-pangea se disponível, mantendo lógica manual de drag por enquanto como fallback seguro ou ajustando para o padrão HTML5 DragDrop se preferir. 
-// NOTA: O código anterior usava HTML5 Drag and Drop nativo, vou manter para consistência e evitar dependências extras se não instaladas.
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'; 
 
 const PACE_SETTINGS: Record<string, { hours: number, blocks: number }> = {
     'Iniciante': { hours: 10, blocks: 15 },
@@ -741,6 +740,8 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
   const onDragOver = useCallback((e: React.DragEvent) => e.preventDefault(), []);
   
   const onDrop = async (e: React.DragEvent, targetWeekId: string | null, isPast: boolean) => {
+    e.preventDefault();
+    e.stopPropagation();
     if (isPast) { alert("Você não pode alterar o planejamento de semanas que já passaram."); return; }
     const id = e.dataTransfer.getData("notebookId");
     if (!id || !targetWeekId) return;
@@ -748,6 +749,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
   };
 
   const handleDropOnCard = useCallback(async (e: React.DragEvent, targetWeekId: string, targetIndex: number) => {
+      e.preventDefault();
       e.stopPropagation(); 
       const sourceIndexStr = e.dataTransfer.getData("sourceIndex");
       const origin = e.dataTransfer.getData("origin");
@@ -1007,7 +1009,36 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                         const isTargetMet = blocksCompleted >= weekTarget.blocks;
                         const isAllAllocatedDone = blocksCount > 0 && blocksCompleted === blocksCount;
                         const isLate = week.isPast && !isTargetMet;
-                        const dailyAvg = (blocksCount / 7).toFixed(1);
+                        
+                        // Dynamic Daily Average logic (FIXED)
+                        let dailyAvg = (blocksCount / 7).toFixed(1);
+                        if (week.index === currentWeekIndex && config.startDate) {
+                             const remaining = Math.max(0, blocksCount - blocksCompleted);
+                             
+                             const start = new Date(config.startDate);
+                             start.setHours(0,0,0,0);
+                             
+                             // Calcular início e fim desta semana específica
+                             const weekStart = new Date(start);
+                             weekStart.setDate(weekStart.getDate() + ((week.index - 1) * 7));
+                             
+                             const weekEnd = new Date(weekStart);
+                             weekEnd.setDate(weekEnd.getDate() + 6);
+                             weekEnd.setHours(23,59,59,999);
+                             
+                             const now = new Date();
+                             
+                             // Lógica Condicional:
+                             // Se a semana ainda não começou (data futura), mantém a média base / 7.
+                             // Se a semana já começou, calcula a urgência (items / dias restantes).
+                             if (now >= weekStart) {
+                                 const diffMs = weekEnd.getTime() - now.getTime();
+                                 const daysLeft = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+                                 dailyAvg = (remaining / daysLeft).toFixed(1);
+                             } else {
+                                 dailyAvg = (remaining / 7).toFixed(1);
+                             }
+                        }
 
                         const newItemsCount = weekSlots.reduce((acc, slot) => {
                             if (!slot.notebookId) return acc;
