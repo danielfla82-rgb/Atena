@@ -9,7 +9,7 @@ import {
     BookOpen, Layers, CheckCircle2, LayoutGrid, Clock, AlertTriangle, Star, 
     History, Sparkles, X, Save, Maximize2, Thermometer,
     Pencil, Link as LinkIcon, XCircle, ZoomIn, ChevronLeft, Calendar, Loader2, TrendingUp, Info, Scale, FileCode, Flag, List, Book, Brain, BrainCircuit, AlertCircle, PlayCircle,
-    Zap, Gauge, HelpCircle, Globe, Lock, Copy, FileText, Filter
+    Zap, Gauge, HelpCircle, Globe, Lock, Copy, FileText, Filter, Download
 } from 'lucide-react';
 
 // ORDEM LÓGICA CORRETA PARA EXIBIÇÃO
@@ -502,7 +502,7 @@ export const Library: React.FC = () => {
               newAccuracy, 
               formData.relevance, 
               formData.trend, 
-              config.algorithm,
+              config.algorithm, 
               Number(formData.targetAccuracy)
           );
           
@@ -535,6 +535,26 @@ export const Library: React.FC = () => {
       const newHistory = [...(formData.accuracyHistory || [])];
       newHistory.splice(index, 1);
       setFormData(prev => ({ ...prev, accuracyHistory: newHistory }));
+  };
+
+  const handleExportNotebooks = () => {
+      const backupData = {
+          type: 'atena_notebooks_export',
+          version: '10.0.0',
+          date: new Date().toISOString(),
+          count: notebooks.length,
+          data: notebooks
+      };
+
+      const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `atena_cadernos_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
   };
 
   return (
@@ -613,6 +633,15 @@ export const Library: React.FC = () => {
                  <button onClick={() => setViewMode('discipline')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${viewMode === 'discipline' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-white'}`}>Por Disciplina</button>
                  <button onClick={() => setViewMode('status')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${viewMode === 'status' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}>Por Status</button>
              </div>
+             
+             <button 
+                onClick={handleExportNotebooks}
+                className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg font-bold text-sm transition-colors border border-slate-700 shadow-sm"
+                title="Baixar Backup dos Cadernos"
+             >
+                <Download size={16} /> <span className="hidden md:inline">Backup</span>
+             </button>
+
              <button onClick={handleOpenCreate} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-sm transition-colors shadow-lg shadow-emerald-900/20 whitespace-nowrap justify-center"><Plus size={16} /> Novo Caderno</button>
         </div>
       </div>
