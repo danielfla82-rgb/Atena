@@ -27,7 +27,6 @@ const DEFAULT_FRAMEWORK: FrameworkData = {
 
 const mapNotebookFromDB = (db: any): Notebook => {
     // CORREÇÃO: Não forçar limpeza de dados na leitura.
-    // Se o dado existe no banco, deve ser mostrado. A sanitização deve ocorrer apenas na criação do template público.
     const isGlobal = db.user_id === null;
 
     return {
@@ -62,8 +61,9 @@ const mapNotebookFromDB = (db: any): Notebook => {
 };
 
 const mapNotebookToDB = (nb: Partial<Notebook>) => {
-    // CORREÇÃO: Salvar EXATAMENTE o que está no objeto.
-    // A lógica de limpar dados para o público será feita criando um NOVO registro, não alterando este.
+    // AVISO: Se um campo vier 'undefined' aqui, ele será salvo como NULL no banco
+    // devido aos operadores '|| null'. Por isso é crucial passar o objeto completo (merged)
+    // antes de chamar esta função em updates.
     return {
         id: nb.id,
         edital: nb.edital || null,
@@ -150,11 +150,6 @@ const mapFrameworkFromDB = (db: any): FrameworkData => ({
 const sanitizeCycleData = (cycle: Cycle, validNotebookIds: Set<string>): Cycle => {
     if (!cycle.schedule) return cycle;
     
-    // FIX BUG: Não filtrar agressivamente com base em validNotebookIds.
-    // O carregamento assíncrono pode fazer com que notebooks válidos ainda não estejam no Set,
-    // causando a deleção indevida do agendamento.
-    // Mantemos apenas a verificação de estrutura básica.
-    
     const cleanSchedule: Record<string, ScheduleItem[]> = {};
     let hasChanges = false;
 
@@ -162,8 +157,6 @@ const sanitizeCycleData = (cycle: Cycle, validNotebookIds: Set<string>): Cycle =
         if (!Array.isArray(slots)) return;
         
         const validSlots = slots.filter(slot => {
-            // Apenas verifica se o objeto slot é válido e tem um ID.
-            // Removemos '&& validNotebookIds.has(slot.notebookId)' para evitar o bug de sumiço.
             return slot && slot.notebookId;
         });
 
@@ -356,12 +349,12 @@ interface StoreContextType {
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
-// V10 Optimized Columns
+// V10 Optimized Columns + FIX: Images included to prevent data loss
 const OPTIMIZED_COLUMNS = `
   id, user_id, edital, discipline, name, subtitle, 
   tec_link, error_notebook_link, favorite_questions_link, law_link, obsidian_link, gemini_link_1, gemini_link_2,
   accuracy, target_accuracy, weight, relevance, trend, custom_score, status, 
-  week_id, is_week_completed, last_practice, next_review, accuracy_history, notes
+  week_id, is_week_completed, last_practice, next_review, accuracy_history, notes, images
 `;
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -736,26 +729,33 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const editNotebook = async (id: string, data: Partial<Notebook>) => {
       let targetId = id;
-      const nb = notebooks.find(n => n.id === id);
+      const currentNb = notebooks.find(n => n.id === id);
       
-      if (nb?.isGlobal && data.isGlobal === undefined) {
+      if (!currentNb) return; // Should not happen
+
+      if (currentNb.isGlobal && data.isGlobal === undefined) {
           targetId = await ensureNotebookIsPrivate(id);
       }
 
-      const previousNotebooks = [...notebooks];
-      // Force local update to reflect data immediately (keeping it private in local state)
+      // Prepare Data for Local Update (optimistic)
       const dataToUpdate = { ...data };
       if (data.isGlobal === true) {
           // If trying to publish, we keep the LOCAL version as private
           dataToUpdate.isGlobal = false; 
       }
 
+      // 3. Update Local State (Merge existing + new)
       setNotebooks(prev => prev.map(n => n.id === targetId ? { ...n, ...dataToUpdate } : n));
       
       if (!isGuest && user) {
           try {
+              // 4. Create Merged Object for DB Payload - CORREÇÃO CRÍTICA PARA PERSISTÊNCIA
+              // O mapNotebookToDB converte undefined para NULL. Devemos passar o objeto MERGED (Completo)
+              // para garantir que dados não editados não sejam sobrescritos por NULL.
+              const mergedForDB = { ...currentNb, ...dataToUpdate };
+
               // 1. Update the PRIVATE version
-              const payload = mapNotebookToDB({ ...dataToUpdate, id: targetId });
+              const payload = mapNotebookToDB(mergedForDB);
               delete (payload as any).id;
               // @ts-ignore
               payload.user_id = user.id; // Ensure it stays/becomes private
@@ -765,7 +765,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
               // 2. If Publish Requested (isGlobal = true), create/update PUBLIC copy
               if (data.isGlobal === true) {
-                  const combinedData = { ...nb, ...data };
+                  const combinedData = { ...currentNb, ...data };
                   
                   // Basic logic: Insert a new public record based on this one
                   const publicPayload = {
