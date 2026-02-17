@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
 import { useStore } from '../store';
 import { QuadrantChart } from './QuadrantChart';
@@ -413,7 +414,10 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
             }
         });
         
+        // Sort chronologically
         points.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        
+        // Group by Week (Monday)
         const grouped = new Map<string, { sum: number, count: number, monday: Date }>();
         
         points.forEach(p => {
@@ -434,18 +438,25 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
             .sort((a, b) => a[1].monday.getTime() - b[1].monday.getTime())
             .slice(-10);
         
-        // MODO SÊNIOR: Garantir que a semana seja mostrada SEMPRE
+        // CORREÇÃO SÊNIOR: Garantir que a semana seja mostrada SEMPRE
         // Se config.startDate não existe, usamos a data da primeira entrada como referência de "Semana 1"
-        const refStart = config.startDate ? new Date(config.startDate) : (sortedEntries.length > 0 ? sortedEntries[0][1].monday : null);
-        if (refStart) refStart.setHours(0,0,0,0);
+        const firstDataDate = sortedEntries.length > 0 ? sortedEntries[0][1].monday : new Date();
+        const configStart = config.startDate ? new Date(config.startDate) : null;
+        
+        // Referência oficial de início: Configuração > Primeiro Dado
+        const refStart = configStart || firstDataDate;
+        refStart.setHours(0,0,0,0);
 
         const labels = sortedEntries.map(([date, val]) => {
-            let weekLabel = "";
-            if (refStart) {
-                const diffTime = val.monday.getTime() - refStart.getTime();
-                const weekNum = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7)) + 1;
-                weekLabel = ` (Semana ${weekNum})`;
-            }
+            const currentMonday = val.monday;
+            currentMonday.setHours(0,0,0,0);
+            
+            const diffTime = currentMonday.getTime() - refStart.getTime();
+            // Cálculo robusto de semana (arredondando para baixo para semanas completas)
+            const weekNum = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7)) + 1;
+            
+            // Força a exibição do label da semana se for >= 1, ou se for a semana zero (início)
+            const weekLabel = weekNum > 0 ? ` (Semana ${weekNum})` : (weekNum === 0 ? " (Semana 0)" : "");
             return `${date}${weekLabel}`;
         });
         

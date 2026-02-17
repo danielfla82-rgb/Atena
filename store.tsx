@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from './components/supabase';
 import { get, set } from 'idb-keyval';
@@ -1015,22 +1016,31 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const updateNote = async (id: string, content: string, color?: Note['color'], isBold?: boolean) => {
       const now = new Date().toISOString();
       const previousNotes = [...notes];
-      setNotes(prev => prev.map(n => n.id === id ? { 
-          ...n, 
+      const prevNote = previousNotes.find(n => n.id === id);
+      
+      if (!prevNote) return;
+
+      const updatedLocalNote = { 
+          ...prevNote, 
           content, 
-          color: color || n.color, 
-          isBold: isBold !== undefined ? isBold : n.isBold,
+          color: color || prevNote.color, 
+          isBold: isBold !== undefined ? isBold : prevNote.isBold,
           updatedAt: now 
-      } : n));
+      };
+
+      setNotes(prev => prev.map(n => n.id === id ? updatedLocalNote : n));
       
       if (!isGuest && user) {
-          const payload: any = { content, updatedAt: now };
-          if (color) payload.color = color;
-          if (isBold !== undefined) payload.is_bold = isBold;
-          
           try { 
-              const dbPayload = mapNoteToDB({ ...previousNotes.find(n => n.id === id), ...payload, id });
+              // CORREÇÃO CRÍTICA: Construir o objeto atualizado COMPLETO em camelCase antes de passar para o mapNoteToDB.
+              // O mapNoteToDB espera as chaves em camelCase (ex: isBold) para converter para snake_case (ex: is_bold).
+              // Se passarmos apenas o payload parcial, propriedades como isBold podem ser ignoradas se não estiverem no formato esperado.
+              
+              const dbPayload = mapNoteToDB(updatedLocalNote);
+              
+              // Remove ID do payload de update (já está no .eq)
               delete (dbPayload as any).id; 
+              
               await supabase.from('notes').update(dbPayload).eq('id', id); 
           } catch(e) { console.error(e); }
       }
