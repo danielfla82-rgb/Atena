@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, NotebookStatus, ScheduleItem } from '../types';
@@ -545,6 +546,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
   const [showStats, setShowStats] = useState(false);
   const [libraryFilter, setLibraryFilter] = useState<'all' | 'unallocated' | 'overdue' | 'zero_accuracy' | 'high_weight'>('all');
   const [disciplineFilter, setDisciplineFilter] = useState<string>('');
+  const [editalFilter, setEditalFilter] = useState<string>(''); // NOVO ESTADO
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [expandedWeekId, setExpandedWeekId] = useState<string | null>(null);
   const [showPaceSelector, setShowPaceSelector] = useState(false);
@@ -621,6 +623,8 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
   }, [notebooks, activeCycleId, notebookScheduleMap]);
 
   const existingDisciplines = useMemo(() => Array.from(new Set(notebooks.map(n => n.discipline))).sort(), [notebooks]);
+  const uniqueEditais = useMemo(() => Array.from(new Set(notebooks.map(n => n.edital).filter(Boolean))).sort(), [notebooks]);
+
   const currentPace = config.studyPace || 'Intermediário';
   const paceTarget = PACE_SETTINGS[currentPace] || PACE_SETTINGS['Intermediário'];
 
@@ -660,6 +664,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
     });
 
     if (disciplineFilter) result = result.filter(nb => nb.discipline === disciplineFilter);
+    if (editalFilter) result = result.filter(nb => nb.edital === editalFilter); // NOVO FILTRO
 
     if (libraryFilter === 'unallocated') {
         result = result.filter(nb => !notebookScheduleMap.has(nb.id));
@@ -673,7 +678,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
 
     result.sort((a, b) => a.discipline.localeCompare(b.discipline) || a.name.localeCompare(b.name));
     return result;
-  }, [notebooks, searchTerm, libraryFilter, disciplineFilter, notebookScheduleMap]);
+  }, [notebooks, searchTerm, libraryFilter, disciplineFilter, editalFilter, notebookScheduleMap]);
 
   const daysRemaining = useMemo(() => {
       if (!config.examDate) return null;
@@ -829,6 +834,16 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
           {!isSidebarCollapsed && (
               <>
                 <div className="px-4 pb-4 space-y-3 pt-2">
+                    
+                    {/* NOVO FILTRO: EDITAL */}
+                    <div className="relative">
+                        <select value={editalFilter} onChange={(e) => setEditalFilter(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-lg py-2 pl-3 pr-8 text-xs text-white focus:border-emerald-500 outline-none appearance-none cursor-pointer hover:bg-slate-900">
+                            <option value="">Filtrar por Edital (Todos)</option>
+                            {uniqueEditais.map(e => (<option key={e} value={e}>{e}</option>))}
+                        </select>
+                        <div className="absolute right-3 top-2.5 pointer-events-none text-slate-500"><ChevronDown size={12} /></div>
+                    </div>
+
                     <div className="relative">
                         <select value={disciplineFilter} onChange={(e) => setDisciplineFilter(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-lg py-2 pl-3 pr-8 text-xs text-white focus:border-emerald-500 outline-none appearance-none cursor-pointer hover:bg-slate-900">
                             <option value="">Filtrar por Disciplina (Todas)</option>

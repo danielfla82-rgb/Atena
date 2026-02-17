@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useCallback } from 'react';
 import { useStore } from '../store';
 import { Notebook, NotebookStatus, Weight } from '../types';
@@ -21,6 +22,7 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
   // New Filters
   const [disciplineFilter, setDisciplineFilter] = useState('');
   const [weightFilter, setWeightFilter] = useState('');
+  const [editalFilter, setEditalFilter] = useState(''); // NOVO ESTADO
   
   // State for Accordions
   const [expandedSections, setExpandedSections] = useState({
@@ -35,6 +37,7 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
 
   // Derived Data
   const uniqueDisciplines = useMemo(() => Array.from(new Set(notebooks.map(n => n.discipline))).sort(), [notebooks]);
+  const uniqueEditais = useMemo(() => Array.from(new Set(notebooks.map(n => n.edital).filter(Boolean))).sort(), [notebooks]);
 
   // --- CALCULA SEMANA ATUAL ---
   const currentCycleWeek = useMemo(() => {
@@ -90,6 +93,7 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
           // Specific Filters
           if (disciplineFilter && nb.discipline !== disciplineFilter) return false;
           if (weightFilter && nb.weight !== weightFilter) return false;
+          if (editalFilter && nb.edital !== editalFilter) return false; // NOVO FILTRO
 
           return !!nb.nextReview;
       });
@@ -118,7 +122,7 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
       future.sort((a, b) => new Date(a.nextReview!).getTime() - new Date(b.nextReview!).getTime());
 
       return { overdue, todayList, future };
-  }, [notebooks, searchTerm, disciplineFilter, weightFilter]);
+  }, [notebooks, searchTerm, disciplineFilter, weightFilter, editalFilter]);
 
   // --- NAVIGATION HANDLER ---
   const handleEdit = useCallback((notebook: Notebook) => {
@@ -173,9 +177,10 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
       setSearchTerm('');
       setDisciplineFilter('');
       setWeightFilter('');
+      setEditalFilter('');
   };
 
-  const hasActiveFilters = activeFilter !== 'all' || searchTerm || disciplineFilter || weightFilter;
+  const hasActiveFilters = activeFilter !== 'all' || searchTerm || disciplineFilter || weightFilter || editalFilter;
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-8 pb-20 relative h-full flex flex-col">
@@ -193,6 +198,19 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
         
         <div className="flex flex-col md:flex-row gap-3 w-full xl:w-auto items-center">
             
+            {/* NOVO FILTRO: EDITAL */}
+            <div className="relative w-full md:w-40">
+                <select 
+                    value={editalFilter}
+                    onChange={(e) => setEditalFilter(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg py-2 pl-3 pr-8 text-xs text-white focus:border-emerald-500 outline-none appearance-none cursor-pointer hover:bg-slate-800"
+                >
+                    <option value="">Todos Editais</option>
+                    {uniqueEditais.map(e => <option key={e} value={e}>{e}</option>)}
+                </select>
+                <div className="absolute right-3 top-2.5 pointer-events-none text-slate-500"><ChevronDown size={12} /></div>
+            </div>
+
             {/* Discipline Dropdown */}
             <div className="relative w-full md:w-48">
                 <select 

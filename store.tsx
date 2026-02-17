@@ -31,6 +31,7 @@ const mapNotebookFromDB = (db: any): Notebook => {
 
     return {
         id: db.id,
+        edital: db.edital || '',
         discipline: db.discipline,
         name: db.name,
         subtitle: db.subtitle || '',
@@ -64,6 +65,7 @@ const mapNotebookToDB = (nb: Partial<Notebook>) => {
     // A lógica de limpar dados para o público será feita criando um NOVO registro, não alterando este.
     return {
         id: nb.id,
+        edital: nb.edital || null,
         discipline: nb.discipline,
         name: nb.name,
         subtitle: nb.subtitle || null,
@@ -355,7 +357,7 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 // V10 Optimized Columns
 const OPTIMIZED_COLUMNS = `
-  id, user_id, discipline, name, subtitle, 
+  id, user_id, edital, discipline, name, subtitle, 
   tec_link, error_notebook_link, favorite_questions_link, law_link, obsidian_link, gemini_link_1, gemini_link_2,
   accuracy, target_accuracy, weight, relevance, trend, custom_score, status, 
   week_id, is_week_completed, last_practice, next_review, accuracy_history, notes
@@ -507,7 +509,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
   };
 
-  // ... (Other functions like fetchNotebookImages, useEffect init, restoreState remain identical) ...
   const fetchNotebookImages = async (id: string): Promise<string[]> => {
       if (isGuest) {
           const nb = notebooks.find(n => n.id === id);
@@ -645,10 +646,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const addNotebook = async (notebook: Partial<Notebook>) => {
-      // NOTE: We return the new ID so UI can use it immediately (critical for Global Forking)
       const newId = generateId();
       const newNb: Notebook = {
-          id: newId, discipline: notebook.discipline || 'Geral', name: notebook.name || 'Novo Tópico', subtitle: notebook.subtitle || '',
+          id: newId, 
+          edital: notebook.edital || '',
+          discipline: notebook.discipline || 'Geral', 
+          name: notebook.name || 'Novo Tópico', 
+          subtitle: notebook.subtitle || '',
           accuracy: notebook.accuracy || 0, targetAccuracy: notebook.targetAccuracy || 90, weight: notebook.weight || Weight.MEDIO,
           relevance: notebook.relevance || Relevance.MEDIA, trend: notebook.trend || Trend.ESTAVEL, status: NotebookStatus.NOT_STARTED,
           images: notebook.images || [], notes: notebook.notes || '', ...notebook,
@@ -730,21 +734,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const editNotebook = async (id: string, data: Partial<Notebook>) => {
-      // Logic: 
-      // 1. If we are editing a GLOBAL notebook and turning it PRIVATE (isGlobal: false), we fork it.
-      // 2. If we are editing a GLOBAL notebook and keeping it GLOBAL, we update it (only allowed if RLS permits).
-      // 3. If we are editing a PRIVATE notebook and turning it PUBLIC (isGlobal: true), we update user_id to NULL.
-
       let targetId = id;
       const nb = notebooks.find(n => n.id === id);
       
-      // If editing a global notebook but NOT explicitly setting isGlobal (e.g. just accuracy update),
-      // we assume it should become private (Fork) UNLESS the user is an admin managing the catalog.
-      // Current behavior: Standard edits on Global items -> Fork.
-      // Exception: If we are in the "Edit Modal" and specifically toggling isGlobal, handled below.
-      
       if (nb?.isGlobal && data.isGlobal === undefined) {
-          // Implicit edit (like drag and drop or quick accuracy update) on a global item -> Fork it to private
           targetId = await ensureNotebookIsPrivate(id);
       }
 
@@ -808,14 +801,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const deleteNotebook = async (id: string) => {
       const nb = notebooks.find(n => n.id === id);
-      
-      // If global, we usually block delete unless admin.
-      // But RLS "Manage All Notebooks" policy handles this check at DB level.
-      // If user tries to delete a global item without permission, DB throws error.
-      
       const previousNotebooks = [...notebooks];
       setNotebooks(prev => prev.filter(n => n.id !== id));
-      // Cleanup cycles
       const validNotebookIds = new Set<string>(notebooks.filter(n => n.id !== id).map(n => n.id));
       setCycles(prev => prev.map(c => sanitizeCycleData(c, validNotebookIds)));
       
@@ -823,7 +810,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           try { 
               const { error } = await supabase.from('notebooks').delete().eq('id', id); 
               if (error) {
-                  // Revert UI if DB failed (e.g. RLS blocked deleting global item)
                   console.error("Delete failed", error);
                   setNotebooks(previousNotebooks);
                   alert("Erro: Você não tem permissão para excluir este caderno (Público).");
@@ -836,7 +822,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateNotebookAccuracy = async (id: string, accuracy: number) => {
-      // Intercept Global -> Fork to Private
       let targetId = id;
       const nb = notebooks.find(n => n.id === id);
       if (nb?.isGlobal) {
@@ -862,9 +847,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
   };
 
-  // ... (Rest of functions: updateCycleSchedule, moveNotebookToWeek etc. remain mostly same) ...
-  // Note: moveNotebookToWeek might also need to fork if dragging a global item to schedule
-  
   const updateCycleSchedule = async (cycleId: string, modifier: (schedule: Record<string, ScheduleItem[]>) => Record<string, ScheduleItem[]>) => {
       let newScheduleState: Record<string, ScheduleItem[]> | null = null;
       const previousCycles = [...cycles];
@@ -883,7 +865,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const moveNotebookToWeek = async (notebookId: string, weekId: string) => {
-      // Intercept Global -> Fork
       let targetId = notebookId;
       const nb = notebooks.find(n => n.id === notebookId);
       if (nb?.isGlobal) {
@@ -915,7 +896,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       let notebookIdToUpdate: string | undefined;
       let isCompletedNow = false;
 
-      // Legacy Handling
       if (!activeCycleId) { 
           const nb = notebooks.find(n => n.id === instanceId.replace('-legacy', '')); 
           if(nb) {
@@ -936,7 +916,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   return { 
                       ...s, 
                       completed: !s.completed,
-                      // Se marcando como concluído, salva a data atual. Se desmarcando, remove a data.
                       completedAt: !s.completed ? new Date().toISOString() : undefined 
                   };
               }
@@ -945,7 +924,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           return schedule;
       });
 
-      // Update lastPractice if completing
       if (notebookIdToUpdate && isCompletedNow) {
           await editNotebook(notebookIdToUpdate, { lastPractice: new Date().toISOString() });
       }
@@ -979,7 +957,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const newItem = { ...item, id: generateId(), checked: false };
       const previousProtocol = [...protocol];
       setProtocol(prev => [...prev, newItem]);
-      if (!isGuest && user) { try { await supabase.from('protocol').insert({ ...newItem, user_id: user.id }); } catch(e) { console.error(e); setProtocol(previousProtocol); } }
+      if (!isGuest && user) { try { await supabase.from('protocol').insert({ ...newItem, user_id: user.id }); } catch (e) { console.error(e); setProtocol(previousProtocol); } }
   };
 
   const toggleProtocolItem = async (id: string) => {
@@ -995,7 +973,6 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (!isGuest && user) { try { await supabase.from('protocol').delete().eq('id', id); } catch(e) { setProtocol(previousProtocol); } }
   };
 
-  // --- CORREÇÃO PRINCIPAL: FRAMEWORK UPSERT ---
   const updateFramework = async (data: FrameworkData) => {
       const previousFramework = { ...framework };
       setFramework(data);
@@ -1053,7 +1030,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           
           try { 
               const dbPayload = mapNoteToDB({ ...previousNotes.find(n => n.id === id), ...payload, id });
-              delete (dbPayload as any).id; // Remove id from payload for update, though it's usually fine
+              delete (dbPayload as any).id; 
               await supabase.from('notes').update(dbPayload).eq('id', id); 
           } catch(e) { console.error(e); }
       }
@@ -1075,15 +1052,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       a.click();
   };
 
-  // Start session might require forking if it's a global notebook
   const startSession = async (notebook: Notebook) => {
       let targetNb = notebook;
       if (notebook.isGlobal) {
-          // Fork first immediately so session runs on the private copy
           const newId = await ensureNotebookIsPrivate(notebook.id);
-          const freshNb = notebooks.find(n => n.id === newId); // notebooks state updated in ensureNotebookIsPrivate
-          // Wait a tick for state update or find it in the new state via a direct fetch if needed
-          // Actually state update is async. For simplicity, we construct the new object manually:
+          const freshNb = notebooks.find(n => n.id === newId); 
           if (freshNb) targetNb = freshNb;
           else targetNb = { ...notebook, id: newId, isGlobal: false }; 
       }

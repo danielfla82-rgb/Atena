@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useStore } from '../store';
 import { supabase } from './supabase';
@@ -8,14 +9,13 @@ import {
     BookOpen, Layers, CheckCircle2, LayoutGrid, Clock, AlertTriangle, Star, 
     History, Sparkles, X, Save, Maximize2, Thermometer,
     Pencil, Link as LinkIcon, XCircle, ZoomIn, ChevronLeft, Calendar, Loader2, TrendingUp, Info, Scale, FileCode, Flag, List, Book, Brain, BrainCircuit, AlertCircle, PlayCircle,
-    Zap, Gauge, HelpCircle, Globe, Lock, Copy
+    Zap, Gauge, HelpCircle, Globe, Lock, Copy, FileText, Filter
 } from 'lucide-react';
 
 // ORDEM LÓGICA CORRETA PARA EXIBIÇÃO
 const ORDERED_ALGO_KEYS = ['learning', 'reviewing', 'mastering', 'maintaining'];
 
 export const Library: React.FC = () => {
-  // ... (Component logic and state remain identical)
   const { 
     notebooks, 
     cycles,
@@ -38,6 +38,7 @@ export const Library: React.FC = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState<string>('all');
+  const [editalFilter, setEditalFilter] = useState<string>(''); // NOVO ESTADO
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   // DELETE MODAL STATE
@@ -50,6 +51,7 @@ export const Library: React.FC = () => {
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
   const initialFormState = {
+    edital: '',
     discipline: '', name: '', subtitle: '', 
     tecLink: '', errorNotebookLink: '', favoriteQuestionsLink: '',
     lawLink: '', obsidianLink: '', 
@@ -65,7 +67,7 @@ export const Library: React.FC = () => {
   };
 
   const [formData, setFormData] = useState(initialFormState);
-  const [initialScheduledWeek, setInitialScheduledWeek] = useState(''); // Track changes
+  const [initialScheduledWeek, setInitialScheduledWeek] = useState(''); 
   const [isSaving, setIsSaving] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -86,9 +88,10 @@ export const Library: React.FC = () => {
       label: `Semana ${i + 1}` 
   })), [weeksCount]);
 
+  const uniqueEditais = useMemo(() => Array.from(new Set(notebooks.map(n => n.edital).filter(Boolean))).sort(), [notebooks]);
+
   // --- SCORE CALCULATION ON EDIT ---
   const calculatedScore = useMemo(() => {
-      // Calcula Score em Tempo Real baseada na configuração estratégica
       return calculateUrgencyScore(formData.weight, formData.relevance, formData.trend);
   }, [formData.weight, formData.relevance, formData.trend]);
 
@@ -97,7 +100,6 @@ export const Library: React.FC = () => {
   const defaultReviewInterval = DEFAULT_ALGO_CONFIG.baseIntervals.reviewing;
   const currentFactor = Math.round(currentReviewInterval / defaultReviewInterval);
 
-  // Variable needed for the settings UI inside the modal
   const currentIntervals = config.algorithm?.baseIntervals || DEFAULT_ALGO_CONFIG.baseIntervals;
 
   const applyAcceleration = (factor: number) => {
@@ -134,16 +136,13 @@ export const Library: React.FC = () => {
       trend: { title: "Tendência (15% do Score)", desc: "Apostas da banca. Alta vale 15pts." }
   };
 
-  // Helper to check if notebook is scheduled in active cycle
   const isScheduledInActiveCycle = useCallback((notebookId: string) => {
       const activeCycle = cycles.find(c => c.id === activeCycleId);
       if (!activeCycle) return false;
       
-      // Check legacy weekId
       const nb = notebooks.find(n => n.id === notebookId);
       if (nb?.weekId) return true;
 
-      // Check V10 Schedule
       if (activeCycle.schedule) {
           return Object.values(activeCycle.schedule).some(slots => 
               (slots as ScheduleItem[]).some(slot => slot.notebookId === notebookId)
@@ -164,7 +163,6 @@ export const Library: React.FC = () => {
       
       const isGlobalView = !!notebook.isGlobal;
 
-      // Determine current scheduled week
       let currentWeek = '';
       if (activeCycleId) {
           const cycle = cycles.find(c => c.id === activeCycleId);
@@ -178,6 +176,7 @@ export const Library: React.FC = () => {
       setInitialScheduledWeek(currentWeek);
 
       setFormData({
+          edital: notebook.edital || '',
           discipline: notebook.discipline, name: notebook.name, subtitle: notebook.subtitle,
           
           tecLink: notebook.tecLink || '',
@@ -216,7 +215,6 @@ export const Library: React.FC = () => {
       }
   }, [pendingCreateData]);
 
-  // ... (rest of useEffects and functions remain same until JSX)
   useEffect(() => {
       if (focusedNotebookId) {
           const nb = notebooks.find(n => n.id === focusedNotebookId);
@@ -235,18 +233,16 @@ export const Library: React.FC = () => {
   const computedNextReviewData = useMemo(() => {
       if (!isModalOpen) return null;
 
-      // LÓGICA ATUALIZADA: Se não iniciado e zerado, não calcula revisão
       if (formData.status === NotebookStatus.NOT_STARTED && Number(formData.accuracy) === 0) {
           return { isNotStarted: true };
       }
 
-      // UPDATE V10.5: Passando targetAccuracy para bonificação
       const dateStr = formData.nextReview || calculateNextReview(
           Number(formData.accuracy), 
           formData.relevance, 
           formData.trend, 
           config.algorithm,
-          Number(formData.targetAccuracy) // <-- Target passado aqui
+          Number(formData.targetAccuracy)
       ).toISOString();
 
       const nextDate = new Date(dateStr);
@@ -280,6 +276,10 @@ export const Library: React.FC = () => {
   const groupedData = useMemo(() => {
       const filtered = notebooks.filter(nb => {
           if (nb.discipline === 'Revisão Geral') return false; 
+          
+          // FILTRO EDITAL
+          if (editalFilter && nb.edital !== editalFilter) return false;
+
           const searchLower = searchTerm.toLowerCase();
           const matchesSearch = 
               nb.name.toLowerCase().includes(searchLower) || 
@@ -331,7 +331,7 @@ export const Library: React.FC = () => {
           groups[key].sort((a, b) => a.name.localeCompare(b.name));
       });
       return { groups, sortedKeys };
-  }, [notebooks, searchTerm, activeFilter, viewMode]);
+  }, [notebooks, searchTerm, activeFilter, viewMode, editalFilter]);
 
   const toggleGroup = (key: string) => {
       setExpandedGroups(prev => ({ ...prev, [key]: !prev[key] }));
@@ -344,9 +344,7 @@ export const Library: React.FC = () => {
       setIsModalOpen(true);
   };
 
-  // --- DELETE LOGIC ---
   const requestDelete = (nb: {id: string, name: string}) => {
-      // Direct state update - no event args needed here to keep it clean
       setNotebookToDelete(nb);
       setDeleteModalOpen(true);
   };
@@ -386,7 +384,6 @@ export const Library: React.FC = () => {
   
   const removeImage = (index: number) => { setFormData(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== index) })); };
   
-  // --- AUTOMATED CLOUD UPLOAD UTILS ---
   const base64ToBlob = async (base64: string): Promise<Blob> => {
       const res = await fetch(base64);
       return await res.blob();
@@ -408,7 +405,7 @@ export const Library: React.FC = () => {
           return data.publicUrl;
       } catch (e) {
           console.error("Auto-upload failed for one image, keeping base64 fallback", e);
-          return base64; // Fallback to keep data safe even if upload fails
+          return base64; 
       }
   };
 
@@ -418,40 +415,32 @@ export const Library: React.FC = () => {
     try {
         let nextDateStr: string | null | undefined = formData.nextReview;
         
-        // LÓGICA CRÍTICA: Se "Não Iniciado" e "0%", remove da fila de revisão (null)
         if (formData.status === NotebookStatus.NOT_STARTED && Number(formData.accuracy) === 0) {
             nextDateStr = null;
         } else if (!nextDateStr) {
-            // Caso contrário, se não tiver data, calcula
-            // UPDATE V10.5: Adicionando targetAccuracy
             const nextDate = calculateNextReview(
                 Number(formData.accuracy), 
                 formData.relevance, 
                 formData.trend, 
                 config.algorithm,
-                Number(formData.targetAccuracy) // <-- Target
+                Number(formData.targetAccuracy)
             );
             nextDateStr = nextDate.toISOString();
         }
 
-        // --- AUTO UPLOAD LOGIC ---
         let processedImages = [...formData.images];
         if (!isGuest) {
             const uploadedImages: string[] = [];
             for (const img of processedImages) {
                 if (img.startsWith('data:image')) {
-                    // It's a new Base64 image, upload it!
-                    // Use editingId or 'new' as prefix
                     const url = await uploadImageToStorage(img, editingId || 'new');
                     uploadedImages.push(url);
                 } else {
-                    // Already a URL
                     uploadedImages.push(img);
                 }
             }
             processedImages = uploadedImages;
         }
-        // -------------------------
 
         const payload: any = { 
             ...formData, 
@@ -462,7 +451,6 @@ export const Library: React.FC = () => {
             nextReview: nextDateStr
         };
         
-        // Save Notebook first to get ID
         let targetNbId = editingId;
         if (editingId) {
             await editNotebook(editingId, payload);
@@ -470,11 +458,9 @@ export const Library: React.FC = () => {
             targetNbId = await addNotebook(payload);
         }
 
-        // --- SCHEDULE UPDATE LOGIC ---
         if (activeCycleId && targetNbId && formData.scheduledWeek !== initialScheduledWeek) {
              const cycle = cycles.find(c => c.id === activeCycleId);
              
-             // 1. Remove from old weeks (clean up all instances of this notebook)
              if (cycle?.schedule) {
                  const removals: {wId: string, iId: string}[] = [];
                  Object.entries(cycle.schedule).forEach(([wId, slots]) => {
@@ -484,13 +470,11 @@ export const Library: React.FC = () => {
                          }
                      });
                  });
-                 // Execute removals
                  for (const item of removals) {
                      await removeSlotFromWeek(item.iId, item.wId);
                  }
              }
 
-             // 2. Add to new week if scheduled
              if (formData.scheduledWeek) {
                  await moveNotebookToWeek(targetNbId, formData.scheduledWeek);
              }
@@ -514,13 +498,12 @@ export const Library: React.FC = () => {
       setIsSaving(true);
       try {
           const newAccuracy = Number(formData.accuracy);
-          // UPDATE V10.5: Adicionando targetAccuracy
           const nextDate = calculateNextReview(
               newAccuracy, 
               formData.relevance, 
               formData.trend, 
               config.algorithm,
-              Number(formData.targetAccuracy) // <-- Target
+              Number(formData.targetAccuracy)
           );
           
           const newHistory = [...(formData.accuracyHistory || []), { date: new Date().toISOString(), accuracy: newAccuracy }].slice(-3);
@@ -556,7 +539,6 @@ export const Library: React.FC = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 pb-20 relative h-full flex flex-col">
-      {/* ... (Lightbox and Delete Modal remain same) */}
       {lightboxIndex !== null && (
           <div className="fixed inset-0 z-[60] bg-slate-950/95 flex items-center justify-center p-4 backdrop-blur-sm">
              <button onClick={() => setLightboxIndex(null)} className="absolute top-4 right-4 text-white hover:text-emerald-500 z-50"><X size={32} /></button>
@@ -571,7 +553,6 @@ export const Library: React.FC = () => {
           </div>
       )}
 
-      {/* Delete Confirmation Modal - Rendered at Root Level */}
       {deleteModalOpen && notebookToDelete && (
           <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in zoom-in duration-200">
               <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
@@ -594,7 +575,6 @@ export const Library: React.FC = () => {
           </div>
       )}
 
-      {/* ... (Header and Stats Render Code - Unchanged) ... */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-slate-800 pb-6 gap-4 flex-shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-3">
@@ -604,7 +584,21 @@ export const Library: React.FC = () => {
             Gerencie seus cadernos e acompanhe o progresso por tópico.
           </p>
         </div>
-        <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+        <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto items-center">
+             
+             {/* NOVO FILTRO: EDITAL */}
+             <div className="relative w-full md:w-48">
+                <select 
+                    value={editalFilter} 
+                    onChange={(e) => setEditalFilter(e.target.value)} 
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg py-2 pl-3 pr-8 text-sm text-white focus:border-emerald-500 outline-none appearance-none cursor-pointer hover:bg-slate-800"
+                >
+                    <option value="">Todos Editais</option>
+                    {uniqueEditais.map(e => <option key={e} value={e}>{e}</option>)}
+                </select>
+                <div className="absolute right-3 top-2.5 pointer-events-none text-slate-500"><ChevronDown size={14} /></div>
+             </div>
+
              <div className="relative flex-1 md:w-64">
                 <Search className="absolute left-3 top-2.5 text-slate-500" size={16} />
                 <input 
@@ -700,7 +694,6 @@ export const Library: React.FC = () => {
 
                                   return (
                                   <div key={nb.id} className="flex items-center justify-between group hover:bg-slate-800/20">
-                                      {/* CONTENT AREA - CLICK TO EDIT */}
                                       <div 
                                         className="flex-1 min-w-0 p-4 cursor-pointer" 
                                         onClick={() => handleEdit(nb)}
@@ -717,14 +710,12 @@ export const Library: React.FC = () => {
                                           </div>
                                           <p className="text-xs text-slate-500 truncate">{nb.subtitle}</p>
                                           
-                                          {/* Mobile Stats (only visible on small screens) */}
                                           <div className="flex md:hidden gap-3 mt-2 text-[10px] text-slate-500 font-mono">
                                               <span>Acc: <strong className={nb.accuracy < 60 ? 'text-red-400' : 'text-emerald-400'}>{nb.accuracy}%</strong></span>
                                               <span>Rev: {nb.nextReview ? nb.nextReview.split('T')[0].split('-').reverse().join('/') : '--'}</span>
                                           </div>
                                       </div>
                                       
-                                      {/* ACTIONS AREA - STRICTLY SEPARATED */}
                                       <div className="flex items-center gap-4 md:gap-8 px-4 py-2 border-l border-slate-800/30">
                                           <div className="text-right hidden md:block">
                                               <p className="text-[10px] text-slate-500 uppercase font-bold">Acurácia</p>
@@ -742,11 +733,10 @@ export const Library: React.FC = () => {
                                                   <Maximize2 size={16} />
                                               </button>
                                               
-                                              {/* THE DELETE BUTTON - Isolated */}
                                               <button 
                                                 type="button" 
                                                 onClick={(e) => {
-                                                    e.stopPropagation(); // Double safe
+                                                    e.stopPropagation(); 
                                                     requestDelete(nb);
                                                 }} 
                                                 className="p-2 bg-slate-800 hover:bg-red-600 text-slate-400 hover:text-white rounded-lg transition-colors border border-slate-700 hover:border-red-500" 
@@ -774,6 +764,7 @@ export const Library: React.FC = () => {
       </div>
 
       {isModalOpen && (
+        // ... (Modal code kept identical) ...
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
             
@@ -787,7 +778,6 @@ export const Library: React.FC = () => {
 
             <form onSubmit={handleSave} className="overflow-y-auto p-6 space-y-6 custom-scrollbar">
               
-              {/* WARNING FOR GLOBAL NOTEBOOKS */}
               {formData.isGlobal && (
                   <div className="bg-indigo-900/20 border border-indigo-500/20 p-4 rounded-xl flex items-start gap-3">
                       <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400"><Copy size={18} /></div>
@@ -824,13 +814,25 @@ export const Library: React.FC = () => {
                       </div>
                   </div>
 
+                  {/* NOVO CAMPO: EDITAL */}
+                  <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl mb-2">
+                    <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider flex items-center gap-2">
+                        <FileText size={14} className="text-emerald-500" /> Edital / Prova Alvo
+                    </label>
+                    <input 
+                        value={formData.edital} 
+                        onChange={e => handleChange('edital', e.target.value)} 
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500 transition-colors font-medium" 
+                        placeholder="Ex: Receita Federal 2025, Auditor Fiscal SEFAZ-SP..."
+                    />
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Disciplina</label><input required list="disciplines" value={formData.discipline} onChange={e => handleChange('discipline', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /><datalist id="disciplines">{existingDisciplines.map(d => <option key={d} value={d} />)}</datalist></div>
                     <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Nome do Tópico</label><input required value={formData.name} onChange={e => handleChange('name', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /></div>
                   </div>
                   <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Subtópico / Foco</label><input value={formData.subtitle} onChange={e => handleChange('subtitle', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /></div>
                   
-                  {/* ... Links Section (Unchanged) ... */}
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Caderno TEC</label>
@@ -865,9 +867,8 @@ export const Library: React.FC = () => {
               <div className="space-y-4 pt-2">
                   <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">2. Estratégia & Performance</h4>
                   
-                  {/* METRICS & SCORE INPUT */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {/* Weight with Tooltip */}
+                      {/* ... (Performance inputs remain same) ... */}
                       <div className="group relative">
                           <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase flex items-center gap-1 cursor-help">
                               Peso <HelpCircle size={10} className="text-slate-600"/>
@@ -879,7 +880,6 @@ export const Library: React.FC = () => {
                           </div>
                       </div>
 
-                      {/* Relevance with Tooltip */}
                       <div className="group relative">
                           <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase flex items-center gap-1 cursor-help">
                               Relevância <HelpCircle size={10} className="text-slate-600"/>
@@ -891,7 +891,6 @@ export const Library: React.FC = () => {
                           </div>
                       </div>
 
-                      {/* Trend with Tooltip */}
                       <div className="group relative">
                           <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase flex items-center gap-1 cursor-help">
                               Tendência <HelpCircle size={10} className="text-slate-600"/>
@@ -906,7 +905,6 @@ export const Library: React.FC = () => {
                       <div><label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Meta (%)</label><input type="number" min="0" max="100" value={formData.targetAccuracy} onChange={e => handleChange('targetAccuracy', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm text-center font-bold" /></div>
                   </div>
 
-                  {/* SCORE BOX */}
                   <div className="bg-slate-950 border border-slate-800 rounded-lg p-3 flex items-center justify-between shadow-inner">
                       <div className="flex flex-col">
                           <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Score Atena (Urgência)</span>
@@ -964,7 +962,6 @@ export const Library: React.FC = () => {
                                 </button>
                              </div>
                              
-                             {/* ALGORITHM STATUS */}
                              {computedNextReviewData?.isNotStarted ? (
                                  <div className="flex flex-col mt-3 gap-1 p-2 bg-slate-900/50 rounded-lg border border-slate-700/50">
                                      <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
@@ -1007,7 +1004,6 @@ export const Library: React.FC = () => {
                   </div>
               </div>
 
-              {/* ... (Algorithm Tuning Section - Unchanged) ... */}
               <div className="space-y-4 pt-4 border-t border-slate-800">
                   <div className="flex items-center justify-between border-b border-purple-500/20 pb-2">
                       <h3 className="text-sm font-bold text-purple-500 uppercase tracking-widest flex items-center gap-2">
@@ -1024,7 +1020,6 @@ export const Library: React.FC = () => {
                   </div>
               </div>
 
-              {/* ... (Images and Notes Section - Unchanged) ... */}
               <div className="space-y-4 pt-2">
                 <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">3. Rascunhos & Anotações</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -48,6 +48,8 @@ export enum NotebookStatus {
 export interface Notebook {
   /** UUID v4 */
   id: string;
+  /** Edital/Prova Alvo (Novo V10.4) */
+  edital?: string;
   /** Disciplina pai (ex: Direito Constitucional) */
   discipline: string;
   /** Nome do Tópico (ex: Controle de Constitucionalidade) */
