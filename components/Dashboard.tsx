@@ -302,7 +302,6 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
   const nietzscheItem = NIETZSCHE_DATA[quoteIndex] || NIETZSCHE_DATA[0];
 
   const metrics = useMemo(() => {
-      // REGRA DE OURO: Analisar PLANEJAMENTO (schedule) do ciclo ativo
       const activeCycle = cycles.find(c => c.id === activeCycleId);
       const completedIdsInPlanning = new Set<string>();
       
@@ -318,7 +317,6 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           });
       }
 
-      // Média baseada EXCLUSIVAMENTE em PLANEJAMENTO concluído com acerto > 0%
       const planningNotebooks = notebooks.filter(n => 
           completedIdsInPlanning.has(n.id) && 
           n.accuracy > 0 && 
@@ -405,63 +403,86 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
   }, [notebooks, today, cycles, activeCycleId]);
 
   const evolutionData = useMemo(() => {
-        const points: { date: string; accuracy: number }[] = [];
+        // --- EVOLUTION FIX V2: WEEKLY SNAPSHOTS & ALIGNED START ---
+        // Problema anterior: Agrupava por segunda-feira do calendário, ignorando a data de início do plano.
+        // Solução: Agrupar por "Semana do Ciclo" (0-7 dias, 8-14 dias...) a partir da Data de Início.
+        
+        // 1. Definir Marco Zero (Start Date)
+        const earliestHistoryDate = notebooks.reduce((acc, n) => {
+            if (!n.accuracyHistory || n.accuracyHistory.length === 0) return acc;
+            const first = n.accuracyHistory[0].date;
+            return (!acc || new Date(first) < new Date(acc)) ? first : acc;
+        }, null as string | null);
+
+        // Prioridade: Configuração > Primeiro histórico > Hoje
+        const start = config.startDate ? new Date(config.startDate) : (earliestHistoryDate ? new Date(earliestHistoryDate) : new Date());
+        start.setHours(0,0,0,0); // Normalize
+
+        // 2. Criar Buckets de Semana (Map<WeekIndex, Map<NotebookId, LatestEntry>>)
+        // Usamos um Map interno para guardar apenas a ÚLTIMA acurácia de cada caderno naquela semana.
+        // Isso evita que múltiplas tentativas (ex: 50%, depois 80%) puxem a média para baixo.
+        const weeklySnapshots = new Map<number, Map<string, { accuracy: number, date: Date }>>();
+
         notebooks.forEach(n => {
             if (n.accuracyHistory) {
                 n.accuracyHistory.forEach(h => {
-                    if (h.accuracy > 0) points.push(h);
+                    if (h.accuracy <= 0) return; // Ignorar nulos
+
+                    const entryDate = new Date(h.date);
+                    entryDate.setHours(0,0,0,0);
+
+                    const diffTime = entryDate.getTime() - start.getTime();
+                    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                    
+                    // Se diffDays < 0, são dados antigos (Semana 0 ou negativos)
+                    // Vamos considerar semana 1 como dias 0-6.
+                    const weekIdx = Math.floor(diffDays / 7) + 1;
+
+                    if (weekIdx < 1) return; // Ignorar dados pré-ciclo para limpeza do gráfico
+
+                    if (!weeklySnapshots.has(weekIdx)) {
+                        weeklySnapshots.set(weekIdx, new Map());
+                    }
+
+                    const weekMap = weeklySnapshots.get(weekIdx)!;
+                    
+                    // Lógica de Snapshot: Se já temos esse caderno nessa semana, ficamos com a data mais recente
+                    if (!weekMap.has(n.id)) {
+                        weekMap.set(n.id, { accuracy: h.accuracy, date: new Date(h.date) });
+                    } else {
+                        const existing = weekMap.get(n.id)!;
+                        if (new Date(h.date) > existing.date) {
+                            weekMap.set(n.id, { accuracy: h.accuracy, date: new Date(h.date) });
+                        }
+                    }
                 });
             }
         });
+
+        // 3. Transformar em Array Ordenado para o Gráfico
+        const sortedWeeks = Array.from(weeklySnapshots.keys()).sort((a, b) => a - b);
         
-        // Sort chronologically
-        points.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        
-        // Group by Week (Monday)
-        const grouped = new Map<string, { sum: number, count: number, monday: Date }>();
-        
-        points.forEach(p => {
-            const d = new Date(p.date);
-            const day = d.getDay();
-            const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-            const monday = new Date(new Date(d).setDate(diff));
-            monday.setHours(0,0,0,0);
+        const labels: string[] = [];
+        const actualValues: number[] = [];
+
+        sortedWeeks.forEach(idx => {
+            // Calcular Data da Semana para Label
+            const weekStartDate = new Date(start);
+            weekStartDate.setDate(start.getDate() + ((idx - 1) * 7));
+            const dateStr = weekStartDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
             
-            const dateStr = monday.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-            const current = grouped.get(dateStr) || { sum: 0, count: 0, monday };
-            current.sum += p.accuracy;
-            current.count += 1;
-            grouped.set(dateStr, current);
+            labels.push(`${dateStr} (Semana ${idx})`);
+
+            // Calcular Média
+            const weekMap = weeklySnapshots.get(idx)!;
+            const values = Array.from(weekMap.values()).map(v => v.accuracy);
+            const sum = values.reduce((a, b) => a + b, 0);
+            const avg = Math.round(sum / values.length);
+            
+            actualValues.push(avg);
         });
 
-        const sortedEntries = Array.from(grouped.entries())
-            .sort((a, b) => a[1].monday.getTime() - b[1].monday.getTime())
-            .slice(-10);
-        
-        // CORREÇÃO SÊNIOR: Garantir que a semana seja mostrada SEMPRE
-        // Se config.startDate não existe, usamos a data da primeira entrada como referência de "Semana 1"
-        const firstDataDate = sortedEntries.length > 0 ? sortedEntries[0][1].monday : new Date();
-        const configStart = config.startDate ? new Date(config.startDate) : null;
-        
-        // Referência oficial de início: Configuração > Primeiro Dado
-        const refStart = configStart || firstDataDate;
-        refStart.setHours(0,0,0,0);
-
-        const labels = sortedEntries.map(([date, val]) => {
-            const currentMonday = val.monday;
-            currentMonday.setHours(0,0,0,0);
-            
-            const diffTime = currentMonday.getTime() - refStart.getTime();
-            // Cálculo robusto de semana (arredondando para baixo para semanas completas)
-            const weekNum = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7)) + 1;
-            
-            // Força a exibição do label da semana se for >= 1, ou se for a semana zero (início)
-            const weekLabel = weekNum > 0 ? ` (Semana ${weekNum})` : (weekNum === 0 ? " (Semana 0)" : "");
-            return `${date}${weekLabel}`;
-        });
-        
-        const actualValues = sortedEntries.map(([_, val]) => Math.round(val.sum / val.count));
-
+        // Tendência (Mantida)
         let trendValues: number[] = [];
         let trendInfo = { slope: 0, status: 'neutral' as 'neutral' | 'up' | 'down', message: 'Dados insuficientes' };
 
