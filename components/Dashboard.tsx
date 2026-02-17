@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { useStore } from '../store';
 import { QuadrantChart } from './QuadrantChart';
@@ -403,10 +402,11 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
   }, [notebooks, today, cycles, activeCycleId]);
 
   const evolutionData = useMemo(() => {
-        // --- EVOLUTION FIX V2: WEEKLY SNAPSHOTS & ALIGNED START ---
-        // Problema anterior: Agrupava por segunda-feira do calendário, ignorando a data de início do plano.
-        // Solução: Agrupar por "Semana do Ciclo" (0-7 dias, 8-14 dias...) a partir da Data de Início.
-        
+        // --- EVOLUTION LOGIC V3: SNAPSHOT POR SEMANA ---
+        // Objetivo: Mostrar a média da ÚLTIMA acurácia de cada caderno em cada semana.
+        // Isso evita que tentativas ruins no início da semana puxem a média para baixo.
+        // E garante que a média final da semana reflita a competência real.
+
         // 1. Definir Marco Zero (Start Date)
         const earliestHistoryDate = notebooks.reduce((acc, n) => {
             if (!n.accuracyHistory || n.accuracyHistory.length === 0) return acc;
@@ -414,31 +414,25 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
             return (!acc || new Date(first) < new Date(acc)) ? first : acc;
         }, null as string | null);
 
-        // Prioridade: Configuração > Primeiro histórico > Hoje
         const start = config.startDate ? new Date(config.startDate) : (earliestHistoryDate ? new Date(earliestHistoryDate) : new Date());
-        start.setHours(0,0,0,0); // Normalize
+        start.setHours(0,0,0,0); 
 
-        // 2. Criar Buckets de Semana (Map<WeekIndex, Map<NotebookId, LatestEntry>>)
-        // Usamos um Map interno para guardar apenas a ÚLTIMA acurácia de cada caderno naquela semana.
-        // Isso evita que múltiplas tentativas (ex: 50%, depois 80%) puxem a média para baixo.
+        // 2. Buckets: Map<WeekIndex, Map<NotebookId, LatestEntry>>
         const weeklySnapshots = new Map<number, Map<string, { accuracy: number, date: Date }>>();
 
         notebooks.forEach(n => {
             if (n.accuracyHistory) {
                 n.accuracyHistory.forEach(h => {
-                    if (h.accuracy <= 0) return; // Ignorar nulos
+                    if (h.accuracy <= 0) return; // Ignora 0%
 
                     const entryDate = new Date(h.date);
                     entryDate.setHours(0,0,0,0);
 
                     const diffTime = entryDate.getTime() - start.getTime();
-                    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-                    
-                    // Se diffDays < 0, são dados antigos (Semana 0 ou negativos)
-                    // Vamos considerar semana 1 como dias 0-6.
-                    const weekIdx = Math.floor(diffDays / 7) + 1;
-
-                    if (weekIdx < 1) return; // Ignorar dados pré-ciclo para limpeza do gráfico
+                    // Week 1 = Days 0-6, Week 2 = Days 7-13, etc.
+                    // Se diffTime < 0, considera semana 1 ou anterior (vamos tratar tudo <= 6 dias como semana 1 relativo ao start)
+                    let weekIdx = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7)) + 1;
+                    if (weekIdx < 1) weekIdx = 1; // Clamp
 
                     if (!weeklySnapshots.has(weekIdx)) {
                         weeklySnapshots.set(weekIdx, new Map());
@@ -446,7 +440,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
 
                     const weekMap = weeklySnapshots.get(weekIdx)!;
                     
-                    // Lógica de Snapshot: Se já temos esse caderno nessa semana, ficamos com a data mais recente
+                    // Lógica de Snapshot: Mantém apenas o registro mais recente DESTA semana para ESTE caderno
                     if (!weekMap.has(n.id)) {
                         weekMap.set(n.id, { accuracy: h.accuracy, date: new Date(h.date) });
                     } else {
@@ -459,21 +453,21 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
             }
         });
 
-        // 3. Transformar em Array Ordenado para o Gráfico
+        // 3. Montar Gráfico
         const sortedWeeks = Array.from(weeklySnapshots.keys()).sort((a, b) => a - b);
         
         const labels: string[] = [];
         const actualValues: number[] = [];
 
         sortedWeeks.forEach(idx => {
-            // Calcular Data da Semana para Label
+            // Calcular Data da Semana para Label (Início da semana)
             const weekStartDate = new Date(start);
             weekStartDate.setDate(start.getDate() + ((idx - 1) * 7));
             const dateStr = weekStartDate.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
             
             labels.push(`${dateStr} (Semana ${idx})`);
 
-            // Calcular Média
+            // Média dos Snapshots
             const weekMap = weeklySnapshots.get(idx)!;
             const values = Array.from(weekMap.values()).map(v => v.accuracy);
             const sum = values.reduce((a, b) => a + b, 0);
@@ -482,7 +476,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
             actualValues.push(avg);
         });
 
-        // Tendência (Mantida)
+        // Tendência
         let trendValues: number[] = [];
         let trendInfo = { slope: 0, status: 'neutral' as 'neutral' | 'up' | 'down', message: 'Dados insuficientes' };
 
