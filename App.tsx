@@ -5,13 +5,7 @@ import { Setup } from './components/Setup';
 import { Login } from './components/Login';
 import { ProjectSelection } from './components/ProjectSelection';
 import { Library } from './components/Library';
-import { Diagnostics } from './components/Diagnostics';
-import { Tips } from './components/Tips';
-import { Nietzsche } from './components/Nietzsche';
-import { Psychoanalyst } from './components/Psychoanalyst';
-import { Protocol } from './components/Protocol';
 import { Framework } from './components/Framework';
-import { Documentation } from './components/Documentation';
 import { VerticalizedEdital } from './components/VerticalizedEdital';
 import { Notes } from './components/Notes';
 import { About } from './components/About';
@@ -19,33 +13,26 @@ import { StudySession } from './components/StudySession';
 import { ReviewList } from './components/ReviewList';
 import { 
   LayoutDashboard, Layers, Menu, X, Library as LibraryIcon, 
-  Activity, Lightbulb, Flame, Brain, Pill, Pyramid, Book, ListChecks, Shield, StickyNote, LogOut, ChevronDown, CalendarCheck
+  Pyramid, ListChecks, Shield, StickyNote, LogOut, ChevronDown, CalendarCheck
 } from 'lucide-react';
 import { Logo } from './components/Logo';
 
 const AppContent: React.FC = () => {
   // Estado principal de navegação
-  const [view, setView] = useState<'login' | 'selection' | 'dashboard' | 'setup' | 'library' | 'diagnostics' | 'tips' | 'nietzsche' | 'psycho' | 'protocol' | 'framework' | 'docs' | 'verticalized' | 'notes' | 'about' | 'review-list'>('login');
+  const [view, setView] = useState<'login' | 'selection' | 'dashboard' | 'setup' | 'library' | 'framework' | 'verticalized' | 'notes' | 'about' | 'review-list'>('login');
   
   // Estados de UI
   const [sidebarOpen, setSidebarOpen] = useState(false);
   
   // Menus Suspensos
   const [strategyMenuOpen, setStrategyMenuOpen] = useState(true);
-  const [intelligenceMenuOpen, setIntelligenceMenuOpen] = useState(true);
-  const [mentalMenuOpen, setMentalMenuOpen] = useState(false);
   
   const { user, activeSession, endSession } = useStore();
 
   // Efeito: Abre o menu automaticamente se estiver navegando em um de seus sub-itens
   useEffect(() => {
     const strategyViews = ['dashboard', 'setup', 'verticalized', 'library', 'notes', 'review-list'];
-    const intelligenceViews = ['diagnostics'];
-    const mentalViews = ['framework', 'nietzsche', 'psycho', 'protocol', 'tips'];
-
     if (strategyViews.includes(view)) setStrategyMenuOpen(true);
-    if (intelligenceViews.includes(view)) setIntelligenceMenuOpen(true);
-    if (mentalViews.includes(view)) setMentalMenuOpen(true);
   }, [view]);
 
   // Renderização condicional para telas de Login e Seleção (Full Screen)
@@ -171,100 +158,28 @@ const AppContent: React.FC = () => {
               </div>
           </div>
 
-          {/* === MENU INTELIGÊNCIA (ACCORDION) === */}
-          <div className="pt-2">
-              <button 
-                onClick={() => setIntelligenceMenuOpen(!intelligenceMenuOpen)}
-                className={`w-full flex items-center justify-between px-3 py-2 mt-2 mb-1 rounded-lg transition-colors group hover:bg-slate-800 cursor-pointer select-none`}
-              >
-                  <span className={`text-[10px] uppercase font-bold tracking-wider ${intelligenceMenuOpen ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'}`}>
-                      Inteligência
-                  </span>
-                  <ChevronDown size={14} className={`text-slate-500 transition-transform duration-300 ${intelligenceMenuOpen ? 'rotate-180 text-white' : ''}`} />
-              </button>
-              
-              <div className={`overflow-hidden transition-all duration-300 ease-in-out space-y-1 ${intelligenceMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
-                  <button 
-                    onClick={() => { setView('diagnostics'); setSidebarOpen(false); }}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('diagnostics') ? 'bg-slate-800 text-white border-purple-500' : 'border-transparent text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
-                  >
-                    <Activity size={18} />
-                    <span className="text-sm">Diagnóstico IA</span>
-                  </button>
-              </div>
-          </div>
-
-          {/* === MENU MENTAL & FÍSICO (ACCORDION) === */}
-          <div className="pt-2">
-              <button 
-                onClick={() => setMentalMenuOpen(!mentalMenuOpen)}
-                className={`w-full flex items-center justify-between px-3 py-2 mt-2 mb-1 rounded-lg transition-colors group hover:bg-slate-800 cursor-pointer select-none`}
-              >
-                  <span className={`text-[10px] uppercase font-bold tracking-wider ${mentalMenuOpen ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'}`}>
-                      Mental & Físico
-                  </span>
-                  <ChevronDown size={14} className={`text-slate-500 transition-transform duration-300 ${mentalMenuOpen ? 'rotate-180 text-white' : ''}`} />
-              </button>
-              
-              <div className={`overflow-hidden transition-all duration-300 ease-in-out space-y-1 ${mentalMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+          {/* === OUTRAS FERRAMENTAS === */}
+          <div className="pt-4 mt-2">
+              <span className="px-3 text-[10px] uppercase font-bold tracking-wider text-slate-500">
+                  Ferramentas
+              </span>
+              <div className="mt-2 space-y-1">
                   <button 
                       onClick={() => { setView('framework'); setSidebarOpen(false); }}
                       className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('framework') ? 'bg-slate-800 text-white border-emerald-500' : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-800/50'}`}
                     >
-                      <Pyramid size={16} className={isActive('framework') ? 'text-emerald-400' : ''}/>
+                      <Pyramid size={18} className={isActive('framework') ? 'text-emerald-400' : ''}/>
                       <span className="text-sm font-medium">Framework</span>
-                  </button>
-
-                  <button 
-                      onClick={() => { setView('nietzsche'); setSidebarOpen(false); }}
-                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('nietzsche') ? 'bg-slate-800 text-white border-orange-500' : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-800/50'}`}
-                    >
-                      <Flame size={16} className={isActive('nietzsche') ? 'text-orange-500' : ''} />
-                      <span className="text-sm font-medium">Incentivador</span>
-                  </button>
-
-                  <button 
-                      onClick={() => { setView('psycho'); setSidebarOpen(false); }}
-                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('psycho') ? 'bg-slate-800 text-white border-indigo-500' : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-800/50'}`}
-                    >
-                      <Brain size={16} className={isActive('psycho') ? 'text-indigo-500' : ''} />
-                      <span className="text-sm font-medium">Psicanalista</span>
-                  </button>
-
-                  <button 
-                      onClick={() => { setView('protocol'); setSidebarOpen(false); }}
-                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('protocol') ? 'bg-slate-800 text-white border-blue-500' : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-800/50'}`}
-                    >
-                      <Pill size={16} className={isActive('protocol') ? 'text-blue-500' : ''} />
-                      <span className="text-sm font-medium">Protocolo</span>
                   </button>
                   
                   <button 
-                      onClick={() => { setView('tips'); setSidebarOpen(false); }}
-                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('tips') ? 'bg-slate-800 text-white border-yellow-500' : 'border-transparent text-slate-400 hover:text-white hover:bg-slate-800/50'}`}
+                      onClick={() => { setView('about'); setSidebarOpen(false); }}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('about') ? 'bg-slate-800 text-white border-slate-700 font-bold' : 'border-transparent text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
                     >
-                      <Lightbulb size={16} className={isActive('tips') ? 'text-yellow-500' : ''} />
-                      <span className="text-sm font-medium">Dicas de Elite</span>
+                      <Shield size={18} />
+                      <span className="text-sm">Sobre</span>
                   </button>
               </div>
-          </div>
-
-          {/* Seção Sistema (Fixa) */}
-          <div className="pt-2 mt-4 border-t border-slate-800/50">
-            <button 
-                onClick={() => { setView('docs'); setSidebarOpen(false); }}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${isActive('docs') ? 'bg-slate-800 text-white border border-slate-700 font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
-              >
-                <Book size={18} />
-                <span className="text-sm">Documentação</span>
-            </button>
-            <button 
-                onClick={() => { setView('about'); setSidebarOpen(false); }}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ${isActive('about') ? 'bg-slate-800 text-white border border-slate-700 font-bold' : 'text-slate-400 hover:bg-slate-800 hover:text-white font-medium'}`}
-              >
-                <Shield size={18} />
-                <span className="text-sm">Sobre</span>
-            </button>
           </div>
         </div>
 
@@ -299,14 +214,8 @@ const AppContent: React.FC = () => {
           view === 'review-list' ? <ReviewList onNavigate={(v) => setView(v as any)} /> :
           view === 'library' ? <Library /> :
           view === 'notes' ? <Notes /> :
-          view === 'tips' ? <Tips /> :
-          view === 'nietzsche' ? <Nietzsche /> :
-          view === 'psycho' ? <Psychoanalyst /> :
-          view === 'protocol' ? <Protocol /> :
           view === 'framework' ? <Framework /> :
-          view === 'docs' ? <Documentation /> :
-          view === 'about' ? <About /> :
-          <Diagnostics />
+          <About />
          }
       </main>
     </div>
