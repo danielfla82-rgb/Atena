@@ -163,17 +163,17 @@ Aumente a carga horária em **resolução de questões** e reduza a leitura pass
 
         // H3 (###)
         if (trimmedLine.startsWith('###')) {
-             return <h3 key={index} className="text-lg font-bold text-white mt-6 mb-2 flex items-center gap-2"><div className="w-1 h-4 bg-cyan-500 rounded"></div>{parseInline(trimmedLine.replace(/^###\s*/, ''))}</h3>;
+             return <h3 key={index} className="text-lg font-bold text-slate-900 dark:text-white mt-6 mb-2 flex items-center gap-2"><div className="w-1 h-4 bg-cyan-500 rounded"></div>{parseInline(trimmedLine.replace(/^###\s*/, ''))}</h3>;
         }
         
         // H2 (##)
         if (trimmedLine.startsWith('##')) {
-             return <h2 key={index} className="text-xl font-bold text-emerald-400 mt-6 mb-3 border-b border-slate-700 pb-2">{parseInline(trimmedLine.replace(/^##\s*/, ''))}</h2>;
+             return <h2 key={index} className="text-xl font-bold text-emerald-400 mt-6 mb-3 border-b border-slate-300 dark:border-slate-700 pb-2">{parseInline(trimmedLine.replace(/^##\s*/, ''))}</h2>;
         }
 
         // H1 (#) - Raro, mas tratado como H2 grande
         if (trimmedLine.startsWith('# ')) {
-             return <h1 key={index} className="text-2xl font-black text-white mt-8 mb-4">{parseInline(trimmedLine.replace(/^#\s*/, ''))}</h1>;
+             return <h1 key={index} className="text-2xl font-black text-slate-900 dark:text-white mt-8 mb-4">{parseInline(trimmedLine.replace(/^#\s*/, ''))}</h1>;
         }
 
         // Listas (- ou *)
@@ -181,7 +181,7 @@ Aumente a carga horária em **resolução de questões** e reduza a leitura pass
              return (
                 <div key={index} className="flex gap-3 mb-2 ml-1">
                     <span className="text-cyan-500 mt-1.5 min-w-[6px] h-[6px] rounded-full bg-cyan-500 block"></span>
-                    <p className="text-slate-300 leading-relaxed text-sm md:text-base flex-1">
+                    <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm md:text-base flex-1">
                         {parseInline(trimmedLine.replace(/^[-*]\s*/, ''))}
                     </p>
                 </div>
@@ -192,21 +192,21 @@ Aumente a carga horária em **resolução de questões** e reduza a leitura pass
         if (!trimmedLine) return <div key={index} className="h-3"></div>;
 
         // Parágrafo Normal
-        return <p key={index} className="text-slate-300 mb-2 leading-relaxed text-sm md:text-base">{parseInline(trimmedLine)}</p>;
+        return <p key={index} className="text-slate-600 dark:text-slate-300 mb-2 leading-relaxed text-sm md:text-base">{parseInline(trimmedLine)}</p>;
     });
   }, []);
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6 h-full flex flex-col">
-       <div className="flex justify-between items-center border-b border-slate-800 pb-6 flex-shrink-0">
+       <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-6 flex-shrink-0">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3"><Newspaper className="text-cyan-500" /> Radar de Inteligência</h1>
-          <p className="text-slate-400 mt-1">Alvo: <span className="text-emerald-400 font-bold uppercase tracking-wider">{config.targetRole}</span></p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3"><Newspaper className="text-cyan-500" /> Radar de Inteligência</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">Alvo: <span className="text-emerald-400 font-bold uppercase tracking-wider">{config.targetRole}</span></p>
         </div>
-        <button onClick={fetchNews} disabled={loading} className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors text-sm border border-slate-700"><RefreshCw size={16} className={loading ? "animate-spin" : ""} />{loading ? "Varrendo..." : "Atualizar Radar"}</button>
+        <button onClick={fetchNews} disabled={loading} className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg transition-colors text-sm border border-slate-300 dark:border-slate-700"><RefreshCw size={16} className={loading ? "animate-spin" : ""} />{loading ? "Varrendo..." : "Atualizar Radar"}</button>
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 flex-1 min-h-0">
-          <div className="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl relative flex flex-col">
+          <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8 shadow-2xl relative flex flex-col">
               <div className="absolute top-0 right-0 p-4 opacity-10"><Globe size={120} /></div>
               
               <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 z-10 relative gap-2">
@@ -225,7 +225,7 @@ Aumente a carga horária em **resolução de questões** e reduza a leitura pass
                       <p>{errorDetail}</p>
                       {mode === 'demo' && (
                           <div className="flex items-center gap-3 mt-2">
-                              <a href="https://console.developers.google.com/apis/api/generativelanguage.googleapis.com/overview" target="_blank" rel="noopener noreferrer" className="underline hover:text-white">Verificar Console Google</a>
+                              <a href="https://console.developers.google.com/apis/api/generativelanguage.googleapis.com/overview" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-900 dark:text-white">Verificar Console Google</a>
                           </div>
                       )}
                   </div>
@@ -234,9 +234,9 @@ Aumente a carga horária em **resolução de questões** e reduza a leitura pass
               <div className="flex-1 overflow-y-auto custom-scrollbar z-10 pr-2">
                   {loading ? (
                       <div className="space-y-4 animate-pulse mt-8">
-                          <div className="h-4 bg-slate-800 rounded w-3/4"></div>
-                          <div className="h-4 bg-slate-800 rounded w-full"></div>
-                          <div className="h-4 bg-slate-800 rounded w-5/6"></div>
+                          <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded w-3/4"></div>
+                          <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded w-full"></div>
+                          <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded w-5/6"></div>
                       </div>
                   ) : briefing ? (
                       <div className="text-sm md:text-base">
@@ -249,13 +249,13 @@ Aumente a carga horária em **resolução de questões** e reduza a leitura pass
                   )}
               </div>
           </div>
-          <div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 flex flex-col h-full overflow-hidden">
+          <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 flex flex-col h-full overflow-hidden">
               <h3 className="text-slate-500 font-bold uppercase tracking-widest text-xs mb-4 flex items-center gap-2"><ExternalLink size={14} /> Fontes Detectadas</h3>
               <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3">
                   {loading ? <div className="text-center py-10 text-slate-600 text-xs">Validando...</div> : sources.length > 0 ? sources.map((source, idx) => (
-                      <a key={idx} href={source.url} target="_blank" rel="noopener noreferrer" className="block bg-slate-950 hover:bg-slate-800 border border-slate-800 hover:border-cyan-500/30 p-4 rounded-xl transition-all group">
+                      <a key={idx} href={source.url} target="_blank" rel="noopener noreferrer" className="block bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 hover:border-cyan-500/30 p-4 rounded-xl transition-all group">
                           <div className="flex justify-between items-start"><span className="text-[10px] font-bold text-cyan-600 uppercase mb-1 block">{source.domain}</span><ExternalLink size={12} className="text-slate-600 group-hover:text-cyan-400" /></div>
-                          <h4 className="text-sm font-medium text-slate-300 group-hover:text-white line-clamp-2 leading-snug">{source.title}</h4>
+                          <h4 className="text-sm font-medium text-slate-600 dark:text-slate-300 group-hover:text-slate-900 dark:text-white line-clamp-2 leading-snug">{source.title}</h4>
                       </a>
                   )) : (
                       <div className="flex flex-col items-center justify-center h-full text-slate-600 opacity-60">

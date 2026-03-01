@@ -56,16 +56,16 @@ export const StudySession: React.FC<Props> = ({ notebook, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
         
         {/* Header */}
-        <div className="p-6 bg-slate-800 border-b border-slate-700 flex justify-between items-start">
+        <div className="p-6 bg-slate-100 dark:bg-slate-800 border-b border-slate-300 dark:border-slate-700 flex justify-between items-start">
           <div>
-            <h2 className="text-xl font-bold text-white">{notebook.name}</h2>
-            <p className="text-slate-400 text-sm mt-1">{notebook.discipline} • {notebook.subtitle}</p>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">{notebook.name}</h2>
+            <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">{notebook.discipline} • {notebook.subtitle}</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-white transition-colors">
-            <X size={20} />
+          <button onClick={onClose} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white transition-colors">
+            <X size={24} />
           </button>
         </div>
 
@@ -86,20 +86,20 @@ export const StudySession: React.FC<Props> = ({ notebook, onClose }) => {
                     onClick={() => setIsActive(true)}
                     className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all hover:scale-[1.02]"
                   >
-                    <Play size={20} fill="currentColor" /> Iniciar Sessão
+                    <Play size={24} fill="currentColor" /> Iniciar Sessão
                   </button>
                 ) : (
                   <button 
                     onClick={handleFinish}
-                    className="flex-1 bg-red-600 hover:bg-red-500 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all hover:scale-[1.02]"
+                    className="flex-1 bg-red-600 hover:bg-red-500 text-slate-900 dark:text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all hover:scale-[1.02]"
                   >
-                    <Square size={20} fill="currentColor" /> Parar
+                    <Square size={24} fill="currentColor" /> Parar
                   </button>
                 )}
               </div>
               
-              <div className="mt-6 p-4 bg-slate-800/50 rounded-lg text-sm text-slate-400 w-full">
-                <p className="flex items-center gap-2 mb-2"><Timer size={14} /> Dica Estratégica:</p>
+              <div className="mt-6 p-4 bg-slate-100 dark:bg-slate-800/50 rounded-lg text-sm text-slate-500 dark:text-slate-400 w-full">
+                <p className="flex items-center gap-2 mb-2"><Timer size={16} /> Dica Estratégica:</p>
                 <p>Este tópico tem peso <strong>{notebook.weight}</strong>. Foque na lei seca para aumentar sua precisão de {notebook.accuracy}% para {notebook.targetAccuracy}%.</p>
               </div>
             </>
@@ -107,31 +107,31 @@ export const StudySession: React.FC<Props> = ({ notebook, onClose }) => {
             <form onSubmit={handleSubmit} className="w-full space-y-6">
               <div className="text-center mb-4">
                 <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto mb-2" />
-                <h3 className="text-lg font-bold text-white">Sessão Finalizada</h3>
-                <p className="text-slate-400">Registre seu desempenho para o algoritmo.</p>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">Sessão Finalizada</h3>
+                <p className="text-slate-500 dark:text-slate-400">Registre seu desempenho para o algoritmo.</p>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1 uppercase tracking-wider">Questões</label>
+                  <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Questões</label>
                   <input 
                     type="number" 
                     value={questions}
                     onChange={e => setQuestions(e.target.value)}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white text-center text-xl font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white text-center text-xl font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
                     placeholder="0"
                     min="1"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-slate-400 mb-1 uppercase tracking-wider">Acertos</label>
+                  <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Acertos</label>
                   <input 
                     type="number" 
                     value={correct}
                     onChange={e => setCorrect(e.target.value)}
-                    className={`w-full bg-slate-800 border rounded-lg p-3 text-white text-center text-xl font-bold focus:ring-2 outline-none
-                      ${isInvalid ? 'border-red-500 focus:ring-red-500' : 'border-slate-700 focus:ring-emerald-500'}
+                    className={`w-full bg-slate-100 dark:bg-slate-800 border rounded-lg p-3 text-slate-900 dark:text-white text-center text-xl font-bold focus:ring-2 outline-none
+                      ${isInvalid ? 'border-red-500 focus:ring-red-500' : 'border-slate-300 dark:border-slate-700 focus:ring-emerald-500'}
                     `}
                     placeholder="0"
                     min="0"
@@ -141,11 +141,11 @@ export const StudySession: React.FC<Props> = ({ notebook, onClose }) => {
               </div>
 
               {/* Real-time Feedback */}
-              <div className="bg-slate-800 rounded-xl p-4 flex flex-col items-center justify-center border border-slate-700">
+              <div className="bg-slate-100 dark:bg-slate-800 rounded-xl p-4 flex flex-col items-center justify-center border border-slate-300 dark:border-slate-700">
                   <span className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Precisão Calculada</span>
                   {isInvalid ? (
                     <span className="text-red-500 font-bold flex items-center gap-2">
-                       <AlertCircle size={16} /> Erro
+                       <AlertCircle size={18} /> Erro
                     </span>
                   ) : (
                     <span className={`text-3xl font-bold font-mono ${currentCalc >= notebook.targetAccuracy ? 'text-emerald-400' : 'text-amber-400'}`}>

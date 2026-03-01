@@ -41,6 +41,14 @@ export enum NotebookStatus {
   MASTERED = 'Dominado'
 }
 
+export interface Discipline {
+  id: string;
+  name: string;
+  edital?: string;
+  weight: Weight;
+  relevance: Relevance;
+}
+
 /**
  * Entidade Principal: Caderno (Notebook)
  * Representa um tópico atômico de estudo.

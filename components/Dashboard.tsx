@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useStore } from '../store';
+import { useTheme } from '../ThemeContext';
 import { QuadrantChart } from './QuadrantChart';
+import { DisciplineQuadrantChart } from './DisciplineQuadrantChart';
 import { WeeklyProgress } from './WeeklyProgress';
 import { Weight, WEIGHT_SCORE } from '../types';
 import { DEFAULT_ALGO_CONFIG } from '../utils/algorithm';
@@ -10,7 +12,7 @@ import {
   Target, Settings, TrendingUp, TrendingDown, Minus,
   PieChart as PieChartIcon, Activity, Siren, ArrowRight, CheckCircle2,
   Check, XCircle, Quote, ChevronDown, BarChart2,
-  RefreshCw, BrainCircuit, Crosshair, Scroll, Crown, Zap, Save, X, FileText, CalendarClock, AlertCircle, Edit2, Calendar, Key, ShieldCheck, Sparkles, Bot, AlertTriangle, Database, Terminal, Flame, Loader2, Settings2, HelpCircle, ChevronUp
+  RefreshCw, BrainCircuit, Crosshair, Scroll, Crown, Zap, Save, X, FileText, CalendarClock, AlertCircle, Edit2, Calendar, Key, ShieldCheck, Sparkles, Bot, AlertTriangle, Database, Terminal, Flame, Loader2, Settings2, HelpCircle, ChevronUp, Book
 } from 'lucide-react';
 
 import {
@@ -41,8 +43,6 @@ ChartJS.register(
   Filler
 );
 
-ChartJS.defaults.color = '#64748b';
-ChartJS.defaults.borderColor = '#1e293b';
 ChartJS.defaults.font.family = "Inter, sans-serif";
 ChartJS.defaults.font.size = 11;
 
@@ -53,14 +53,13 @@ const chartOptions = {
         y: {
             beginAtZero: true,
             max: 100,
-            grid: { color: '#1e293b', borderDash: [4, 4] },
-            ticks: { color: '#64748b', font: { weight: 'bold' } },
+            grid: { color: 'rgba(148, 163, 184, 0.1)', borderDash: [4, 4] },
+            ticks: { font: { weight: 'bold' } },
             border: { display: false }
         },
         x: {
             grid: { display: false },
             ticks: { 
-                color: '#94a3b8',
                 font: { weight: 'bold', size: 10 }
             },
             border: { display: false }
@@ -165,17 +164,17 @@ const DashboardSection = ({
     const [isOpen, setIsOpen] = useState(defaultOpen);
 
     return (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden mb-6 shadow-md transition-all">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden mb-6 shadow-md transition-all">
             <button 
                 onClick={() => setIsOpen(!isOpen)}
-                className={`w-full p-4 flex items-center justify-between transition-colors ${isOpen ? 'bg-slate-800/80' : 'hover:bg-slate-800/30'}`}
+                className={`w-full p-4 flex items-center justify-between transition-colors ${isOpen ? 'bg-slate-50 dark:bg-slate-800/80' : 'hover:bg-slate-50 dark:hover:bg-slate-800/30'}`}
             >
                 <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${isOpen ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-400'}`}>
+                    <div className={`p-2 rounded-lg ${isOpen ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
                         {icon}
                     </div>
                     <div className="text-left">
-                        <h3 className={`font-bold text-sm ${isOpen ? 'text-white' : 'text-slate-300'}`}>{title}</h3>
+                        <h3 className={`font-bold text-sm ${isOpen ? 'text-slate-900 dark:text-white' : 'text-slate-600 dark:text-slate-300'}`}>{title}</h3>
                         {subtitle && <p className="text-[10px] text-slate-500">{subtitle}</p>}
                     </div>
                 </div>
@@ -185,7 +184,7 @@ const DashboardSection = ({
             </button>
             
             {isOpen && (
-                <div className="p-6 border-t border-slate-800/50 bg-slate-900/50">
+                <div className="p-6 border-t border-slate-200 dark:border-slate-800/50 bg-white dark:bg-slate-900/50">
                     {children}
                 </div>
             )}
@@ -226,7 +225,8 @@ interface Props {
 }
 
 export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
-  const { notebooks, config, updateConfig, setFocusedNotebookId, cycles, activeCycleId, startSession, dbError } = useStore();
+  const { notebooks, disciplines, config, updateConfig, setFocusedNotebookId, cycles, activeCycleId, startSession, dbError } = useStore();
+  const { theme } = useTheme();
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [localConfig, setLocalConfig] = useState(config);
   const [apiKey, setApiKey] = useState('');
@@ -236,6 +236,16 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [quoteIndex, setQuoteIndex] = useState(0);
   const [expandedMetric, setExpandedMetric] = useState<'performance' | 'progress' | null>(null);
+
+  useEffect(() => {
+    if (theme === 'dark') {
+        ChartJS.defaults.color = '#94a3b8';
+        ChartJS.defaults.borderColor = '#1e293b';
+    } else {
+        ChartJS.defaults.color = '#475569';
+        ChartJS.defaults.borderColor = '#e2e8f0';
+    }
+  }, [theme]);
 
   useEffect(() => {
       if (isConfigOpen) {
@@ -574,25 +584,25 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8 pb-20 relative">
       <div className="flex justify-between items-center">
-          <h2 className="text-xl font-bold text-white">Dashboard Estratégico</h2>
-          <button onClick={() => { setLocalConfig(config); setIsConfigOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors text-sm border border-slate-700 shadow-sm hover:shadow-md">
+          <h2 className="text-xl font-bold text-slate-900 dark:text-white">Dashboard Estratégico</h2>
+          <button onClick={() => { setLocalConfig(config); setIsConfigOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg transition-colors text-sm border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md">
             <Settings size={16} /> Configurar
           </button>
       </div>
 
       {dbError && (
-          <div className="bg-red-500/10 border border-red-500/30 p-6 rounded-xl animate-in slide-in-from-top-4">
+          <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 p-6 rounded-xl animate-in slide-in-from-top-4">
               <div className="flex items-start gap-4">
-                  <div className="p-3 bg-red-600 rounded-lg text-white"><Database size={24} /></div>
+                  <div className="p-3 bg-red-100 dark:bg-red-600 rounded-lg text-red-600 dark:text-white"><Database size={24} /></div>
                   <div className="flex-1">
-                      <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">Configuração de Banco de Dados Pendente</h3>
+                      <h3 className="text-lg font-bold text-red-900 dark:text-white mb-2 flex items-center gap-2">Configuração de Banco de Dados Pendente</h3>
                       {!showSql ? (
-                          <button onClick={() => setShowSql(true)} className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold text-xs uppercase tracking-wider flex items-center gap-2 transition-colors shadow-lg shadow-red-900/20"><Terminal size={14} /> Mostrar Script</button>
+                          <button onClick={() => setShowSql(true)} className="px-4 py-2 bg-red-600 hover:bg-red-500 text-slate-900 dark:text-white rounded-lg font-bold text-xs uppercase tracking-wider flex items-center gap-2 transition-colors shadow-lg shadow-red-900/20"><Terminal size={14} /> Mostrar Script</button>
                       ) : (
                           <div className="space-y-2">
-                              <div className="bg-slate-950 border border-slate-800 rounded-lg p-3 relative group">
+                              <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-3 relative group">
                                   <textarea readOnly value={FIX_SQL} className="w-full h-40 bg-transparent text-emerald-400 font-mono text-xs outline-none resize-none" />
-                                  <button onClick={() => navigator.clipboard.writeText(FIX_SQL)} className="absolute top-2 right-2 bg-slate-800 hover:bg-slate-700 text-white px-2 py-1 rounded text-[10px] uppercase font-bold border border-slate-700">Copiar</button>
+                                  <button onClick={() => navigator.clipboard.writeText(FIX_SQL)} className="absolute top-2 right-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-700 text-slate-900 dark:text-white px-2 py-1 rounded text-[10px] uppercase font-bold border border-slate-300 dark:border-slate-700">Copiar</button>
                               </div>
                           </div>
                       )}
@@ -602,18 +612,18 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className={`bg-slate-50 text-slate-900 rounded-xl p-5 shadow-lg border border-slate-200 flex flex-col justify-between transition-all duration-300 relative overflow-hidden ${expandedMetric === 'performance' ? 'h-80' : 'h-32'}`}>
-              <div className="flex justify-between items-start"><span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Desempenho Global</span><button onClick={() => setExpandedMetric(expandedMetric === 'performance' ? null : 'performance')} className="text-slate-400 hover:text-emerald-600">{expandedMetric === 'performance' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}</button></div>
-              <div className="flex justify-between items-end"><div className="flex flex-col gap-0.5"><span className="text-xs font-bold text-emerald-600">{metrics.avgAccuracy}% Acertos</span><span className="text-xs font-bold text-red-500">{metrics.avgAccuracy > 0 ? 100 - metrics.avgAccuracy : 0}% Erros</span></div><span className="text-4xl font-black text-slate-900">{metrics.avgAccuracy}%</span></div>
+          <div className={`bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-xl p-5 shadow-lg border border-slate-200 dark:border-slate-800 flex flex-col justify-between transition-all duration-300 relative overflow-hidden ${expandedMetric === 'performance' ? 'h-80' : 'h-32'}`}>
+              <div className="flex justify-between items-start"><span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Desempenho Global</span><button onClick={() => setExpandedMetric(expandedMetric === 'performance' ? null : 'performance')} className="text-slate-500 dark:text-slate-400 hover:text-emerald-600">{expandedMetric === 'performance' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}</button></div>
+              <div className="flex justify-between items-end"><div className="flex flex-col gap-0.5"><span className="text-xs font-bold text-emerald-600">{metrics.avgAccuracy}% Acertos</span><span className="text-xs font-bold text-red-500">{metrics.avgAccuracy > 0 ? 100 - metrics.avgAccuracy : 0}% Erros</span></div><span className="text-4xl font-black text-slate-900 dark:text-white">{metrics.avgAccuracy}%</span></div>
               {expandedMetric === 'performance' && (
                   <div className="mt-6 flex-1 w-full relative animate-in fade-in slide-in-from-top-4">
                       <Bar data={{ labels: metrics.disciplineStats.map(d => d.name), datasets: [{ label: 'Acurácia (%)', data: metrics.disciplineStats.map(d => d.accuracy), backgroundColor: metrics.disciplineStats.map(d => d.accuracy < 70 ? '#ef4444' : '#10b981'), borderRadius: 4 }] }} options={{ ...barChartOptions, plugins: { ...barChartOptions.plugins, textOnBars: true } }} plugins={[textOnBarsPlugin]} />
                   </div>
               )}
           </div>
-          <div className={`bg-slate-50 text-slate-900 rounded-xl p-5 shadow-lg border border-slate-200 flex flex-col justify-between transition-all duration-300 relative overflow-hidden ${expandedMetric === 'progress' ? 'h-80' : 'h-32'}`}>
-              <div className="flex justify-between items-start"><span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Progresso Edital</span><button onClick={() => setExpandedMetric(expandedMetric === 'progress' ? null : 'progress')} className="text-slate-400 hover:text-emerald-600">{expandedMetric === 'progress' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}</button></div>
-              <div className="flex justify-between items-end"><div className="flex flex-col"><span className="text-xs font-semibold text-emerald-600">{metrics.completedTopics} Concluídos</span><span className="text-xs font-semibold text-orange-500">{metrics.pendingTopics} Pendentes</span></div><span className="text-4xl font-black text-slate-900">{metrics.progressPercent}%</span></div>
+          <div className={`bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-xl p-5 shadow-lg border border-slate-200 dark:border-slate-800 flex flex-col justify-between transition-all duration-300 relative overflow-hidden ${expandedMetric === 'progress' ? 'h-80' : 'h-32'}`}>
+              <div className="flex justify-between items-start"><span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Progresso Edital</span><button onClick={() => setExpandedMetric(expandedMetric === 'progress' ? null : 'progress')} className="text-slate-500 dark:text-slate-400 hover:text-emerald-600">{expandedMetric === 'progress' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}</button></div>
+              <div className="flex justify-between items-end"><div className="flex flex-col"><span className="text-xs font-semibold text-emerald-600">{metrics.completedTopics} Concluídos</span><span className="text-xs font-semibold text-orange-500">{metrics.pendingTopics} Pendentes</span></div><span className="text-4xl font-black text-slate-900 dark:text-white">{metrics.progressPercent}%</span></div>
               {expandedMetric === 'progress' && (
                   <div className="mt-6 flex-1 w-full relative animate-in fade-in slide-in-from-top-4">
                       <Bar data={{ labels: metrics.disciplineStats.map(d => d.name), datasets: [{ label: 'Conclusão (%)', data: metrics.disciplineStats.map(d => d.progress), backgroundColor: '#3b82f6', borderRadius: 4 }] }} options={barChartOptions} plugins={[textOnBarsPlugin]} />
@@ -623,52 +633,56 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-slate-900 text-slate-300 rounded-xl p-5 border border-slate-800 shadow-lg flex flex-col justify-between">
-              <div className="flex justify-between items-start mb-4"><div className="flex items-center gap-3"><div className="bg-slate-800 p-2 rounded-lg text-slate-500"><Flame size={18} className={metrics.currentStreak > 0 ? "text-orange-500 fill-orange-500 animate-pulse" : "text-slate-600"} /></div><div><h3 className="text-xs font-bold uppercase tracking-widest text-slate-400">Histórico de Foco</h3><p className="text-[10px] text-slate-500">{metrics.currentStreak} dias consecutivos</p></div></div><span className="text-[10px] uppercase font-bold text-slate-500 bg-slate-800 px-2 py-1 rounded border border-slate-700 tracking-wider">{metrics.monthName}</span></div>
-              <div className="flex flex-col items-center w-full"><div className="grid grid-cols-7 gap-1.5 mb-2 w-fit">{['D','S','T','Q','Q','S','S'].map((d, i) => (<div key={i} className="text-[9px] font-bold text-slate-600 w-9 text-center">{d}</div>))}</div><div className="grid grid-cols-7 gap-1.5 w-fit">{metrics.calendarGrid.map((day, idx) => (<div key={idx} className={`h-9 w-9 rounded-lg flex items-center justify-center transition-all relative group text-[10px] font-bold ${!day.day ? 'bg-transparent' : day.active ? 'bg-emerald-500 text-white shadow-md shadow-emerald-900/20' : day.isFuture ? 'bg-slate-900/30 text-slate-700 border border-slate-800/50' : 'bg-slate-800/50 text-slate-600 border border-slate-800'} ${day.isToday ? 'ring-1 ring-emerald-400 ring-offset-1 ring-offset-slate-900' : ''}`} title={day.date}>{day.day}</div>))}</div></div>
+          <div className="bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 rounded-xl p-5 border border-slate-200 dark:border-slate-800 shadow-lg flex flex-col justify-between">
+              <div className="flex justify-between items-start mb-4"><div className="flex items-center gap-3"><div className="bg-slate-100 dark:bg-slate-800 p-2 rounded-lg text-slate-500"><Flame size={18} className={metrics.currentStreak > 0 ? "text-orange-500 fill-orange-500 animate-pulse" : "text-slate-500 dark:text-slate-400 dark:text-slate-600"} /></div><div><h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Histórico de Foco</h3><p className="text-[10px] text-slate-500">{metrics.currentStreak} dias consecutivos</p></div></div><span className="text-[10px] uppercase font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border border-slate-200 dark:border-slate-700 tracking-wider">{metrics.monthName}</span></div>
+              <div className="flex flex-col items-center w-full"><div className="grid grid-cols-7 gap-1.5 mb-2 w-fit">{['D','S','T','Q','Q','S','S'].map((d, i) => (<div key={i} className="text-[9px] font-bold text-slate-500 dark:text-slate-400 dark:text-slate-600 w-9 text-center">{d}</div>))}</div><div className="grid grid-cols-7 gap-1.5 w-fit">{metrics.calendarGrid.map((day, idx) => (<div key={idx} className={`h-9 w-9 rounded-lg flex items-center justify-center transition-all relative group text-[10px] font-bold ${!day.day ? 'bg-transparent' : day.active ? 'bg-emerald-500 text-slate-900 dark:text-white shadow-md shadow-emerald-900/20' : day.isFuture ? 'bg-slate-50 dark:bg-slate-900/30 text-slate-600 dark:text-slate-300 dark:text-slate-700 border border-slate-100 dark:border-slate-800/50' : 'bg-slate-100 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 dark:text-slate-600 border border-slate-200 dark:border-slate-800'} ${day.isToday ? 'ring-1 ring-emerald-400 ring-offset-1 ring-offset-white dark:ring-offset-slate-900' : ''}`} title={day.date}>{day.day}</div>))}</div></div>
           </div>
           <div className="h-full"><WeeklyProgress /></div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {finalRecommendation && finalRecommendation.notebook && (
-            <div className={`w-full p-1 rounded-2xl bg-gradient-to-r transition-all duration-500 ${finalRecommendation.isAi ? 'from-purple-500 via-indigo-500 to-emerald-500 shadow-[0_0_20px_rgba(139,92,246,0.3)]' : 'from-transparent via-slate-700 to-transparent'}`}>
-                <div className={`relative w-full rounded-2xl p-6 border flex flex-col gap-4 shadow-2xl overflow-hidden h-full justify-between transition-colors ${finalRecommendation.isAi ? 'bg-slate-900 border-transparent' : (staticRecommendation?.colorClass || 'bg-slate-900 border-slate-800')}`}>
-                    <div className="flex justify-between items-start">{finalRecommendation.isAi ? (<span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold uppercase tracking-widest animate-pulse"><BrainCircuit size={12} /> Inteligência Atena</span>) : (<span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-800 text-slate-400 border border-slate-700 text-[10px] font-bold uppercase tracking-widest"><Activity size={12} /> Sugestão Algorítmica</span>)}{!finalRecommendation.isAi && (<button onClick={handleGenerateAiInsight} disabled={isAnalyzing} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-emerald-400 hover:text-white bg-emerald-900/20 hover:bg-emerald-600 px-3 py-1.5 rounded-lg border border-emerald-500/20 transition-all">{isAnalyzing ? <RefreshCw className="animate-spin" size={12} /> : <Sparkles size={12} />}{isAnalyzing ? "Analisando..." : "Invocar IA"}</button>)}</div>
-                    <div className="flex items-start gap-5 relative z-10"><div className={`p-4 rounded-xl border shadow-lg backdrop-blur-md ${finalRecommendation.isAi ? 'bg-indigo-900/20 border-indigo-500/30 text-indigo-400' : 'bg-slate-950/80 border-white/10 text-emerald-500'}`}>{finalRecommendation.isAi ? <Bot size={28} /> : (staticRecommendation?.icon || <Zap size={24} />)}</div><div><h3 className="text-xl font-bold text-white mb-2 leading-tight">{finalRecommendation.title || `Atenção: ${finalRecommendation.notebook.discipline}`}</h3><p className="text-sm text-slate-300 max-w-sm leading-relaxed mb-2">{finalRecommendation.reason}</p>{finalRecommendation.isAi && finalRecommendation.strategy && (<div className="mt-3 pl-3 border-l-2 border-indigo-500/50 text-xs text-indigo-200 italic">"{finalRecommendation.strategy}"</div>)}</div></div>
-                    <button onClick={() => { setFocusedNotebookId(finalRecommendation.notebook!.id); onNavigate('library'); }} className={`w-full py-4 font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg ${finalRecommendation.isAi ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white' : 'bg-white text-slate-950 hover:bg-slate-200'}`}><ArrowRight size={20} /> Abrir no Banco</button>
+            <div className={`w-full p-1 rounded-2xl bg-gradient-to-r transition-all duration-500 ${finalRecommendation.isAi ? 'from-purple-500 via-indigo-500 to-emerald-500 shadow-[0_0_20px_rgba(139,92,246,0.3)]' : 'from-transparent via-slate-200 dark:via-slate-700 to-transparent'}`}>
+                <div className={`relative w-full rounded-2xl p-6 border flex flex-col gap-4 shadow-2xl overflow-hidden h-full justify-between transition-colors ${finalRecommendation.isAi ? 'bg-white dark:bg-slate-900 border-transparent' : (staticRecommendation?.colorClass || 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800')}`}>
+                    <div className="flex justify-between items-start">{finalRecommendation.isAi ? (<span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 border border-indigo-500/30 text-[10px] font-bold uppercase tracking-widest animate-pulse"><BrainCircuit size={12} /> Inteligência Atena</span>) : (<span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 text-[10px] font-bold uppercase tracking-widest"><Activity size={12} /> Sugestão Algorítmica</span>)}{!finalRecommendation.isAi && (<button onClick={handleGenerateAiInsight} disabled={isAnalyzing} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 hover:text-white bg-emerald-100 dark:bg-emerald-900/20 hover:bg-emerald-600 px-3 py-1.5 rounded-lg border border-emerald-500/20 transition-all">{isAnalyzing ? <RefreshCw className="animate-spin" size={12} /> : <Sparkles size={12} />}{isAnalyzing ? "Analisando..." : "Invocar IA"}</button>)}</div>
+                    <div className="flex items-start gap-5 relative z-10"><div className={`p-4 rounded-xl border shadow-lg backdrop-blur-md ${finalRecommendation.isAi ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400' : 'bg-slate-50 dark:bg-slate-950/80 border-slate-200 dark:border-white/10 text-emerald-600 dark:text-emerald-500'}`}>{finalRecommendation.isAi ? <Bot size={28} /> : (staticRecommendation?.icon || <Zap size={24} />)}</div><div><h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 leading-tight">{finalRecommendation.title || `Atenção: ${finalRecommendation.notebook.discipline}`}</h3><p className="text-sm text-slate-600 dark:text-slate-300 max-w-sm leading-relaxed mb-2">{finalRecommendation.reason}</p>{finalRecommendation.isAi && finalRecommendation.strategy && (<div className="mt-3 pl-3 border-l-2 border-indigo-500/50 text-xs text-indigo-600 dark:text-indigo-200 italic">"{finalRecommendation.strategy}"</div>)}</div></div>
+                    <button onClick={() => { setFocusedNotebookId(finalRecommendation.notebook!.id); onNavigate('library'); }} className={`w-full py-4 font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg ${finalRecommendation.isAi ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-slate-900 dark:text-white' : 'bg-slate-100 dark:bg-white text-slate-900 hover:bg-slate-200'}`}><ArrowRight size={20} /> Abrir no Banco</button>
                 </div>
             </div>
           )}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col h-full min-h-[340px] shadow-2xl relative overflow-hidden">
-             <div className={`absolute top-0 right-0 m-6 px-3 py-2 rounded-lg border backdrop-blur-md z-10 flex items-center gap-3 transition-all duration-500 ${evolutionData.trend.status === 'up' ? 'bg-emerald-900/40 border-emerald-500/30 text-emerald-100' : evolutionData.trend.status === 'down' ? 'bg-red-900/40 border-red-500/30 text-red-100' : 'bg-slate-800/60 border-slate-700 text-slate-300'}`}>
-                 <div className={`p-1.5 rounded-full ${evolutionData.trend.status === 'up' ? 'bg-emerald-500 text-white' : evolutionData.trend.status === 'down' ? 'bg-red-500 text-white' : 'bg-slate-600 text-white'}`}>{evolutionData.trend.status === 'up' ? <TrendingUp size={14} /> : evolutionData.trend.status === 'down' ? <TrendingDown size={14} /> : <Minus size={14} />}</div>
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 flex flex-col h-full min-h-[340px] shadow-2xl relative overflow-hidden">
+             <div className={`absolute top-0 right-0 m-6 px-3 py-2 rounded-lg border backdrop-blur-md z-10 flex items-center gap-3 transition-all duration-500 ${evolutionData.trend.status === 'up' ? 'bg-emerald-100 dark:bg-emerald-900/40 border-emerald-500/30 text-emerald-700 dark:text-emerald-100' : evolutionData.trend.status === 'down' ? 'bg-red-100 dark:bg-red-900/40 border-red-500/30 text-red-700 dark:text-red-100' : 'bg-slate-100 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'}`}>
+                 <div className={`p-1.5 rounded-full ${evolutionData.trend.status === 'up' ? 'bg-emerald-500 text-slate-900 dark:text-white' : evolutionData.trend.status === 'down' ? 'bg-red-500 text-slate-900 dark:text-white' : 'bg-slate-400 dark:bg-slate-600 text-slate-900 dark:text-white'}`}>{evolutionData.trend.status === 'up' ? <TrendingUp size={14} /> : evolutionData.trend.status === 'down' ? <TrendingDown size={14} /> : <Minus size={14} />}</div>
                  <div className="flex flex-col"><span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Análise de Tendência</span><span className="text-xs font-medium leading-tight max-w-[180px]">{evolutionData.trend.message}</span></div>
              </div>
-             <div className="flex justify-between items-end mb-6"><div><h3 className="text-xl font-bold text-white flex items-center gap-2"><TrendingUp size={24} className="text-emerald-500"/>Evolução</h3><p className="text-xs text-slate-400 mt-1">Média de acurácia semanal</p></div></div>
+             <div className="flex justify-between items-end mb-6"><div><h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2"><TrendingUp size={24} className="text-emerald-500"/>Evolução</h3><p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Média de acurácia semanal</p></div></div>
              <div className="flex-1 w-full relative"><Line data={evolutionData.chartData} options={chartOptions} /></div>
           </div>
       </div>
 
-      <div className="w-full bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl relative overflow-hidden group flex flex-col md:flex-row min-h-[240px]">
-          <div className="flex-1 p-6 md:p-8 flex flex-col justify-center relative z-10"><div className="inline-flex items-center gap-2 mb-4 px-2 py-1 bg-emerald-950/30 border border-emerald-500/20 rounded text-emerald-400 text-[10px] font-bold uppercase tracking-widest w-fit"><Crown size={12} /> Oráculo de Elite</div><h3 className="text-xl md:text-2xl font-serif text-slate-100 italic leading-relaxed mb-4 max-w-2xl">"{nietzscheItem.quote}"</h3><div className="flex items-center gap-3 text-slate-500 text-xs font-bold mb-6"><Scroll size={14} className="text-slate-600"/> <span className="uppercase tracking-wider">{nietzscheItem.source}</span></div><div className="bg-slate-950/50 border-l-2 border-emerald-500/50 pl-4 py-2 rounded-r-lg max-w-xl"><p className="text-slate-400 text-xs leading-relaxed"><strong className="text-emerald-500 block mb-1 uppercase text-[9px] tracking-wider">Estratégia:</strong>{nietzscheItem.context}</p></div></div>
-          <div className="w-full md:w-1/3 lg:w-1/4 relative min-h-[200px] md:min-h-full"><div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-slate-900 via-slate-900/20 to-transparent z-10"></div><img src="https://i.postimg.cc/rFFwpKjm/Gemini-Generated-Image-tchb4stchb4stchb.png" className="w-full h-full object-cover object-top grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700" alt="Friedrich Nietzsche" /></div>
+      <div className="w-full bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl relative overflow-hidden group flex flex-col md:flex-row min-h-[240px]">
+          <div className="flex-1 p-6 md:p-8 flex flex-col justify-center relative z-10"><div className="inline-flex items-center gap-2 mb-4 px-2 py-1 bg-emerald-100 dark:bg-emerald-950/30 border border-emerald-500/20 rounded text-emerald-600 dark:text-emerald-400 text-[10px] font-bold uppercase tracking-widest w-fit"><Crown size={12} /> Oráculo de Elite</div><h3 className="text-xl md:text-2xl font-serif text-slate-900 dark:text-slate-100 italic leading-relaxed mb-4 max-w-2xl">"{nietzscheItem.quote}"</h3><div className="flex items-center gap-3 text-slate-500 text-xs font-bold mb-6"><Scroll size={14} className="text-slate-500 dark:text-slate-400 dark:text-slate-600"/> <span className="uppercase tracking-wider">{nietzscheItem.source}</span></div><div className="bg-slate-50 dark:bg-slate-950/50 border-l-2 border-emerald-500/50 pl-4 py-2 rounded-r-lg max-w-xl"><p className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed"><strong className="text-emerald-600 dark:text-emerald-500 block mb-1 uppercase text-[9px] tracking-wider">Estratégia:</strong>{nietzscheItem.context}</p></div></div>
+          <div className="w-full md:w-1/3 lg:w-1/4 relative min-h-[200px] md:min-h-full"><div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-white dark:from-slate-900 via-white/20 dark:via-slate-900/20 to-transparent z-10"></div><img src="https://i.postimg.cc/rFFwpKjm/Gemini-Generated-Image-tchb4stchb4stchb.png" className="w-full h-full object-cover object-top grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700" alt="Friedrich Nietzsche" /></div>
       </div>
 
       <DashboardSection title="Radiografia Tática" subtitle="Matriz Estratégica" icon={<Target size={20} />} defaultOpen={true}>
           <div className="w-full"><QuadrantChart data={notebooks.filter(n => n.discipline !== 'Revisão Geral')} onNavigate={onNavigate} /></div>
       </DashboardSection>
 
+      <DashboardSection title="Radiografia de Disciplinas" subtitle="Matriz de Disciplinas Mães" icon={<Book size={20} />} defaultOpen={false}>
+          <div className="w-full"><DisciplineQuadrantChart data={disciplines} onNavigate={onNavigate} /></div>
+      </DashboardSection>
+
       {isConfigOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900"><h2 className="text-xl font-bold text-white flex items-center gap-2"><Settings size={20} className="text-emerald-500"/> Configurações do Ciclo</h2><button onClick={() => !isSaving && setIsConfigOpen(false)} disabled={isSaving} className="text-slate-400 hover:text-white"><X size={24} /></button></div>
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900"><h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2"><Settings size={20} className="text-emerald-500"/> Configurações do Ciclo</h2><button onClick={() => !isSaving && setIsConfigOpen(false)} disabled={isSaving} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"><X size={24} /></button></div>
             <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-8">
-              <div className="space-y-4"><h3 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2 flex items-center gap-2"><FileText size={16} /> Configuração do Edital</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Cargo Alvo</label><input type="text" value={localConfig.targetRole} onChange={(e) => setLocalConfig({...localConfig, targetRole: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /></div><div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Banca Examinadora</label><input type="text" value={localConfig.banca || ''} onChange={(e) => setLocalConfig({...localConfig, banca: e.target.value})} placeholder="Ex: FGV, Cebraspe" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /></div></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Data da Prova</label><div className="relative"><Calendar className="absolute left-3 top-3 text-slate-500" size={16} /><input type="date" value={localConfig.examDate || ''} onChange={(e) => setLocalConfig({...localConfig, examDate: e.target.value})} className="w-full bg-slate-950 border border-slate-700 rounded-lg py-3 pl-10 text-white outline-none focus:border-emerald-500 cursor-pointer" /></div></div><div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Link do Edital</label><input type="url" value={localConfig.editalLink || ''} onChange={(e) => setLocalConfig({...localConfig, editalLink: e.target.value})} placeholder="https://..." className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /></div></div><div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase">Conteúdo Programático</label><textarea value={localConfig.editalText || ''} onChange={(e) => setLocalConfig({...localConfig, editalText: e.target.value})} className="w-full h-32 bg-slate-950 border border-slate-700 rounded-lg p-3 text-xs text-slate-300 font-mono outline-none focus:border-emerald-500 resize-none custom-scrollbar" /></div></div>
-              <div className="space-y-4 pt-4 border-t border-slate-800"><h3 className="text-sm font-bold text-cyan-500 uppercase tracking-widest border-b border-cyan-500/20 pb-2 flex items-center gap-2"><Key size={16} /> Integração IA</h3><div className="bg-slate-950 border border-slate-800 p-4 rounded-xl"><label className="block text-xs font-bold text-slate-400 mb-2 uppercase">Google Gemini API Key</label><input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="AIzaSy..." className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-cyan-500 font-mono text-sm" /></div></div>
-              <div className="space-y-4 pt-4 border-t border-slate-800"><h3 className="text-sm font-bold text-purple-500 uppercase tracking-widest border-b border-purple-500/20 pb-2 flex items-center gap-2"><BrainCircuit size={16} /> Ajuste do Algoritmo</h3><div className="grid grid-cols-2 md:grid-cols-4 gap-4">{ORDERED_ALGO_KEYS.map((key) => (<div key={key} className="group relative"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-help flex items-center gap-1">{ALGO_TOOLTIPS[key]?.title || key} <HelpCircle size={10}/></label><input type="number" value={currentIntervals[key as keyof typeof currentIntervals]} onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-center font-bold outline-none focus:border-purple-500" /></div>))}</div></div>
+              <div className="space-y-4"><h3 className="text-sm font-bold text-emerald-600 dark:text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2 flex items-center gap-2"><FileText size={16} /> Configuração do Edital</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Cargo Alvo</label><input type="text" value={localConfig.targetRole} onChange={(e) => setLocalConfig({...localConfig, targetRole: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500" /></div><div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Banca Examinadora</label><input type="text" value={localConfig.banca || ''} onChange={(e) => setLocalConfig({...localConfig, banca: e.target.value})} placeholder="Ex: FGV, Cebraspe" className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500" /></div></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Data da Prova</label><div className="relative"><Calendar className="absolute left-3 top-3 text-slate-500" size={16} /><input type="date" value={localConfig.examDate || ''} onChange={(e) => setLocalConfig({...localConfig, examDate: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg py-3 pl-10 text-slate-900 dark:text-white outline-none focus:border-emerald-500 cursor-pointer" /></div></div><div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Link do Edital</label><input type="url" value={localConfig.editalLink || ''} onChange={(e) => setLocalConfig({...localConfig, editalLink: e.target.value})} placeholder="https://..." className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500" /></div></div><div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Conteúdo Programático</label><textarea value={localConfig.editalText || ''} onChange={(e) => setLocalConfig({...localConfig, editalText: e.target.value})} className="w-full h-32 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-xs text-slate-600 dark:text-slate-300 font-mono outline-none focus:border-emerald-500 resize-none custom-scrollbar" /></div></div>
+              <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800"><h3 className="text-sm font-bold text-cyan-600 dark:text-cyan-500 uppercase tracking-widest border-b border-cyan-500/20 pb-2 flex items-center gap-2"><Key size={16} /> Integração IA</h3><div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-4 rounded-xl"><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase">Google Gemini API Key</label><input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="AIzaSy..." className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-cyan-500 font-mono text-sm" /></div></div>
+              <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800"><h3 className="text-sm font-bold text-purple-600 dark:text-purple-500 uppercase tracking-widest border-b border-purple-500/20 pb-2 flex items-center gap-2"><BrainCircuit size={16} /> Ajuste do Algoritmo</h3><div className="grid grid-cols-2 md:grid-cols-4 gap-4">{ORDERED_ALGO_KEYS.map((key) => (<div key={key} className="group relative"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-help flex items-center gap-1">{ALGO_TOOLTIPS[key]?.title || key} <HelpCircle size={10}/></label><input type="number" value={currentIntervals[key as keyof typeof currentIntervals]} onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-white text-center font-bold outline-none focus:border-purple-500" /></div>))}</div></div>
             </div>
-            <div className="p-6 border-t border-slate-800 bg-slate-900 flex justify-end gap-3"><button onClick={() => !isSaving && setIsConfigOpen(false)} disabled={isSaving} className="px-4 py-2 text-slate-400 hover:text-white">Cancelar</button><button onClick={handleSaveConfig} disabled={isSaving} className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg flex items-center gap-2 disabled:opacity-50">{isSaving ? <Loader2 size={18} className="animate-spin" /> : <Settings2 size={18} />}Salvar Alterações</button></div>
+            <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-end gap-3"><button onClick={() => !isSaving && setIsConfigOpen(false)} disabled={isSaving} className="px-4 py-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">Cancelar</button><button onClick={handleSaveConfig} disabled={isSaving} className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg flex items-center gap-2 disabled:opacity-50">{isSaving ? <Loader2 size={18} className="animate-spin" /> : <Settings2 size={18} />}Salvar Alterações</button></div>
           </div>
         </div>
       )}

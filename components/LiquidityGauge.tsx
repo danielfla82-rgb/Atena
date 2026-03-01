@@ -40,16 +40,16 @@ export const LiquidityGauge: React.FC<Props> = ({ notebooks }) => {
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 relative overflow-hidden group">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 relative overflow-hidden group">
       
       {/* Header */}
       <div className="flex justify-between items-start mb-6 z-10 relative">
         <div>
-           <h3 className="text-white font-bold text-lg flex items-center gap-2">
+           <h3 className="text-slate-900 dark:text-white font-bold text-lg flex items-center gap-2">
              <Droplets className="text-cyan-500" size={20} /> 
              Liquidez do Edital
            </h3>
-           <p className="text-slate-400 text-xs mt-1">Sua retenção real vs. matérias apenas "lidas".</p>
+           <p className="text-slate-500 dark:text-slate-400 text-xs mt-1">Sua retenção real vs. matérias apenas "lidas".</p>
         </div>
         <div className="text-right">
             <span className={`text-3xl font-black ${getStatusColor(stats.liquidity)}`}>{stats.liquidity}%</span>
@@ -58,7 +58,7 @@ export const LiquidityGauge: React.FC<Props> = ({ notebooks }) => {
       </div>
 
       {/* Main Gauge Bar */}
-      <div className="relative h-12 bg-slate-950 rounded-lg border border-slate-800 mb-6 overflow-hidden flex items-center">
+      <div className="relative h-12 bg-slate-50 dark:bg-slate-950 rounded-lg border border-slate-200 dark:border-slate-800 mb-6 overflow-hidden flex items-center">
           {/* Background Grid Pattern */}
           <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagmonds-light.png')] opacity-5 pointer-events-none"></div>
           
@@ -80,13 +80,13 @@ export const LiquidityGauge: React.FC<Props> = ({ notebooks }) => {
       </div>
 
       {/* Legend / Metrics */}
-      <div className="grid grid-cols-3 gap-4 border-t border-slate-800 pt-4">
+      <div className="grid grid-cols-3 gap-4 border-t border-slate-200 dark:border-slate-800 pt-4">
           
           <div className="flex flex-col gap-1">
               <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider flex items-center gap-1">
                   Cobertura Bruta <Info size={10} />
               </span>
-              <span className="text-white font-mono font-bold text-lg">{stats.coverage}%</span>
+              <span className="text-slate-900 dark:text-white font-mono font-bold text-lg">{stats.coverage}%</span>
               <span className="text-[9px] text-slate-500">Matérias estudadas</span>
           </div>
 

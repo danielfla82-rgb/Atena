@@ -48,19 +48,19 @@ const QuizCard = memo(({ post }: { post: FeedPost }) => {
     if (!post.quiz) return null;
 
     return (
-        <div className="bg-slate-800/50 p-5 rounded-xl border border-slate-700/50 mt-2">
-            <h3 className="text-white font-bold text-base mb-4 flex items-start gap-2">
-                <HelpCircle className="text-purple-400 shrink-0 mt-1" size={18} />
+        <div className="bg-slate-100 dark:bg-slate-800/50 p-5 rounded-xl border border-slate-300 dark:border-slate-700/50 mt-2">
+            <h3 className="text-slate-900 dark:text-white font-bold text-base mb-4 flex items-start gap-2">
+                <HelpCircle className="text-purple-400 shrink-0 mt-1" size={20} />
                 {post.quiz.question}
             </h3>
             
             <div className="space-y-2">
                 {post.quiz.options.map((option, idx) => {
-                    let btnClass = "bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800";
+                    let btnClass = "bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-800";
                     if (isRevealed) {
                         if (idx === post.quiz!.correctIndex) btnClass = "bg-emerald-900/30 border-emerald-500 text-emerald-100 shadow-[0_0_10px_rgba(16,185,129,0.2)]";
                         else if (idx === selectedOption) btnClass = "bg-red-900/30 border-red-500 text-red-100";
-                        else btnClass = "bg-slate-900/50 border-slate-800 text-slate-500 opacity-50";
+                        else btnClass = "bg-white dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 text-slate-500 opacity-50";
                     }
 
                     return (
@@ -76,7 +76,7 @@ const QuizCard = memo(({ post }: { post: FeedPost }) => {
                 })}
             </div>
             {isRevealed && (
-                <div className="mt-3 p-3 bg-slate-900 rounded-lg border border-slate-800 animate-in fade-in slide-in-from-top-1 text-[11px] text-slate-400 italic">
+                <div className="mt-3 p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 animate-in fade-in slide-in-from-top-1 text-[11px] text-slate-500 dark:text-slate-400 italic">
                     {post.quiz.explanation}
                 </div>
             )}
@@ -87,16 +87,16 @@ const QuizCard = memo(({ post }: { post: FeedPost }) => {
 // --- SUB-COMPONENT: FEED POST ITEM ---
 const FeedPostItem = memo(({ post, toggleLike, toggleSave }: { post: FeedPost, toggleLike: (id: string) => void, toggleSave: (id: string) => void }) => {
     return (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="p-3 flex items-center justify-between border-b border-slate-800/50 bg-slate-900/50">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="p-3 flex items-center justify-between border-b border-slate-200 dark:border-slate-800/50 bg-white dark:bg-slate-900/50">
                 <div className="flex items-center gap-3">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${post.type === 'quiz' ? 'bg-purple-600' : 'bg-emerald-600'}`}>
-                        {post.type === 'quiz' ? <HelpCircle size={14} /> : <Bot size={14} />}
+                        {post.type === 'quiz' ? <HelpCircle size={16} /> : <Bot size={16} />}
                     </div>
                     <div className="min-w-0">
-                        <h3 className="text-xs font-bold text-white truncate">{post.discipline}</h3>
+                        <h3 className="text-xs font-bold text-slate-900 dark:text-white truncate">{post.discipline}</h3>
                         <p className="text-[10px] text-emerald-400 font-medium truncate flex items-center gap-1">
-                            {post.isFileContext && <Paperclip size={10} />}
+                            {post.isFileContext && <Paperclip size={12} />}
                             {post.topic}
                         </p>
                     </div>
@@ -105,24 +105,24 @@ const FeedPostItem = memo(({ post, toggleLike, toggleSave }: { post: FeedPost, t
             </div>
 
             <div className="p-5">
-                <h2 className="text-lg font-bold text-white leading-tight mb-3 tracking-tight">{post.headline}</h2>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white leading-tight mb-3 tracking-tight">{post.headline}</h2>
                 {post.type === 'quiz' ? (
                     <QuizCard post={post} />
                 ) : (
-                    <div className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">{post.content}</div>
+                    <div className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">{post.content}</div>
                 )}
             </div>
 
-            <div className="p-3 flex items-center justify-between bg-slate-950/50 border-t border-slate-800/50">
+            <div className="p-3 flex items-center justify-between bg-slate-50 dark:bg-slate-950/50 border-t border-slate-200 dark:border-slate-800/50">
                 <div className="flex items-center gap-4">
                     <button onClick={() => toggleLike(post.id)} className="flex items-center gap-1 group">
-                        <Heart size={18} className={`${post.isLiked ? 'fill-red-500 text-red-500' : 'text-slate-500 group-hover:text-white'}`} />
+                        <Heart size={20} className={`${post.isLiked ? 'fill-red-500 text-red-500' : 'text-slate-500 group-hover:text-slate-900 dark:text-white'}`} />
                         <span className="text-[10px] font-bold text-slate-500">{post.likes}</span>
                     </button>
-                    <button className="text-slate-500 hover:text-white transition-colors"><Share2 size={18} /></button>
+                    <button className="text-slate-500 hover:text-slate-900 dark:text-white transition-colors"><Share2 size={20} /></button>
                 </div>
                 <button onClick={() => toggleSave(post.id)}>
-                    <Bookmark size={18} className={`${post.isSaved ? 'fill-emerald-500 text-emerald-500' : 'text-slate-500 group-hover:text-white'}`} />
+                    <Bookmark size={20} className={`${post.isSaved ? 'fill-emerald-500 text-emerald-500' : 'text-slate-500 group-hover:text-slate-900 dark:text-white'}`} />
                 </button>
             </div>
         </div>
@@ -406,59 +406,59 @@ export const StudyFeed: React.FC = () => {
     };
 
     return (
-        <div className="h-full bg-slate-950 overflow-y-auto custom-scrollbar pt-6 pb-24 px-4">
+        <div className="h-full bg-slate-50 dark:bg-slate-950 overflow-y-auto custom-scrollbar pt-6 pb-24 px-4">
             <div className="max-w-md mx-auto space-y-6">
                 
                 {/* Mode Selector */}
-                <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800 shadow-lg">
-                    <button onClick={() => setMode('general')} className={`flex-1 py-2 text-xs font-bold uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-2 ${mode === 'general' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-white'}`}>
-                        <Layers size={14} /> Geral
+                <div className="flex bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800 shadow-lg">
+                    <button onClick={() => setMode('general')} className={`flex-1 py-2 text-xs font-bold uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-2 ${mode === 'general' ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white shadow' : 'text-slate-500 hover:text-slate-900 dark:text-white'}`}>
+                        <Layers size={16} /> Geral
                     </button>
-                    <button onClick={() => setMode('custom')} className={`flex-1 py-2 text-xs font-bold uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-2 ${mode === 'custom' ? 'bg-slate-800 text-emerald-400 shadow' : 'text-slate-500 hover:text-emerald-400'}`}>
-                        <Upload size={14} /> Arquivo
+                    <button onClick={() => setMode('custom')} className={`flex-1 py-2 text-xs font-bold uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-2 ${mode === 'custom' ? 'bg-slate-100 dark:bg-slate-800 text-emerald-400 shadow' : 'text-slate-500 hover:text-emerald-400'}`}>
+                        <Upload size={16} /> Arquivo
                     </button>
                 </div>
 
                 {/* Filters */}
                 {mode === 'general' && disciplinesList.length > 0 && (
                     <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar no-scrollbar">
-                        <button onClick={() => setSelectedDiscipline(null)} className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase border transition-all whitespace-nowrap ${!selectedDiscipline ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-900/20' : 'bg-slate-900 text-slate-500 border-slate-800'}`}>Todas</button>
+                        <button onClick={() => setSelectedDiscipline(null)} className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase border transition-all whitespace-nowrap ${!selectedDiscipline ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-900/20' : 'bg-white dark:bg-slate-900 text-slate-500 border-slate-200 dark:border-slate-800'}`}>Todas</button>
                         {disciplinesList.map(d => (
-                            <button key={d} onClick={() => setSelectedDiscipline(d)} className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase border transition-all whitespace-nowrap ${selectedDiscipline === d ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-900/20' : 'bg-slate-900 text-slate-500 border-slate-800'}`}>{d}</button>
+                            <button key={d} onClick={() => setSelectedDiscipline(d)} className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase border transition-all whitespace-nowrap ${selectedDiscipline === d ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-900/20' : 'bg-white dark:bg-slate-900 text-slate-500 border-slate-200 dark:border-slate-800'}`}>{d}</button>
                         ))}
                     </div>
                 )}
 
                 {/* File Upload Area */}
                 {mode === 'custom' && !customFile && (
-                    <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-slate-800 hover:border-emerald-500/50 rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer transition-all bg-slate-900/30 group">
-                        <Upload size={32} className="text-slate-600 group-hover:text-emerald-500 mb-2" />
+                    <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer transition-all bg-white dark:bg-slate-900/30 group">
+                        <Upload size={36} className="text-slate-600 group-hover:text-emerald-500 mb-2" />
                         <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Enviar PDF, TXT ou Imagem</p>
                         <input type="file" ref={fileInputRef} className="hidden" accept=".pdf,.txt,image/*" onChange={handleFileUpload} />
                     </div>
                 )}
 
                 {customFile && mode === 'custom' && !hasStarted && (
-                    <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl flex items-center justify-between">
                         <div className="flex items-center gap-3 overflow-hidden">
-                            <FileText className="text-emerald-500 shrink-0" size={20} />
-                            <span className="text-xs text-slate-300 truncate font-bold">{customFile.name}</span>
+                            <FileText className="text-emerald-500 shrink-0" size={24} />
+                            <span className="text-xs text-slate-600 dark:text-slate-300 truncate font-bold">{customFile.name}</span>
                         </div>
-                        <button onClick={() => setCustomFile(null)} className="text-slate-500 hover:text-white"><X size={16}/></button>
+                        <button onClick={() => setCustomFile(null)} className="text-slate-500 hover:text-slate-900 dark:text-white"><X size={18}/></button>
                     </div>
                 )}
 
                 {/* Start Button */}
                 {!hasStarted && (
-                    <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl text-center space-y-4 shadow-2xl">
-                        <Bot size={48} className="mx-auto text-emerald-500" />
-                        <h3 className="text-white font-bold">Tutor de Elite Pronto</h3>
-                        <p className="text-xs text-slate-400">Vou cruzar suas anotações e cadernos para gerar insights exclusivos e desafios de memorização.</p>
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl text-center space-y-4 shadow-2xl">
+                        <Bot size={52} className="mx-auto text-emerald-500" />
+                        <h3 className="text-slate-900 dark:text-white font-bold">Tutor de Elite Pronto</h3>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">Vou cruzar suas anotações e cadernos para gerar insights exclusivos e desafios de memorização.</p>
                         <button 
                             onClick={() => generateFeedPosts(true)}
                             className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-emerald-900/20 transition-all active:scale-95 flex items-center justify-center gap-3"
                         >
-                            <Sparkles size={20} /> Iniciar Estudo Ativo
+                            <Sparkles size={24} /> Iniciar Estudo Ativo
                         </button>
                     </div>
                 )}
@@ -467,11 +467,11 @@ export const StudyFeed: React.FC = () => {
                 {errorMsg && (
                     <div className="bg-red-900/20 border border-red-500/30 p-4 rounded-xl flex flex-col gap-3 animate-in fade-in">
                         <div className="flex items-center gap-3">
-                            <AlertTriangle className="text-red-500" size={18} />
+                            <AlertTriangle className="text-red-500" size={20} />
                             <p className="text-xs text-red-200 font-medium">{errorMsg}</p>
                         </div>
-                        <button onClick={handleRetry} className="p-2 bg-red-500 text-white rounded-lg self-end flex items-center gap-2 text-xs font-bold px-4">
-                            <RefreshCw size={14}/> Tentar Próximo Bloco
+                        <button onClick={handleRetry} className="p-2 bg-red-500 text-slate-900 dark:text-white rounded-lg self-end flex items-center gap-2 text-xs font-bold px-4">
+                            <RefreshCw size={16}/> Tentar Próximo Bloco
                         </button>
                     </div>
                 )}
@@ -490,10 +490,10 @@ export const StudyFeed: React.FC = () => {
 
                 {/* Loading State */}
                 {loading && (
-                    <div className="flex flex-col items-center justify-center py-10 gap-4 bg-slate-900/40 rounded-2xl border border-slate-800 backdrop-blur-md">
+                    <div className="flex flex-col items-center justify-center py-10 gap-4 bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-200 dark:border-slate-800 backdrop-blur-md">
                         <div className="relative">
                             <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full animate-pulse"></div>
-                            <Loader2 className="text-emerald-500 animate-spin relative" size={32} />
+                            <Loader2 className="text-emerald-500 animate-spin relative" size={36} />
                         </div>
                         <div className="text-center px-6">
                             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 animate-pulse">{loadingText}</p>
@@ -504,7 +504,7 @@ export const StudyFeed: React.FC = () => {
 
                 {hasStarted && !loading && !errorMsg && (
                     <div ref={observerTarget} className="h-20 flex items-center justify-center text-slate-600">
-                        <ArrowRight className="animate-pulse" size={20} />
+                        <ArrowRight className="animate-pulse" size={24} />
                     </div>
                 )}
             </div>

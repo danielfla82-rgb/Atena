@@ -143,14 +143,14 @@ export const MigrationTool: React.FC<{ onClose: () => void }> = ({ onClose }) =>
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-950/90 z-[100] flex items-center justify-center p-4 backdrop-blur-md">
-        <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-slate-800 flex justify-between items-center">
-                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+    <div className="fixed inset-0 bg-slate-50 dark:bg-slate-950/90 z-[100] flex items-center justify-center p-4 backdrop-blur-md">
+        <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
                     <CloudLightning className="text-cyan-500" /> Migrador de Storage
                 </h2>
                 {status !== 'migrating' && (
-                    <button onClick={onClose} className="text-slate-400 hover:text-white">Fechar</button>
+                    <button onClick={onClose} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white">Fechar</button>
                 )}
             </div>
 
@@ -161,12 +161,12 @@ export const MigrationTool: React.FC<{ onClose: () => void }> = ({ onClose }) =>
                         <div className="w-20 h-20 bg-cyan-900/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-cyan-500/30">
                             <HardDrive size={40} className="text-cyan-400" />
                         </div>
-                        <h3 className="text-lg font-bold text-white mb-2">Otimização de Banco de Dados</h3>
-                        <p className="text-slate-400 max-w-md mx-auto text-sm mb-6">
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Otimização de Banco de Dados</h3>
+                        <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto text-sm mb-6">
                             Esta ferramenta moverá todas as imagens salvas internamente no banco (Base64) para o Supabase Storage.
                             <br/><br/>
                             <strong>Benefícios:</strong>
-                            <ul className="text-left mt-2 space-y-1 list-disc pl-5 text-slate-300">
+                            <ul className="text-left mt-2 space-y-1 list-disc pl-5 text-slate-600 dark:text-slate-300">
                                 <li>Redução drástica do consumo de Egress (Dados).</li>
                                 <li>Carregamento mais rápido do App.</li>
                                 <li>Melhor performance em celulares.</li>
@@ -182,7 +182,7 @@ export const MigrationTool: React.FC<{ onClose: () => void }> = ({ onClose }) =>
                             </p>
                         </div>
 
-                        <button onClick={startMigration} className="px-8 py-3 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded-xl shadow-lg shadow-cyan-900/20 flex items-center gap-2 mx-auto transition-all">
+                        <button onClick={startMigration} className="px-8 py-3 bg-cyan-600 hover:bg-cyan-500 text-slate-900 dark:text-white font-bold rounded-xl shadow-lg shadow-cyan-900/20 flex items-center gap-2 mx-auto transition-all">
                             <Play size={20} /> Iniciar Migração
                         </button>
                     </div>
@@ -190,11 +190,11 @@ export const MigrationTool: React.FC<{ onClose: () => void }> = ({ onClose }) =>
 
                 {(status === 'scanning' || status === 'migrating' || status === 'done') && (
                     <div className="space-y-4">
-                        <div className="flex justify-between text-xs text-slate-400 font-bold uppercase tracking-wider">
+                        <div className="flex justify-between text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
                             <span>Progresso</span>
                             <span>{progress.current} / {progress.total}</span>
                         </div>
-                        <div className="w-full h-4 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+                        <div className="w-full h-4 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden border border-slate-300 dark:border-slate-700">
                             <div 
                                 className="h-full bg-cyan-500 transition-all duration-300 relative overflow-hidden"
                                 style={{ width: `${(progress.current / (progress.total || 1)) * 100}%` }}
@@ -203,7 +203,7 @@ export const MigrationTool: React.FC<{ onClose: () => void }> = ({ onClose }) =>
                             </div>
                         </div>
 
-                        <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 h-64 overflow-y-auto font-mono text-xs text-slate-300 space-y-1 custom-scrollbar">
+                        <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-4 h-64 overflow-y-auto font-mono text-xs text-slate-600 dark:text-slate-300 space-y-1 custom-scrollbar">
                             {logs.length === 0 && <span className="text-slate-600 italic">Aguardando logs...</span>}
                             {logs.map((log, i) => (
                                 <div key={i} className={log.includes('❌') ? 'text-red-400' : log.includes('✅') ? 'text-emerald-400' : ''}>

@@ -26,6 +26,21 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
   const { setFocusedNotebookId } = useStore();
   const [viewMode, setViewMode] = useState<'heatmap' | 'scatter'>('heatmap');
   const [selectedCell, setSelectedCell] = useState<{ notebooks: Notebook[], title: string } | null>(null);
+  const [editalFilter, setEditalFilter] = useState('');
+  const [disciplineFilter, setDisciplineFilter] = useState('');
+
+  const filteredData = useMemo(() => {
+    let result = data;
+    if (editalFilter.trim()) {
+      const lowerFilter = editalFilter.toLowerCase();
+      result = result.filter(nb => nb.edital?.toLowerCase().includes(lowerFilter));
+    }
+    if (disciplineFilter.trim()) {
+      const lowerDiscFilter = disciplineFilter.toLowerCase();
+      result = result.filter(nb => nb.discipline.toLowerCase().includes(lowerDiscFilter));
+    }
+    return result;
+  }, [data, editalFilter, disciplineFilter]);
 
   // --- HEATMAP LOGIC ---
   const weights = [Weight.MUITO_ALTO, Weight.ALTO, Weight.MEDIO, Weight.BAIXO];
@@ -42,7 +57,7 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
     });
 
     // Populate
-    data.forEach(nb => {
+    filteredData.forEach(nb => {
       // AJUSTE PONTUAL: Ignorar não iniciados (0%) para não distorcer a média
       if (nb.accuracy === 0) return;
 
@@ -55,19 +70,19 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
     });
 
     return grid;
-  }, [data]);
+  }, [filteredData]);
 
   const getCellColor = (count: number, avgAcc: number) => {
-    if (count === 0) return 'bg-slate-800/30 border-slate-800 text-slate-600';
+    if (count === 0) return 'bg-slate-100 dark:bg-slate-800/30 border-slate-200 dark:border-slate-800 text-slate-600';
     if (avgAcc >= 85) return 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/30';
     if (avgAcc >= 60) return 'bg-amber-500/20 border-amber-500/50 text-amber-400 hover:bg-amber-500/30';
     return 'bg-red-500/20 border-red-500/50 text-red-400 hover:bg-red-500/30';
   };
 
   const getCellIcon = (avgAcc: number) => {
-    if (avgAcc >= 85) return <CheckCircle2 size={14} />;
-    if (avgAcc >= 60) return <Minus size={14} />;
-    return <AlertTriangle size={14} />;
+    if (avgAcc >= 85) return <CheckCircle2 size={16} />;
+    if (avgAcc >= 60) return <Minus size={16} />;
+    return <AlertTriangle size={16} />;
   };
 
   const handleCellClick = (w: Weight, r: Relevance, cellData: { notebooks: Notebook[], count: number }) => {
@@ -88,7 +103,7 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
   // --- SCATTER PLOT LOGIC (Chart.js) ---
   const scatterData = useMemo(() => {
     // AJUSTE PONTUAL: Filtrar apenas os ativos (accuracy > 0)
-    const activeNotebooks = data.filter(n => n.accuracy > 0);
+    const activeNotebooks = filteredData.filter(n => n.accuracy > 0);
 
     return {
         datasets: [{
@@ -107,7 +122,7 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
             borderWidth: 0
         }]
     };
-  }, [data]);
+  }, [filteredData]);
 
   const scatterOptions = {
       scales: {
@@ -152,31 +167,47 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
   };
 
   return (
-    <div className="w-full bg-slate-900 rounded-xl border border-slate-800 p-6 flex flex-col h-[480px] relative">
+    <div className="w-full bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 flex flex-col h-[480px] relative">
       <div className="flex justify-between items-start mb-6">
         <div>
-           <h3 className="text-white font-bold text-lg flex items-center gap-2">
+           <h3 className="text-slate-900 dark:text-white font-bold text-lg flex items-center gap-2">
              <Target className="text-emerald-500" /> Matriz Estratégica
            </h3>
-           <p className="text-slate-400 text-xs">Análise de Peso vs Relevância (Apenas Tópicos Ativos)</p>
+           <p className="text-slate-500 dark:text-slate-400 text-xs">Análise de Peso vs Relevância (Apenas Tópicos Ativos)</p>
         </div>
         
         {/* View Toggle */}
-        <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
-            <button 
-                onClick={() => setViewMode('heatmap')}
-                className={`p-2 rounded-md transition-all ${viewMode === 'heatmap' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
-                title="Mapa de Calor"
-            >
-                <Grid3X3 size={18} />
-            </button>
-            <button 
-                onClick={() => setViewMode('scatter')}
-                className={`p-2 rounded-md transition-all ${viewMode === 'scatter' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
-                title="Gráfico de Dispersão"
-            >
-                <ScatterIcon size={18} />
-            </button>
+        <div className="flex items-center gap-4">
+            <input 
+                type="text" 
+                placeholder="Filtrar por disciplina..." 
+                value={disciplineFilter} 
+                onChange={(e) => setDisciplineFilter(e.target.value)} 
+                className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white outline-none focus:border-emerald-500 w-48"
+            />
+            <input 
+                type="text" 
+                placeholder="Filtrar por concurso..." 
+                value={editalFilter} 
+                onChange={(e) => setEditalFilter(e.target.value)} 
+                className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white outline-none focus:border-emerald-500 w-48"
+            />
+            <div className="flex bg-slate-50 dark:bg-slate-950 p-1 rounded-lg border border-slate-200 dark:border-slate-800">
+                <button 
+                    onClick={() => setViewMode('heatmap')}
+                    className={`p-2 rounded-md transition-all ${viewMode === 'heatmap' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
+                    title="Mapa de Calor"
+                >
+                    <Grid3X3 size={20} />
+                </button>
+                <button 
+                    onClick={() => setViewMode('scatter')}
+                    className={`p-2 rounded-md transition-all ${viewMode === 'scatter' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
+                    title="Gráfico de Dispersão"
+                >
+                    <ScatterIcon size={20} />
+                </button>
+            </div>
         </div>
       </div>
 
@@ -224,7 +255,7 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
                                                 
                                                 {/* Hover Hint */}
                                                 <div className="absolute bottom-1 right-1 opacity-0 group-hover:opacity-50 transition-opacity">
-                                                    <ExternalLink size={10} />
+                                                    <ExternalLink size={12} />
                                                 </div>
                                             </>
                                         ) : (
@@ -257,7 +288,7 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
                  <Scatter data={scatterData} options={scatterOptions} />
                  
                  {/* Legend */}
-                 <div className="absolute top-0 right-0 text-[10px] bg-slate-900/90 p-2 rounded border border-slate-700 text-slate-400 backdrop-blur-sm pointer-events-none">
+                 <div className="absolute top-0 right-0 text-[10px] bg-white dark:bg-slate-900/90 p-2 rounded border border-slate-300 dark:border-slate-700 text-slate-500 dark:text-slate-400 backdrop-blur-sm pointer-events-none">
                     <div className="flex items-center gap-1.5 mb-1"><div className="w-2 h-2 rounded-full bg-red-500"></div> Crítico</div>
                     <div className="flex items-center gap-1.5 mb-1"><div className="w-2 h-2 rounded-full bg-orange-500"></div> Atenção</div>
                     <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500"></div> Dominado</div>
@@ -269,15 +300,15 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
 
       {/* POPUP LIST MODAL */}
       {selectedCell && (
-          <div className="absolute inset-0 z-50 bg-slate-900/95 backdrop-blur-sm flex items-center justify-center rounded-xl p-4 animate-in fade-in zoom-in duration-200">
-              <div className="w-full max-w-sm bg-slate-900 border border-slate-700 rounded-xl shadow-2xl flex flex-col max-h-full">
-                  <div className="flex justify-between items-center p-4 border-b border-slate-800">
+          <div className="absolute inset-0 z-50 bg-white dark:bg-slate-900/95 backdrop-blur-sm flex items-center justify-center rounded-xl p-4 animate-in fade-in zoom-in duration-200">
+              <div className="w-full max-w-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl shadow-2xl flex flex-col max-h-full">
+                  <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-800">
                       <div>
-                          <h4 className="text-white font-bold text-sm uppercase tracking-wide">Quadrante Selecionado</h4>
+                          <h4 className="text-slate-900 dark:text-white font-bold text-sm uppercase tracking-wide">Quadrante Selecionado</h4>
                           <p className="text-emerald-500 text-xs font-bold mt-0.5">{selectedCell.title}</p>
                       </div>
-                      <button onClick={() => setSelectedCell(null)} className="text-slate-500 hover:text-white transition-colors">
-                          <X size={18} />
+                      <button onClick={() => setSelectedCell(null)} className="text-slate-500 hover:text-slate-900 dark:text-white transition-colors">
+                          <X size={20} />
                       </button>
                   </div>
                   <div className="overflow-y-auto p-2 custom-scrollbar">
@@ -285,7 +316,7 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
                           <button 
                             key={nb.id}
                             onClick={() => handleNotebookClick(nb.id)}
-                            className="w-full text-left p-3 hover:bg-slate-800 rounded-lg flex justify-between items-center group transition-colors"
+                            className="w-full text-left p-3 hover:bg-slate-100 dark:bg-slate-800 rounded-lg flex justify-between items-center group transition-colors"
                           >
                               <div className="min-w-0 pr-2">
                                   <p className="text-xs font-bold text-slate-200 truncate">{nb.discipline}</p>
@@ -295,7 +326,7 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
                                   <span className={`text-xs font-bold px-1.5 py-0.5 rounded border ${nb.accuracy < 60 ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
                                       {nb.accuracy}%
                                   </span>
-                                  <ExternalLink size={12} className="text-slate-600 group-hover:text-white" />
+                                  <ExternalLink size={14} className="text-slate-600 group-hover:text-slate-900 dark:text-white" />
                               </div>
                           </button>
                       ))}

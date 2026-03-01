@@ -1,0 +1,135 @@
+import React, { useState, useMemo } from 'react';
+import { useStore } from '../store';
+import { Discipline, Weight, Relevance } from '../types';
+import { Plus, Edit2, Trash2, X, Save, Book, Target, AlertCircle } from 'lucide-react';
+
+export const DisciplineManager: React.FC = () => {
+  const { disciplines, addDiscipline, editDiscipline, deleteDiscipline } = useStore();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [formData, setFormData] = useState<Partial<Discipline>>({
+    name: '',
+    edital: '',
+    weight: Weight.MEDIO,
+    relevance: Relevance.MEDIA,
+  });
+
+  const handleOpenCreate = () => {
+    setFormData({ name: '', edital: '', weight: Weight.MEDIO, relevance: Relevance.MEDIA });
+    setEditingId(null);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEdit = (discipline: Discipline) => {
+    setFormData({ ...discipline });
+    setEditingId(discipline.id);
+    setIsModalOpen(true);
+  };
+
+  const handleSave = async () => {
+    if (!formData.name) return;
+    if (editingId) {
+      await editDiscipline(editingId, formData);
+    } else {
+      await addDiscipline(formData);
+    }
+    setIsModalOpen(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm('Tem certeza que deseja excluir esta disciplina?')) {
+      await deleteDiscipline(id);
+    }
+  };
+
+  return (
+    <div className="p-6 max-w-7xl mx-auto space-y-6 pb-20">
+      <div className="flex justify-between items-end border-b border-slate-200 dark:border-slate-800 pb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
+            <Book className="text-emerald-500" /> Disciplinas Mães
+          </h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">
+            Gerencie as disciplinas principais, seus pesos e relevâncias.
+          </p>
+        </div>
+        <button onClick={handleOpenCreate} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-sm transition-colors shadow-lg shadow-emerald-900/20">
+          <Plus size={16} /> Nova Disciplina
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {disciplines.map(discipline => (
+          <div key={discipline.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-lg flex flex-col gap-4">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">{discipline.name}</h3>
+                {discipline.edital && <span className="text-xs text-slate-500 dark:text-slate-400 font-mono bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded mt-1 inline-block">{discipline.edital}</span>}
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => handleOpenEdit(discipline)} className="p-1.5 text-slate-400 hover:text-emerald-500 bg-slate-100 dark:bg-slate-800 rounded-md transition-colors"><Edit2 size={14} /></button>
+                <button onClick={() => handleDelete(discipline.id)} className="p-1.5 text-slate-400 hover:text-red-500 bg-slate-100 dark:bg-slate-800 rounded-md transition-colors"><Trash2 size={14} /></button>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-auto">
+              <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 flex items-center gap-1">
+                <Target size={10} /> Peso: {discipline.weight}
+              </span>
+              <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 flex items-center gap-1">
+                <AlertCircle size={10} /> Relevância: {discipline.relevance}
+              </span>
+            </div>
+          </div>
+        ))}
+        {disciplines.length === 0 && (
+          <div className="col-span-full py-12 text-center text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
+            Nenhuma disciplina cadastrada.
+          </div>
+        )}
+      </div>
+
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white">{editingId ? 'Editar Disciplina' : 'Nova Disciplina'}</h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"><X size={24} /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Nome da Disciplina</label>
+                <input type="text" value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500" placeholder="Ex: Direito Administrativo" />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Edital (Opcional)</label>
+                <input type="text" value={formData.edital || ''} onChange={e => setFormData({ ...formData, edital: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500" placeholder="Ex: TCU 2024" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Peso</label>
+                  <select value={formData.weight} onChange={e => setFormData({ ...formData, weight: Number(e.target.value) as Weight })} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500">
+                    <option value={Weight.BAIXO}>Baixo (1)</option>
+                    <option value={Weight.MEDIO}>Médio (2)</option>
+                    <option value={Weight.ALTO}>Alto (3)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Relevância</label>
+                  <select value={formData.relevance} onChange={e => setFormData({ ...formData, relevance: Number(e.target.value) as Relevance })} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500">
+                    <option value={Relevance.BAIXA}>Baixa (1)</option>
+                    <option value={Relevance.MEDIA}>Média (2)</option>
+                    <option value={Relevance.ALTA}>Alta (3)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="p-6 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3">
+              <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">Cancelar</button>
+              <button onClick={handleSave} disabled={!formData.name} className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg flex items-center gap-2 disabled:opacity-50"><Save size={18} /> Salvar</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

@@ -47,7 +47,7 @@ export const WeeklyProgress: React.FC = () => {
 
     if (!stats) {
         return (
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 h-full flex flex-col items-center justify-center text-center">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 h-full flex flex-col items-center justify-center text-center">
                 <Target className="text-slate-600 mb-2" size={32} />
                 <p className="text-slate-500 text-xs">Selecione um ciclo para ver o progresso.</p>
             </div>
@@ -55,7 +55,7 @@ export const WeeklyProgress: React.FC = () => {
     }
 
     return (
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 h-full flex flex-col justify-between relative overflow-hidden group">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 h-full flex flex-col justify-between relative overflow-hidden group">
             {/* Background Decor */}
             <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none group-hover:bg-emerald-500/10 transition-colors"></div>
 
@@ -63,12 +63,12 @@ export const WeeklyProgress: React.FC = () => {
             <div className="relative z-10">
                 <div className="flex justify-between items-start">
                     <div>
-                        <h3 className="text-white font-bold text-lg flex items-center gap-2 mb-1">
+                        <h3 className="text-slate-900 dark:text-white font-bold text-lg flex items-center gap-2 mb-1">
                             <Clock className="text-emerald-500" size={20} />
                             Meta da Semana
                         </h3>
-                        <p className="text-slate-400 text-xs font-medium">
-                            Semana {stats.weekIndex} • <span className={stats.daysLeft <= 2 ? "text-amber-400" : "text-slate-400"}>{stats.daysLeft} dias restantes</span>
+                        <p className="text-slate-500 dark:text-slate-400 text-xs font-medium">
+                            Semana {stats.weekIndex} • <span className={stats.daysLeft <= 2 ? "text-amber-400" : "text-slate-500 dark:text-slate-400"}>{stats.daysLeft} dias restantes</span>
                         </p>
                     </div>
                     {stats.percent >= 100 && (
@@ -81,13 +81,13 @@ export const WeeklyProgress: React.FC = () => {
 
             {/* Main Metric */}
             <div className="flex items-baseline gap-2 my-4 relative z-10">
-                <span className={`text-6xl font-black tracking-tight ${stats.percent >= 100 ? 'text-emerald-400' : 'text-white'}`}>
+                <span className={`text-6xl font-black tracking-tight ${stats.percent >= 100 ? 'text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
                     {stats.percent}<span className="text-4xl">%</span>
                 </span>
             </div>
 
             {/* Progress Bar */}
-            <div className="w-full bg-slate-950 h-3 rounded-full overflow-hidden border border-slate-800 mb-3 relative z-10">
+            <div className="w-full bg-slate-50 dark:bg-slate-950 h-3 rounded-full overflow-hidden border border-slate-200 dark:border-slate-800 mb-3 relative z-10">
                 <div 
                     className={`h-full transition-all duration-1000 ease-out ${stats.percent >= 100 ? 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.5)]' : 'bg-emerald-600'}`} 
                     style={{ width: `${Math.min(stats.percent, 100)}%` }}
@@ -95,8 +95,8 @@ export const WeeklyProgress: React.FC = () => {
             </div>
 
             {/* Footer Details */}
-            <div className="flex justify-between items-center text-xs relative z-10 pt-2 border-t border-slate-800/50">
-                <span className="text-slate-300 font-bold flex items-center gap-1.5 uppercase tracking-wide">
+            <div className="flex justify-between items-center text-xs relative z-10 pt-2 border-t border-slate-200 dark:border-slate-800/50">
+                <span className="text-slate-600 dark:text-slate-300 font-bold flex items-center gap-1.5 uppercase tracking-wide">
                     {stats.completed} <span className="text-slate-600 font-normal">/ {stats.total} Blocos</span>
                 </span>
                 
@@ -110,7 +110,7 @@ export const WeeklyProgress: React.FC = () => {
                     </span>
                 ) : (
                     <div className="flex flex-col items-end">
-                        <span className="text-slate-400 mb-1">
+                        <span className="text-slate-500 dark:text-slate-400 mb-1">
                             Faltam <strong>{stats.total - stats.completed}</strong>
                         </span>
                         {stats.dailyPace > 0 && (

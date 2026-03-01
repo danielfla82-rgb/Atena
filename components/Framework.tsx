@@ -38,15 +38,15 @@ export const Framework: React.FC = () => {
         label: 'SONHO', 
         width: 'w-4/5', 
         color: 'bg-slate-700', 
-        icon: <Heart size={18} className="text-slate-300" />,
+        icon: <Heart size={18} className="text-slate-600 dark:text-slate-300" />,
         hint: "A visão clara do futuro. Ex: Auditor Fiscal - Bahia - Salvador. Vroom: Valor x Expectativa."
     },
     { 
         key: 'values', 
         label: 'VALORES', 
         width: 'w-full', 
-        color: 'bg-slate-800', 
-        icon: <Anchor size={18} className="text-slate-400" />,
+        color: 'bg-slate-100 dark:bg-slate-800', 
+        icon: <Anchor size={18} className="text-slate-500 dark:text-slate-400" />,
         hint: "A base inabalável. Ex: Ambição, Calma, Integridade, Segurança, Relevância."
     },
   ];
@@ -68,13 +68,13 @@ export const Framework: React.FC = () => {
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-8 pb-20 relative h-full flex flex-col">
-      <div className="flex justify-between items-start border-b border-slate-800 pb-6">
+      <div className="flex justify-between items-start border-b border-slate-200 dark:border-slate-800 pb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
             <Pyramid className="text-emerald-500" /> 
             Framework de Alta Performance
           </h1>
-          <p className="text-slate-400 mt-1">
+          <p className="text-slate-500 dark:text-slate-400 mt-1">
             Da Visão à Disciplina Inabalável. Construa sua pirâmide estratégica.
           </p>
         </div>
@@ -97,22 +97,22 @@ export const Framework: React.FC = () => {
                       {/* Pyramid Block */}
                       <div className={`${layer.color} h-24 md:h-28 flex flex-col items-center justify-center text-center p-4 relative shadow-lg hover:brightness-110 hover:scale-[1.02] transition-all border-b border-black/20 ${layer.key === 'habit' ? 'rounded-t-3xl' : ''} ${layer.key === 'values' ? 'rounded-b-lg' : ''}`}>
                           
-                          <div className="flex items-center gap-2 mb-1 opacity-80 font-bold tracking-widest text-xs uppercase text-white/70">
+                          <div className="flex items-center gap-2 mb-1 opacity-80 font-bold tracking-widest text-xs uppercase text-slate-900 dark:text-white/70">
                               {layer.icon} {layer.label}
                           </div>
                           
-                          <div className="font-medium text-white text-sm md:text-base line-clamp-2 md:line-clamp-3 w-full px-2 md:px-4">
+                          <div className="font-medium text-slate-900 dark:text-white text-sm md:text-base line-clamp-2 md:line-clamp-3 w-full px-2 md:px-4">
                               {framework[layer.key] || <span className="italic opacity-40">Clique para definir...</span>}
                           </div>
 
                           <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Pencil size={16} className="text-white/80" />
+                              <Pencil size={16} className="text-slate-900 dark:text-white/80" />
                           </div>
                       </div>
 
                       {/* Side Hint (Desktop only) */}
                       <div className="absolute left-full top-1/2 -translate-y-1/2 ml-4 w-48 hidden lg:block opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                          <div className="bg-slate-900 border border-slate-700 p-2 rounded text-[10px] text-slate-400">
+                          <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 p-2 rounded text-[10px] text-slate-500 dark:text-slate-400">
                               {layer.hint}
                           </div>
                       </div>
@@ -123,14 +123,14 @@ export const Framework: React.FC = () => {
 
       {/* Edit Modal */}
       {editingLayer && (
-        <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
-            <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100">
-                <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-950">
-                    <h3 className="text-xl font-bold text-white flex items-center gap-2 uppercase">
+        <div className="fixed inset-0 bg-slate-50 dark:bg-slate-950/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
+            <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden transform transition-all scale-100">
+                <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950">
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 uppercase">
                         {layers.find(l => l.key === editingLayer)?.icon}
                         Definir {layers.find(l => l.key === editingLayer)?.label}
                     </h3>
-                    <button onClick={() => setEditingLayer(null)} className="text-slate-400 hover:text-white transition-colors">
+                    <button onClick={() => setEditingLayer(null)} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white transition-colors">
                         <X size={24} />
                     </button>
                 </div>
@@ -147,13 +147,13 @@ export const Framework: React.FC = () => {
                         value={tempValue}
                         onChange={(e) => setTempValue(e.target.value)}
                         placeholder="Escreva aqui..."
-                        className="w-full h-40 bg-slate-950 border border-slate-700 rounded-xl p-4 text-white placeholder-slate-600 focus:border-emerald-500 outline-none resize-none text-lg custom-scrollbar"
+                        className="w-full h-40 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl p-4 text-slate-900 dark:text-white placeholder-slate-600 focus:border-emerald-500 outline-none resize-none text-lg custom-scrollbar"
                         autoFocus
                     />
                 </div>
 
-                <div className="p-6 border-t border-slate-800 bg-slate-950 flex justify-end gap-3">
-                    <button onClick={() => setEditingLayer(null)} className="px-4 py-2 text-slate-400 hover:text-white transition-colors">Cancelar</button>
+                <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex justify-end gap-3">
+                    <button onClick={() => setEditingLayer(null)} className="px-4 py-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white transition-colors">Cancelar</button>
                     <button onClick={handleSave} className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg flex items-center gap-2 shadow-lg shadow-emerald-900/20 transition-all">
                         <Save size={18} /> Salvar
                     </button>

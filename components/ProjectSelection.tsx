@@ -98,17 +98,17 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 p-6 flex flex-col items-center justify-center relative overflow-hidden">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-6 flex flex-col items-center justify-center relative overflow-hidden transition-colors duration-300">
       
       {/* Background Decor */}
-      <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950 -z-10"></div>
+      <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-slate-200 via-slate-50 to-slate-50 dark:from-slate-900 dark:via-slate-950 dark:to-slate-950 -z-10 transition-colors duration-300"></div>
 
       <div className="max-w-6xl w-full z-10 flex flex-col h-full justify-center">
         
         {/* === MAIN STATIC BANNER === */}
-        <div className="relative w-full h-[280px] md:h-[350px] rounded-3xl overflow-hidden shadow-2xl border border-slate-800 mb-8 group bg-slate-950">
+        <div className="relative w-full h-[280px] md:h-[350px] rounded-3xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 mb-8 group bg-white dark:bg-slate-950 transition-colors">
             <div className="absolute inset-0 w-full h-full">
-                <div className="absolute inset-0 bg-slate-950/70 z-10"></div>
+                <div className="absolute inset-0 bg-white/70 dark:bg-slate-950/70 z-10 transition-colors"></div>
                 <img 
                     src={staticBanner} 
                     alt="Athena Banner" 
@@ -118,12 +118,12 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
             </div>
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 z-20">
                 <div className="animate-in fade-in zoom-in duration-500 flex flex-col items-center">
-                    <h1 className="text-4xl md:text-6xl font-black text-white mb-4 tracking-tighter uppercase drop-shadow-2xl">
-                        PROJETO <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">ATENA</span>
+                    <h1 className="text-4xl md:text-6xl font-black text-slate-900 dark:text-white mb-4 tracking-tighter uppercase drop-shadow-2xl transition-colors">
+                        PROJETO <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-cyan-600 dark:from-emerald-400 dark:to-cyan-400">ATENA</span>
                     </h1>
                     <div className="flex items-center gap-4 md:gap-8 w-full justify-center">
                         <div className="h-px w-12 md:w-24 bg-gradient-to-r from-transparent to-emerald-500/50"></div>
-                        <h2 className="text-lg md:text-xl font-bold text-slate-200 uppercase tracking-[0.3em] drop-shadow-lg text-shadow-sm">
+                        <h2 className="text-lg md:text-xl font-bold text-slate-700 dark:text-slate-200 uppercase tracking-[0.3em] drop-shadow-lg text-shadow-sm transition-colors">
                             Selecione sua Missão
                         </h2>
                         <div className="h-px w-12 md:w-24 bg-gradient-to-l from-transparent to-emerald-500/50"></div>
@@ -136,8 +136,8 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
         <div className="space-y-6">
             
             <div className="flex justify-between items-center">
-                <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                    <FolderOpen size={24} className="text-emerald-500"/> Meus Projetos Ativos
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 transition-colors">
+                    <FolderOpen size={24} className="text-emerald-600 dark:text-emerald-500"/> Meus Projetos Ativos
                 </h3>
             </div>
 
@@ -145,11 +145,11 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
                 // SKELETON LOADING STATE
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {[1, 2, 3].map(i => (
-                        <div key={i} className="h-[200px] bg-slate-900/50 border border-slate-800 rounded-2xl p-6 animate-pulse">
-                            <div className="w-10 h-10 bg-slate-800 rounded-lg mb-4"></div>
-                            <div className="h-6 bg-slate-800 rounded w-3/4 mb-2"></div>
-                            <div className="h-4 bg-slate-800 rounded w-1/2 mb-auto"></div>
-                            <div className="h-1.5 bg-slate-800 rounded-full w-full mt-8"></div>
+                        <div key={i} className="h-[200px] bg-white/50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 animate-pulse transition-colors">
+                            <div className="w-10 h-10 bg-slate-200 dark:bg-slate-800 rounded-lg mb-4"></div>
+                            <div className="h-6 bg-slate-200 dark:bg-slate-800 rounded w-3/4 mb-2"></div>
+                            <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-1/2 mb-auto"></div>
+                            <div className="h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full w-full mt-8"></div>
                         </div>
                     ))}
                 </div>
@@ -160,12 +160,12 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
                     {!isGuest && (
                         <button 
                             onClick={() => setIsCreating(true)}
-                            className="group bg-slate-900/30 border-2 border-dashed border-slate-700 hover:border-emerald-500/50 p-8 rounded-2xl flex flex-col items-center justify-center text-center transition-all hover:bg-slate-900/60 min-h-[200px]"
+                            className="group bg-white/30 dark:bg-slate-900/30 border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500/50 p-8 rounded-2xl flex flex-col items-center justify-center text-center transition-all hover:bg-white/60 dark:hover:bg-white dark:bg-slate-900/60 min-h-[200px]"
                         >
-                            <div className="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center text-emerald-500 mb-4 group-hover:scale-110 transition-transform">
+                            <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-emerald-600 dark:text-emerald-500 mb-4 group-hover:scale-110 transition-transform">
                                 <PlusCircle size={32} />
                             </div>
-                            <h3 className="text-lg font-bold text-slate-200 group-hover:text-emerald-400">Iniciar Novo Ciclo</h3>
+                            <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Iniciar Novo Ciclo</h3>
                             <p className="text-sm text-slate-500 mt-2">Começar um planejamento do zero.</p>
                         </button>
                     )}
@@ -178,10 +178,10 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
                         <div 
                             key={cycle.id}
                             onClick={() => handleSelectCycle(cycle.id)}
-                            className={`group bg-slate-900/80 backdrop-blur-md border p-6 rounded-2xl text-left transition-all hover:-translate-y-1 hover:shadow-2xl cursor-pointer relative overflow-hidden flex flex-col justify-between min-h-[220px]
+                            className={`group bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border p-6 rounded-2xl text-left transition-all hover:-translate-y-1 hover:shadow-2xl cursor-pointer relative overflow-hidden flex flex-col justify-between min-h-[220px]
                                 ${activeCycleId === cycle.id 
                                     ? 'border-emerald-500/50 ring-1 ring-emerald-500/20' 
-                                    : 'border-slate-800 hover:border-slate-600'}
+                                    : 'border-slate-200 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-600'}
                             `}
                         >
                             {/* Double Safety Delete Button (HIDDEN IN GUEST MODE) */}
@@ -190,8 +190,8 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
                                     onClick={(e) => handleDeleteClick(e, cycle.id)}
                                     className={`absolute top-4 right-4 p-2 rounded-lg transition-all z-20 flex items-center gap-2
                                         ${deleteConfirmId === cycle.id 
-                                            ? 'bg-red-600 text-white opacity-100' 
-                                            : 'text-slate-600 hover:text-red-400 opacity-0 group-hover:opacity-100'}
+                                            ? 'bg-red-600 text-slate-900 dark:text-white opacity-100' 
+                                            : 'text-slate-500 dark:text-slate-400 dark:text-slate-600 hover:text-red-500 dark:hover:text-red-400 opacity-0 group-hover:opacity-100'}
                                     `}
                                 >
                                     {deleteConfirmId === cycle.id ? (
@@ -206,20 +206,20 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
 
                             <div>
                                 <div className="flex justify-between items-start mb-4">
-                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeCycleId === cycle.id ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-900/50' : 'bg-slate-800 text-slate-400'}`}>
+                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeCycleId === cycle.id ? 'bg-emerald-500 text-slate-900 dark:text-white shadow-lg shadow-emerald-900/50' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
                                         <LayoutDashboard size={20} />
                                     </div>
                                     {activeCycleId === cycle.id && (
-                                        <span className="text-[10px] bg-emerald-900/40 text-emerald-400 border border-emerald-500/30 px-2 py-1 rounded-full uppercase font-bold tracking-wider">
+                                        <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 px-2 py-1 rounded-full uppercase font-bold tracking-wider">
                                             Ativo
                                         </span>
                                     )}
                                 </div>
                                 
-                                <h3 className="text-xl font-bold text-white mb-1 group-hover:text-emerald-400 transition-colors truncate">
+                                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">
                                     {cycle.name}
                                 </h3>
-                                <p className="text-sm text-slate-400 font-medium mb-4">
+                                <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-4">
                                     {cycle.config.targetRole}
                                 </p>
                             </div>
@@ -231,39 +231,39 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
                                         <span className="text-slate-500">
                                             {timeMetrics?.hasExamDate ? timeMetrics.statusText : 'Sem data definida'}
                                         </span>
-                                        <span className={timeMetrics?.hasExamDate ? 'text-white' : 'text-slate-600'}>
+                                        <span className={timeMetrics?.hasExamDate ? 'text-slate-900 dark:text-white' : 'text-slate-600'}>
                                             {timeMetrics?.hasExamDate ? `${timeMetrics.percent}% do Prazo` : '--%'}
                                         </span>
                                     </div>
-                                    <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                                    <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden transition-colors">
                                          {timeMetrics?.hasExamDate ? (
                                              <div 
                                                 className={`h-full transition-all duration-1000 ${timeMetrics.colorClass}`} 
                                                 style={{ width: `${timeMetrics.percent}%` }}
                                              ></div>
                                          ) : (
-                                             <div className="h-full bg-slate-700 w-full opacity-20"></div>
+                                             <div className="h-full bg-slate-300 dark:bg-slate-700 w-full opacity-20"></div>
                                          )}
                                     </div>
                                 </div>
 
-                                <div className="flex justify-between items-center text-xs text-slate-500 pt-2 border-t border-slate-800/50">
+                                <div className="flex justify-between items-center text-xs text-slate-500 pt-2 border-t border-slate-200 dark:border-slate-800/50 transition-colors">
                                     {timeMetrics?.hasExamDate ? (
-                                        <span className="flex items-center gap-1.5 font-mono text-slate-300">
+                                        <span className="flex items-center gap-1.5 font-mono text-slate-700 dark:text-slate-300">
                                             <Flag size={12} className={timeMetrics.daysLeft < 30 ? "text-red-500" : "text-emerald-500"} /> 
                                             {timeMetrics.daysLeft > 0 ? (
-                                                <>Faltam <strong className="text-white">{timeMetrics.daysLeft}</strong> dias</>
+                                                <>Faltam <strong className="text-slate-900 dark:text-white">{timeMetrics.daysLeft}</strong> dias</>
                                             ) : (
-                                                <span className="text-red-400 font-bold">Prova Realizada</span>
+                                                <span className="text-red-500 dark:text-red-400 font-bold">Prova Realizada</span>
                                             )}
                                         </span>
                                     ) : (
-                                        <span className="flex items-center gap-1.5 text-amber-500/80 italic">
+                                        <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-500/80 italic">
                                             <Clock size={12} /> Defina a data da prova
                                         </span>
                                     )}
                                     
-                                    <span className="group-hover:translate-x-1 transition-transform flex items-center gap-1 text-emerald-500 font-bold ml-auto">
+                                    <span className="group-hover:translate-x-1 transition-transform flex items-center gap-1 text-emerald-600 dark:text-emerald-500 font-bold ml-auto">
                                         Acessar <ArrowRight size={12} />
                                     </span>
                                 </div>
@@ -278,13 +278,13 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
         {/* === CREATE MODAL === */}
         {isCreating && !isGuest && (
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-                <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md p-6 shadow-2xl relative">
-                    <button onClick={() => setIsCreating(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-md p-6 shadow-2xl relative transition-colors">
+                    <button onClick={() => setIsCreating(false)} className="absolute top-4 right-4 text-slate-500 hover:text-slate-900 dark:hover:text-white">
                         <X size={20} />
                     </button>
                     
-                    <h2 className="text-2xl font-bold text-white mb-2">Novo Ciclo Tático</h2>
-                    <p className="text-slate-400 text-sm mb-6">Configure os parâmetros iniciais da sua nova missão.</p>
+                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Novo Ciclo Tático</h2>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">Configure os parâmetros iniciais da sua nova missão.</p>
                     
                     <form onSubmit={handleCreateCycle} className="space-y-4">
                         <div>
@@ -295,7 +295,7 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
                                 value={newCycleName}
                                 onChange={e => setNewCycleName(e.target.value)}
                                 placeholder="Ex: Receita Federal 2025"
-                                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500 transition-colors"
+                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500 transition-colors"
                                 required
                             />
                         </div>
@@ -306,11 +306,11 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
                                 value={newCycleRole}
                                 onChange={e => setNewCycleRole(e.target.value)}
                                 placeholder="Ex: Auditor Fiscal"
-                                className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500 transition-colors"
+                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500 transition-colors"
                                 required
                             />
                         </div>
-                        <p className="text-xs text-slate-500 bg-slate-800 p-3 rounded border border-slate-700">
+                        <p className="text-xs text-slate-500 bg-slate-100 dark:bg-slate-800 p-3 rounded border border-slate-200 dark:border-slate-700 transition-colors">
                             <strong>Nota:</strong> O banco de dados de disciplinas é universal e compartilhado entre todos os seus projetos.
                         </p>
                         <button 

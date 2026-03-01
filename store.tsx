@@ -5,7 +5,7 @@ import { get, set } from 'idb-keyval';
 import { 
   Notebook, Cycle, AthensConfig, SavedReport, ProtocolItem, 
   FrameworkData, Note, NotebookStatus, ScheduleItem,
-  Weight, Relevance, Trend
+  Weight, Relevance, Trend, Discipline
 } from './types';
 
 // Defaults
@@ -128,14 +128,19 @@ const mapNoteFromDB = (db: any): Note => ({
 });
 
 const mapNoteToDB = (note: Partial<Note>) => {
-    return {
+    const payload: any = {
         id: note.id,
         content: note.content,
         color: note.color,
-        is_bold: note.isBold,
         created_at: note.createdAt,
         updated_at: note.updatedAt
     };
+    // Only add is_bold if explicitly true to avoid breaking older schemas that don't have it,
+    // though if the schema doesn't have it, even true will break. 
+    // Let's just omit it for now to guarantee saving works, or we can handle it in the insert/update.
+    // Actually, let's include it but we will handle the fallback in addNote/updateNote.
+    payload.is_bold = note.isBold;
+    return payload;
 };
 
 const mapFrameworkFromDB = (db: any): FrameworkData => ({
@@ -298,6 +303,7 @@ interface StoreContextType {
   dbError: string | null;
   
   notebooks: Notebook[];
+  disciplines: Discipline[];
   cycles: Cycle[];
   activeCycleId: string | null;
   config: AthensConfig;
@@ -320,6 +326,10 @@ interface StoreContextType {
   deleteNotebook: (id: string) => Promise<void>;
   updateNotebookAccuracy: (id: string, accuracy: number) => Promise<void>;
   fetchNotebookImages: (id: string) => Promise<string[]>; 
+  
+  addDiscipline: (discipline: Partial<Discipline>) => Promise<string>;
+  editDiscipline: (id: string, data: Partial<Discipline>) => Promise<void>;
+  deleteDiscipline: (id: string) => Promise<void>;
   
   moveNotebookToWeek: (notebookId: string, weekId: string) => Promise<void>;
   reorderSlotInWeek: (weekId: string, oldIndex: number, newIndex: number) => Promise<void>;
@@ -365,6 +375,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [dbError, setDbError] = useState<string | null>(null);
 
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
+  const [disciplines, setDisciplines] = useState<Discipline[]>([]);
   const [cycles, setCycles] = useState<Cycle[]>([]);
   const [activeCycleId, setActiveCycleId] = useState<string | null>(null);
   const [reports, setReports] = useState<SavedReport[]>([]);
@@ -423,7 +434,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               reportsResponse,
               protocolResponse,
               notesResponse,
-              frameworkResponse
+              frameworkResponse,
+              disciplinesResponse
           ] = await Promise.all([
               // 1. Notebooks (User + Global)
               (async () => {
@@ -459,7 +471,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               supabase.from('reports').select('*').eq('user_id', userToUse.id),
               supabase.from('protocol').select('*').eq('user_id', userToUse.id),
               supabase.from('notes').select('*').eq('user_id', userToUse.id),
-              supabase.from('frameworks').select('*').eq('user_id', userToUse.id).maybeSingle()
+              supabase.from('frameworks').select('*').eq('user_id', userToUse.id).maybeSingle(),
+              supabase.from('disciplines').select('*').eq('user_id', userToUse.id)
           ]);
 
           let validNotebookIds = new Set<string>();
@@ -489,6 +502,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (reportsResponse.data) setReports(reportsResponse.data);
           if (protocolResponse.data) setProtocol(protocolResponse.data);
           if (notesResponse.data) setNotes(notesResponse.data.map(mapNoteFromDB));
+          if (disciplinesResponse.data) setDisciplines(disciplinesResponse.data);
           
           if (frameworkResponse.data) {
               setFramework(mapFrameworkFromDB(frameworkResponse.data));
@@ -568,6 +582,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const restoreState = (data: any) => {
       if (!data) return;
       setNotebooks(data.notebooks || []);
+      setDisciplines(data.disciplines || []);
       setCycles(data.cycles || []);
       setActiveCycleId(data.activeCycleId || null);
       setReports(data.reports || []);
@@ -578,10 +593,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   useEffect(() => {
       if (isGuest && !loading) {
-          const guestData = { notebooks, reports, protocol, framework, cycles, activeCycleId, notes };
+          const guestData = { notebooks, disciplines, reports, protocol, framework, cycles, activeCycleId, notes };
           set('athena_guest_db', guestData).catch(e => console.error(e));
       }
-  }, [notebooks, reports, protocol, framework, cycles, activeCycleId, notes, isGuest, loading]);
+  }, [notebooks, disciplines, reports, protocol, framework, cycles, activeCycleId, notes, isGuest, loading]);
 
   const enterGuestMode = async () => {
       setIsGuest(true);
@@ -619,7 +634,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setCycles(prev => prev.filter(c => c.id !== id));
       if (activeCycleId === id) setActiveCycleId(null);
       if (!isGuest && user) {
-          try { await supabase.from('cycles').delete().eq('id', id); } catch (e) { console.error(e); setCycles(previousCycles); }
+          try { 
+              const { error } = await supabase.from('cycles').delete().eq('id', id); 
+              if (error) throw error;
+          } catch (e) { 
+              console.error("Failed to delete cycle:", e); 
+              setCycles(previousCycles); 
+          }
       }
   };
 
@@ -691,7 +712,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                       gemini_link_1: null,
                       gemini_link_2: null
                   };
-                  await supabase.from('notebooks').insert(publicPayload);
+                  const { error: publicError } = await supabase.from('notebooks').insert(publicPayload);
+                  if (publicError) throw publicError;
               }
 
           } catch (e: any) { 
@@ -790,7 +812,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                       gemini_link_1: null,
                       gemini_link_2: null
                   };
-                  await supabase.from('notebooks').insert(publicPayload);
+                  const { error: publicError } = await supabase.from('notebooks').insert(publicPayload);
+                  if (publicError) throw publicError;
               }
 
           } catch (e: any) { 
@@ -843,8 +866,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (!isGuest && user && updatedNb) {
           try {
               const payload = { accuracy: updatedNb.accuracy, accuracy_history: updatedNb.accuracyHistory, last_practice: updatedNb.lastPractice };
-              await supabase.from('notebooks').update(payload).eq('id', targetId);
-          } catch (e) { console.error(e); setNotebooks(previousNotebooks); }
+              const { error } = await supabase.from('notebooks').update(payload).eq('id', targetId);
+              if (error) throw error;
+          } catch (e) { 
+              console.error("Failed to update notebook accuracy:", e); 
+              setNotebooks(previousNotebooks); 
+          }
       }
   };
 
@@ -861,7 +888,68 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           });
       });
       if (!isGuest && user && newScheduleState) {
-          try { await supabase.from('cycles').update({ schedule: newScheduleState }).eq('id', cycleId); } catch (e) { console.error(e); setCycles(previousCycles); }
+          try { 
+              const { error } = await supabase.from('cycles').update({ schedule: newScheduleState }).eq('id', cycleId); 
+              if (error) throw error;
+          } catch (e) { 
+              console.error("Failed to update cycle schedule:", e); 
+              setCycles(previousCycles); 
+          }
+      }
+  };
+
+  const addDiscipline = async (discipline: Partial<Discipline>) => {
+      const newId = generateId();
+      const newDisc: Discipline = {
+          id: newId,
+          name: discipline.name || 'Nova Disciplina',
+          edital: discipline.edital || '',
+          weight: discipline.weight || Weight.MEDIO,
+          relevance: discipline.relevance || Relevance.MEDIA,
+      };
+      
+      const prev = [...disciplines];
+      setDisciplines(p => [...p, newDisc]);
+      
+      if (!isGuest && user) {
+          try {
+              const { error } = await supabase.from('disciplines').insert({ ...newDisc, user_id: user.id });
+              if (error) throw error;
+          } catch (e) {
+              setDisciplines(prev);
+              throw e;
+          }
+      }
+      return newId;
+  };
+
+  const editDiscipline = async (id: string, data: Partial<Discipline>) => {
+      const prev = [...disciplines];
+      setDisciplines(p => p.map(d => d.id === id ? { ...d, ...data } : d));
+      
+      if (!isGuest && user) {
+          try {
+              const { error } = await supabase.from('disciplines').update(data).eq('id', id);
+              if (error) throw error;
+          } catch (e) {
+              setDisciplines(prev);
+              throw e;
+          }
+      }
+  };
+
+  const deleteDiscipline = async (id: string) => {
+      const prev = [...disciplines];
+      setDisciplines(p => p.filter(d => d.id !== id));
+      
+      if (!isGuest && user) {
+          try {
+              const { error } = await supabase.from('disciplines').delete().eq('id', id);
+              if (error) throw error;
+          } catch (e) {
+              setDisciplines(prev);
+              throw e;
+          }
       }
   };
 
@@ -944,34 +1032,72 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const previousReports = [...reports];
       setReports(prev => [newReport, ...prev]);
       if (!isGuest && user) {
-          try { await supabase.from('reports').insert({ ...newReport, user_id: user.id }); } catch (e) { console.error(e); setReports(previousReports); }
+          try { 
+              const { error } = await supabase.from('reports').insert({ ...newReport, user_id: user.id }); 
+              if (error) throw error;
+          } catch (e) { 
+              console.error("Failed to save report:", e); 
+              setReports(previousReports); 
+          }
       }
   };
 
   const deleteReport = async (id: string) => {
       const previousReports = [...reports];
       setReports(prev => prev.filter(r => r.id !== id));
-      if (!isGuest && user) { try { await supabase.from('reports').delete().eq('id', id); } catch(e) { console.error(e); setReports(previousReports); } }
+      if (!isGuest && user) { 
+          try { 
+              const { error } = await supabase.from('reports').delete().eq('id', id); 
+              if (error) throw error;
+          } catch(e) { 
+              console.error("Failed to delete report:", e); 
+              setReports(previousReports); 
+          } 
+      }
   };
 
   const addProtocolItem = async (item: Omit<ProtocolItem, 'id' | 'checked'>) => {
       const newItem = { ...item, id: generateId(), checked: false };
       const previousProtocol = [...protocol];
       setProtocol(prev => [...prev, newItem]);
-      if (!isGuest && user) { try { await supabase.from('protocol').insert({ ...newItem, user_id: user.id }); } catch (e) { console.error(e); setProtocol(previousProtocol); } }
+      if (!isGuest && user) { 
+          try { 
+              const { error } = await supabase.from('protocol').insert({ ...newItem, user_id: user.id }); 
+              if (error) throw error;
+          } catch (e) { 
+              console.error("Failed to add protocol item:", e); 
+              setProtocol(previousProtocol); 
+          } 
+      }
   };
 
   const toggleProtocolItem = async (id: string) => {
       let updatedItem: ProtocolItem | undefined;
       const previousProtocol = [...protocol];
       setProtocol(prev => prev.map(p => { if (p.id === id) { updatedItem = { ...p, checked: !p.checked }; return updatedItem; } return p; }));
-      if (!isGuest && user && updatedItem) { try { await supabase.from('protocol').update({ checked: updatedItem.checked }).eq('id', id); } catch (e) { console.error(e); setProtocol(previousProtocol); } }
+      if (!isGuest && user && updatedItem) { 
+          try { 
+              const { error } = await supabase.from('protocol').update({ checked: updatedItem.checked }).eq('id', id); 
+              if (error) throw error;
+          } catch (e) { 
+              console.error("Failed to toggle protocol item:", e); 
+              setProtocol(previousProtocol); 
+          } 
+      }
   };
 
   const deleteProtocolItem = async (id: string) => {
       const previousProtocol = [...protocol];
       setProtocol(prev => prev.filter(p => p.id !== id));
-      if (!isGuest && user) { try { await supabase.from('protocol').delete().eq('id', id); } catch(e) { setProtocol(previousProtocol); } }
+      if (!isGuest && user) { 
+          try { 
+              const { error } = await supabase.from('protocol').delete().eq('id', id); 
+              if (error) throw error;
+          } catch(e) { 
+              console.error("Failed to delete protocol item:", e);
+              setProtocol(previousProtocol); 
+          } 
+      }
   };
 
   const updateFramework = async (data: FrameworkData) => {
@@ -1010,7 +1136,21 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const newNote: Note = { id: generateId(), content: '', color: 'yellow', isBold: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
       const previousNotes = [...notes];
       setNotes(prev => [newNote, ...prev]);
-      if (!isGuest && user) { try { const payload = { ...mapNoteToDB(newNote), user_id: user.id }; await supabase.from('notes').insert(payload); } catch (e) { console.error(e); setNotes(previousNotes); } }
+      if (!isGuest && user) { 
+          try { 
+              const payload = { ...mapNoteToDB(newNote), user_id: user.id }; 
+              let { error } = await supabase.from('notes').insert(payload); 
+              if (error && error.message?.includes('is_bold')) {
+                  delete payload.is_bold;
+                  const retry = await supabase.from('notes').insert(payload);
+                  error = retry.error;
+              }
+              if (error) throw error;
+          } catch (e) { 
+              console.error("Failed to add note:", e); 
+              setNotes(previousNotes); 
+          } 
+      }
   };
 
   const updateNote = async (id: string, content: string, color?: Note['color'], isBold?: boolean) => {
@@ -1032,24 +1172,36 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       
       if (!isGuest && user) {
           try { 
-              // CORREÇÃO CRÍTICA: Construir o objeto atualizado COMPLETO em camelCase antes de passar para o mapNoteToDB.
-              // O mapNoteToDB espera as chaves em camelCase (ex: isBold) para converter para snake_case (ex: is_bold).
-              // Se passarmos apenas o payload parcial, propriedades como isBold podem ser ignoradas se não estiverem no formato esperado.
-              
               const dbPayload = mapNoteToDB(updatedLocalNote);
-              
-              // Remove ID do payload de update (já está no .eq)
               delete (dbPayload as any).id; 
               
-              await supabase.from('notes').update(dbPayload).eq('id', id); 
-          } catch(e) { console.error(e); }
+              let { error } = await supabase.from('notes').update(dbPayload).eq('id', id); 
+              if (error && error.message?.includes('is_bold')) {
+                  delete dbPayload.is_bold;
+                  const retry = await supabase.from('notes').update(dbPayload).eq('id', id);
+                  error = retry.error;
+              }
+              if (error) throw error;
+          } catch(e) { 
+              console.error("Failed to update note:", e); 
+              // Revert on failure
+              setNotes(previousNotes);
+          }
       }
   };
 
   const deleteNote = async (id: string) => {
       const previousNotes = [...notes];
       setNotes(prev => prev.filter(n => n.id !== id));
-      if (!isGuest && user) { try { await supabase.from('notes').delete().eq('id', id); } catch (e) { console.error(e); setNotes(previousNotes); } }
+      if (!isGuest && user) { 
+          try { 
+              const { error } = await supabase.from('notes').delete().eq('id', id); 
+              if (error) throw error;
+          } catch (e) { 
+              console.error("Failed to delete note:", e); 
+              setNotes(previousNotes); 
+          } 
+      }
   };
 
   const exportDatabase = () => {
@@ -1077,10 +1229,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const value = {
       user, isGuest, loading, isSyncing, dbError,
-      notebooks, cycles, activeCycleId, config, reports, protocol, framework, notes,
+      notebooks, disciplines, cycles, activeCycleId, config, reports, protocol, framework, notes,
       activeSession, pendingCreateData, focusedNotebookId,
       createCycle, selectCycle, deleteCycle, updateConfig,
       addNotebook, editNotebook, deleteNotebook, updateNotebookAccuracy, fetchNotebookImages, 
+      addDiscipline, editDiscipline, deleteDiscipline,
       moveNotebookToWeek, reorderSlotInWeek, toggleSlotCompletion, removeSlotFromWeek,
       saveReport, deleteReport,
       addProtocolItem, toggleProtocolItem, deleteProtocolItem,

@@ -190,7 +190,7 @@ export const Diagnostics: React.FC = () => {
         if (trimmed.startsWith('## ')) {
             return (
                 <div key={i} className="mt-8 mb-4 border-l-4 border-emerald-500 pl-4 py-1 bg-gradient-to-r from-emerald-900/20 to-transparent rounded-r-lg">
-                    <h2 className="text-xl font-bold text-white tracking-wide uppercase">
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-wide uppercase">
                         {trimmed.replace(/^##\s*/, '')}
                     </h2>
                 </div>
@@ -215,9 +215,9 @@ export const Diagnostics: React.FC = () => {
             return (
                 <div key={i} className="flex gap-3 ml-2 mb-2 group">
                     <div className="mt-2 w-1.5 h-1.5 rounded-full bg-slate-600 group-hover:bg-emerald-400 transition-colors flex-shrink-0"></div>
-                    <p className="text-slate-300 leading-relaxed text-base flex-1">
+                    <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-base flex-1">
                         {parts.map((part, idx) => 
-                            idx % 2 === 1 ? <strong key={idx} className="text-white font-bold">{part}</strong> : part
+                            idx % 2 === 1 ? <strong key={idx} className="text-slate-900 dark:text-white font-bold">{part}</strong> : part
                         )}
                     </p>
                 </div>
@@ -227,7 +227,7 @@ export const Diagnostics: React.FC = () => {
         // 4. Blockquotes (Insights)
         if (trimmed.startsWith('> ')) {
             return (
-                <div key={i} className="my-6 relative pl-8 pr-4 py-4 bg-slate-800/50 rounded-r-xl border-l-2 border-emerald-500/50 italic text-slate-200">
+                <div key={i} className="my-6 relative pl-8 pr-4 py-4 bg-slate-100 dark:bg-slate-800/50 rounded-r-xl border-l-2 border-emerald-500/50 italic text-slate-200">
                     <Quote size={20} className="absolute left-2 top-2 text-emerald-500/20" />
                     {trimmed.replace(/^>\s*/, '')}
                 </div>
@@ -243,7 +243,7 @@ export const Diagnostics: React.FC = () => {
             
             // Very basic table row simulation
             return (
-                <div key={i} className="grid grid-flow-col auto-cols-fr gap-4 border-b border-slate-700/50 py-2 text-sm text-slate-300 hover:bg-slate-800/30 px-2 rounded">
+                <div key={i} className="grid grid-flow-col auto-cols-fr gap-4 border-b border-slate-300 dark:border-slate-700/50 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-800/30 px-2 rounded">
                     {cols.map((col, idx) => (
                         <div key={idx} className="truncate">{col.trim()}</div>
                     ))}
@@ -255,7 +255,7 @@ export const Diagnostics: React.FC = () => {
         if (trimmed.length > 0) {
             const parts = trimmed.split(/\*\*(.*?)\*\*/g);
             return (
-                <p key={i} className="text-slate-300 mb-3 leading-7 text-base font-light">
+                <p key={i} className="text-slate-600 dark:text-slate-300 mb-3 leading-7 text-base font-light">
                     {parts.map((part, idx) => 
                         idx % 2 === 1 ? <strong key={idx} className="text-emerald-300 font-bold bg-emerald-900/20 px-1 rounded">{part}</strong> : part
                     )}
@@ -269,16 +269,16 @@ export const Diagnostics: React.FC = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-8 pb-20 relative">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-800 pb-6 gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-200 dark:border-slate-800 pb-6 gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3"><Activity className="text-emerald-500" /> Central de Inteligência</h1>
-          <p className="text-slate-400 mt-1">Auditoria algorítmica e diagnósticos.</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3"><Activity className="text-emerald-500" /> Central de Inteligência</h1>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">Auditoria algorítmica e diagnósticos.</p>
         </div>
         <div className="flex gap-4">
-            <button onClick={() => setShowHistory(true)} className="px-4 py-2 bg-slate-900 border border-slate-700 hover:border-slate-500 rounded-lg text-slate-300 hover:text-white transition-all flex items-center gap-2 text-sm"><History size={16} /> Histórico</button>
-            <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
-            <button onClick={() => setActiveTab('tactical')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'tactical' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}><BrainCircuit size={16} /> Tático</button>
-            <button onClick={() => setActiveTab('edital')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'edital' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}><FileText size={16} /> Edital</button>
+            <button onClick={() => setShowHistory(true)} className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-slate-500 rounded-lg text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:text-white transition-all flex items-center gap-2 text-sm"><History size={16} /> Histórico</button>
+            <div className="flex bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
+            <button onClick={() => setActiveTab('tactical')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'tactical' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 dark:text-slate-400 hover:text-white'}`}><BrainCircuit size={16} /> Tático</button>
+            <button onClick={() => setActiveTab('edital')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'edital' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 dark:text-slate-400 hover:text-white'}`}><FileText size={16} /> Edital</button>
             </div>
         </div>
       </div>
@@ -286,14 +286,14 @@ export const Diagnostics: React.FC = () => {
       {loading && (
         <div className="flex flex-col items-center justify-center py-32 text-center">
           <Loader2 size={48} className="text-emerald-500 animate-spin mb-4" />
-          <h3 className="text-xl font-bold text-white">Processando Dados...</h3>
+          <h3 className="text-xl font-bold text-slate-900 dark:text-white">Processando Dados...</h3>
         </div>
       )}
 
       {errorMsg && !loading && (
           <div className="bg-red-500/10 border border-red-500/30 p-6 rounded-xl text-center">
               <AlertTriangle className="text-red-500 mx-auto mb-2" size={32} />
-              <h3 className="text-white font-bold mb-1">Erro na Análise</h3>
+              <h3 className="text-slate-900 dark:text-white font-bold mb-1">Erro na Análise</h3>
               <p className="text-red-300 text-sm font-mono mb-4">{errorMsg}</p>
               
               <div className="flex flex-col md:flex-row items-center justify-center gap-3 mb-2">
@@ -301,20 +301,20 @@ export const Diagnostics: React.FC = () => {
                     href="https://console.developers.google.com/apis/api/generativelanguage.googleapis.com/overview" 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-6 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-bold text-sm transition-colors"
+                    className="inline-flex items-center gap-2 px-6 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg font-bold text-sm transition-colors"
                 >
                     <ExternalLink size={16} /> 1. Conferir Console
                 </a>
                 <button 
                     onClick={activeTab === 'tactical' ? runTacticalDiagnostics : runEditalAudit}
-                    className="inline-flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg font-bold text-sm transition-colors shadow-lg shadow-red-900/20"
+                    className="inline-flex items-center gap-2 px-6 py-2 bg-red-600 hover:bg-red-500 text-slate-900 dark:text-white rounded-lg font-bold text-sm transition-colors shadow-lg shadow-red-900/20"
                 >
                     <RefreshCw size={16} /> 2. Tentar Novamente
                 </button>
               </div>
               
               <div className="mt-2">
-                  <button onClick={() => setErrorMsg(null)} className="text-xs text-slate-400 underline hover:text-white">Voltar</button>
+                  <button onClick={() => setErrorMsg(null)} className="text-xs text-slate-500 dark:text-slate-400 underline hover:text-slate-900 dark:text-white">Voltar</button>
               </div>
           </div>
       )}
@@ -322,16 +322,16 @@ export const Diagnostics: React.FC = () => {
       {!loading && !errorMsg && activeTab === 'tactical' && (
         <>
           {!tacticalAnalysis ? (
-            <div className="flex flex-col items-center justify-center py-20 bg-slate-900/50 border border-slate-800 rounded-2xl border-dashed">
+            <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl border-dashed">
               <BrainCircuit size={40} className="text-emerald-500 mb-6" />
-              <h2 className="text-xl font-bold text-white mb-2">Diagnóstico de Performance</h2>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Diagnóstico de Performance</h2>
               <button onClick={runTacticalDiagnostics} className="px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold shadow-lg shadow-emerald-900/20 flex items-center gap-3 transition-all hover:scale-105 mt-4"><Sparkles size={20} /> Gerar Diagnóstico</button>
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
-               <div className="lg:col-span-2 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl relative overflow-hidden">
+               <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl shadow-2xl relative overflow-hidden">
                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-cyan-500"></div>
-                 <button onClick={handleSaveCurrentReport} className="absolute top-6 right-6 p-2 bg-slate-800 hover:bg-emerald-600 text-slate-400 hover:text-white rounded-lg transition-colors z-20"><Save size={20} /></button>
+                 <button onClick={handleSaveCurrentReport} className="absolute top-6 right-6 p-2 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-600 text-slate-500 dark:text-slate-400 hover:text-white rounded-lg transition-colors z-20"><Save size={20} /></button>
                  
                  <div className="p-10 max-w-none">
                     {/* Rendered Markdown Output */}
@@ -340,14 +340,14 @@ export const Diagnostics: React.FC = () => {
                </div>
                
                <div className="space-y-4">
-                 <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 sticky top-6">
-                    <h3 className="font-bold text-white mb-4 text-lg">Resumo da Análise</h3>
-                    <div className="space-y-3 text-sm text-slate-400 mb-6">
-                        <div className="flex justify-between border-b border-slate-800 pb-2"><span>Disciplinas</span> <span className="text-white">{notebooks.length}</span></div>
-                        <div className="flex justify-between border-b border-slate-800 pb-2"><span>Perfil</span> <span className="text-white">{config.targetRole}</span></div>
-                        <div className="flex justify-between border-b border-slate-800 pb-2"><span>Data</span> <span className="text-white">{new Date().toLocaleDateString()}</span></div>
+                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 sticky top-6">
+                    <h3 className="font-bold text-slate-900 dark:text-white mb-4 text-lg">Resumo da Análise</h3>
+                    <div className="space-y-3 text-sm text-slate-500 dark:text-slate-400 mb-6">
+                        <div className="flex justify-between border-b border-slate-200 dark:border-slate-800 pb-2"><span>Disciplinas</span> <span className="text-slate-900 dark:text-white">{notebooks.length}</span></div>
+                        <div className="flex justify-between border-b border-slate-200 dark:border-slate-800 pb-2"><span>Perfil</span> <span className="text-slate-900 dark:text-white">{config.targetRole}</span></div>
+                        <div className="flex justify-between border-b border-slate-200 dark:border-slate-800 pb-2"><span>Data</span> <span className="text-slate-900 dark:text-white">{new Date().toLocaleDateString()}</span></div>
                     </div>
-                    <button onClick={() => setTacticalAnalysis(null)} className="w-full py-3 bg-slate-800 text-slate-300 rounded-xl hover:bg-slate-700 font-medium border border-slate-700 transition-all hover:text-white">Nova Simulação</button>
+                    <button onClick={() => setTacticalAnalysis(null)} className="w-full py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl hover:bg-slate-700 font-medium border border-slate-300 dark:border-slate-700 transition-all hover:text-slate-900 dark:text-white">Nova Simulação</button>
                  </div>
                </div>
             </div>
@@ -358,36 +358,36 @@ export const Diagnostics: React.FC = () => {
       {!loading && !errorMsg && activeTab === 'edital' && (
         <>
           {!editalAnalysis ? (
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8">
                <div className="flex flex-col md:flex-row gap-8 items-start">
                   <div className="flex-1 space-y-4 w-full">
-                     <h2 className="text-xl font-bold text-white flex items-center gap-2"><TrendingUp className="text-emerald-500"/> Probabilidade de Aprovação</h2>
-                     <textarea value={tempEditalText} onChange={(e) => setTempEditalText(e.target.value)} placeholder="Cole o edital aqui..." className="w-full h-64 bg-slate-950 border border-slate-700 rounded-xl p-4 text-slate-300 font-mono text-sm focus:border-emerald-500 outline-none resize-none custom-scrollbar" />
+                     <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2"><TrendingUp className="text-emerald-500"/> Probabilidade de Aprovação</h2>
+                     <textarea value={tempEditalText} onChange={(e) => setTempEditalText(e.target.value)} placeholder="Cole o edital aqui..." className="w-full h-64 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl p-4 text-slate-600 dark:text-slate-300 font-mono text-sm focus:border-emerald-500 outline-none resize-none custom-scrollbar" />
                      <button onClick={runEditalAudit} disabled={!tempEditalText} className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-3 transition-all"><Target size={20} /> Calcular Probabilidade</button>
                   </div>
                </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
-                <div className="absolute top-0 right-0 z-20"><button onClick={handleSaveCurrentReport} className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-emerald-600 text-slate-300 hover:text-white rounded-lg transition-colors text-xs font-bold uppercase tracking-wider shadow-lg"><Save size={14} /> Salvar</button></div>
-                <div className="md:col-span-1 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-2xl p-6 flex flex-col items-center justify-center relative overflow-hidden">
-                    <h3 className="text-slate-400 font-bold uppercase tracking-widest text-xs mb-4 z-10">Probabilidade</h3>
+                <div className="absolute top-0 right-0 z-20"><button onClick={handleSaveCurrentReport} className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-600 text-slate-600 dark:text-slate-300 hover:text-white rounded-lg transition-colors text-xs font-bold uppercase tracking-wider shadow-lg"><Save size={14} /> Salvar</button></div>
+                <div className="md:col-span-1 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 flex flex-col items-center justify-center relative overflow-hidden">
+                    <h3 className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest text-xs mb-4 z-10">Probabilidade</h3>
                     <div className="text-5xl font-extrabold text-emerald-400">{editalAnalysis.passingProbability}%</div>
                     <span className="text-xs text-slate-500 uppercase tracking-wider mt-1 font-bold">{editalAnalysis.readinessScore}</span>
                 </div>
-                <div className="md:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6 h-full flex flex-col justify-center">
+                <div className="md:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 h-full flex flex-col justify-center">
                     <div className="flex items-center gap-4 mb-4">
                          <div className="p-3 bg-emerald-500/10 rounded-full"><FileText className="text-emerald-500" size={24}/></div>
-                         <div><p className="text-slate-400 text-xs uppercase font-bold">Cobertura</p><p className="text-2xl font-bold text-white">{editalAnalysis.overallCoverage}% Concluído</p></div>
+                         <div><p className="text-slate-500 dark:text-slate-400 text-xs uppercase font-bold">Cobertura</p><p className="text-2xl font-bold text-slate-900 dark:text-white">{editalAnalysis.overallCoverage}% Concluído</p></div>
                     </div>
-                    <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
+                    <div className="bg-slate-100 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-300 dark:border-slate-700/50">
                         <h4 className="text-emerald-400 font-bold text-sm mb-2 flex items-center gap-2"><Sparkles size={14}/> Insight</h4>
-                        <p className="text-slate-300 text-sm leading-relaxed italic">"{editalAnalysis.strategicInsight}"</p>
+                        <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed italic">"{editalAnalysis.strategicInsight}"</p>
                     </div>
                 </div>
                 {/* Simplified Chart for brevity */}
-                <div className="md:col-span-3 bg-slate-900 border border-slate-800 rounded-2xl p-6">
-                    <h3 className="text-white font-bold mb-6 flex items-center gap-2"><PieChartIcon size={18} className="text-cyan-500"/> Detalhamento</h3>
+                <div className="md:col-span-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6">
+                    <h3 className="text-slate-900 dark:text-white font-bold mb-6 flex items-center gap-2"><PieChartIcon size={18} className="text-cyan-500"/> Detalhamento</h3>
                     <div className="h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={editalAnalysis.disciplines} layout="vertical" margin={{ left: 40, right: 20 }}>
@@ -401,21 +401,21 @@ export const Diagnostics: React.FC = () => {
                         </ResponsiveContainer>
                     </div>
                 </div>
-                <div className="md:col-span-3 flex justify-end gap-4"><button onClick={() => setEditalAnalysis(null)} className="px-6 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors">Nova Simulação</button></div>
+                <div className="md:col-span-3 flex justify-end gap-4"><button onClick={() => setEditalAnalysis(null)} className="px-6 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-700 text-slate-900 dark:text-white rounded-lg transition-colors">Nova Simulação</button></div>
             </div>
           )}
         </>
       )}
       
       {showHistory && (
-        <div className="absolute top-0 right-0 h-full w-80 bg-slate-900 border-l border-slate-800 z-50 shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-right duration-300">
-            <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-950">
-                <h3 className="font-bold text-white flex items-center gap-2"><History size={16}/> Histórico</h3>
-                <button onClick={() => setShowHistory(false)} className="text-slate-500 hover:text-white"><ListX size={20}/></button>
+        <div className="absolute top-0 right-0 h-full w-80 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 z-50 shadow-2xl overflow-hidden flex flex-col animate-in slide-in-from-right duration-300">
+            <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950">
+                <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2"><History size={16}/> Histórico</h3>
+                <button onClick={() => setShowHistory(false)} className="text-slate-500 hover:text-slate-900 dark:text-white"><ListX size={20}/></button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
                 {reports.map(report => (
-                    <div key={report.id} onClick={() => loadReport(report)} className="bg-slate-800 border border-slate-700 rounded-lg p-3 hover:border-emerald-500/50 transition-colors cursor-pointer group relative">
+                    <div key={report.id} onClick={() => loadReport(report)} className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 hover:border-emerald-500/50 transition-colors cursor-pointer group relative">
                         <h4 className="text-slate-200 text-sm font-medium line-clamp-2">{report.summary}</h4>
                         <button onClick={(e) => { e.stopPropagation(); deleteReport(report.id); }} className="absolute bottom-2 right-2 text-slate-600 hover:text-red-400 p-1 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
                     </div>

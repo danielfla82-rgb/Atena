@@ -99,7 +99,7 @@ const StickyNoteItem: React.FC<{ note: Note }> = ({ note }) => {
                 </div>
                 <button 
                     onClick={() => deleteNote(note.id)}
-                    className="p-1.5 bg-black/10 rounded-full hover:bg-red-500 hover:text-white text-current transition-colors"
+                    className="p-1.5 bg-black/10 rounded-full hover:bg-red-500 hover:text-slate-900 dark:text-white text-current transition-colors"
                 >
                     <Trash2 size={14} />
                 </button>
@@ -132,10 +132,10 @@ const PlanningBoard = () => {
     return (
         <div className="flex gap-4 overflow-x-auto pb-4 h-full custom-scrollbar items-start">
             {MONTHS.map((month, idx) => (
-                <div key={idx} className="min-w-[280px] bg-slate-900 border border-slate-800 rounded-xl flex flex-col h-[400px]">
-                    <div className="p-4 border-b border-slate-800 bg-slate-950 rounded-t-xl">
+                <div key={idx} className="min-w-[280px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex flex-col h-[400px]">
+                    <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 rounded-t-xl">
                         <div className="flex justify-between items-center mb-2">
-                            <h3 className="font-bold text-white uppercase tracking-wider text-sm">{month.name}</h3>
+                            <h3 className="font-bold text-slate-900 dark:text-white uppercase tracking-wider text-sm">{month.name}</h3>
                             <span className="text-slate-600 text-xs font-mono">2026</span>
                         </div>
                         {month.holidays.length > 0 ? (
@@ -152,7 +152,7 @@ const PlanningBoard = () => {
                     </div>
                     <div className="flex-1 p-3">
                         <textarea 
-                            className="w-full h-full bg-transparent text-sm text-slate-300 resize-none outline-none placeholder-slate-700 custom-scrollbar"
+                            className="w-full h-full bg-transparent text-sm text-slate-600 dark:text-slate-300 resize-none outline-none placeholder-slate-700 custom-scrollbar"
                             placeholder={`Metas para ${month.name}...`}
                         />
                     </div>
@@ -168,18 +168,18 @@ export const Notes: React.FC = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 h-full flex flex-col">
-      <div className="flex justify-between items-center border-b border-slate-800 pb-6 flex-shrink-0">
+      <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-6 flex-shrink-0">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
             <StickyNote className="text-yellow-500" /> Caderno de Anotações
           </h1>
-          <p className="text-slate-400 mt-1">Quadro de lembretes e planejamento anual.</p>
+          <p className="text-slate-500 dark:text-slate-400 mt-1">Quadro de lembretes e planejamento anual.</p>
         </div>
         
         <div className="flex gap-4">
-            <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
-                <button onClick={() => setViewMode('sticky')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${viewMode === 'sticky' ? 'bg-yellow-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}><Layout size={16} /> Post-its</button>
-                <button onClick={() => setViewMode('kanban')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${viewMode === 'kanban' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}><CalendarDays size={16} /> Planejamento 2026</button>
+            <div className="flex bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
+                <button onClick={() => setViewMode('sticky')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${viewMode === 'sticky' ? 'bg-yellow-600 text-slate-900 dark:text-white shadow-lg' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white hover:bg-slate-100 dark:bg-slate-800'}`}><Layout size={16} /> Post-its</button>
+                <button onClick={() => setViewMode('kanban')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${viewMode === 'kanban' ? 'bg-indigo-600 text-slate-900 dark:text-white shadow-lg' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white hover:bg-slate-100 dark:bg-slate-800'}`}><CalendarDays size={16} /> Planejamento 2026</button>
             </div>
 
             {viewMode === 'sticky' && (
@@ -197,7 +197,7 @@ export const Notes: React.FC = () => {
           // Switch from Grid to Flex to allow variable width/height items via drag
           <div className="flex flex-wrap gap-6 flex-1 overflow-y-auto custom-scrollbar content-start pb-20 items-start">
               {notes.length === 0 ? (
-                  <div className="w-full flex flex-col items-center justify-center py-20 text-slate-600 opacity-50 border-2 border-dashed border-slate-800 rounded-2xl">
+                  <div className="w-full flex flex-col items-center justify-center py-20 text-slate-600 opacity-50 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-2xl">
                       <StickyNote size={48} className="mb-4" />
                       <p>Seu quadro está vazio.</p>
                   </div>

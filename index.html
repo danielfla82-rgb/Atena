@@ -5,6 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Projeto Atena 2.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              slate: {
+                950: '#020617',
+              }
+            }
+          }
+        }
+      }
+    </script>
     <style>
       /* Custom Scrollbar for Elite Feel - Polished */
       ::-webkit-scrollbar {
@@ -47,7 +61,7 @@
 }
 </script>
 </head>
-  <body class="bg-slate-950 text-slate-100 antialiased">
+  <body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased transition-colors duration-300">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

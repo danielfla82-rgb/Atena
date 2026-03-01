@@ -43,19 +43,19 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     const state = (this as any).state as ErrorBoundaryState;
     if (state.hasError) {
       return (
-        <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
-          <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl max-w-lg w-full shadow-2xl">
+        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 rounded-2xl max-w-lg w-full shadow-2xl">
             <div className="flex justify-center mb-6">
               <div className="bg-red-500/10 p-4 rounded-full">
                 <AlertTriangle size={48} className="text-red-500" />
               </div>
             </div>
-            <h1 className="text-2xl font-bold text-white mb-2">Erro Crítico no Sistema</h1>
-            <p className="text-slate-400 mb-6">
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Erro Crítico no Sistema</h1>
+            <p className="text-slate-500 dark:text-slate-400 mb-6">
               O Projeto Atena encontrou um erro inesperado. O relatório foi gerado para análise técnica.
             </p>
             
-            <div className="bg-slate-950 border border-slate-800 rounded p-4 mb-6 text-left overflow-auto max-h-32 custom-scrollbar">
+            <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded p-4 mb-6 text-left overflow-auto max-h-32 custom-scrollbar">
               <code className="text-xs text-red-400 font-mono">
                 {state.error && state.error.toString()}
               </code>
@@ -70,7 +70,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
               </button>
               <button 
                 onClick={this.handleReset}
-                className="flex-1 bg-slate-800 hover:bg-slate-700 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors"
+                className="flex-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-700 text-slate-900 dark:text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-colors"
               >
                 <Home size={18} /> Início
               </button>

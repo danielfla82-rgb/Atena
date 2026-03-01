@@ -560,47 +560,47 @@ export const Library: React.FC = () => {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6 pb-20 relative h-full flex flex-col">
       {lightboxIndex !== null && (
-          <div className="fixed inset-0 z-[60] bg-slate-950/95 flex items-center justify-center p-4 backdrop-blur-sm">
-             <button onClick={() => setLightboxIndex(null)} className="absolute top-4 right-4 text-white hover:text-emerald-500 z-50"><X size={32} /></button>
+          <div className="fixed inset-0 z-[60] bg-slate-50 dark:bg-slate-950/95 flex items-center justify-center p-4 backdrop-blur-sm">
+             <button onClick={() => setLightboxIndex(null)} className="absolute top-4 right-4 text-slate-900 dark:text-white hover:text-emerald-500 z-50"><X size={32} /></button>
              {formData.images.length > 1 && (
                  <>
-                    <button onClick={() => navigateLightbox('prev')} className="absolute left-4 p-2 bg-slate-800/50 rounded-full hover:bg-emerald-600 text-white"><ChevronLeft size={32}/></button>
-                    <button onClick={() => navigateLightbox('next')} className="absolute right-4 p-2 bg-slate-800/50 rounded-full hover:bg-emerald-600 text-white"><ChevronRight size={32}/></button>
+                    <button onClick={() => navigateLightbox('prev')} className="absolute left-4 p-2 bg-slate-100 dark:bg-slate-800/50 rounded-full hover:bg-emerald-600 text-white"><ChevronLeft size={32}/></button>
+                    <button onClick={() => navigateLightbox('next')} className="absolute right-4 p-2 bg-slate-100 dark:bg-slate-800/50 rounded-full hover:bg-emerald-600 text-white"><ChevronRight size={32}/></button>
                  </>
              )}
              <img src={formData.images[lightboxIndex]} className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" />
-             <div className="absolute bottom-4 bg-black/50 px-4 py-1 rounded-full text-white text-sm">{lightboxIndex + 1} / {formData.images.length}</div>
+             <div className="absolute bottom-4 bg-black/50 px-4 py-1 rounded-full text-slate-900 dark:text-white text-sm">{lightboxIndex + 1} / {formData.images.length}</div>
           </div>
       )}
 
       {deleteModalOpen && notebookToDelete && (
           <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in zoom-in duration-200">
-              <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+              <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
                   <div className="flex flex-col items-center text-center gap-4">
                       <div className="p-4 bg-red-500/10 rounded-full text-red-500">
                           <Trash2 size={32} />
                       </div>
                       <div>
-                          <h3 className="text-xl font-bold text-white mb-2">Excluir Caderno?</h3>
-                          <p className="text-sm text-slate-400">
+                          <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Excluir Caderno?</h3>
+                          <p className="text-sm text-slate-500 dark:text-slate-400">
                               Tem certeza que deseja apagar <strong>"{notebookToDelete.name}"</strong>? Esta ação não pode ser desfeita.
                           </p>
                       </div>
                       <div className="flex gap-3 w-full mt-2">
-                          <button onClick={() => setDeleteModalOpen(false)} className="flex-1 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-bold transition-colors">Cancelar</button>
-                          <button onClick={confirmDelete} className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-500 text-white rounded-xl font-bold transition-colors shadow-lg shadow-red-900/20">Excluir</button>
+                          <button onClick={() => setDeleteModalOpen(false)} className="flex-1 px-4 py-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl font-bold transition-colors">Cancelar</button>
+                          <button onClick={confirmDelete} className="flex-1 px-4 py-3 bg-red-600 hover:bg-red-500 text-slate-900 dark:text-white rounded-xl font-bold transition-colors shadow-lg shadow-red-900/20">Excluir</button>
                       </div>
                   </div>
               </div>
           </div>
       )}
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-slate-800 pb-6 gap-4 flex-shrink-0">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-slate-200 dark:border-slate-800 pb-6 gap-4 flex-shrink-0">
         <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
             <LayoutGrid className="text-emerald-500" /> Banco de Disciplinas
           </h1>
-          <p className="text-slate-400 mt-1 text-sm">
+          <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">
             Gerencie seus cadernos e acompanhe o progresso por tópico.
           </p>
         </div>
@@ -611,57 +611,57 @@ export const Library: React.FC = () => {
                 <select 
                     value={editalFilter} 
                     onChange={(e) => setEditalFilter(e.target.value)} 
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg py-2 pl-3 pr-8 text-sm text-white focus:border-emerald-500 outline-none appearance-none cursor-pointer hover:bg-slate-800"
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg py-2 pl-3 pr-8 text-sm text-slate-900 dark:text-white focus:border-emerald-500 outline-none appearance-none cursor-pointer hover:bg-slate-100 dark:bg-slate-800"
                 >
                     <option value="">Todos Editais</option>
                     {uniqueEditais.map(e => <option key={e} value={e}>{e}</option>)}
                 </select>
-                <div className="absolute right-3 top-2.5 pointer-events-none text-slate-500"><ChevronDown size={14} /></div>
+                <div className="absolute right-3 top-2.5 pointer-events-none text-slate-500"><ChevronDown size={16} /></div>
              </div>
 
              <div className="relative flex-1 md:w-64">
-                <Search className="absolute left-3 top-2.5 text-slate-500" size={16} />
+                <Search className="absolute left-3 top-2.5 text-slate-500" size={18} />
                 <input 
                     type="text" 
                     placeholder="Buscar tópicos..." 
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg py-2 pl-9 pr-3 text-sm text-white focus:border-emerald-500 outline-none"
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg py-2 pl-9 pr-3 text-sm text-slate-900 dark:text-white focus:border-emerald-500 outline-none"
                 />
              </div>
-             <div className="flex bg-slate-900 p-1 rounded-lg border border-slate-700">
-                 <button onClick={() => setViewMode('discipline')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${viewMode === 'discipline' ? 'bg-slate-700 text-white shadow' : 'text-slate-400 hover:text-white'}`}>Por Disciplina</button>
-                 <button onClick={() => setViewMode('status')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${viewMode === 'status' ? 'bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-white'}`}>Por Status</button>
+             <div className="flex bg-white dark:bg-slate-900 p-1 rounded-lg border border-slate-300 dark:border-slate-700">
+                 <button onClick={() => setViewMode('discipline')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${viewMode === 'discipline' ? 'bg-slate-700 text-slate-900 dark:text-white shadow' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white'}`}>Por Disciplina</button>
+                 <button onClick={() => setViewMode('status')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${viewMode === 'status' ? 'bg-emerald-600 text-white shadow' : 'text-slate-500 dark:text-slate-400 hover:text-white'}`}>Por Status</button>
              </div>
              
              <button 
                 onClick={handleExportNotebooks}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg font-bold text-sm transition-colors border border-slate-700 shadow-sm"
+                className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:text-white rounded-lg font-bold text-sm transition-colors border border-slate-300 dark:border-slate-700 shadow-sm"
                 title="Baixar Backup dos Cadernos"
              >
-                <Download size={16} /> <span className="hidden md:inline">Backup</span>
+                <Download size={18} /> <span className="hidden md:inline">Backup</span>
              </button>
 
-             <button onClick={handleOpenCreate} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-sm transition-colors shadow-lg shadow-emerald-900/20 whitespace-nowrap justify-center"><Plus size={16} /> Novo Caderno</button>
+             <button onClick={handleOpenCreate} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-sm transition-colors shadow-lg shadow-emerald-900/20 whitespace-nowrap justify-center"><Plus size={18} /> Novo Caderno</button>
         </div>
       </div>
 
       {/* STATS */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-2 flex-shrink-0">
-          <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden">
-              <div className="p-3 bg-slate-800 rounded-lg text-slate-400"><BookOpen size={20} /></div>
-              <div><p className="text-[10px] text-slate-500 font-bold uppercase">Cadernos</p><p className="text-xl font-bold text-white">{stats.total}</p></div>
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden">
+              <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400"><BookOpen size={24} /></div>
+              <div><p className="text-[10px] text-slate-500 font-bold uppercase">Cadernos</p><p className="text-xl font-bold text-slate-900 dark:text-white">{stats.total}</p></div>
           </div>
-          <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden">
-              <div className="p-3 bg-slate-800 rounded-lg text-slate-400"><Layers size={20} /></div>
-              <div><p className="text-[10px] text-slate-500 font-bold uppercase">Disciplinas</p><p className="text-xl font-bold text-white">{stats.disciplines}</p></div>
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden">
+              <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-500 dark:text-slate-400"><Layers size={24} /></div>
+              <div><p className="text-[10px] text-slate-500 font-bold uppercase">Disciplinas</p><p className="text-xl font-bold text-slate-900 dark:text-white">{stats.disciplines}</p></div>
           </div>
-          <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden">
-              <div className="p-3 bg-emerald-900/20 rounded-lg text-emerald-500"><CheckCircle2 size={20} /></div>
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden">
+              <div className="p-3 bg-emerald-900/20 rounded-lg text-emerald-500"><CheckCircle2 size={24} /></div>
               <div><p className="text-[10px] text-slate-500 font-bold uppercase">Dominados</p><p className="text-xl font-bold text-emerald-400">{stats.mastered}</p></div>
           </div>
-          <div className="bg-slate-900 border border-slate-800 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden">
-              <div className="p-3 bg-indigo-900/20 rounded-lg text-indigo-500"><Thermometer size={20} /></div>
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden">
+              <div className="p-3 bg-indigo-900/20 rounded-lg text-indigo-500"><Thermometer size={24} /></div>
               <div><p className="text-[10px] text-slate-500 font-bold uppercase">Acurácia Global</p><p className="text-xl font-bold text-indigo-400">{stats.globalAcc}%</p></div>
           </div>
       </div>
@@ -678,9 +678,9 @@ export const Library: React.FC = () => {
               <button 
                 key={f.id} 
                 onClick={() => setActiveFilter(f.id)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-bold whitespace-nowrap transition-all ${activeFilter === f.id ? 'bg-slate-800 text-white border-slate-600' : 'bg-transparent text-slate-500 border-slate-800 hover:border-slate-700'}`}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-bold whitespace-nowrap transition-all ${activeFilter === f.id ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border-slate-600' : 'bg-transparent text-slate-500 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:border-slate-700'}`}
               >
-                  {f.icon && <f.icon size={12} />} {f.label}
+                  {f.icon && <f.icon size={16} />} {f.label}
               </button>
           ))}
       </div>
@@ -692,29 +692,29 @@ export const Library: React.FC = () => {
               const avgAcc = Math.round(items.reduce((acc, i) => acc + i.accuracy, 0) / items.length);
               
               return (
-                  <div key={groupKey} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden transition-all">
+                  <div key={groupKey} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden transition-all">
                       <div 
                         onClick={() => toggleGroup(groupKey)}
-                        className="px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-slate-800/50 transition-colors"
+                        className="px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-slate-100 dark:bg-slate-800/50 transition-colors"
                       >
                           <div className="flex items-center gap-4">
-                              <div className={`p-2 rounded-lg ${viewMode === 'status' ? 'text-white' : 'text-slate-400'} ${viewMode === 'status' && groupKey.includes('Concluídos') ? 'bg-emerald-500' : viewMode === 'status' && groupKey.includes('Andamento') ? 'bg-blue-500' : viewMode === 'status' ? 'bg-slate-700' : 'bg-slate-800'}`}>
+                              <div className={`p-2 rounded-lg ${viewMode === 'status' ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'} ${viewMode === 'status' && groupKey.includes('Concluídos') ? 'bg-emerald-500' : viewMode === 'status' && groupKey.includes('Andamento') ? 'bg-blue-500' : viewMode === 'status' ? 'bg-slate-700' : 'bg-slate-100 dark:bg-slate-800'}`}>
                                   {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                               </div>
                               <div>
-                                  <h3 className="font-bold text-white text-sm md:text-base">{groupKey}</h3>
+                                  <h3 className="font-bold text-slate-900 dark:text-white text-sm md:text-base">{groupKey}</h3>
                                   <p className="text-xs text-slate-500">{items.length} tópicos</p>
                               </div>
                           </div>
                           <div className="flex items-center gap-4">
-                              <div className={`px-2 py-1 rounded text-xs font-bold border ${avgAcc >= 90 ? 'bg-emerald-900/20 text-emerald-400 border-emerald-500/30' : avgAcc < 60 ? 'bg-red-900/20 text-red-400 border-red-500/30' : 'bg-amber-900/20 text-amber-400 border-amber-500/30'}`}>
+                              <div className={`px-2 py-1 rounded text-xs font-bold border ${avgAcc >= 90 ? 'bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-500/30' : avgAcc < 60 ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-300 dark:border-red-500/30' : 'bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-500/30'}`}>
                                   Avg: {avgAcc}%
                               </div>
                           </div>
                       </div>
 
                       {isExpanded && (
-                          <div className="border-t border-slate-800 divide-y divide-slate-800/50">
+                          <div className="border-t border-slate-200 dark:border-slate-800 divide-y divide-slate-800/50">
                               {items.map(nb => {
                                   const isScheduled = isScheduledInActiveCycle(nb.id);
                                   const displayScore = nb.customScore !== null && nb.customScore !== undefined 
@@ -722,44 +722,44 @@ export const Library: React.FC = () => {
                                       : calculateUrgencyScore(nb.weight, nb.relevance, nb.trend);
 
                                   return (
-                                  <div key={nb.id} className="flex items-center justify-between group hover:bg-slate-800/20">
+                                  <div key={nb.id} className="flex items-center justify-between group hover:bg-slate-100 dark:bg-slate-800/20">
                                       <div 
                                         className="flex-1 min-w-0 p-4 cursor-pointer" 
                                         onClick={() => handleEdit(nb)}
                                       >
                                           <div className="flex items-center gap-2 mb-1">
-                                              <h4 className="font-bold text-slate-200 text-sm truncate">{nb.name}</h4>
-                                              <span className="text-[9px] bg-slate-800 text-slate-400 border border-slate-700 px-1.5 rounded uppercase font-bold">
+                                              <h4 className="font-bold text-slate-900 dark:text-slate-200 text-sm truncate">{nb.name}</h4>
+                                              <span className="text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-300 dark:border-slate-700 px-1.5 rounded uppercase font-bold">
                                                   Score: {displayScore}
                                               </span>
-                                              {nb.isGlobal && <span className="text-[9px] bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 px-1.5 rounded uppercase font-bold flex items-center gap-1"><Globe size={8}/> Global</span>}
-                                              {nb.weight === Weight.MUITO_ALTO && <span className="text-[9px] bg-red-500/10 text-red-400 border border-red-500/20 px-1.5 rounded uppercase font-bold">Peso Max</span>}
-                                              {viewMode === 'status' && <span className="text-[9px] text-slate-500 border border-slate-700 px-1.5 rounded uppercase font-bold">{nb.discipline}</span>}
-                                              {isScheduled && <span className="text-[9px] bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 px-1.5 rounded uppercase font-bold flex items-center gap-1"><span className="w-1 h-1 bg-indigo-400 rounded-full animate-pulse"></span> No Ciclo</span>}
+                                              {nb.isGlobal && <span className="text-[9px] bg-indigo-100 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-500/20 px-1.5 rounded uppercase font-bold flex items-center gap-1"><Globe size={12}/> Global</span>}
+                                              {nb.weight === Weight.MUITO_ALTO && <span className="text-[9px] bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-500/20 px-1.5 rounded uppercase font-bold">Peso Max</span>}
+                                              {viewMode === 'status' && <span className="text-[9px] text-slate-500 border border-slate-300 dark:border-slate-700 px-1.5 rounded uppercase font-bold">{nb.discipline}</span>}
+                                              {isScheduled && <span className="text-[9px] bg-indigo-100 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-500/20 px-1.5 rounded uppercase font-bold flex items-center gap-1"><span className="w-1 h-1 bg-indigo-500 dark:bg-indigo-400 rounded-full animate-pulse"></span> No Ciclo</span>}
                                           </div>
                                           <p className="text-xs text-slate-500 truncate">{nb.subtitle}</p>
                                           
                                           <div className="flex md:hidden gap-3 mt-2 text-[10px] text-slate-500 font-mono">
-                                              <span>Acc: <strong className={nb.accuracy < 60 ? 'text-red-400' : 'text-emerald-400'}>{nb.accuracy}%</strong></span>
+                                              <span>Acc: <strong className={nb.accuracy < 60 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}>{nb.accuracy}%</strong></span>
                                               <span>Rev: {nb.nextReview ? nb.nextReview.split('T')[0].split('-').reverse().join('/') : '--'}</span>
                                           </div>
                                       </div>
                                       
-                                      <div className="flex items-center gap-4 md:gap-8 px-4 py-2 border-l border-slate-800/30">
+                                      <div className="flex items-center gap-4 md:gap-8 px-4 py-2 border-l border-slate-200 dark:border-slate-800/30">
                                           <div className="text-right hidden md:block">
                                               <p className="text-[10px] text-slate-500 uppercase font-bold">Acurácia</p>
-                                              <p className={`font-mono font-bold text-sm ${nb.accuracy >= nb.targetAccuracy ? 'text-emerald-400' : nb.accuracy < 60 ? 'text-red-400' : 'text-amber-400'}`}>{nb.accuracy}%</p>
+                                              <p className={`font-mono font-bold text-sm ${nb.accuracy >= nb.targetAccuracy ? 'text-emerald-600 dark:text-emerald-400' : nb.accuracy < 60 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}`}>{nb.accuracy}%</p>
                                           </div>
                                           <div className="text-right hidden md:block">
                                               <p className="text-[10px] text-slate-500 uppercase font-bold">Revisão</p>
-                                              <p className={`font-mono font-bold text-sm ${nb.nextReview && new Date(nb.nextReview) < new Date() ? 'text-red-400' : 'text-slate-300'}`}>
+                                              <p className={`font-mono font-bold text-sm ${nb.nextReview && new Date(nb.nextReview) < new Date() ? 'text-red-600 dark:text-red-400' : 'text-slate-600 dark:text-slate-300'}`}>
                                                   {nb.nextReview ? nb.nextReview.split('T')[0].split('-').reverse().join('/') : '--'}
                                               </p>
                                           </div>
                                           
                                           <div className="flex gap-2">
                                               <button type="button" onClick={() => startSession(nb)} className="p-2 bg-emerald-600/10 hover:bg-emerald-600 text-emerald-500 hover:text-white rounded-lg transition-colors" title="Iniciar Sessão">
-                                                  <Maximize2 size={16} />
+                                                  <Maximize2 size={18} />
                                               </button>
                                               
                                               <button 
@@ -768,10 +768,10 @@ export const Library: React.FC = () => {
                                                     e.stopPropagation(); 
                                                     requestDelete(nb);
                                                 }} 
-                                                className="p-2 bg-slate-800 hover:bg-red-600 text-slate-400 hover:text-white rounded-lg transition-colors border border-slate-700 hover:border-red-500" 
+                                                className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-red-600 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white rounded-lg transition-colors border border-slate-300 dark:border-slate-700 hover:border-red-500" 
                                                 title="Excluir"
                                               >
-                                                  <Trash2 size={16} />
+                                                  <Trash2 size={18} />
                                               </button>
                                           </div>
                                       </div>
@@ -794,22 +794,22 @@ export const Library: React.FC = () => {
 
       {isModalOpen && (
         // ... (Modal code kept identical) ...
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
+        <div className="fixed inset-0 bg-slate-50 dark:bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[95vh]">
             
             {/* Modal Header */}
-            <div className="p-6 border-b border-slate-800 flex justify-between items-center bg-slate-900">
-                <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                    <Pencil size={20} className="text-emerald-500"/> {editingId ? (formData.isGlobal ? 'Caderno Público (Template)' : 'Editar Caderno') : 'Novo Caderno'}
+            <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900">
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Pencil size={24} className="text-emerald-500"/> {editingId ? (formData.isGlobal ? 'Caderno Público (Template)' : 'Editar Caderno') : 'Novo Caderno'}
                 </h3>
-                <button onClick={() => !isSaving && setIsModalOpen(false)} className="text-slate-400 hover:text-white" disabled={isSaving}><X size={24} /></button>
+                <button onClick={() => !isSaving && setIsModalOpen(false)} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white" disabled={isSaving}><X size={28} /></button>
             </div>
 
             <form onSubmit={handleSave} className="overflow-y-auto p-6 space-y-6 custom-scrollbar">
               
               {formData.isGlobal && (
                   <div className="bg-indigo-900/20 border border-indigo-500/20 p-4 rounded-xl flex items-start gap-3">
-                      <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400"><Copy size={18} /></div>
+                      <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400"><Copy size={20} /></div>
                       <div>
                           <h4 className="text-sm font-bold text-indigo-300">Modo Template Global</h4>
                           <p className="text-xs text-indigo-200/70 mt-1 leading-relaxed">
@@ -825,9 +825,9 @@ export const Library: React.FC = () => {
                       <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest">1. Identificação</h4>
                       
                       {/* GLOBAL TOGGLE */}
-                      <div className="flex items-center gap-3 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800">
+                      <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800">
                           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
-                              {formData.isGlobal ? <Globe size={12}/> : <Lock size={12}/>} 
+                              {formData.isGlobal ? <Globe size={16}/> : <Lock size={16}/>} 
                               Visibilidade:
                           </span>
                           <button 
@@ -837,58 +837,58 @@ export const Library: React.FC = () => {
                           >
                               <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${formData.isGlobal ? 'translate-x-4.5' : 'translate-x-1'}`} />
                           </button>
-                          <span className={`text-xs font-bold ${formData.isGlobal ? 'text-indigo-400' : 'text-slate-400'}`}>
+                          <span className={`text-xs font-bold ${formData.isGlobal ? 'text-indigo-400' : 'text-slate-500 dark:text-slate-400'}`}>
                               {formData.isGlobal ? 'Publicar Cópia' : 'Privado'}
                           </span>
                       </div>
                   </div>
 
                   {/* NOVO CAMPO: EDITAL */}
-                  <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl mb-2">
-                    <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider flex items-center gap-2">
-                        <FileText size={14} className="text-emerald-500" /> Edital / Prova Alvo
+                  <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-4 rounded-xl mb-2">
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wider flex items-center gap-2">
+                        <FileText size={16} className="text-emerald-500" /> Edital / Prova Alvo
                     </label>
                     <input 
                         value={formData.edital} 
                         onChange={e => handleChange('edital', e.target.value)} 
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500 transition-colors font-medium" 
+                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500 transition-colors font-medium" 
                         placeholder="Ex: Receita Federal 2025, Auditor Fiscal SEFAZ-SP..."
                     />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Disciplina</label><input required list="disciplines" value={formData.discipline} onChange={e => handleChange('discipline', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /><datalist id="disciplines">{existingDisciplines.map(d => <option key={d} value={d} />)}</datalist></div>
-                    <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Nome do Tópico</label><input required value={formData.name} onChange={e => handleChange('name', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /></div>
+                    <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Disciplina</label><input required list="disciplines" value={formData.discipline} onChange={e => handleChange('discipline', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500" /><datalist id="disciplines">{existingDisciplines.map(d => <option key={d} value={d} />)}</datalist></div>
+                    <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Nome do Tópico</label><input required value={formData.name} onChange={e => handleChange('name', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500" /></div>
                   </div>
-                  <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Subtópico / Foco</label><input value={formData.subtitle} onChange={e => handleChange('subtitle', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500" /></div>
+                  <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Subtópico / Foco</label><input value={formData.subtitle} onChange={e => handleChange('subtitle', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500" /></div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                        <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Caderno TEC</label>
-                        <div className="relative"><LinkIcon className="absolute left-3 top-3 text-slate-500" size={14} /><input type="url" value={formData.tecLink} onChange={e => handleChange('tecLink', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-white outline-none focus:border-emerald-500" placeholder="https://tecconcursos..." /></div>
+                        <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Link Caderno TEC</label>
+                        <div className="relative"><LinkIcon className="absolute left-3 top-3 text-slate-500" size={16} /><input type="url" value={formData.tecLink} onChange={e => handleChange('tecLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-emerald-500" placeholder="https://tecconcursos..." /></div>
                     </div>
                     <div>
                         <label className="block text-[10px] font-bold text-red-400 mb-1 uppercase tracking-wider">Caderno de Erros</label>
-                        <div className="relative"><XCircle className="absolute left-3 top-3 text-red-500" size={14} /><input type="url" value={formData.errorNotebookLink} onChange={e => handleChange('errorNotebookLink', e.target.value)} className="w-full bg-slate-800 border border-red-500/20 rounded-lg py-2.5 pl-9 text-xs text-white outline-none focus:border-red-500 placeholder-red-900/50" placeholder="Link de Erros..." /></div>
+                        <div className="relative"><XCircle className="absolute left-3 top-3 text-red-500" size={16} /><input type="url" value={formData.errorNotebookLink} onChange={e => handleChange('errorNotebookLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-red-500/20 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-red-500 placeholder-red-900/50" placeholder="Link de Erros..." /></div>
                     </div>
                     <div>
                         <label className="block text-[10px] font-bold text-yellow-400 mb-1 uppercase tracking-wider">Questões Favoritas</label>
-                        <div className="relative"><Star className="absolute left-3 top-3 text-yellow-500" size={14} /><input type="url" value={formData.favoriteQuestionsLink} onChange={e => handleChange('favoriteQuestionsLink', e.target.value)} className="w-full bg-slate-800 border border-yellow-500/20 rounded-lg py-2.5 pl-9 text-xs text-white outline-none focus:border-yellow-500 placeholder-yellow-900/50" placeholder="Link Favoritas..." /></div>
+                        <div className="relative"><Star className="absolute left-3 top-3 text-yellow-500" size={16} /><input type="url" value={formData.favoriteQuestionsLink} onChange={e => handleChange('favoriteQuestionsLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-yellow-500/20 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-yellow-500 placeholder-yellow-900/50" placeholder="Link Favoritas..." /></div>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                        <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Link Externo 1</label>
-                        <div className="relative"><Book className="absolute left-3 top-3 text-slate-500" size={14} /><input type="url" value={formData.lawLink} onChange={e => handleChange('lawLink', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-white outline-none focus:border-emerald-500" placeholder="Planalto..." /></div>
+                        <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Link Externo 1</label>
+                        <div className="relative"><Book className="absolute left-3 top-3 text-slate-500" size={16} /><input type="url" value={formData.lawLink} onChange={e => handleChange('lawLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-emerald-500" placeholder="Planalto..." /></div>
                     </div>
                     <div>
                         <label className="block text-[10px] font-bold text-purple-400 mb-1 uppercase tracking-wider">Link Externo 2</label>
-                        <div className="relative"><FileCode className="absolute left-3 top-3 text-purple-500" size={14} /><input type="url" value={formData.obsidianLink} onChange={e => handleChange('obsidianLink', e.target.value)} className="w-full bg-slate-800 border border-purple-500/20 rounded-lg py-2.5 pl-9 text-xs text-white outline-none focus:border-purple-500 placeholder-purple-900/50" placeholder="Link anotações..." /></div>
+                        <div className="relative"><FileCode className="absolute left-3 top-3 text-purple-500" size={16} /><input type="url" value={formData.obsidianLink} onChange={e => handleChange('obsidianLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-purple-500/20 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500 placeholder-purple-900/50" placeholder="Link anotações..." /></div>
                     </div>
                     <div>
                         <label className="block text-[10px] font-bold text-cyan-400 mb-1 uppercase tracking-wider">Link Externo 3</label>
-                        <div className="relative"><Brain className="absolute left-3 top-3 text-cyan-500" size={14} /><input type="url" value={formData.geminiLink1} onChange={e => handleChange('geminiLink1', e.target.value)} className="w-full bg-slate-800 border border-cyan-500/20 rounded-lg py-2.5 pl-9 text-xs text-white outline-none focus:border-cyan-500 placeholder-cyan-900/50" placeholder="Link Chat..." /></div>
+                        <div className="relative"><Brain className="absolute left-3 top-3 text-cyan-500" size={16} /><input type="url" value={formData.geminiLink1} onChange={e => handleChange('geminiLink1', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-cyan-500/20 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-cyan-500 placeholder-cyan-900/50" placeholder="Link Chat..." /></div>
                     </div>
                   </div>
               </div>
@@ -899,52 +899,52 @@ export const Library: React.FC = () => {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {/* ... (Performance inputs remain same) ... */}
                       <div className="group relative">
-                          <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase flex items-center gap-1 cursor-help">
-                              Peso <HelpCircle size={10} className="text-slate-600"/>
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase flex items-center gap-1 cursor-help">
+                              Peso <HelpCircle size={12} className="text-slate-600"/>
                           </label>
-                          <select value={formData.weight} onChange={(e) => handleChange('weight', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm">{Object.values(Weight).map(w => <option key={w} value={w}>{w}</option>)}</select>
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-900 border border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                          <select value={formData.weight} onChange={(e) => handleChange('weight', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-emerald-500 text-sm">{Object.values(Weight).map(w => <option key={w} value={w}>{w}</option>)}</select>
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                               <strong className="block text-emerald-400">{SCORE_TOOLTIPS.weight.title}</strong>
-                              <span className="text-slate-400">{SCORE_TOOLTIPS.weight.desc}</span>
+                              <span className="text-slate-500 dark:text-slate-400">{SCORE_TOOLTIPS.weight.desc}</span>
                           </div>
                       </div>
 
                       <div className="group relative">
-                          <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase flex items-center gap-1 cursor-help">
-                              Relevância <HelpCircle size={10} className="text-slate-600"/>
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase flex items-center gap-1 cursor-help">
+                              Relevância <HelpCircle size={12} className="text-slate-600"/>
                           </label>
-                          <select value={formData.relevance} onChange={(e) => handleChange('relevance', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm">{Object.values(Relevance).map(r => <option key={r} value={r}>{r}</option>)}</select>
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-900 border border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                          <select value={formData.relevance} onChange={(e) => handleChange('relevance', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-emerald-500 text-sm">{Object.values(Relevance).map(r => <option key={r} value={r}>{r}</option>)}</select>
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                               <strong className="block text-emerald-400">{SCORE_TOOLTIPS.relevance.title}</strong>
-                              <span className="text-slate-400">{SCORE_TOOLTIPS.relevance.desc}</span>
+                              <span className="text-slate-500 dark:text-slate-400">{SCORE_TOOLTIPS.relevance.desc}</span>
                           </div>
                       </div>
 
                       <div className="group relative">
-                          <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase flex items-center gap-1 cursor-help">
-                              Tendência <HelpCircle size={10} className="text-slate-600"/>
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase flex items-center gap-1 cursor-help">
+                              Tendência <HelpCircle size={12} className="text-slate-600"/>
                           </label>
-                          <select value={formData.trend} onChange={(e) => handleChange('trend', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm">{Object.values(Trend).map(t => <option key={t} value={t}>{t}</option>)}</select>
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-900 border border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                          <select value={formData.trend} onChange={(e) => handleChange('trend', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-emerald-500 text-sm">{Object.values(Trend).map(t => <option key={t} value={t}>{t}</option>)}</select>
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                               <strong className="block text-emerald-400">{SCORE_TOOLTIPS.trend.title}</strong>
-                              <span className="text-slate-400">{SCORE_TOOLTIPS.trend.desc}</span>
+                              <span className="text-slate-500 dark:text-slate-400">{SCORE_TOOLTIPS.trend.desc}</span>
                           </div>
                       </div>
 
-                      <div><label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Meta (%)</label><input type="number" min="0" max="100" value={formData.targetAccuracy} onChange={e => handleChange('targetAccuracy', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm text-center font-bold" /></div>
+                      <div><label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Meta (%)</label><input type="number" min="0" max="100" value={formData.targetAccuracy} onChange={e => handleChange('targetAccuracy', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-emerald-500 text-sm text-center font-bold" /></div>
                   </div>
 
-                  <div className="bg-slate-950 border border-slate-800 rounded-lg p-3 flex items-center justify-between shadow-inner">
+                  <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-3 flex items-center justify-between shadow-inner">
                       <div className="flex flex-col">
                           <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Score Atena (Urgência)</span>
-                          <span className="text-xs text-slate-400">Nota final gerada pelo algoritmo (0-100).</span>
+                          <span className="text-xs text-slate-500 dark:text-slate-400">Nota final gerada pelo algoritmo (0-100).</span>
                       </div>
                       <div className="flex items-center gap-2">
                           <div className="text-right">
                               <span className="text-[9px] block text-slate-500 uppercase font-bold">Auto</span>
-                              <span className="text-sm font-mono text-slate-400">{calculatedScore}</span>
+                              <span className="text-sm font-mono text-slate-500 dark:text-slate-400">{calculatedScore}</span>
                           </div>
-                          <div className="h-8 w-px bg-slate-800 mx-2"></div>
+                          <div className="h-8 w-px bg-slate-100 dark:bg-slate-800 mx-2"></div>
                           <div className="text-right">
                               <span className="text-[9px] block text-emerald-500 uppercase font-bold">Final (Editável)</span>
                               <input 
@@ -952,18 +952,18 @@ export const Library: React.FC = () => {
                                   min="0" max="100"
                                   value={formData.customScore !== '' ? formData.customScore : calculatedScore} 
                                   onChange={(e) => handleChange('customScore', e.target.value)}
-                                  className="w-16 bg-slate-900 border border-slate-700 rounded text-center font-bold text-white text-lg focus:border-emerald-500 outline-none p-1"
+                                  className="w-16 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded text-center font-bold text-slate-900 dark:text-white text-lg focus:border-emerald-500 outline-none p-1"
                               />
                           </div>
                       </div>
                   </div>
 
                   <div>
-                      <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Planejamento (Semana)</label>
+                      <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Planejamento (Semana)</label>
                       <select 
                           value={formData.scheduledWeek || ''} 
                           onChange={(e) => handleChange('scheduledWeek', e.target.value)} 
-                          className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-white outline-none focus:border-emerald-500 text-sm"
+                          className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-emerald-500 text-sm"
                       >
                           <option value="">Não Agendado</option>
                           {weeksList.map(w => (
@@ -972,43 +972,55 @@ export const Library: React.FC = () => {
                       </select>
                   </div>
 
-                  <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex flex-col items-stretch gap-4 shadow-inner">
+                  <div className="bg-slate-100 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-300 dark:border-slate-700 flex flex-col items-stretch gap-4 shadow-inner">
                       <div className="flex flex-col md:flex-row gap-4 items-end">
                           <div className="flex-1 w-full">
                              <div className="flex justify-between mb-1">
                                 <label className="block text-[10px] font-bold text-emerald-400 uppercase">Acurácia na Revisão de Hoje (%)</label>
                                 {formData.accuracyHistory && formData.accuracyHistory.length > 0 && (
                                     <span className="text-[9px] text-slate-500 font-mono flex items-center gap-1">
-                                        <History size={10}/> Histórico
+                                        <History size={12}/> Histórico
                                     </span>
                                 )}
                              </div>
                              <div className="flex gap-2">
-                                <input type="number" min="0" max="100" value={formData.accuracy} onChange={e => handleChange('accuracy', e.target.value)} className="flex-1 bg-slate-900 border border-slate-600 rounded-lg p-3 text-white font-mono text-center font-bold text-xl focus:border-emerald-500 outline-none" placeholder="0" />
+                                <input type="number" min="0" max="100" value={formData.accuracy} onChange={e => handleChange('accuracy', e.target.value)} className="flex-1 bg-white dark:bg-slate-900 border border-slate-600 rounded-lg p-3 text-slate-900 dark:text-white font-mono text-center font-bold text-xl focus:border-emerald-500 outline-none" placeholder="0" />
                                 <button type="button" onClick={handleConcludeReview} disabled={isSaving} className="px-6 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg shadow-emerald-900/30 border border-emerald-500/50">
-                                    {isSaving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} 
+                                    {isSaving ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />} 
                                     Concluir Revisão
                                 </button>
                              </div>
                              
                              {computedNextReviewData?.isNotStarted ? (
-                                 <div className="flex flex-col mt-3 gap-1 p-2 bg-slate-900/50 rounded-lg border border-slate-700/50">
-                                     <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
-                                         <span className="uppercase tracking-widest text-slate-500 flex items-center gap-1"><BrainCircuit size={12}/> Algoritmo Atena:</span>
-                                         <span className="text-slate-400 bg-slate-800/80 px-2 py-1 rounded border border-slate-700 flex items-center gap-1">
-                                            <PlayCircle size={12} /> Aguardando Início
+                                 <div className="flex flex-col mt-3 gap-1 p-2 bg-white dark:bg-slate-900/50 rounded-lg border border-slate-300 dark:border-slate-700/50">
+                                     <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                                         <span className="uppercase tracking-widest text-slate-500 flex items-center gap-1"><BrainCircuit size={16}/> Algoritmo Atena:</span>
+                                         <span className="text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-2 py-1 rounded border border-slate-300 dark:border-slate-700 flex items-center gap-1">
+                                            <PlayCircle size={16} /> Aguardando Início
                                          </span>
                                      </div>
                                      <p className="text-[9px] text-slate-500 mt-1 italic">Este caderno entrará no fluxo de revisão apenas após o primeiro estudo.</p>
                                  </div>
                              ) : computedNextReviewData && (
-                                 <div className="flex flex-col mt-3 gap-1 p-2 bg-slate-900/50 rounded-lg border border-slate-700/50">
-                                     <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
-                                         <span className="uppercase tracking-widest text-slate-500 flex items-center gap-1"><BrainCircuit size={12}/> Algoritmo Atena:</span>
+                                 <div className="flex flex-col mt-3 gap-1 p-2 bg-white dark:bg-slate-900/50 rounded-lg border border-slate-300 dark:border-slate-700/50">
+                                     <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                                         <span className="uppercase tracking-widest text-slate-500 flex items-center gap-1"><BrainCircuit size={16}/> Algoritmo Atena:</span>
                                          <div className="flex items-center gap-2">
-                                            <span className="text-emerald-400 bg-emerald-900/20 px-2 py-1 rounded border border-emerald-500/20 flex items-center gap-1">
-                                                <Calendar size={12} /> {computedNextReviewData.date.toLocaleDateString()}
-                                            </span>
+                                            <div className="text-emerald-400 bg-emerald-900/20 px-2 py-1 rounded border border-emerald-500/20 flex items-center gap-1 cursor-pointer hover:bg-emerald-900/40 transition-colors relative overflow-hidden">
+                                                <Calendar size={16} className="pointer-events-none" /> 
+                                                <span className="font-bold text-xs pointer-events-none">{computedNextReviewData.date.toLocaleDateString()}</span>
+                                                <input 
+                                                    type="date" 
+                                                    value={computedNextReviewData.date.toISOString().split('T')[0]}
+                                                    onChange={(e) => {
+                                                        if (e.target.value) {
+                                                            const newDate = new Date(e.target.value + 'T12:00:00.000Z');
+                                                            handleChange('nextReview', newDate.toISOString());
+                                                        }
+                                                    }}
+                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                                                />
+                                            </div>
                                             <span className="text-slate-500 text-[9px] font-normal">{computedNextReviewData.label}</span>
                                          </div>
                                      </div>
@@ -1019,52 +1031,52 @@ export const Library: React.FC = () => {
                       </div>
                       
                       {formData.accuracyHistory && formData.accuracyHistory.length > 0 && (
-                          <div className="border-t border-slate-700/50 pt-2 flex gap-2 overflow-x-auto pb-1 min-h-[45px]">
+                          <div className="border-t border-slate-300 dark:border-slate-700/50 pt-2 flex gap-2 overflow-x-auto pb-1 min-h-[45px]">
                               {formData.accuracyHistory.map((h, i) => (
-                                  <div key={i} className="group relative flex flex-col items-center bg-slate-900 px-2 py-1 rounded border border-slate-800 min-w-[60px]">
-                                      <button type="button" onClick={() => removeHistoryItem(i)} className="absolute -top-1.5 -right-1.5 bg-red-600 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110 z-10 cursor-pointer shadow-sm"><X size={8} strokeWidth={3} /></button>
+                                  <div key={i} className="group relative flex flex-col items-center bg-white dark:bg-slate-900 px-2 py-1 rounded border border-slate-200 dark:border-slate-800 min-w-[60px]">
+                                      <button type="button" onClick={() => removeHistoryItem(i)} className="absolute -top-1.5 -right-1.5 bg-red-600 text-slate-900 dark:text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110 z-10 cursor-pointer shadow-sm"><X size={10} strokeWidth={3} /></button>
                                       <span className="text-[10px] text-slate-500 font-mono">{new Date(h.date).toLocaleDateString(undefined, {day:'2-digit', month:'2-digit'})}</span>
                                       <span className={`text-xs font-bold ${h.accuracy >= formData.targetAccuracy ? 'text-emerald-400' : h.accuracy < 60 ? 'text-red-400' : 'text-amber-400'}`}>{h.accuracy}%</span>
                                   </div>
                               ))}
-                              <div className="flex items-center text-xs text-slate-500 gap-1 ml-2"><TrendingUp size={14} /></div>
+                              <div className="flex items-center text-xs text-slate-500 gap-1 ml-2"><TrendingUp size={16} /></div>
                           </div>
                       )}
                   </div>
               </div>
 
-              <div className="space-y-4 pt-4 border-t border-slate-800">
+              <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800">
                   <div className="flex items-center justify-between border-b border-purple-500/20 pb-2">
                       <h3 className="text-sm font-bold text-purple-500 uppercase tracking-widest flex items-center gap-2">
-                          <BrainCircuit size={16} /> Ajuste Fino do Algoritmo
+                          <BrainCircuit size={18} /> Ajuste Fino do Algoritmo
                       </h3>
                       <div className="flex items-center gap-1">
                           {[ { factor: 1, label: 'Normal' }, { factor: 2, label: 'Turbo 2x' }, { factor: 3, label: 'Turbo 3x' }, { factor: 4, label: 'Max 4x' } ].map(mode => (
-                              <button type="button" key={mode.factor} onClick={() => applyAcceleration(mode.factor)} className={`px-2 py-1 rounded text-[10px] font-bold transition-all flex items-center gap-1 border ${currentFactor === mode.factor ? 'bg-purple-600 text-white border-purple-500' : 'bg-slate-900 text-slate-500 border-slate-700 hover:text-white'}`}>{mode.factor > 1 && <Zap size={8} />}{mode.label}</button>
+                              <button type="button" key={mode.factor} onClick={() => applyAcceleration(mode.factor)} className={`px-2 py-1 rounded text-[10px] font-bold transition-all flex items-center gap-1 border ${currentFactor === mode.factor ? 'bg-purple-600 text-white border-purple-500' : 'bg-white dark:bg-slate-900 text-slate-500 border-slate-300 dark:border-slate-700 hover:text-white'}`}>{mode.factor > 1 && <Zap size={10} />}{mode.label}</button>
                           ))}
                       </div>
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {ORDERED_ALGO_KEYS.map((key) => { const val = currentIntervals[key as keyof typeof currentIntervals]; return (<div key={key} className="group relative"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-help flex items-center gap-1">{INTERVAL_LABELS[key] || key}<HelpCircle size={10} className="text-slate-600"/></label><input type="number" value={val} onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-white text-center font-bold outline-none focus:border-purple-500" />{ALGO_TOOLTIPS[key] && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-slate-800 border border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"><strong className="block text-emerald-400 mb-1">{ALGO_TOOLTIPS[key].title}</strong><span className="text-slate-300 leading-tight block">{ALGO_TOOLTIPS[key].desc}</span><div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800"></div></div>)}</div>)})}
+                      {ORDERED_ALGO_KEYS.map((key) => { const val = currentIntervals[key as keyof typeof currentIntervals]; return (<div key={key} className="group relative"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-help flex items-center gap-1">{INTERVAL_LABELS[key] || key}<HelpCircle size={12} className="text-slate-600"/></label><input type="number" value={val} onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-white text-center font-bold outline-none focus:border-purple-500" />{ALGO_TOOLTIPS[key] && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"><strong className="block text-emerald-400 mb-1">{ALGO_TOOLTIPS[key].title}</strong><span className="text-slate-600 dark:text-slate-300 leading-tight block">{ALGO_TOOLTIPS[key].desc}</span><div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800"></div></div>)}</div>)})}
                   </div>
               </div>
 
               <div className="space-y-4 pt-2">
                 <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">3. Rascunhos & Anotações</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div><label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Anotações / Resumo</label><textarea value={formData.notes} onChange={e => handleChange('notes', e.target.value)} className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white outline-none focus:border-emerald-500 transition-all min-h-[200px] resize-none text-sm custom-scrollbar" placeholder="Mnemônicos..." /></div>
+                    <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Anotações / Resumo</label><textarea value={formData.notes} onChange={e => handleChange('notes', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500 transition-all min-h-[200px] resize-none text-sm custom-scrollbar" placeholder="Mnemônicos..." /></div>
                     <div className="flex flex-col h-full">
-                        <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Galeria de Mapas Mentais</label>
-                        <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 min-h-[200px] flex flex-col">
+                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Galeria de Mapas Mentais</label>
+                        <div className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 min-h-[200px] flex flex-col">
                             <div className="grid grid-cols-3 gap-2 mb-3">
                                 {formData.images.map((img, idx) => (
-                                    <div key={idx} className="relative group aspect-square bg-slate-900 rounded-lg overflow-hidden border border-slate-700 hover:border-emerald-500 transition-colors cursor-pointer">
+                                    <div key={idx} className="relative group aspect-square bg-white dark:bg-slate-900 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 hover:border-emerald-500 transition-colors cursor-pointer">
                                         <img src={img} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" onClick={() => setLightboxIndex(idx)} />
-                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 pointer-events-none"><ZoomIn size={16} className="text-white" /></div>
-                                        <button type="button" onClick={(e) => { e.stopPropagation(); removeImage(idx); }} className="absolute top-1 right-1 bg-red-600 hover:bg-red-500 text-white rounded p-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto"><Trash2 size={12} /></button>
+                                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 pointer-events-none"><ZoomIn size={18} className="text-slate-900 dark:text-white" /></div>
+                                        <button type="button" onClick={(e) => { e.stopPropagation(); removeImage(idx); }} className="absolute top-1 right-1 bg-red-600 hover:bg-red-500 text-slate-900 dark:text-white rounded p-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto"><Trash2 size={14} /></button>
                                     </div>
                                 ))}
-                                <div onClick={() => fileInputRef.current?.click()} className="aspect-square border-2 border-dashed border-slate-700 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-emerald-500 hover:bg-slate-700/50 transition-colors text-slate-500 hover:text-emerald-500"><Plus size={24} /><span className="text-[10px] uppercase font-bold mt-1">Add Imagem</span></div>
+                                <div onClick={() => fileInputRef.current?.click()} className="aspect-square border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-emerald-500 hover:bg-slate-700/50 transition-colors text-slate-500 hover:text-emerald-500"><Plus size={28} /><span className="text-[10px] uppercase font-bold mt-1">Add Imagem</span></div>
                             </div>
                             <input type="file" ref={fileInputRef} className="hidden" accept="image/*" multiple onChange={handleImageUpload} />
                             <p className="text-[10px] text-slate-500 mt-auto text-center italic">Suporta múltiplas imagens. Clique em uma imagem para ampliar.</p>
@@ -1073,10 +1085,10 @@ export const Library: React.FC = () => {
                 </div>
               </div>
             </form>
-            <div className="p-6 border-t border-slate-800 bg-slate-900 flex gap-4">
-                <button type="button" onClick={() => !isSaving && setIsModalOpen(false)} disabled={isSaving} className="flex-1 bg-slate-800 text-slate-300 py-3 rounded-xl hover:bg-slate-700 font-medium transition-colors disabled:opacity-50">Cancelar</button>
+            <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex gap-4">
+                <button type="button" onClick={() => !isSaving && setIsModalOpen(false)} disabled={isSaving} className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 py-3 rounded-xl hover:bg-slate-700 font-medium transition-colors disabled:opacity-50">Cancelar</button>
                 <button type="button" onClick={handleSave} disabled={isSaving} className="flex-1 bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-500 font-bold shadow-lg shadow-emerald-900/20 transition-all flex items-center justify-center gap-2 disabled:bg-emerald-800 disabled:text-emerald-400 disabled:cursor-wait">
-                    {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                    {isSaving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
                     {isSaving ? "Salvando..." : (formData.isGlobal ? "Salvar e Publicar Cópia" : "Salvar Alterações")}
                 </button>
             </div>
