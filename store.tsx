@@ -858,7 +858,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
          if (n.id !== targetId) return n;
          const prevHistory = n.accuracyHistory ? [...n.accuracyHistory] : [];
          const history = [...prevHistory, { date: new Date().toISOString(), accuracy }];
-         const updated = { ...n, accuracy, accuracyHistory: history.slice(-10), lastPractice: new Date().toISOString() };
+         const updated = { ...n, accuracy, accuracyHistory: history.slice(-365), lastPractice: new Date().toISOString() };
          updatedNb = updated;
          return updated;
       }));

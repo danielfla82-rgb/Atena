@@ -237,6 +237,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
   const [isSaving, setIsSaving] = useState(false);
   const [quoteIndex, setQuoteIndex] = useState(0);
   const [expandedMetric, setExpandedMetric] = useState<'performance' | 'progress' | null>(null);
+  const [viewedMonthOffset, setViewedMonthOffset] = useState(0);
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -375,9 +376,10 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       });
 
       const now = new Date();
+      now.setMonth(now.getMonth() + viewedMonthOffset);
       const currentYear = now.getFullYear();
       const currentMonth = now.getMonth();
-      const monthName = now.toLocaleString('pt-BR', { month: 'long' });
+      const monthName = now.toLocaleString('pt-BR', { month: 'long', year: 'numeric' });
       const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
       const firstDayOfWeek = new Date(currentYear, currentMonth, 1).getDay(); 
       const calendarGrid = [];
@@ -410,7 +412,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       }
 
       return { avgAccuracy, completedTopics, pendingTopics: totalTopics - completedTopics, progressPercent, calendarGrid, currentStreak, monthName, disciplineStats };
-  }, [notebooks, today, cycles, activeCycleId]);
+  }, [notebooks, today, cycles, activeCycleId, viewedMonthOffset]);
 
   const evolutionData = useMemo(() => {
         // --- EVOLUTION LOGIC V3: SNAPSHOT POR SEMANA ---

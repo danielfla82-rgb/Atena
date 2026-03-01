@@ -143,7 +143,7 @@ export const DisciplineManager: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Peso</label>
-                  <select value={formData.weight} onChange={e => setFormData({ ...formData, weight: Number(e.target.value) as Weight })} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500">
+                  <select value={formData.weight} onChange={e => setFormData({ ...formData, weight: e.target.value as Weight })} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500">
                     <option value={Weight.BAIXO}>Baixo (1)</option>
                     <option value={Weight.MEDIO}>Médio (2)</option>
                     <option value={Weight.ALTO}>Alto (3)</option>
@@ -151,7 +151,7 @@ export const DisciplineManager: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Relevância</label>
-                  <select value={formData.relevance} onChange={e => setFormData({ ...formData, relevance: Number(e.target.value) as Relevance })} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500">
+                  <select value={formData.relevance} onChange={e => setFormData({ ...formData, relevance: e.target.value as Relevance })} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500">
                     <option value={Relevance.BAIXA}>Baixa (1)</option>
                     <option value={Relevance.MEDIA}>Média (2)</option>
                     <option value={Relevance.ALTA}>Alta (3)</option>
