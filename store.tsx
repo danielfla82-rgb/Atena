@@ -929,7 +929,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       
       if (!isGuest && user) {
           try {
-              const { error } = await supabase.from('disciplines').update(data).eq('id', id);
+              const payload = { ...data };
+              delete (payload as any).id;
+              const { error } = await supabase.from('disciplines').update(payload).eq('id', id);
               if (error) throw error;
           } catch (e) {
               setDisciplines(prev);

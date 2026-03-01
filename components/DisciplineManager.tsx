@@ -15,34 +15,48 @@ export const DisciplineManager: React.FC = () => {
     relevance: Relevance.MEDIA,
   });
 
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const handleOpenCreate = () => {
     setFormData({ name: '', edital: '', weight: Weight.MEDIO, relevance: Relevance.MEDIA });
     setEditingId(null);
+    setError(null);
     setIsModalOpen(true);
   };
 
   const handleOpenEdit = (discipline: Discipline) => {
     setFormData({ ...discipline });
     setEditingId(discipline.id);
+    setError(null);
     setIsModalOpen(true);
   };
 
   const handleSave = async () => {
     if (!formData.name) return;
+    setIsSaving(true);
+    setError(null);
     
-    if (editingId && !editingId.startsWith('virtual-')) {
-      await editDiscipline(editingId, formData);
-    } else {
-      // If it's a virtual discipline or a new one, we add it.
-      // The store will generate a real UUID for it.
-      await addDiscipline({
-        name: formData.name,
-        edital: formData.edital,
-        weight: formData.weight || Weight.MEDIO,
-        relevance: formData.relevance || Relevance.MEDIA
-      });
+    try {
+      if (editingId && !editingId.startsWith('virtual-')) {
+        await editDiscipline(editingId, formData);
+      } else {
+        // If it's a virtual discipline or a new one, we add it.
+        // The store will generate a real UUID for it.
+        await addDiscipline({
+          name: formData.name,
+          edital: formData.edital,
+          weight: formData.weight || Weight.MEDIO,
+          relevance: formData.relevance || Relevance.MEDIA
+        });
+      }
+      setIsModalOpen(false);
+    } catch (err: any) {
+      console.error("Error saving discipline:", err);
+      setError(err.message || "Erro ao salvar disciplina. Verifique sua conexão ou tente novamente.");
+    } finally {
+      setIsSaving(false);
     }
-    setIsModalOpen(false);
   };
 
   const handleDelete = async (id: string) => {
@@ -132,6 +146,11 @@ export const DisciplineManager: React.FC = () => {
               <button onClick={() => setIsModalOpen(false)} className="text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"><X size={24} /></button>
             </div>
             <div className="p-6 space-y-4">
+              {error && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 flex items-center gap-2 text-red-400 text-sm">
+                  <AlertCircle size={16} /> {error}
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Nome da Disciplina</label>
                 <input type="text" value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500" placeholder="Ex: Direito Administrativo" />
@@ -160,8 +179,11 @@ export const DisciplineManager: React.FC = () => {
               </div>
             </div>
             <div className="p-6 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3">
-              <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">Cancelar</button>
-              <button onClick={handleSave} disabled={!formData.name} className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg flex items-center gap-2 disabled:opacity-50"><Save size={18} /> Salvar</button>
+              <button onClick={() => setIsModalOpen(false)} disabled={isSaving} className="px-4 py-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">Cancelar</button>
+              <button onClick={handleSave} disabled={!formData.name || isSaving} className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg flex items-center gap-2 disabled:opacity-50">
+                {isSaving ? <Activity size={18} className="animate-spin" /> : <Save size={18} />}
+                {isSaving ? 'Salvando...' : 'Salvar'}
+              </button>
             </div>
           </div>
         </div>
