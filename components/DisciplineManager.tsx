@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { useStore } from '../store';
+import { useStore, useMergedDisciplines } from '../store';
 import { Discipline, Weight, Relevance } from '../types';
-import { Plus, Edit2, Trash2, X, Save, Book, Target, AlertCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, Book, Target, AlertCircle, Info, Activity } from 'lucide-react';
 
 export const DisciplineManager: React.FC = () => {
-  const { disciplines, addDiscipline, editDiscipline, deleteDiscipline } = useStore();
+  const { addDiscipline, editDiscipline, deleteDiscipline, notebooks } = useStore();
+  const mergedDisciplines = useMergedDisciplines();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Discipline>>({
@@ -28,15 +29,27 @@ export const DisciplineManager: React.FC = () => {
 
   const handleSave = async () => {
     if (!formData.name) return;
-    if (editingId) {
+    
+    if (editingId && !editingId.startsWith('virtual-')) {
       await editDiscipline(editingId, formData);
     } else {
-      await addDiscipline(formData);
+      // If it's a virtual discipline or a new one, we add it.
+      // The store will generate a real UUID for it.
+      await addDiscipline({
+        name: formData.name,
+        edital: formData.edital,
+        weight: formData.weight || Weight.MEDIO,
+        relevance: formData.relevance || Relevance.MEDIA
+      });
     }
     setIsModalOpen(false);
   };
 
   const handleDelete = async (id: string) => {
+    if (id.startsWith('virtual-')) {
+      alert('Esta disciplina é gerada automaticamente a partir dos seus cadernos. Para removê-la, altere ou exclua os cadernos associados a ela.');
+      return;
+    }
     if (confirm('Tem certeza que deseja excluir esta disciplina?')) {
       await deleteDiscipline(id);
     }
@@ -50,7 +63,7 @@ export const DisciplineManager: React.FC = () => {
             <Book className="text-emerald-500" /> Disciplinas Mães
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">
-            Gerencie as disciplinas principais, seus pesos e relevâncias.
+            Gerencie as disciplinas principais, seus pesos e relevâncias. Disciplinas usadas em cadernos aparecem aqui automaticamente.
           </p>
         </div>
         <button onClick={handleOpenCreate} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-sm transition-colors shadow-lg shadow-emerald-900/20">
@@ -59,31 +72,54 @@ export const DisciplineManager: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {disciplines.map(discipline => (
-          <div key={discipline.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-lg flex flex-col gap-4">
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-white">{discipline.name}</h3>
-                {discipline.edital && <span className="text-xs text-slate-500 dark:text-slate-400 font-mono bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded mt-1 inline-block">{discipline.edital}</span>}
+        {mergedDisciplines.map(discipline => {
+          const isVirtual = discipline.id.startsWith('virtual-');
+          const discNotebooks = notebooks.filter(nb => nb.discipline === discipline.name);
+          const avgAccuracy = discNotebooks.length > 0
+            ? Math.round(discNotebooks.reduce((acc, nb) => acc + nb.accuracy, 0) / discNotebooks.length)
+            : null;
+
+          return (
+            <div key={discipline.id} className={`bg-white dark:bg-slate-900 border ${isVirtual ? 'border-slate-200 dark:border-slate-800/50 border-dashed' : 'border-slate-200 dark:border-slate-800'} rounded-xl p-5 shadow-lg flex flex-col gap-4 relative overflow-hidden`}>
+              {isVirtual && (
+                <div className="absolute top-0 right-0 bg-slate-100 dark:bg-slate-800/50 text-slate-500 text-[9px] px-2 py-1 font-bold uppercase tracking-wider rounded-bl-lg flex items-center gap-1" title="Gerada automaticamente a partir dos cadernos">
+                  <Info size={10} /> Automática
+                </div>
+              )}
+              <div className="flex justify-between items-start mt-2">
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">{discipline.name}</h3>
+                  {discipline.edital && <span className="text-xs text-slate-500 dark:text-slate-400 font-mono bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded mt-1 inline-block">{discipline.edital}</span>}
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => handleOpenEdit(discipline)} className="p-1.5 text-slate-400 hover:text-emerald-500 bg-slate-100 dark:bg-slate-800 rounded-md transition-colors" title={isVirtual ? "Editar para salvar configurações" : "Editar"}><Edit2 size={14} /></button>
+                  {!isVirtual && <button onClick={() => handleDelete(discipline.id)} className="p-1.5 text-slate-400 hover:text-red-500 bg-slate-100 dark:bg-slate-800 rounded-md transition-colors"><Trash2 size={14} /></button>}
+                </div>
               </div>
-              <div className="flex gap-2">
-                <button onClick={() => handleOpenEdit(discipline)} className="p-1.5 text-slate-400 hover:text-emerald-500 bg-slate-100 dark:bg-slate-800 rounded-md transition-colors"><Edit2 size={14} /></button>
-                <button onClick={() => handleDelete(discipline.id)} className="p-1.5 text-slate-400 hover:text-red-500 bg-slate-100 dark:bg-slate-800 rounded-md transition-colors"><Trash2 size={14} /></button>
+              <div className="flex gap-2 mt-auto flex-wrap">
+                <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded ${isVirtual ? 'bg-slate-50 dark:bg-slate-900/50 text-slate-400 dark:text-slate-500 border-dashed' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'} border border-slate-200 dark:border-slate-700 flex items-center gap-1`}>
+                  <Target size={10} /> Peso: {discipline.weight}
+                </span>
+                <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded ${isVirtual ? 'bg-slate-50 dark:bg-slate-900/50 text-slate-400 dark:text-slate-500 border-dashed' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'} border border-slate-200 dark:border-slate-700 flex items-center gap-1`}>
+                  <AlertCircle size={10} /> Relevância: {discipline.relevance}
+                </span>
+                {avgAccuracy !== null && (
+                  <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded border border-slate-200 dark:border-slate-700 flex items-center gap-1 ${
+                    avgAccuracy >= 80 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                    avgAccuracy >= 60 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                    avgAccuracy >= 40 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
+                    'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                  }`}>
+                    <Activity size={10} /> Média: {avgAccuracy}%
+                  </span>
+                )}
               </div>
             </div>
-            <div className="flex gap-2 mt-auto">
-              <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 flex items-center gap-1">
-                <Target size={10} /> Peso: {discipline.weight}
-              </span>
-              <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 flex items-center gap-1">
-                <AlertCircle size={10} /> Relevância: {discipline.relevance}
-              </span>
-            </div>
-          </div>
-        ))}
-        {disciplines.length === 0 && (
+          );
+        })}
+        {mergedDisciplines.length === 0 && (
           <div className="col-span-full py-12 text-center text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
-            Nenhuma disciplina cadastrada.
+            Nenhuma disciplina cadastrada ou encontrada nos cadernos.
           </div>
         )}
       </div>

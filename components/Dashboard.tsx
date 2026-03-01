@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useStore } from '../store';
+import { useStore, useMergedDisciplines } from '../store';
 import { useTheme } from '../ThemeContext';
 import { QuadrantChart } from './QuadrantChart';
 import { DisciplineQuadrantChart } from './DisciplineQuadrantChart';
@@ -225,7 +225,8 @@ interface Props {
 }
 
 export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
-  const { notebooks, disciplines, config, updateConfig, setFocusedNotebookId, cycles, activeCycleId, startSession, dbError } = useStore();
+  const { notebooks, config, updateConfig, setFocusedNotebookId, cycles, activeCycleId, startSession, dbError } = useStore();
+  const mergedDisciplines = useMergedDisciplines();
   const { theme } = useTheme();
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [localConfig, setLocalConfig] = useState(config);
@@ -670,7 +671,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       </DashboardSection>
 
       <DashboardSection title="Radiografia de Disciplinas" subtitle="Matriz de Disciplinas Mães" icon={<Book size={20} />} defaultOpen={false}>
-          <div className="w-full"><DisciplineQuadrantChart data={disciplines} onNavigate={onNavigate} /></div>
+          <div className="w-full"><DisciplineQuadrantChart data={mergedDisciplines} onNavigate={onNavigate} /></div>
       </DashboardSection>
 
       {isConfigOpen && (

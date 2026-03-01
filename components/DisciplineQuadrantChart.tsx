@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
+import { useStore } from '../store';
 import { Discipline, Weight, Relevance, WEIGHT_SCORE, RELEVANCE_SCORE } from '../types';
-import { Target, Grid3X3, ScatterChart as ScatterIcon, X, ExternalLink } from 'lucide-react';
+import { Target, Grid3X3, ScatterChart as ScatterIcon, X, ExternalLink, CheckCircle2, TrendingUp, AlertTriangle } from 'lucide-react';
 
 import {
   Chart as ChartJS,
@@ -20,6 +21,7 @@ interface Props {
 }
 
 export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
+  const { notebooks } = useStore();
   const [viewMode, setViewMode] = useState<'heatmap' | 'scatter'>('heatmap');
   const [selectedCell, setSelectedCell] = useState<{ disciplines: Discipline[], title: string } | null>(null);
   const [editalFilter, setEditalFilter] = useState('');
@@ -42,11 +44,11 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
   const relevances = [Relevance.BAIXA, Relevance.MEDIA, Relevance.ALTA, Relevance.ALTISSIMA];
 
   const matrix = useMemo(() => {
-    const grid: Record<string, { count: number; disciplines: Discipline[] }> = {};
+    const grid: Record<string, { count: number; disciplines: Discipline[]; avgAccuracy: number | null }> = {};
     
     weights.forEach(w => {
       relevances.forEach(r => {
-        grid[`${w}-${r}`] = { count: 0, disciplines: [] };
+        grid[`${w}-${r}`] = { count: 0, disciplines: [], avgAccuracy: null };
       });
     });
 
@@ -58,20 +60,37 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
       }
     });
 
-    return grid;
-  }, [filteredData, weights, relevances]);
+    // Calculate average accuracy for each cell
+    Object.values(grid).forEach(cell => {
+      if (cell.count > 0) {
+        // Collect all notebooks for the disciplines in this cell
+        const cellNotebooks = notebooks.filter(nb => 
+          cell.disciplines.some(d => d.name === nb.discipline) && nb.accuracy > 0
+        );
+        
+        if (cellNotebooks.length > 0) {
+          const totalAcc = cellNotebooks.reduce((sum, nb) => sum + nb.accuracy, 0);
+          cell.avgAccuracy = Math.round(totalAcc / cellNotebooks.length);
+        }
+      }
+    });
 
-  const getCellColor = (weight: Weight, relevance: Relevance, count: number) => {
-    if (count === 0) return 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800';
-    
-    const wScore = WEIGHT_SCORE[weight];
-    const rScore = RELEVANCE_SCORE[relevance];
-    const totalScore = wScore + rScore;
-    
-    if (totalScore >= 8) return 'bg-red-100 dark:bg-red-900/40 border-red-300 dark:border-red-700/50 text-red-900 dark:text-red-100';
-    if (totalScore >= 6) return 'bg-orange-100 dark:bg-orange-900/40 border-orange-300 dark:border-orange-700/50 text-orange-900 dark:text-orange-100';
-    if (totalScore >= 4) return 'bg-blue-100 dark:bg-blue-900/40 border-blue-300 dark:border-blue-700/50 text-blue-900 dark:text-blue-100';
-    return 'bg-emerald-100 dark:bg-emerald-900/40 border-emerald-300 dark:border-emerald-700/50 text-emerald-900 dark:text-emerald-100';
+    return grid;
+  }, [filteredData, weights, relevances, notebooks]);
+
+  const getCellColor = (count: number, avgAcc: number | null) => {
+    if (count === 0) return 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 text-slate-400';
+    if (avgAcc === null) return 'bg-slate-100 dark:bg-slate-800/50 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400';
+    if (avgAcc >= 85) return 'bg-emerald-100 dark:bg-emerald-900/40 border-emerald-300 dark:border-emerald-700/50 text-emerald-900 dark:text-emerald-100 hover:bg-emerald-200 dark:hover:bg-emerald-900/60';
+    if (avgAcc >= 60) return 'bg-amber-100 dark:bg-amber-900/40 border-amber-300 dark:border-amber-700/50 text-amber-900 dark:text-amber-100 hover:bg-amber-200 dark:hover:bg-amber-900/60';
+    return 'bg-red-100 dark:bg-red-900/40 border-red-300 dark:border-red-700/50 text-red-900 dark:text-red-100 hover:bg-red-200 dark:hover:bg-red-900/60';
+  };
+
+  const getCellIcon = (avgAcc: number | null) => {
+    if (avgAcc === null) return null;
+    if (avgAcc >= 85) return <CheckCircle2 size={18} />;
+    if (avgAcc >= 60) return <TrendingUp size={18} />;
+    return <AlertTriangle size={18} />;
   };
 
   const getQuadrantLabel = (weight: Weight, relevance: Relevance) => {
@@ -84,32 +103,36 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
   };
 
   const scatterData = useMemo(() => {
+    // Filter out disciplines that have no notebooks with accuracy > 0
+    const activeDisciplines = filteredData.filter(disc => {
+      const discNotebooks = notebooks.filter(nb => nb.discipline === disc.name && nb.accuracy > 0);
+      return discNotebooks.length > 0;
+    });
+
     return {
       datasets: [
         {
           label: 'Disciplinas',
-          data: filteredData.map(disc => ({
-            x: RELEVANCE_SCORE[disc.relevance],
-            y: WEIGHT_SCORE[disc.weight],
+          data: activeDisciplines.map(disc => ({
+            x: RELEVANCE_SCORE[disc.relevance] + (Math.random() * 0.2 - 0.1), // Jitter
+            y: WEIGHT_SCORE[disc.weight] + (Math.random() * 0.2 - 0.1), // Jitter
             disc
           })),
-          backgroundColor: filteredData.map(disc => {
-            const wScore = WEIGHT_SCORE[disc.weight];
-            const rScore = RELEVANCE_SCORE[disc.relevance];
-            const totalScore = wScore + rScore;
-            if (totalScore >= 8) return 'rgba(239, 68, 68, 0.7)';
-            if (totalScore >= 6) return 'rgba(249, 115, 22, 0.7)';
-            if (totalScore >= 4) return 'rgba(59, 130, 246, 0.7)';
-            return 'rgba(16, 185, 129, 0.7)';
+          backgroundColor: activeDisciplines.map(disc => {
+            const discNotebooks = notebooks.filter(nb => nb.discipline === disc.name && nb.accuracy > 0);
+            const avgAccuracy = Math.round(discNotebooks.reduce((sum, nb) => sum + nb.accuracy, 0) / discNotebooks.length);
+            
+            if (avgAccuracy >= 85) return 'rgba(16, 185, 129, 0.7)'; // Emerald
+            if (avgAccuracy >= 60) return 'rgba(245, 158, 11, 0.7)'; // Amber
+            return 'rgba(239, 68, 68, 0.7)'; // Red
           }),
-          borderColor: filteredData.map(disc => {
-            const wScore = WEIGHT_SCORE[disc.weight];
-            const rScore = RELEVANCE_SCORE[disc.relevance];
-            const totalScore = wScore + rScore;
-            if (totalScore >= 8) return 'rgb(239, 68, 68)';
-            if (totalScore >= 6) return 'rgb(249, 115, 22)';
-            if (totalScore >= 4) return 'rgb(59, 130, 246)';
-            return 'rgb(16, 185, 129)';
+          borderColor: activeDisciplines.map(disc => {
+            const discNotebooks = notebooks.filter(nb => nb.discipline === disc.name && nb.accuracy > 0);
+            const avgAccuracy = Math.round(discNotebooks.reduce((sum, nb) => sum + nb.accuracy, 0) / discNotebooks.length);
+            
+            if (avgAccuracy >= 85) return 'rgb(16, 185, 129)'; // Emerald
+            if (avgAccuracy >= 60) return 'rgb(245, 158, 11)'; // Amber
+            return 'rgb(239, 68, 68)'; // Red
           }),
           borderWidth: 1,
           pointRadius: 6,
@@ -117,23 +140,35 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
         }
       ]
     };
-  }, [filteredData]);
+  }, [filteredData, notebooks]);
 
   const scatterOptions = {
     responsive: true,
     maintainAspectRatio: false,
     scales: {
       x: {
-        title: { display: true, text: 'Relevância (1-5)', color: '#64748b', font: { weight: 'bold' as const } },
-        min: 0, max: 6,
+        type: 'linear' as const,
+        position: 'bottom' as const,
+        title: { display: true, text: 'Relevância', color: '#64748b', font: { weight: 'bold' as const } },
+        min: 0.5, max: 4.5,
         grid: { color: 'rgba(148, 163, 184, 0.1)' },
-        ticks: { color: '#64748b' }
+        ticks: { 
+          stepSize: 1,
+          callback: (val: any) => ['', 'Baixa', 'Média', 'Alta', 'Altíssima'][val] || '',
+          color: '#64748b' 
+        }
       },
       y: {
-        title: { display: true, text: 'Peso (1-5)', color: '#64748b', font: { weight: 'bold' as const } },
-        min: 0, max: 6,
+        type: 'linear' as const,
+        position: 'left' as const,
+        title: { display: true, text: 'Peso', color: '#64748b', font: { weight: 'bold' as const } },
+        min: 0.5, max: 4.5,
         grid: { color: 'rgba(148, 163, 184, 0.1)' },
-        ticks: { color: '#64748b' }
+        ticks: { 
+          stepSize: 1,
+          callback: (val: any) => ['', 'Baixo', 'Médio', 'Alto', 'Muito Alto'][val] || '',
+          color: '#64748b' 
+        }
       }
     },
     plugins: {
@@ -142,11 +177,17 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
         callbacks: {
           label: (context: any) => {
             const disc = context.raw.disc as Discipline;
+            const discNotebooks = notebooks.filter(nb => nb.discipline === disc.name);
+            const avgAccuracy = discNotebooks.length > 0
+              ? Math.round(discNotebooks.reduce((acc, nb) => acc + nb.accuracy, 0) / discNotebooks.length)
+              : null;
+            
             return [
               ` ${disc.name}`,
               ` Edital: ${disc.edital || 'N/A'}`,
               ` Peso: ${disc.weight}`,
-              ` Relevância: ${disc.relevance}`
+              ` Relevância: ${disc.relevance}`,
+              ` Acurácia Média: ${avgAccuracy !== null ? `${avgAccuracy}%` : 'N/A'}`
             ];
           }
         },
@@ -239,7 +280,7 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
                   <div key={w} className="flex-1 grid grid-cols-4 gap-2">
                     {relevances.map(r => {
                       const cell = matrix[`${w}-${r}`];
-                      const colorClass = getCellColor(w, r, cell.count);
+                      const colorClass = getCellColor(cell.count, cell.avgAccuracy);
                       const label = getQuadrantLabel(w, r);
                       
                       return (
@@ -248,8 +289,22 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
                           onClick={() => cell.count > 0 && setSelectedCell({ disciplines: cell.disciplines, title: `${w} / ${r}` })}
                           className={`relative rounded-xl border p-3 flex flex-col items-center justify-center transition-all duration-300 ${colorClass} ${cell.count > 0 ? 'cursor-pointer hover:scale-[1.02] hover:shadow-lg' : 'opacity-50'}`}
                         >
-                          <span className="text-3xl font-black opacity-80">{cell.count}</span>
-                          <span className="text-[9px] font-bold uppercase tracking-widest mt-1 opacity-70">{label}</span>
+                          {cell.count > 0 && cell.avgAccuracy !== null ? (
+                            <>
+                              <div className="flex items-center gap-1 mb-1 font-bold">
+                                {getCellIcon(cell.avgAccuracy)}
+                                <span className="text-2xl font-black">{cell.avgAccuracy}%</span>
+                              </div>
+                              <span className="text-[10px] font-bold uppercase tracking-widest mt-1 opacity-70">
+                                {cell.count} {cell.count === 1 ? 'Item' : 'Itens'}
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-3xl font-black opacity-30">{cell.count}</span>
+                              <span className="text-[9px] font-bold uppercase tracking-widest mt-1 opacity-50">{label}</span>
+                            </>
+                          )}
                         </div>
                       );
                     })}
@@ -287,23 +342,42 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
             
             <div className="p-4 overflow-y-auto custom-scrollbar flex-1">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {selectedCell.disciplines.map(disc => (
-                  <div key={disc.id} className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow group flex flex-col justify-between">
-                    <div>
-                      <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-1 line-clamp-2">{disc.name}</h4>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1">{disc.edital || 'Sem edital'}</p>
+                {selectedCell.disciplines.map(disc => {
+                  const discNotebooks = notebooks.filter(nb => nb.discipline === disc.name);
+                  const avgAccuracy = discNotebooks.length > 0
+                    ? Math.round(discNotebooks.reduce((acc, nb) => acc + nb.accuracy, 0) / discNotebooks.length)
+                    : null;
+
+                  return (
+                    <div key={disc.id} className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow group flex flex-col justify-between">
+                      <div>
+                        <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-1 line-clamp-2">{disc.name}</h4>
+                        <div className="flex items-center justify-between mt-2">
+                          <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1">{disc.edital || 'Sem edital'}</p>
+                          {avgAccuracy !== null && (
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                              avgAccuracy >= 80 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                              avgAccuracy >= 60 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                              avgAccuracy >= 40 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
+                              'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                            }`}>
+                              {avgAccuracy}%
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => {
+                          setSelectedCell(null);
+                          if (onNavigate) onNavigate('disciplines');
+                        }}
+                        className="mt-3 w-full py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1"
+                      >
+                        <ExternalLink size={12} /> Gerenciar
+                      </button>
                     </div>
-                    <button 
-                      onClick={() => {
-                        setSelectedCell(null);
-                        if (onNavigate) onNavigate('disciplines');
-                      }}
-                      className="mt-3 w-full py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1"
-                    >
-                      <ExternalLink size={12} /> Gerenciar
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>

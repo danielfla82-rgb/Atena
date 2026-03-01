@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from './components/supabase';
 import { get, set } from 'idb-keyval';
 import { 
@@ -1251,4 +1251,33 @@ export const useStore = () => {
     throw new Error('useStore must be used within a StoreProvider');
   }
   return context;
+};
+
+export const useMergedDisciplines = () => {
+  const { disciplines, notebooks } = useStore();
+
+  return useMemo(() => {
+    const disciplineMap = new Map<string, Discipline>();
+    
+    // 1. Add explicitly saved disciplines
+    disciplines.forEach(d => {
+      disciplineMap.set(d.name.toLowerCase().trim(), d);
+    });
+
+    // 2. Add virtual disciplines from notebooks
+    notebooks.forEach(nb => {
+      if (!nb.discipline) return;
+      const key = nb.discipline.toLowerCase().trim();
+      if (!disciplineMap.has(key)) {
+        disciplineMap.set(key, {
+          id: `virtual-${key}`, // Virtual ID
+          name: nb.discipline,
+          weight: Weight.MEDIO,
+          relevance: Relevance.MEDIA,
+        });
+      }
+    });
+
+    return Array.from(disciplineMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [disciplines, notebooks]);
 };
