@@ -12,7 +12,7 @@ import {
   Target, Settings, TrendingUp, TrendingDown, Minus,
   PieChart as PieChartIcon, Activity, Siren, ArrowRight, CheckCircle2,
   Check, XCircle, Quote, ChevronDown, BarChart2,
-  RefreshCw, BrainCircuit, Crosshair, Scroll, Crown, Zap, Save, X, FileText, CalendarClock, AlertCircle, Edit2, Calendar, Key, ShieldCheck, Sparkles, Bot, AlertTriangle, Database, Terminal, Flame, Loader2, Settings2, HelpCircle, ChevronUp, Book
+  RefreshCw, BrainCircuit, Crosshair, Scroll, Crown, Zap, Save, X, FileText, CalendarClock, AlertCircle, Edit2, Calendar, Key, ShieldCheck, Sparkles, Bot, AlertTriangle, Database, Terminal, Flame, Loader2, Settings2, HelpCircle, ChevronUp, Book, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 import {
@@ -147,6 +147,36 @@ const ALGO_TOOLTIPS: Record<string, { title: string, desc: string }> = {
 };
 
 const ORDERED_ALGO_KEYS = ['learning', 'reviewing', 'mastering', 'maintaining'];
+
+const StreakIcon = ({ streak }: { streak: number }) => {
+    let colorClass = "text-slate-500 dark:text-slate-600";
+    let animationClass = "";
+    let glowClass = "";
+    const shadowClass = "";
+
+    if (streak >= 15) {
+        colorClass = "text-rose-500 fill-rose-500";
+        animationClass = "animate-bounce";
+        glowClass = "drop-shadow-[0_0_15px_rgba(244,63,94,0.8)]";
+    } else if (streak >= 8) {
+        colorClass = "text-red-500 fill-red-500";
+        animationClass = "animate-pulse duration-500";
+        glowClass = "drop-shadow-[0_0_10px_rgba(239,68,68,0.6)]";
+    } else if (streak >= 4) {
+        colorClass = "text-orange-600 fill-orange-600";
+        glowClass = "drop-shadow-[0_0_5px_rgba(234,88,12,0.4)]";
+    } else if (streak >= 1) {
+        colorClass = "text-orange-500 fill-orange-500";
+        animationClass = "animate-pulse";
+    }
+
+    return (
+        <Flame 
+            size={18} 
+            className={`${colorClass} ${animationClass} ${glowClass} ${shadowClass} transition-all duration-500`} 
+        />
+    );
+};
 
 const DashboardSection = ({ 
     title, 
@@ -559,7 +589,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
   const staticRecommendation = useMemo(() => {
     const candidates = notebooks.filter(n => n.discipline !== 'Revisão Geral' && !n.isGlobal);
     if (candidates.length === 0) return null;
-    const critical = candidates.find(n => (n.weight === Weight.MUITO_ALTO || n.weight === Weight.ALTO) && n.accuracy < 60);
+    const critical = candidates.find(n => n.weight === Weight.ALTO && n.accuracy < 60);
     if (critical) return { type: 'critical', notebook: critical, title: `Atenção: ${critical.discipline}`, reason: `Peso ${critical.weight} com desempenho crítico (${critical.accuracy}%).`, icon: <Siren className="text-red-500 animate-pulse" size={24} />, colorClass: 'border-red-500/50 bg-red-900/10', isAi: false, strategy: undefined };
     const lowest = [...candidates].sort((a, b) => ((WEIGHT_SCORE[a.weight] * 100) - a.accuracy) - ((WEIGHT_SCORE[b.weight] * 100) - b.accuracy))[0];
     if (lowest) return { type: 'standard', notebook: lowest, title: `Sugestão: ${lowest.discipline}`, reason: `Melhorar este tópico trará o maior retorno sobre investimento.`, icon: <Zap className="text-emerald-500" size={24} />, colorClass: 'border-emerald-500/50 bg-emerald-900/10', isAi: false, strategy: undefined };
@@ -637,7 +667,35 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 rounded-xl p-5 border border-slate-200 dark:border-slate-800 shadow-lg flex flex-col justify-between">
-              <div className="flex justify-between items-start mb-4"><div className="flex items-center gap-3"><div className="bg-slate-100 dark:bg-slate-800 p-2 rounded-lg text-slate-500"><Flame size={18} className={metrics.currentStreak > 0 ? "text-orange-500 fill-orange-500 animate-pulse" : "text-slate-500 dark:text-slate-400 dark:text-slate-600"} /></div><div><h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Histórico de Foco</h3><p className="text-[10px] text-slate-500">{metrics.currentStreak} dias consecutivos</p></div></div><span className="text-[10px] uppercase font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border border-slate-200 dark:border-slate-700 tracking-wider">{metrics.monthName}</span></div>
+              <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-center gap-3">
+                      <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded-lg text-slate-500">
+                          <StreakIcon streak={metrics.currentStreak} />
+                      </div>
+                      <div>
+                          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Histórico de Foco</h3>
+                          <p className="text-[10px] text-slate-500">{metrics.currentStreak} dias consecutivos</p>
+                      </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                      <button 
+                        onClick={() => setViewedMonthOffset(prev => prev - 1)}
+                        className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors text-slate-400"
+                      >
+                          <ChevronLeft size={14} />
+                      </button>
+                      <span className="text-[10px] uppercase font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border border-slate-200 dark:border-slate-700 tracking-wider">
+                          {metrics.monthName}
+                      </span>
+                      <button 
+                        onClick={() => setViewedMonthOffset(prev => prev + 1)}
+                        disabled={viewedMonthOffset >= 0}
+                        className={`p-1 rounded transition-colors ${viewedMonthOffset >= 0 ? 'text-slate-200 dark:text-slate-800 cursor-not-allowed' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400'}`}
+                      >
+                          <ChevronRight size={14} />
+                      </button>
+                  </div>
+              </div>
               <div className="flex flex-col items-center w-full"><div className="grid grid-cols-7 gap-1.5 mb-2 w-fit">{['D','S','T','Q','Q','S','S'].map((d, i) => (<div key={i} className="text-[9px] font-bold text-slate-500 dark:text-slate-400 dark:text-slate-600 w-9 text-center">{d}</div>))}</div><div className="grid grid-cols-7 gap-1.5 w-fit">{metrics.calendarGrid.map((day, idx) => (<div key={idx} className={`h-9 w-9 rounded-lg flex items-center justify-center transition-all relative group text-[10px] font-bold ${!day.day ? 'bg-transparent' : day.active ? 'bg-emerald-500 text-slate-900 dark:text-white shadow-md shadow-emerald-900/20' : day.isFuture ? 'bg-slate-50 dark:bg-slate-900/30 text-slate-600 dark:text-slate-300 dark:text-slate-700 border border-slate-100 dark:border-slate-800/50' : 'bg-slate-100 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 dark:text-slate-600 border border-slate-200 dark:border-slate-800'} ${day.isToday ? 'ring-1 ring-emerald-400 ring-offset-1 ring-offset-white dark:ring-offset-slate-900' : ''}`} title={day.date}>{day.day}</div>))}</div></div>
           </div>
           <div className="h-full"><WeeklyProgress /></div>

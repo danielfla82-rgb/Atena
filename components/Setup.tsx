@@ -673,7 +673,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
     } else if (libraryFilter === 'zero_accuracy') {
         result = result.filter(nb => nb.accuracy === 0);
     } else if (libraryFilter === 'high_weight') {
-        result = result.filter(nb => nb.weight === Weight.ALTO || nb.weight === Weight.MUITO_ALTO);
+        result = result.filter(nb => nb.weight === Weight.ALTO);
     }
 
     result.sort((a, b) => a.discipline.localeCompare(b.discipline) || a.name.localeCompare(b.name));

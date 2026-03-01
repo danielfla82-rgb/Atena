@@ -210,8 +210,10 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
             TEXTO:
             ${textToProcess.substring(0, 30000)} 
             
+            Para cada tópico, defina o peso (probability) apenas como: "Baixa", "Média" ou "Alta".
+            
             Retorne APENAS JSON:
-            { "disciplines": [ { "name": "Nome", "topics": [ { "name": "Tópico" } ] } ] }
+            { "disciplines": [ { "name": "Nome", "topics": [ { "name": "Tópico", "probability": "Alta" | "Média" | "Baixa" } ] } ] }
           `;
 
           const response = await ai.models.generateContent({

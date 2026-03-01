@@ -131,8 +131,8 @@ export const Library: React.FC = () => {
   };
 
   const SCORE_TOOLTIPS = {
-      weight: { title: "Peso (45% do Score)", desc: "Impacto no Edital. Muito Alto vale 45pts." },
-      relevance: { title: "Relevância (40% do Score)", desc: "Dificuldade pessoal ou tática. Altíssima vale 40pts." },
+      weight: { title: "Peso (45% do Score)", desc: "Impacto no Edital. Alto vale 45pts." },
+      relevance: { title: "Relevância (40% do Score)", desc: "Dificuldade pessoal ou tática. Alta vale 40pts." },
       trend: { title: "Tendência (15% do Score)", desc: "Apostas da banca. Alta vale 15pts." }
   };
 
@@ -299,7 +299,7 @@ export const Library: React.FC = () => {
               case 'late': 
                   if (!nb.nextReview) return false;
                   return new Date(nb.nextReview).toISOString().split('T')[0] < new Date().toISOString().split('T')[0];
-              case 'heavy': return nb.weight === Weight.MUITO_ALTO || nb.weight === Weight.ALTO;
+              case 'heavy': return nb.weight === Weight.ALTO;
               default: return true;
           }
       });
@@ -733,7 +733,7 @@ export const Library: React.FC = () => {
                                                   Score: {displayScore}
                                               </span>
                                               {nb.isGlobal && <span className="text-[9px] bg-indigo-100 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-500/20 px-1.5 rounded uppercase font-bold flex items-center gap-1"><Globe size={12}/> Global</span>}
-                                              {nb.weight === Weight.MUITO_ALTO && <span className="text-[9px] bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-500/20 px-1.5 rounded uppercase font-bold">Peso Max</span>}
+                                              {nb.weight === Weight.ALTO && <span className="text-[9px] bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-500/20 px-1.5 rounded uppercase font-bold">Peso Max</span>}
                                               {viewMode === 'status' && <span className="text-[9px] text-slate-500 border border-slate-300 dark:border-slate-700 px-1.5 rounded uppercase font-bold">{nb.discipline}</span>}
                                               {isScheduled && <span className="text-[9px] bg-indigo-100 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-500/20 px-1.5 rounded uppercase font-bold flex items-center gap-1"><span className="w-1 h-1 bg-indigo-500 dark:bg-indigo-400 rounded-full animate-pulse"></span> No Ciclo</span>}
                                           </div>

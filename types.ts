@@ -15,7 +15,6 @@ export enum Weight {
   BAIXO = 'Baixo',
   MEDIO = 'Médio',
   ALTO = 'Alto',
-  MUITO_ALTO = 'Muito Alto',
 }
 
 /** Níveis de Relevância/Dificuldade Pessoal (Eixo X da Matriz Estratégica) */
@@ -23,7 +22,6 @@ export enum Relevance {
   BAIXA = 'Baixa',
   MEDIA = 'Média',
   ALTA = 'Alta',
-  ALTISSIMA = 'Altíssima',
 }
 
 /** Tendência de cobrança pela banca examinadora (Ajuste fino do algoritmo) */
@@ -138,7 +136,6 @@ export interface AlgorithmConfig {
   };
   multipliers: {
     relevanceHigh: number; // Multiplicador para Relevância Alta
-    relevanceExtreme: number; // Multiplicador para Relevância Altíssima
     trendHigh: number; // Multiplicador para Tendência Alta
   };
 }
@@ -263,14 +260,12 @@ export const WEIGHT_SCORE: Record<Weight, number> = {
   [Weight.BAIXO]: 1,
   [Weight.MEDIO]: 2,
   [Weight.ALTO]: 3,
-  [Weight.MUITO_ALTO]: 4,
 };
 
 export const RELEVANCE_SCORE: Record<Relevance, number> = {
   [Relevance.BAIXA]: 1,
   [Relevance.MEDIA]: 2,
   [Relevance.ALTA]: 3,
-  [Relevance.ALTISSIMA]: 4,
 };
 
 export const TREND_SCORE: Record<Trend, number> = {

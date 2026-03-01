@@ -40,8 +40,8 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
     return result;
   }, [data, editalFilter, disciplineFilter]);
 
-  const weights = [Weight.MUITO_ALTO, Weight.ALTO, Weight.MEDIO, Weight.BAIXO];
-  const relevances = [Relevance.BAIXA, Relevance.MEDIA, Relevance.ALTA, Relevance.ALTISSIMA];
+  const weights = [Weight.ALTO, Weight.MEDIO, Weight.BAIXO];
+  const relevances = [Relevance.BAIXA, Relevance.MEDIA, Relevance.ALTA];
 
   const matrix = useMemo(() => {
     const grid: Record<string, { count: number; disciplines: Discipline[]; avgAccuracy: number | null }> = {};
@@ -96,9 +96,9 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
   const getQuadrantLabel = (weight: Weight, relevance: Relevance) => {
     const wScore = WEIGHT_SCORE[weight];
     const rScore = RELEVANCE_SCORE[relevance];
-    if (wScore >= 4 && rScore >= 4) return 'Crítico';
-    if (wScore >= 4 && rScore < 4) return 'Atenção';
-    if (wScore < 4 && rScore >= 4) return 'Estratégico';
+    if (wScore >= 3 && rScore >= 3) return 'Crítico';
+    if (wScore >= 3 && rScore < 3) return 'Atenção';
+    if (wScore < 3 && rScore >= 3) return 'Estratégico';
     return 'Manutenção';
   };
 
@@ -109,13 +109,21 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
       return discNotebooks.length > 0;
     });
 
+    const getJitter = (seed: string) => {
+        let hash = 0;
+        for (let i = 0; i < seed.length; i++) {
+            hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        return ((Math.abs(hash) % 200) / 1000) - 0.1;
+    };
+
     return {
       datasets: [
         {
           label: 'Disciplinas',
           data: activeDisciplines.map(disc => ({
-            x: RELEVANCE_SCORE[disc.relevance] + (Math.random() * 0.2 - 0.1), // Jitter
-            y: WEIGHT_SCORE[disc.weight] + (Math.random() * 0.2 - 0.1), // Jitter
+            x: RELEVANCE_SCORE[disc.relevance] + getJitter(disc.id + 'x'), // Jitter
+            y: WEIGHT_SCORE[disc.weight] + getJitter(disc.id + 'y'), // Jitter
             disc
           })),
           backgroundColor: activeDisciplines.map(disc => {
@@ -150,11 +158,11 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
         type: 'linear' as const,
         position: 'bottom' as const,
         title: { display: true, text: 'Relevância', color: '#64748b', font: { weight: 'bold' as const } },
-        min: 0.5, max: 4.5,
+        min: 0.5, max: 3.5,
         grid: { color: 'rgba(148, 163, 184, 0.1)' },
         ticks: { 
           stepSize: 1,
-          callback: (val: any) => ['', 'Baixa', 'Média', 'Alta', 'Altíssima'][val] || '',
+          callback: (val: any) => ['', 'Baixa', 'Média', 'Alta'][val] || '',
           color: '#64748b' 
         }
       },
@@ -162,11 +170,11 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
         type: 'linear' as const,
         position: 'left' as const,
         title: { display: true, text: 'Peso', color: '#64748b', font: { weight: 'bold' as const } },
-        min: 0.5, max: 4.5,
+        min: 0.5, max: 3.5,
         grid: { color: 'rgba(148, 163, 184, 0.1)' },
         ticks: { 
           stepSize: 1,
-          callback: (val: any) => ['', 'Baixo', 'Médio', 'Alto', 'Muito Alto'][val] || '',
+          callback: (val: any) => ['', 'Baixo', 'Médio', 'Alto'][val] || '',
           color: '#64748b' 
         }
       }
@@ -255,7 +263,7 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
           <div className="min-w-[600px] h-full flex flex-col">
             <div className="flex mb-2">
               <div className="w-24 flex-shrink-0"></div>
-              <div className="flex-1 grid grid-cols-4 gap-2">
+              <div className="flex-1 grid grid-cols-3 gap-2">
                 {relevances.map(r => (
                   <div key={r} className="text-center text-[10px] font-bold text-slate-500 uppercase tracking-wider">{r}</div>
                 ))}
@@ -277,7 +285,7 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
 
               <div className="flex-1 flex flex-col gap-2">
                 {weights.map(w => (
-                  <div key={w} className="flex-1 grid grid-cols-4 gap-2">
+                  <div key={w} className="flex-1 grid grid-cols-3 gap-2">
                     {relevances.map(r => {
                       const cell = matrix[`${w}-${r}`];
                       const colorClass = getCellColor(cell.count, cell.avgAccuracy);

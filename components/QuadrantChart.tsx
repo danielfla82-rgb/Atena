@@ -43,8 +43,8 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
   }, [data, editalFilter, disciplineFilter]);
 
   // --- HEATMAP LOGIC ---
-  const weights = [Weight.MUITO_ALTO, Weight.ALTO, Weight.MEDIO, Weight.BAIXO];
-  const relevances = [Relevance.BAIXA, Relevance.MEDIA, Relevance.ALTA, Relevance.ALTISSIMA];
+  const weights = [Weight.ALTO, Weight.MEDIO, Weight.BAIXO];
+  const relevances = [Relevance.BAIXA, Relevance.MEDIA, Relevance.ALTA];
 
   const matrix = useMemo(() => {
     const grid: Record<string, { count: number; totalAcc: number; notebooks: Notebook[] }> = {};
@@ -105,12 +105,20 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
     // AJUSTE PONTUAL: Filtrar apenas os ativos (accuracy > 0)
     const activeNotebooks = filteredData.filter(n => n.accuracy > 0);
 
+    const getJitter = (seed: string) => {
+        let hash = 0;
+        for (let i = 0; i < seed.length; i++) {
+            hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        return ((Math.abs(hash) % 200) / 1000) - 0.1;
+    };
+
     return {
         datasets: [{
             label: 'Cadernos',
             data: activeNotebooks.map(nb => ({
-                x: RELEVANCE_SCORE[nb.relevance] + (Math.random() * 0.2 - 0.1), // Jitter
-                y: WEIGHT_SCORE[nb.weight] + (Math.random() * 0.2 - 0.1), // Jitter
+                x: RELEVANCE_SCORE[nb.relevance] + getJitter(nb.id + 'x'), // Jitter
+                y: WEIGHT_SCORE[nb.weight] + getJitter(nb.id + 'y'), // Jitter
                 r: 6, // Radius
                 notebook: nb
             })),
@@ -131,10 +139,10 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
               position: 'bottom' as const,
               title: { display: true, text: 'Relevância', color: '#94a3b8' },
               min: 0.5,
-              max: 4.5,
+              max: 3.5,
               ticks: { 
                   stepSize: 1, 
-                  callback: (val: any) => ['', 'Baixa', 'Média', 'Alta', 'Altíssima'][val] || '',
+                  callback: (val: any) => ['', 'Baixa', 'Média', 'Alta'][val] || '',
                   color: '#94a3b8'
               },
               grid: { color: '#334155' }
@@ -143,10 +151,10 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
               type: 'linear' as const,
               title: { display: true, text: 'Peso no Edital', color: '#94a3b8' },
               min: 0.5,
-              max: 4.5,
+              max: 3.5,
               ticks: { 
                   stepSize: 1, 
-                  callback: (val: any) => ['', 'Baixo', 'Médio', 'Alto', 'M. Alto'][val] || '',
+                  callback: (val: any) => ['', 'Baixo', 'Médio', 'Alto'][val] || '',
                   color: '#94a3b8'
               },
               grid: { color: '#334155' }
@@ -223,11 +231,11 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
                 <div className="flex flex-1 gap-2">
                     {/* Y-Axis Ticks */}
                     <div className="flex flex-col justify-between py-2 text-[10px] text-slate-500 font-bold text-right w-16 pr-2">
-                        {weights.map(w => <span key={w} className="h-full flex items-center justify-end">{w.replace('Muito ', 'M. ')}</span>)}
+                        {weights.map(w => <span key={w} className="h-full flex items-center justify-end">{w}</span>)}
                     </div>
 
                     {/* The Grid */}
-                    <div className="flex-1 grid grid-cols-4 grid-rows-4 gap-2">
+                    <div className="flex-1 grid grid-cols-3 grid-rows-3 gap-2">
                         {weights.map((w) => (
                             relevances.map((r) => {
                                 const cellData = matrix[`${w}-${r}`];

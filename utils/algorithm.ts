@@ -14,7 +14,6 @@ export const DEFAULT_ALGO_CONFIG: AlgorithmConfig = {
         maintaining: 30 // Anterior: 15
     },
     multipliers: {
-        relevanceExtreme: 0.7,
         relevanceHigh: 0.9,
         trendHigh: 0.9
     }
@@ -54,9 +53,7 @@ export const calculateNextReview = (
   // 2. Aplicação dos Multiplicadores
   let multiplier = 1.0;
 
-  if (relevance === Relevance.ALTISSIMA) {
-    multiplier *= settings.multipliers.relevanceExtreme;
-  } else if (relevance === Relevance.ALTA) {
+  if (relevance === Relevance.ALTA) {
     multiplier *= settings.multipliers.relevanceHigh;
   }
 
@@ -115,9 +112,9 @@ export const calculateUrgencyScore = (
     const partWeight = (wScore / 4) * 45;
 
     // 2. Relevância (40% do Score)
-    // Escala: Baixa(1) a Altíssima(4)
+    // Escala: Baixa(1) a Alta(3)
     const rScore = RELEVANCE_SCORE[relevance];
-    const partRelevance = (rScore / 4) * 40;
+    const partRelevance = (rScore / 3) * 40;
 
     // 3. Tendência (15% do Score)
     // Escala: Baixa(1) a Alta(3)
