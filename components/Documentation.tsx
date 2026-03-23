@@ -11,7 +11,7 @@ export const Documentation: React.FC = () => {
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
             <Book className="text-emerald-500" /> Documentação Técnica
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-2 text-lg">Projeto Atena v10.0 (Stable)</p>
+          <p className="text-slate-500 dark:text-slate-400 mt-2 text-lg">ATENA CONCURSOS v10.0 (Stable)</p>
         </div>
         <div className="text-right hidden md:block">
             <p className="text-xs text-slate-500 uppercase font-bold tracking-widest">Versão</p>
@@ -57,7 +57,7 @@ export const Documentation: React.FC = () => {
               </div>
               <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 rounded-2xl text-slate-600 dark:text-slate-300 leading-relaxed shadow-xl">
                  <p className="mb-4 text-lg">
-                    O <strong>Projeto Atena (GurujaApp)</strong> é uma plataforma SaaS de alta performance projetada especificamente para "concurseiros de elite".
+                    O <strong>ATENA CONCURSOS (GurujaApp)</strong> é uma plataforma SaaS de alta performance projetada especificamente para "concurseiros de elite".
                  </p>
                  <p className="mb-4">
                     A versão <strong>10.0 (Stable)</strong> representa a maturação completa da plataforma. Esta release introduz carregamento paralelo de dados (reduzindo o tempo de boot em 60%), consolida o <strong>Sistema de Revisão Espaçada (SRS)</strong> proprietário e oferece suporte nativo robusto para IA Generativa (Gemini 2.0).
@@ -220,7 +220,7 @@ Ajuste Fino (Multiplicadores):
                                           <Eye size={14} /> A Visão da Coruja
                                       </h4>
                                       <p className="text-xs text-slate-500 dark:text-slate-400">
-                                          Seu símbolo, a coruja, enxerga na escuridão. O Projeto Atena visa iluminar os pontos cegos do seu edital (Matriz de Riscos) que outros candidatos ignoram.
+                                          Seu símbolo, a coruja, enxerga na escuridão. O ATENA CONCURSOS visa iluminar os pontos cegos do seu edital (Matriz de Riscos) que outros candidatos ignoram.
                                       </p>
                                   </div>
                               </div>

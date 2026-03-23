@@ -244,6 +244,24 @@ export interface SavedReport {
   data: string | EditalAnalysisResult;
 }
 
+/** Entidade de Simulado (Concurso) */
+export interface MockExam {
+  id: string;
+  name: string; // Concurso
+  board: string; // Banca
+  createdAt: string;
+}
+
+/** Resultado de uma disciplina em um Simulado */
+export interface MockExamResult {
+  id: string;
+  examId: string;
+  discipline: string; // Nome da disciplina mãe
+  accuracy: number;
+  date: string; // Data do simulado
+  tecLink?: string; // Link do TEC
+}
+
 /** Entidade de Anotação Rápida (Post-it) */
 export interface Note {
   id: string;

@@ -5,7 +5,7 @@ import { get, set } from 'idb-keyval';
 import { 
   Notebook, Cycle, AthensConfig, SavedReport, ProtocolItem, 
   FrameworkData, Note, NotebookStatus, ScheduleItem,
-  Weight, Relevance, Trend, Discipline
+  Weight, Relevance, Trend, Discipline, MockExam, MockExamResult
 } from './types';
 
 // Defaults
@@ -311,6 +311,8 @@ interface StoreContextType {
   protocol: ProtocolItem[];
   framework: FrameworkData;
   notes: Note[];
+  mockExams: MockExam[];
+  mockExamResults: MockExamResult[];
   
   activeSession: Notebook | null;
   pendingCreateData: Partial<Notebook> | null;
@@ -349,6 +351,14 @@ interface StoreContextType {
   updateNote: (id: string, content: string, color?: Note['color'], isBold?: boolean) => Promise<void>;
   deleteNote: (id: string) => Promise<void>;
 
+  addMockExam: (exam: Partial<MockExam>) => Promise<string>;
+  editMockExam: (id: string, data: Partial<MockExam>) => Promise<void>;
+  deleteMockExam: (id: string) => Promise<void>;
+
+  addMockExamResult: (result: Partial<MockExamResult>) => Promise<string>;
+  editMockExamResult: (id: string, data: Partial<MockExamResult>) => Promise<void>;
+  deleteMockExamResult: (id: string) => Promise<void>;
+
   enterGuestMode: () => void;
   exportDatabase: () => void;
   startSession: (notebook: Notebook) => void;
@@ -382,6 +392,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [protocol, setProtocol] = useState<ProtocolItem[]>([]);
   const [framework, setFramework] = useState<FrameworkData>(DEFAULT_FRAMEWORK);
   const [notes, setNotes] = useState<Note[]>([]);
+  const [mockExams, setMockExams] = useState<MockExam[]>([]);
+  const [mockExamResults, setMockExamResults] = useState<MockExamResult[]>([]);
 
   const [activeSession, setActiveSession] = useState<Notebook | null>(null);
   const [pendingCreateData, setPendingCreateData] = useState<Partial<Notebook> | null>(null);
@@ -435,7 +447,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               protocolResponse,
               notesResponse,
               frameworkResponse,
-              disciplinesResponse
+              disciplinesResponse,
+              mockExamsResponse,
+              mockExamResultsResponse
           ] = await Promise.all([
               // 1. Notebooks (User + Global)
               (async () => {
@@ -472,7 +486,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               supabase.from('protocol').select('*').eq('user_id', userToUse.id),
               supabase.from('notes').select('*').eq('user_id', userToUse.id),
               supabase.from('frameworks').select('*').eq('user_id', userToUse.id).maybeSingle(),
-              supabase.from('disciplines').select('*').eq('user_id', userToUse.id)
+              supabase.from('disciplines').select('*').eq('user_id', userToUse.id),
+              supabase.from('mock_exams').select('*').eq('user_id', userToUse.id),
+              supabase.from('mock_exam_results').select('*').eq('user_id', userToUse.id)
           ]);
 
           let validNotebookIds = new Set<string>();
@@ -503,6 +519,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (protocolResponse.data) setProtocol(protocolResponse.data);
           if (notesResponse.data) setNotes(notesResponse.data.map(mapNoteFromDB));
           if (disciplinesResponse.data) setDisciplines(disciplinesResponse.data);
+          if (mockExamsResponse.data) setMockExams(mockExamsResponse.data.map((d: any) => ({ ...d, createdAt: d.created_at })));
+          if (mockExamResultsResponse.data) setMockExamResults(mockExamResultsResponse.data.map((d: any) => ({ ...d, examId: d.exam_id, tecLink: d.tec_link })));
           
           if (frameworkResponse.data) {
               setFramework(mapFrameworkFromDB(frameworkResponse.data));
@@ -1206,6 +1224,125 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
   };
 
+  const addMockExam = async (exam: Partial<MockExam>) => {
+      const newExam: MockExam = {
+          id: generateId(),
+          name: exam.name || '',
+          board: exam.board || '',
+          createdAt: new Date().toISOString()
+      };
+      setMockExams(prev => [...prev, newExam]);
+      if (!isGuest && user) {
+          try {
+              const { error } = await supabase.from('mock_exams').insert({
+                  id: newExam.id,
+                  user_id: user.id,
+                  name: newExam.name,
+                  board: newExam.board,
+                  created_at: newExam.createdAt
+              });
+              if (error) throw error;
+          } catch (e) {
+              console.error("Failed to add mock exam:", e);
+              setMockExams(prev => prev.filter(x => x.id !== newExam.id));
+          }
+      }
+      return newExam.id;
+  };
+
+  const editMockExam = async (id: string, data: Partial<MockExam>) => {
+      const previousExams = [...mockExams];
+      setMockExams(prev => prev.map(x => x.id === id ? { ...x, ...data } : x));
+      if (!isGuest && user) {
+          try {
+              const payload: any = {};
+              if (data.name !== undefined) payload.name = data.name;
+              if (data.board !== undefined) payload.board = data.board;
+              const { error } = await supabase.from('mock_exams').update(payload).eq('id', id);
+              if (error) throw error;
+          } catch (e) {
+              console.error("Failed to edit mock exam:", e);
+              setMockExams(previousExams);
+          }
+      }
+  };
+
+  const deleteMockExam = async (id: string) => {
+      const previousExams = [...mockExams];
+      setMockExams(prev => prev.filter(x => x.id !== id));
+      if (!isGuest && user) {
+          try {
+              const { error } = await supabase.from('mock_exams').delete().eq('id', id);
+              if (error) throw error;
+          } catch (e) {
+              console.error("Failed to delete mock exam:", e);
+              setMockExams(previousExams);
+          }
+      }
+  };
+
+  const addMockExamResult = async (result: Partial<MockExamResult>) => {
+      const newResult: MockExamResult = {
+          id: generateId(),
+          examId: result.examId || '',
+          discipline: result.discipline || '',
+          accuracy: result.accuracy || 0,
+          date: result.date || new Date().toISOString(),
+          tecLink: result.tecLink || ''
+      };
+      setMockExamResults(prev => [...prev, newResult]);
+      if (!isGuest && user) {
+          try {
+              const { error } = await supabase.from('mock_exam_results').insert({
+                  id: newResult.id,
+                  user_id: user.id,
+                  exam_id: newResult.examId,
+                  discipline: newResult.discipline,
+                  accuracy: newResult.accuracy,
+                  date: newResult.date,
+                  tec_link: newResult.tecLink
+              });
+              if (error) throw error;
+          } catch (e) {
+              console.error("Failed to add mock exam result:", e);
+              setMockExamResults(prev => prev.filter(x => x.id !== newResult.id));
+          }
+      }
+      return newResult.id;
+  };
+
+  const editMockExamResult = async (id: string, data: Partial<MockExamResult>) => {
+      const previousResults = [...mockExamResults];
+      setMockExamResults(prev => prev.map(x => x.id === id ? { ...x, ...data } : x));
+      if (!isGuest && user) {
+          try {
+              const payload: any = {};
+              if (data.accuracy !== undefined) payload.accuracy = data.accuracy;
+              if (data.tecLink !== undefined) payload.tec_link = data.tecLink;
+              if (data.date !== undefined) payload.date = data.date;
+              const { error } = await supabase.from('mock_exam_results').update(payload).eq('id', id);
+              if (error) throw error;
+          } catch (e) {
+              console.error("Failed to edit mock exam result:", e);
+              setMockExamResults(previousResults);
+          }
+      }
+  };
+
+  const deleteMockExamResult = async (id: string) => {
+      const previousResults = [...mockExamResults];
+      setMockExamResults(prev => prev.filter(x => x.id !== id));
+      if (!isGuest && user) {
+          try {
+              const { error } = await supabase.from('mock_exam_results').delete().eq('id', id);
+              if (error) throw error;
+          } catch (e) {
+              console.error("Failed to delete mock exam result:", e);
+              setMockExamResults(previousResults);
+          }
+      }
+  };
+
   const exportDatabase = () => {
       const data = { notebooks, cycles, reports, protocol, framework, notes, activeCycleId };
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1232,6 +1369,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const value = {
       user, isGuest, loading, isSyncing, dbError,
       notebooks, disciplines, cycles, activeCycleId, config, reports, protocol, framework, notes,
+      mockExams, mockExamResults,
       activeSession, pendingCreateData, focusedNotebookId,
       createCycle, selectCycle, deleteCycle, updateConfig,
       addNotebook, editNotebook, deleteNotebook, updateNotebookAccuracy, fetchNotebookImages, 
@@ -1241,6 +1379,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       addProtocolItem, toggleProtocolItem, deleteProtocolItem,
       updateFramework,
       addNote, updateNote, deleteNote,
+      addMockExam, editMockExam, deleteMockExam,
+      addMockExamResult, editMockExamResult, deleteMockExamResult,
       enterGuestMode, exportDatabase, startSession, endSession, setPendingCreateData, setFocusedNotebookId
   };
 

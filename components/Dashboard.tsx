@@ -6,13 +6,9 @@ import { DisciplineQuadrantChart } from './DisciplineQuadrantChart';
 import { WeeklyProgress } from './WeeklyProgress';
 import { Weight, WEIGHT_SCORE } from '../types';
 import { DEFAULT_ALGO_CONFIG } from '../utils/algorithm';
-import { createAIClient } from '../utils/ai';
-import { Type } from "@google/genai";
 import { 
   Target, Settings, TrendingUp, TrendingDown, Minus,
-  PieChart as PieChartIcon, Activity, Siren, ArrowRight, CheckCircle2,
-  Check, XCircle, Quote, ChevronDown, BarChart2,
-  RefreshCw, BrainCircuit, Crosshair, Scroll, Crown, Zap, Save, X, FileText, CalendarClock, AlertCircle, Edit2, Calendar, Key, ShieldCheck, Sparkles, Bot, AlertTriangle, Database, Terminal, Flame, Loader2, Settings2, HelpCircle, ChevronUp, Book, ChevronLeft, ChevronRight
+  ChevronDown, Database, Terminal, Flame, Loader2, Settings2, HelpCircle, ChevronUp, Book, ChevronLeft, ChevronRight, X, FileText, Key, BrainCircuit
 } from 'lucide-react';
 
 import {
@@ -149,32 +145,47 @@ const ALGO_TOOLTIPS: Record<string, { title: string, desc: string }> = {
 const ORDERED_ALGO_KEYS = ['learning', 'reviewing', 'mastering', 'maintaining'];
 
 const StreakIcon = ({ streak }: { streak: number }) => {
-    let colorClass = "text-slate-500 dark:text-slate-600";
-    let animationClass = "";
-    let glowClass = "";
-    const shadowClass = "";
-
-    if (streak >= 15) {
-        colorClass = "text-rose-500 fill-rose-500";
-        animationClass = "animate-bounce";
-        glowClass = "drop-shadow-[0_0_15px_rgba(244,63,94,0.8)]";
-    } else if (streak >= 8) {
-        colorClass = "text-red-500 fill-red-500";
-        animationClass = "animate-pulse duration-500";
-        glowClass = "drop-shadow-[0_0_10px_rgba(239,68,68,0.6)]";
-    } else if (streak >= 4) {
-        colorClass = "text-orange-600 fill-orange-600";
-        glowClass = "drop-shadow-[0_0_5px_rgba(234,88,12,0.4)]";
+    if (streak >= 30) {
+        return (
+            <div className="relative flex items-center justify-center w-8 h-8">
+                <div className="absolute inset-0 bg-rose-500 rounded-full blur-md opacity-50 animate-pulse"></div>
+                <Flame size={24} className="text-rose-500 fill-rose-500 animate-bounce drop-shadow-[0_0_15px_rgba(244,63,94,1)] relative z-10" />
+                <Sparkles size={12} className="text-yellow-400 absolute -top-1 -right-1 animate-spin" />
+                <Sparkles size={10} className="text-amber-400 absolute -bottom-1 -left-1 animate-pulse" />
+            </div>
+        );
+    } else if (streak >= 15) {
+        return (
+            <div className="relative flex items-center justify-center w-8 h-8">
+                <div className="absolute inset-0 bg-red-500 rounded-full blur-sm opacity-40 animate-pulse"></div>
+                <Flame size={22} className="text-red-500 fill-red-500 animate-bounce drop-shadow-[0_0_10px_rgba(239,68,68,0.8)] relative z-10" />
+                <Sparkles size={10} className="text-yellow-500 absolute -top-1 -right-1 animate-pulse" />
+            </div>
+        );
+    } else if (streak >= 7) {
+        return (
+            <div className="relative flex items-center justify-center w-8 h-8">
+                <Flame size={20} className="text-orange-500 fill-orange-500 animate-pulse drop-shadow-[0_0_8px_rgba(249,115,22,0.6)]" />
+            </div>
+        );
+    } else if (streak >= 3) {
+        return (
+            <div className="relative flex items-center justify-center w-8 h-8">
+                <Flame size={18} className="text-amber-500 fill-amber-500 drop-shadow-[0_0_5px_rgba(245,158,11,0.4)]" />
+            </div>
+        );
     } else if (streak >= 1) {
-        colorClass = "text-orange-500 fill-orange-500";
-        animationClass = "animate-pulse";
+        return (
+            <div className="relative flex items-center justify-center w-8 h-8">
+                <Flame size={18} className="text-amber-400 fill-amber-400" />
+            </div>
+        );
     }
 
     return (
-        <Flame 
-            size={18} 
-            className={`${colorClass} ${animationClass} ${glowClass} ${shadowClass} transition-all duration-500`} 
-        />
+        <div className="relative flex items-center justify-center w-8 h-8">
+            <Flame size={18} className="text-slate-300 dark:text-slate-700" />
+        </div>
     );
 };
 
@@ -261,8 +272,6 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [localConfig, setLocalConfig] = useState(config);
   const [apiKey, setApiKey] = useState('');
-  const [aiSuggestion, setAiSuggestion] = useState<{ id: string, title: string, reason: string, strategy: string } | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showSql, setShowSql] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [quoteIndex, setQuoteIndex] = useState(0);
@@ -586,32 +595,6 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
         };
   }, [notebooks, config.startDate]);
 
-  const staticRecommendation = useMemo(() => {
-    const candidates = notebooks.filter(n => n.discipline !== 'Revisão Geral' && !n.isGlobal);
-    if (candidates.length === 0) return null;
-    const critical = candidates.find(n => n.weight === Weight.ALTO && n.accuracy < 60);
-    if (critical) return { type: 'critical', notebook: critical, title: `Atenção: ${critical.discipline}`, reason: `Peso ${critical.weight} com desempenho crítico (${critical.accuracy}%).`, icon: <Siren className="text-red-500 animate-pulse" size={24} />, colorClass: 'border-red-500/50 bg-red-900/10', isAi: false, strategy: undefined };
-    const lowest = [...candidates].sort((a, b) => ((WEIGHT_SCORE[a.weight] * 100) - a.accuracy) - ((WEIGHT_SCORE[b.weight] * 100) - b.accuracy))[0];
-    if (lowest) return { type: 'standard', notebook: lowest, title: `Sugestão: ${lowest.discipline}`, reason: `Melhorar este tópico trará o maior retorno sobre investimento.`, icon: <Zap className="text-emerald-500" size={24} />, colorClass: 'border-emerald-500/50 bg-emerald-900/10', isAi: false, strategy: undefined };
-    return null;
-  }, [notebooks]);
-
-  const handleGenerateAiInsight = async () => {
-      setIsAnalyzing(true);
-      try {
-          const ai = createAIClient();
-          const simplifiedData = notebooks
-              .filter(n => n.discipline !== 'Revisão Geral' && !n.isGlobal)
-              .sort((a, b) => (new Date(a.lastPractice || 0).getTime()) - (new Date(b.lastPractice || 0).getTime()))
-              .slice(0, 30)
-              .map(n => ({ id: n.id, discipline: n.discipline, topic: n.name, accuracy: n.accuracy, target: n.targetAccuracy, weight: n.weight, daysSinceReview: n.lastPractice ? Math.floor((new Date().getTime() - new Date(n.lastPractice).getTime()) / (1000 * 3600 * 24)) : 999 }));
-          const prompt = `Atue como um Estrategista de Concursos de Elite. Analise os dados: ${JSON.stringify(simplifiedData)}. Escolha UM ÚNICO caderno que o aluno deve estudar AGORA para ter o maior impacto na aprovação. Retorne JSON: { "id": "uuid", "title": "Título", "reason": "Razão", "strategy": "Ação" }`;
-          const response = await ai.models.generateContent({ model: 'gemini-3-flash-preview', contents: prompt, config: { responseMimeType: 'application/json', responseSchema: { type: Type.OBJECT, properties: { id: { type: Type.STRING }, title: { type: Type.STRING }, reason: { type: Type.STRING }, strategy: { type: Type.STRING } }, required: ["id", "title", "reason", "strategy"] } } });
-          if (response.text) setAiSuggestion(JSON.parse(response.text));
-      } catch (error) { console.error(error); alert("Erro na IA."); } finally { setIsAnalyzing(false); }
-  };
-
-  const finalRecommendation = aiSuggestion ? { notebook: notebooks.find(n => n.id === aiSuggestion.id) || staticRecommendation?.notebook, title: aiSuggestion.title, reason: aiSuggestion.reason, strategy: aiSuggestion.strategy, isAi: true, icon: undefined, colorClass: undefined } : staticRecommendation;
   const currentIntervals = localConfig.algorithm?.baseIntervals || DEFAULT_ALGO_CONFIG.baseIntervals;
 
   return (
@@ -701,16 +684,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           <div className="h-full"><WeeklyProgress /></div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {finalRecommendation && finalRecommendation.notebook && (
-            <div className={`w-full p-1 rounded-2xl bg-gradient-to-r transition-all duration-500 ${finalRecommendation.isAi ? 'from-purple-500 via-indigo-500 to-emerald-500 shadow-[0_0_20px_rgba(139,92,246,0.3)]' : 'from-transparent via-slate-200 dark:via-slate-700 to-transparent'}`}>
-                <div className={`relative w-full rounded-2xl p-6 border flex flex-col gap-4 shadow-2xl overflow-hidden h-full justify-between transition-colors ${finalRecommendation.isAi ? 'bg-white dark:bg-slate-900 border-transparent' : (staticRecommendation?.colorClass || 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800')}`}>
-                    <div className="flex justify-between items-start">{finalRecommendation.isAi ? (<span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 border border-indigo-500/30 text-[10px] font-bold uppercase tracking-widest animate-pulse"><BrainCircuit size={12} /> Inteligência Atena</span>) : (<span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 text-[10px] font-bold uppercase tracking-widest"><Activity size={12} /> Sugestão Algorítmica</span>)}{!finalRecommendation.isAi && (<button onClick={handleGenerateAiInsight} disabled={isAnalyzing} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 hover:text-white bg-emerald-100 dark:bg-emerald-900/20 hover:bg-emerald-600 px-3 py-1.5 rounded-lg border border-emerald-500/20 transition-all">{isAnalyzing ? <RefreshCw className="animate-spin" size={12} /> : <Sparkles size={12} />}{isAnalyzing ? "Analisando..." : "Invocar IA"}</button>)}</div>
-                    <div className="flex items-start gap-5 relative z-10"><div className={`p-4 rounded-xl border shadow-lg backdrop-blur-md ${finalRecommendation.isAi ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400' : 'bg-slate-50 dark:bg-slate-950/80 border-slate-200 dark:border-white/10 text-emerald-600 dark:text-emerald-500'}`}>{finalRecommendation.isAi ? <Bot size={28} /> : (staticRecommendation?.icon || <Zap size={24} />)}</div><div><h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 leading-tight">{finalRecommendation.title || `Atenção: ${finalRecommendation.notebook.discipline}`}</h3><p className="text-sm text-slate-600 dark:text-slate-300 max-w-sm leading-relaxed mb-2">{finalRecommendation.reason}</p>{finalRecommendation.isAi && finalRecommendation.strategy && (<div className="mt-3 pl-3 border-l-2 border-indigo-500/50 text-xs text-indigo-600 dark:text-indigo-200 italic">"{finalRecommendation.strategy}"</div>)}</div></div>
-                    <button onClick={() => { setFocusedNotebookId(finalRecommendation.notebook!.id); onNavigate('library'); }} className={`w-full py-4 font-bold rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg ${finalRecommendation.isAi ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-slate-900 dark:text-white' : 'bg-slate-100 dark:bg-white text-slate-900 hover:bg-slate-200'}`}><ArrowRight size={20} /> Abrir no Banco</button>
-                </div>
-            </div>
-          )}
+      <div className="grid grid-cols-1 gap-6">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 flex flex-col h-full min-h-[340px] shadow-2xl relative overflow-hidden">
              <div className={`absolute top-0 right-0 m-6 px-3 py-2 rounded-lg border backdrop-blur-md z-10 flex items-center gap-3 transition-all duration-500 ${evolutionData.trend.status === 'up' ? 'bg-emerald-100 dark:bg-emerald-900/40 border-emerald-500/30 text-emerald-700 dark:text-emerald-100' : evolutionData.trend.status === 'down' ? 'bg-red-100 dark:bg-red-900/40 border-red-500/30 text-red-700 dark:text-red-100' : 'bg-slate-100 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'}`}>
                  <div className={`p-1.5 rounded-full ${evolutionData.trend.status === 'up' ? 'bg-emerald-500 text-slate-900 dark:text-white' : evolutionData.trend.status === 'down' ? 'bg-red-500 text-slate-900 dark:text-white' : 'bg-slate-400 dark:bg-slate-600 text-slate-900 dark:text-white'}`}>{evolutionData.trend.status === 'up' ? <TrendingUp size={14} /> : evolutionData.trend.status === 'down' ? <TrendingDown size={14} /> : <Minus size={14} />}</div>
@@ -719,11 +693,6 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
              <div className="flex justify-between items-end mb-6"><div><h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2"><TrendingUp size={24} className="text-emerald-500"/>Evolução</h3><p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Média de acurácia semanal</p></div></div>
              <div className="flex-1 w-full relative"><Line data={evolutionData.chartData} options={chartOptions} /></div>
           </div>
-      </div>
-
-      <div className="w-full bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl relative overflow-hidden group flex flex-col md:flex-row min-h-[240px]">
-          <div className="flex-1 p-6 md:p-8 flex flex-col justify-center relative z-10"><div className="inline-flex items-center gap-2 mb-4 px-2 py-1 bg-emerald-100 dark:bg-emerald-950/30 border border-emerald-500/20 rounded text-emerald-600 dark:text-emerald-400 text-[10px] font-bold uppercase tracking-widest w-fit"><Crown size={12} /> Oráculo de Elite</div><h3 className="text-xl md:text-2xl font-serif text-slate-900 dark:text-slate-100 italic leading-relaxed mb-4 max-w-2xl">"{nietzscheItem.quote}"</h3><div className="flex items-center gap-3 text-slate-500 text-xs font-bold mb-6"><Scroll size={14} className="text-slate-500 dark:text-slate-400 dark:text-slate-600"/> <span className="uppercase tracking-wider">{nietzscheItem.source}</span></div><div className="bg-slate-50 dark:bg-slate-950/50 border-l-2 border-emerald-500/50 pl-4 py-2 rounded-r-lg max-w-xl"><p className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed"><strong className="text-emerald-600 dark:text-emerald-500 block mb-1 uppercase text-[9px] tracking-wider">Estratégia:</strong>{nietzscheItem.context}</p></div></div>
-          <div className="w-full md:w-1/3 lg:w-1/4 relative min-h-[200px] md:min-h-full"><div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-white dark:from-slate-900 via-white/20 dark:via-slate-900/20 to-transparent z-10"></div><img src="https://i.postimg.cc/rFFwpKjm/Gemini-Generated-Image-tchb4stchb4stchb.png" className="w-full h-full object-cover object-top grayscale opacity-50 group-hover:grayscale-0 group-hover:opacity-100 transition-all duration-700" alt="Friedrich Nietzsche" /></div>
       </div>
 
       <DashboardSection title="Radiografia Tática" subtitle="Matriz Estratégica" icon={<Target size={20} />} defaultOpen={true}>

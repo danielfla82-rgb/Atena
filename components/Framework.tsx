@@ -8,44 +8,49 @@ export const Framework: React.FC = () => {
   const [editingLayer, setEditingLayer] = useState<keyof FrameworkData | null>(null);
   const [tempValue, setTempValue] = useState('');
 
-  const layers: { key: keyof FrameworkData; label: string; width: string; color: string; icon: React.ReactNode, hint: string }[] = [
+  const layers: { key: keyof FrameworkData; label: string; width: string; color: string; textColor: string; icon: React.ReactNode, hint: string }[] = [
     { 
-        key: 'habit', // Mantido 'habit' internamente para integridade do DB
-        label: 'RESULTADO', // UX atualizada
-        width: 'w-1/3 md:w-1/4', // Aumentado de w-1/5 para caber "RESULTADO" e "APROVAÇÃO" sem quebrar
-        color: 'bg-emerald-400', 
-        icon: <Trophy size={18} className="text-emerald-950" />,
+        key: 'habit',
+        label: 'RESULTADO',
+        width: 'w-1/3 md:w-1/4',
+        color: 'bg-gradient-to-r from-amber-300 to-amber-500 shadow-[0_0_30px_rgba(251,191,36,0.3)]', 
+        textColor: 'text-amber-950',
+        icon: <Trophy size={18} className="text-amber-950" />,
         hint: "A consequência inevitável da constância. A Aprovação, a Posse, a mudança de vida."
     },
     { 
         key: 'action', 
         label: 'AÇÃO', 
-        width: 'w-2/5', 
-        color: 'bg-emerald-600', 
-        icon: <Zap size={18} className="text-emerald-100" />,
+        width: 'w-2/5 md:w-1/3', 
+        color: 'bg-gradient-to-r from-orange-400 to-orange-600 shadow-[0_0_20px_rgba(249,115,22,0.2)]', 
+        textColor: 'text-white',
+        icon: <Zap size={18} className="text-orange-50" />,
         hint: "O que deve ser feito? 80% do tempo em Técnica/Estudo Ativo. +60min de foco progressivo."
     },
     { 
         key: 'motivation', 
         label: 'MOTIVAÇÃO', 
-        width: 'w-3/5', 
-        color: 'bg-emerald-700', 
-        icon: <Target size={18} className="text-emerald-200" />,
+        width: 'w-3/5 md:w-1/2', 
+        color: 'bg-gradient-to-r from-orange-600 to-orange-800 shadow-lg', 
+        textColor: 'text-white',
+        icon: <Target size={18} className="text-orange-100" />,
         hint: "Motivação 3.0 (Daniel Pink): Autonomia, Maestria, Propósito. Por quem você luta?"
     },
     { 
         key: 'dream', 
         label: 'SONHO', 
-        width: 'w-4/5', 
-        color: 'bg-slate-700', 
-        icon: <Heart size={18} className="text-slate-600 dark:text-slate-300" />,
+        width: 'w-4/5 md:w-2/3', 
+        color: 'bg-gradient-to-r from-slate-700 to-slate-900 shadow-lg', 
+        textColor: 'text-white',
+        icon: <Heart size={18} className="text-slate-300" />,
         hint: "A visão clara do futuro. Ex: Auditor Fiscal - Bahia - Salvador. Vroom: Valor x Expectativa."
     },
     { 
         key: 'values', 
         label: 'VALORES', 
-        width: 'w-full', 
-        color: 'bg-slate-100 dark:bg-slate-800', 
+        width: 'w-full md:w-5/6', 
+        color: 'bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 shadow-sm', 
+        textColor: 'text-slate-900 dark:text-white',
         icon: <Anchor size={18} className="text-slate-500 dark:text-slate-400" />,
         hint: "A base inabalável. Ex: Ambição, Calma, Integridade, Segurança, Relevância."
     },
@@ -71,7 +76,7 @@ export const Framework: React.FC = () => {
       <div className="flex justify-between items-start border-b border-slate-200 dark:border-slate-800 pb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
-            <Pyramid className="text-emerald-500" /> 
+            <Pyramid className="text-amber-500" /> 
             Framework de Alta Performance
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1">
@@ -95,18 +100,18 @@ export const Framework: React.FC = () => {
                     className={`${layer.width} transition-all duration-300 group cursor-pointer relative`}
                   >
                       {/* Pyramid Block */}
-                      <div className={`${layer.color} h-24 md:h-28 flex flex-col items-center justify-center text-center p-4 relative shadow-lg hover:brightness-110 hover:scale-[1.02] transition-all border-b border-black/20 ${layer.key === 'habit' ? 'rounded-t-3xl' : ''} ${layer.key === 'values' ? 'rounded-b-lg' : ''}`}>
+                      <div className={`${layer.color} h-24 md:h-28 flex flex-col items-center justify-center text-center p-4 relative hover:brightness-110 hover:scale-[1.02] transition-all ${layer.key === 'habit' ? 'rounded-t-3xl' : 'rounded-t-sm'} ${layer.key === 'values' ? 'rounded-b-2xl' : 'rounded-b-sm'} backdrop-blur-sm`}>
                           
-                          <div className="flex items-center gap-2 mb-1 opacity-80 font-bold tracking-widest text-xs uppercase text-slate-900 dark:text-white/70">
+                          <div className={`flex items-center gap-2 mb-1 opacity-90 font-bold tracking-widest text-[10px] md:text-xs uppercase ${layer.textColor}`}>
                               {layer.icon} {layer.label}
                           </div>
                           
-                          <div className="font-medium text-slate-900 dark:text-white text-sm md:text-base line-clamp-2 md:line-clamp-3 w-full px-2 md:px-4">
-                              {framework[layer.key] || <span className="italic opacity-40">Clique para definir...</span>}
+                          <div className={`font-medium ${layer.textColor} text-sm md:text-base line-clamp-2 md:line-clamp-3 w-full px-2 md:px-4`}>
+                              {framework[layer.key] || <span className="italic opacity-50">Clique para definir...</span>}
                           </div>
 
                           <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Pencil size={16} className="text-slate-900 dark:text-white/80" />
+                              <Pencil size={16} className={`${layer.textColor} opacity-70`} />
                           </div>
                       </div>
 
@@ -136,9 +141,9 @@ export const Framework: React.FC = () => {
                 </div>
                 
                 <div className="p-6 space-y-4">
-                    <div className="bg-emerald-900/20 border border-emerald-500/20 p-4 rounded-lg flex gap-3">
-                        <Info className="text-emerald-500 flex-shrink-0" size={20} />
-                        <p className="text-sm text-emerald-200">
+                    <div className="bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-500/20 p-4 rounded-lg flex gap-3">
+                        <Info className="text-orange-500 flex-shrink-0" size={20} />
+                        <p className="text-sm text-orange-800 dark:text-orange-200">
                             {layers.find(l => l.key === editingLayer)?.hint}
                         </p>
                     </div>
@@ -147,14 +152,14 @@ export const Framework: React.FC = () => {
                         value={tempValue}
                         onChange={(e) => setTempValue(e.target.value)}
                         placeholder="Escreva aqui..."
-                        className="w-full h-40 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl p-4 text-slate-900 dark:text-white placeholder-slate-600 focus:border-emerald-500 outline-none resize-none text-lg custom-scrollbar"
+                        className="w-full h-40 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl p-4 text-slate-900 dark:text-white placeholder-slate-600 focus:border-orange-500 focus:ring-1 focus:ring-orange-500 outline-none resize-none text-lg custom-scrollbar transition-all"
                         autoFocus
                     />
                 </div>
 
                 <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 flex justify-end gap-3">
                     <button onClick={() => setEditingLayer(null)} className="px-4 py-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white transition-colors">Cancelar</button>
-                    <button onClick={handleSave} className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg flex items-center gap-2 shadow-lg shadow-emerald-900/20 transition-all">
+                    <button onClick={handleSave} className="px-6 py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold rounded-lg flex items-center gap-2 shadow-lg shadow-orange-900/20 transition-all">
                         <Save size={18} /> Salvar
                     </button>
                 </div>

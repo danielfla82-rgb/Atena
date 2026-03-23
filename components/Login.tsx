@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { supabase } from './supabase';
 import { useStore } from '../store';
 import { Logo } from './Logo';
-import { Loader2, LogIn, Lock, Mail, AlertTriangle } from 'lucide-react';
+import { Loader2, LogIn, Lock, Mail, AlertTriangle, ExternalLink } from 'lucide-react';
 
 interface Props {
   onLoginSuccess: () => void;
@@ -13,7 +13,6 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -22,21 +21,12 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
     setErrorMsg(null);
 
     try {
-      if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-        if (error) throw error;
-        alert('Verifique seu email para confirmar o cadastro!');
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        onLoginSuccess();
-      }
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      if (error) throw error;
+      onLoginSuccess();
     } catch (error: any) {
       console.error(error);
       let msg = error.message || 'Erro na autenticação';
@@ -68,7 +58,7 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
         </div>
 
         <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white mb-4 tracking-tight uppercase drop-shadow-2xl transition-colors">
-          Projeto <span className="bg-gradient-to-r from-emerald-600 to-cyan-600 dark:from-emerald-400 dark:to-cyan-400 bg-clip-text text-transparent">Atena</span>
+          ATENA <span className="bg-gradient-to-r from-emerald-600 to-cyan-600 dark:from-emerald-400 dark:to-cyan-400 bg-clip-text text-transparent">CONCURSOS</span>
         </h1>
         
         <p className="text-slate-500 dark:text-slate-400 mb-8 text-lg font-light tracking-wide transition-colors">
@@ -115,17 +105,23 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
                     className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-900/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {loading ? <Loader2 className="animate-spin" size={20} /> : <LogIn size={20} />}
-                    {isSignUp ? 'Criar Conta' : 'Entrar'}
+                    Entrar
                 </button>
             </form>
 
-            <div className="mt-6 flex items-center justify-between text-xs text-slate-500">
-                <button type="button" onClick={() => setIsSignUp(!isSignUp)} className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">
-                    {isSignUp ? 'Já tem conta? Entrar' : 'Criar conta gratuita'}
-                </button>
-                <span className="text-slate-600 dark:text-slate-300 dark:text-slate-700">|</span>
-                <button type="button" onClick={handleGuestLogin} className="hover:text-slate-900 dark:hover:text-white transition-colors">
-                    Modo Visitante
+            <div className="mt-6 flex flex-col items-center gap-4 text-xs text-slate-500">
+                <a 
+                    href="https://atena-concurso.vercel.app/" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="w-full py-3 px-4 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl border border-slate-200 dark:border-slate-700 transition-all flex items-center justify-center gap-2"
+                >
+                    <ExternalLink size={16} />
+                    Ver planos e condições de acesso
+                </a>
+                
+                <button type="button" onClick={handleGuestLogin} className="hover:text-slate-900 dark:hover:text-white transition-colors underline underline-offset-2">
+                    Acessar no Modo Visitante
                 </button>
             </div>
         </div>

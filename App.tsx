@@ -14,15 +14,16 @@ import { Notes } from './components/Notes';
 import { About } from './components/About';
 import { StudySession } from './components/StudySession';
 import { ReviewList } from './components/ReviewList';
+import { Simulados } from './components/Simulados';
 import { 
   LayoutDashboard, Layers, Menu, X, Library as LibraryIcon, 
-  Pyramid, ListChecks, Shield, StickyNote, LogOut, ChevronDown, CalendarCheck, Book
+  Pyramid, ListChecks, Shield, StickyNote, LogOut, ChevronDown, CalendarCheck, Book, Target
 } from 'lucide-react';
 import { Logo } from './components/Logo';
 
 const AppContent: React.FC = () => {
   // Estado principal de navegação
-  const [view, setView] = useState<'login' | 'selection' | 'dashboard' | 'setup' | 'library' | 'framework' | 'verticalized' | 'notes' | 'about' | 'review-list' | 'disciplines'>('login');
+  const [view, setView] = useState<'login' | 'selection' | 'dashboard' | 'setup' | 'library' | 'framework' | 'verticalized' | 'notes' | 'about' | 'review-list' | 'disciplines' | 'simulados'>('login');
   
   // Estados de UI
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -34,7 +35,7 @@ const AppContent: React.FC = () => {
 
   // Efeito: Abre o menu automaticamente se estiver navegando em um de seus sub-itens
   useEffect(() => {
-    const strategyViews = ['dashboard', 'setup', 'verticalized', 'library', 'disciplines', 'notes', 'review-list'];
+    const strategyViews = ['dashboard', 'setup', 'verticalized', 'library', 'disciplines', 'notes', 'review-list', 'simulados'];
     if (strategyViews.includes(view)) setStrategyMenuOpen(true);
   }, [view]);
 
@@ -163,6 +164,14 @@ const AppContent: React.FC = () => {
                   </button>
 
                   <button 
+                    onClick={() => { setView('simulados'); setSidebarOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('simulados') ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border-emerald-500' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white font-medium'}`}
+                  >
+                    <Target size={18} />
+                    <span className="text-sm">Simulados</span>
+                  </button>
+
+                  <button 
                     onClick={() => { setView('notes'); setSidebarOpen(false); }}
                     className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('notes') ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border-emerald-500' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white font-medium'}`}
                   >
@@ -229,6 +238,7 @@ const AppContent: React.FC = () => {
           view === 'review-list' ? <ReviewList onNavigate={(v) => setView(v as any)} /> :
           view === 'library' ? <Library /> :
           view === 'disciplines' ? <DisciplineManager /> :
+          view === 'simulados' ? <Simulados /> :
           view === 'notes' ? <Notes /> :
           view === 'framework' ? <Framework /> :
           <About />

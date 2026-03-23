@@ -52,7 +52,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
             </div>
             <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Erro Crítico no Sistema</h1>
             <p className="text-slate-500 dark:text-slate-400 mb-6">
-              O Projeto Atena encontrou um erro inesperado. O relatório foi gerado para análise técnica.
+              O ATENA CONCURSOS encontrou um erro inesperado. O relatório foi gerado para análise técnica.
             </p>
             
             <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded p-4 mb-6 text-left overflow-auto max-h-32 custom-scrollbar">

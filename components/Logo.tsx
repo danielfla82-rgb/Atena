@@ -17,9 +17,9 @@ export const Logo: React.FC<Props> = ({ className = "", size = 'md' }) => {
     md: "w-10 h-10",
     lg: "w-20 h-20",
     xl: "w-32 h-32",
-    '2xl': "w-48 h-48",
+    '2xl': "w-48 h-auto max-h-48",
     '3xl': "w-64 h-64",
-    '4xl': "w-80 h-80 md:w-96 md:h-96" // Novo tamanho massivo para login
+    '4xl': "w-full max-w-md h-auto" // Novo tamanho massivo para login/banner
   };
 
   // Verificações de segurança para links que não são imagens diretas
@@ -44,7 +44,7 @@ export const Logo: React.FC<Props> = ({ className = "", size = 'md' }) => {
   return (
     <img 
       src={LOGO_URL} 
-      alt="Projeto Atena Logo" 
+      alt="ATENA CONCURSOS Logo" 
       className={`${sizeClasses[size]} object-contain drop-shadow-2xl transition-transform hover:scale-105 ${className}`}
       onError={() => setError(true)}
     />

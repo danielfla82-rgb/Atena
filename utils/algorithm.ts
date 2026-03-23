@@ -107,9 +107,9 @@ export const calculateUrgencyScore = (
     trend: Trend
 ): number => {
     // 1. Peso (45% do Score)
-    // Escala: Baixo(1) a Muito Alto(4)
+    // Escala: Baixo(1) a Alto(3)
     const wScore = WEIGHT_SCORE[weight]; 
-    const partWeight = (wScore / 4) * 45;
+    const partWeight = (wScore / 3) * 45;
 
     // 2. Relevância (40% do Score)
     // Escala: Baixa(1) a Alta(3)
