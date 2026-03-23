@@ -369,12 +369,12 @@ interface StoreContextType {
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
-// V10 Optimized Columns + FIX: Images included to prevent data loss
+// V10 Optimized Columns + FIX: Images removed to prevent network bloat (Lazy fetching)
 const OPTIMIZED_COLUMNS = `
   id, user_id, edital, discipline, name, subtitle, 
   tec_link, error_notebook_link, favorite_questions_link, law_link, obsidian_link, gemini_link_1, gemini_link_2,
   accuracy, target_accuracy, weight, relevance, trend, custom_score, status, 
-  week_id, is_week_completed, last_practice, next_review, accuracy_history, notes, images
+  week_id, is_week_completed, last_practice, next_review, accuracy_history, notes
 `;
 
 export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -535,6 +535,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
   };
 
+  const base64ToBlob = async (base64: string): Promise<Blob> => {
+      const res = await fetch(base64);
+      return await res.blob();
+  };
+
   const fetchNotebookImages = async (id: string): Promise<string[]> => {
       if (isGuest) {
           const nb = notebooks.find(n => n.id === id);
@@ -544,12 +549,58 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (currentNb && currentNb.images && currentNb.images.length > 0) {
           return currentNb.images;
       }
+      
       const { data, error } = await supabase.from('notebooks').select('images, image').eq('id', id).single();
       if (error) return [];
+      
       let images: string[] = [];
       if (data) {
           if (data.images && Array.isArray(data.images)) images = data.images;
           else if (data.image) images = [data.image];
+          
+          // Lazy Migration: Se houver imagens em base64, faz o upload para o Storage em background
+          const hasBase64 = images.some(img => img.startsWith('data:image'));
+          if (hasBase64 && !isGuest) {
+              // Não bloqueia o retorno das imagens para a UI (retorna o base64 imediatamente)
+              // Faz a migração em background
+              (async () => {
+                  try {
+                      const newUrls: string[] = [];
+                      let migrated = false;
+                      
+                      for (let i = 0; i < images.length; i++) {
+                          const imgStr = images[i];
+                          if (imgStr.startsWith('data:image')) {
+                              const blob = await base64ToBlob(imgStr);
+                              const fileExt = imgStr.substring("data:image/".length, imgStr.indexOf(";base64"));
+                              const fileName = `uploads/${id}_${Date.now()}_${i}.${fileExt}`;
+                              
+                              const { error: uploadError } = await supabase.storage
+                                  .from('notebook-images')
+                                  .upload(fileName, blob, { contentType: blob.type, upsert: true });
+                                  
+                              if (!uploadError) {
+                                  const { data: publicUrlData } = supabase.storage.from('notebook-images').getPublicUrl(fileName);
+                                  newUrls.push(publicUrlData.publicUrl);
+                                  migrated = true;
+                              } else {
+                                  newUrls.push(imgStr);
+                              }
+                          } else {
+                              newUrls.push(imgStr);
+                          }
+                      }
+                      
+                      if (migrated) {
+                          await supabase.from('notebooks').update({ images: newUrls, image: null }).eq('id', id);
+                          setNotebooks(prev => prev.map(n => n.id === id ? { ...n, images: newUrls } : n));
+                      }
+                  } catch (e) {
+                      console.error("Background migration failed for notebook", id, e);
+                  }
+              })();
+          }
+
           if (images.length > 0) setNotebooks(prev => prev.map(n => n.id === id ? { ...n, images: images } : n));
       }
       return images;

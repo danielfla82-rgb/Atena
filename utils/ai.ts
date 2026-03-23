@@ -1,38 +1,24 @@
 import { GoogleGenAI } from "@google/genai";
 
-// Chave fornecida pelo usuário para uso imediato
-const HARDCODED_API_KEY = "AIzaSyCHa0-nBDcxi5_wRE3pKXuur8_jpsamSeI";
-
 /**
  * Recupera a API Key de forma segura.
  * Prioridade:
- * 1. Variável de Ambiente (VITE_API_KEY)
- * 2. LocalStorage (Configurado via UI)
- * 3. Hardcoded (Fallback para desenvolvimento rápido)
+ * 1. Variável de Ambiente (process.env.GEMINI_API_KEY) injetada pela plataforma
+ * 2. LocalStorage (Configurado via UI pelo usuário)
  */
 export const getApiKey = (): string => {
   try {
-    // 1. Tenta Env Var
+    // 1. Tenta Env Var injetada pela plataforma AI Studio
     // @ts-ignore
-    if (typeof import.meta !== 'undefined' && import.meta.env) {
+    if (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY) {
       // @ts-ignore
-      const key1 = import.meta.env.VITE_API_KEY;
-      // @ts-ignore
-      const key2 = import.meta.env.VITE_GEMINI_API_KEY;
-
-      if (key1 && typeof key1 === 'string' && key1.length > 10) return key1;
-      if (key2 && typeof key2 === 'string' && key2.length > 10) return key2;
+      return process.env.GEMINI_API_KEY;
     }
 
     // 2. Tenta LocalStorage (Configuração do Usuário na UI)
     if (typeof window !== 'undefined') {
         const localKey = localStorage.getItem('atena_api_key');
         if (localKey && localKey.length > 10) return localKey;
-    }
-
-    // 3. Fallback Hardcoded
-    if (HARDCODED_API_KEY && HARDCODED_API_KEY.length > 10) {
-        return HARDCODED_API_KEY;
     }
 
   } catch (e) {
