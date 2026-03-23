@@ -128,16 +128,18 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
           })),
           backgroundColor: activeDisciplines.map(disc => {
             const discNotebooks = notebooks.filter(nb => nb.discipline === disc.name && nb.accuracy > 0);
-            const avgAccuracy = Math.round(discNotebooks.reduce((sum, nb) => sum + nb.accuracy, 0) / discNotebooks.length);
+            const avgAccuracy = discNotebooks.length > 0 ? Math.round(discNotebooks.reduce((sum, nb) => sum + nb.accuracy, 0) / discNotebooks.length) : null;
             
+            if (avgAccuracy === null) return 'rgba(148, 163, 184, 0.7)'; // Slate
             if (avgAccuracy >= 85) return 'rgba(16, 185, 129, 0.7)'; // Emerald
             if (avgAccuracy >= 60) return 'rgba(245, 158, 11, 0.7)'; // Amber
             return 'rgba(239, 68, 68, 0.7)'; // Red
           }),
           borderColor: activeDisciplines.map(disc => {
             const discNotebooks = notebooks.filter(nb => nb.discipline === disc.name && nb.accuracy > 0);
-            const avgAccuracy = Math.round(discNotebooks.reduce((sum, nb) => sum + nb.accuracy, 0) / discNotebooks.length);
+            const avgAccuracy = discNotebooks.length > 0 ? Math.round(discNotebooks.reduce((sum, nb) => sum + nb.accuracy, 0) / discNotebooks.length) : null;
             
+            if (avgAccuracy === null) return 'rgb(148, 163, 184)'; // Slate
             if (avgAccuracy >= 85) return 'rgb(16, 185, 129)'; // Emerald
             if (avgAccuracy >= 60) return 'rgb(245, 158, 11)'; // Amber
             return 'rgb(239, 68, 68)'; // Red
@@ -185,7 +187,7 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
         callbacks: {
           label: (context: any) => {
             const disc = context.raw.disc as Discipline;
-            const discNotebooks = notebooks.filter(nb => nb.discipline === disc.name);
+            const discNotebooks = notebooks.filter(nb => nb.discipline === disc.name && nb.accuracy > 0);
             const avgAccuracy = discNotebooks.length > 0
               ? Math.round(discNotebooks.reduce((acc, nb) => acc + nb.accuracy, 0) / discNotebooks.length)
               : null;
@@ -351,7 +353,7 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
             <div className="p-4 overflow-y-auto custom-scrollbar flex-1">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {selectedCell.disciplines.map(disc => {
-                  const discNotebooks = notebooks.filter(nb => nb.discipline === disc.name);
+                  const discNotebooks = notebooks.filter(nb => nb.discipline === disc.name && nb.accuracy > 0);
                   const avgAccuracy = discNotebooks.length > 0
                     ? Math.round(discNotebooks.reduce((acc, nb) => acc + nb.accuracy, 0) / discNotebooks.length)
                     : null;

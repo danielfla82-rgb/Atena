@@ -88,7 +88,7 @@ export const DisciplineManager: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {mergedDisciplines.map(discipline => {
           const isVirtual = discipline.id.startsWith('virtual-');
-          const discNotebooks = notebooks.filter(nb => nb.discipline === discipline.name);
+          const discNotebooks = notebooks.filter(nb => nb.discipline === discipline.name && nb.accuracy > 0);
           const avgAccuracy = discNotebooks.length > 0
             ? Math.round(discNotebooks.reduce((acc, nb) => acc + nb.accuracy, 0) / discNotebooks.length)
             : null;

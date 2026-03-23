@@ -695,7 +695,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           </div>
       </div>
 
-      <DashboardSection title="Radiografia Tática" subtitle="Matriz Estratégica" icon={<Target size={20} />} defaultOpen={true}>
+      <DashboardSection title="Radiografia Tática" subtitle="Matriz Estratégica" icon={<Target size={20} />} defaultOpen={false}>
           <div className="w-full"><QuadrantChart data={notebooks.filter(n => n.discipline !== 'Revisão Geral')} onNavigate={onNavigate} /></div>
       </DashboardSection>
 

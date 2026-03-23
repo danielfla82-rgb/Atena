@@ -359,7 +359,8 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
           matchedId: match.id,
           isMastered: match.accuracy >= match.targetAccuracy && match.accuracy > 0,
           accuracy: match.accuracy,
-          target: match.targetAccuracy
+          target: match.targetAccuracy,
+          nextReview: match.nextReview ? new Date(match.nextReview).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : null
       };
   }, [notebooks, activeCycleId, cycles, findMatchingNotebook]);
 
@@ -569,6 +570,13 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
                                               Score: {score} ({scoreShare}%)
                                           </span>
                                       )}
+
+                                      {/* NEW: Avg Accuracy Badge */}
+                                      {metrics && metrics.avgAccuracy > 0 && (
+                                          <span className="px-1.5 py-0.5 rounded border text-[10px] font-bold uppercase flex items-center gap-1 bg-emerald-900/20 text-emerald-400 border-emerald-500/20">
+                                              Acurácia Média: {metrics.avgAccuracy}%
+                                          </span>
+                                      )}
                                   </div>
                               </div>
                           </div>
@@ -628,9 +636,16 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
                                                               {stats.matchedId && <span className="text-[9px] text-slate-600 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 px-1 rounded inline-block">Integrado</span>}
                                                               {stats.isMastered && <span className="text-[9px] text-emerald-400 bg-emerald-900/20 border border-emerald-500/20 px-1 rounded inline-flex items-center gap-0.5"><Medal size={8}/> Dominado</span>}
                                                               {stats.matchedId && (
-                                                                  <span className={`text-[9px] px-1.5 rounded font-bold border ${stats.accuracy >= stats.target ? 'text-emerald-400 border-emerald-500/20 bg-emerald-500/10' : 'text-amber-400 border-amber-500/20 bg-amber-500/10'}`}>
-                                                                      {stats.accuracy}% <span className="opacity-50">/ {stats.target}%</span>
-                                                                  </span>
+                                                                  <div className="flex items-center gap-1">
+                                                                      <span className={`text-[9px] px-1.5 rounded font-bold border ${stats.accuracy >= stats.target ? 'text-emerald-400 border-emerald-500/20 bg-emerald-500/10' : 'text-amber-400 border-amber-500/20 bg-amber-500/10'}`}>
+                                                                          {stats.accuracy}% <span className="opacity-50">/ {stats.target}%</span>
+                                                                      </span>
+                                                                      {stats.nextReview && (
+                                                                          <span className="text-[9px] text-blue-400 bg-blue-900/20 border border-blue-500/20 px-1.5 rounded inline-flex items-center gap-0.5" title="Próxima Revisão">
+                                                                              <Clock size={8}/> {stats.nextReview}
+                                                                          </span>
+                                                                      )}
+                                                                  </div>
                                                               )}
                                                           </div>
                                                       </td>
