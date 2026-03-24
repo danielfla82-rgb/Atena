@@ -5,7 +5,7 @@ import { QuadrantChart } from './QuadrantChart';
 import { DisciplineQuadrantChart } from './DisciplineQuadrantChart';
 import { WeeklyProgress } from './WeeklyProgress';
 import { Weight, WEIGHT_SCORE } from '../types';
-import { DEFAULT_ALGO_CONFIG } from '../utils/algorithm';
+import { DEFAULT_ALGO_CONFIG, calculateUrgencyScore } from '../utils/algorithm';
 import { 
   Target, Settings, TrendingUp, TrendingDown, Minus,
   ChevronDown, Database, Terminal, Flame, Loader2, Settings2, HelpCircle, ChevronUp, Book, ChevronLeft, ChevronRight, X, FileText, Key, BrainCircuit
@@ -277,6 +277,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
   const [quoteIndex, setQuoteIndex] = useState(0);
   const [expandedMetric, setExpandedMetric] = useState<'performance' | 'progress' | null>(null);
   const [viewedMonthOffset, setViewedMonthOffset] = useState(0);
+  const [worstTopicsDiscipline, setWorstTopicsDiscipline] = useState<string | null>(null);
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -633,7 +634,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
               <div className="flex justify-between items-end"><div className="flex flex-col gap-0.5"><span className="text-xs font-bold text-emerald-600">{metrics.avgAccuracy}% Acertos</span><span className="text-xs font-bold text-red-500">{metrics.avgAccuracy > 0 ? 100 - metrics.avgAccuracy : 0}% Erros</span></div><span className="text-4xl font-black text-slate-900 dark:text-white">{metrics.avgAccuracy}%</span></div>
               {expandedMetric === 'performance' && (
                   <div className="mt-6 flex-1 w-full relative animate-in fade-in slide-in-from-top-4">
-                      <Bar data={{ labels: metrics.disciplineStats.map(d => d.name), datasets: [{ label: 'Acurácia (%)', data: metrics.disciplineStats.map(d => d.accuracy), backgroundColor: metrics.disciplineStats.map(d => d.accuracy <= 60 ? '#ef4444' : d.accuracy >= 90 ? '#10b981' : '#f59e0b'), borderRadius: 4 }] }} options={{ ...barChartOptions, plugins: { ...barChartOptions.plugins, textOnBars: true } }} plugins={[textOnBarsPlugin]} />
+                      <Bar data={{ labels: metrics.disciplineStats.map(d => d.name), datasets: [{ label: 'Acurácia (%)', data: metrics.disciplineStats.map(d => d.accuracy), backgroundColor: metrics.disciplineStats.map(d => d.accuracy <= 60 ? '#ef4444' : d.accuracy >= 90 ? '#10b981' : '#f59e0b'), borderRadius: 4 }] }} options={{ ...barChartOptions, plugins: { ...barChartOptions.plugins, textOnBars: true }, onHover: (event, chartElement) => { if (event.native && event.native.target) { (event.native.target as HTMLElement).style.cursor = chartElement[0] ? 'pointer' : 'default'; } }, onClick: (event, elements) => { if (elements.length > 0) { const index = elements[0].index; const disciplineName = metrics.disciplineStats[index].name; setWorstTopicsDiscipline(disciplineName); } } }} plugins={[textOnBarsPlugin]} />
                   </div>
               )}
           </div>
@@ -713,6 +714,66 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
               <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800"><h3 className="text-sm font-bold text-purple-600 dark:text-purple-500 uppercase tracking-widest border-b border-purple-500/20 pb-2 flex items-center gap-2"><BrainCircuit size={16} /> Ajuste do Algoritmo</h3><div className="grid grid-cols-2 md:grid-cols-4 gap-4">{ORDERED_ALGO_KEYS.map((key) => (<div key={key} className="group relative"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-help flex items-center gap-1">{ALGO_TOOLTIPS[key]?.title || key} <HelpCircle size={10}/></label><input type="number" value={currentIntervals[key as keyof typeof currentIntervals]} onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-white text-center font-bold outline-none focus:border-purple-500" /></div>))}</div></div>
             </div>
             <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-end gap-3"><button onClick={() => !isSaving && setIsConfigOpen(false)} disabled={isSaving} className="px-4 py-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">Cancelar</button><button onClick={handleSaveConfig} disabled={isSaving} className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg flex items-center gap-2 disabled:opacity-50">{isSaving ? <Loader2 size={18} className="animate-spin" /> : <Settings2 size={18} />}Salvar Alterações</button></div>
+          </div>
+        </div>
+      )}
+
+      {worstTopicsDiscipline && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Target size={20} className="text-red-500" />
+                  Top 10 Piores Tópicos
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">{worstTopicsDiscipline}</p>
+              </div>
+              <button onClick={() => setWorstTopicsDiscipline(null)} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+              {(() => {
+                const worstTopics = notebooks
+                  .filter(n => n.discipline === worstTopicsDiscipline && n.accuracy > 0)
+                  .sort((a, b) => a.accuracy - b.accuracy)
+                  .slice(0, 10);
+
+                if (worstTopics.length === 0) {
+                  return <p className="text-center text-slate-500 dark:text-slate-400 py-8 text-sm">Nenhum tópico com acurácia registrada nesta disciplina.</p>;
+                }
+
+                return (
+                  <div className="space-y-3">
+                    {worstTopics.map((nb, i) => {
+                      const score = nb.customScore !== null && nb.customScore !== undefined 
+                        ? nb.customScore 
+                        : calculateUrgencyScore(nb.weight, nb.relevance, nb.trend);
+                      
+                      return (
+                        <div key={nb.id} className="flex items-center justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+                          <div className="flex items-center gap-4 overflow-hidden">
+                            <span className="text-sm font-bold text-slate-400 dark:text-slate-500 w-6 text-center">{i + 1}º</span>
+                            <div className="truncate">
+                              <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{nb.subtitle}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4 shrink-0">
+                            <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase border ${score > 75 ? 'bg-red-500/10 text-red-500 border-red-500/20' : score > 45 ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-700'}`}>
+                              Score: {score}
+                            </span>
+                            <span className={`font-mono font-bold text-lg ${nb.accuracy <= 60 ? 'text-red-500' : nb.accuracy >= 90 ? 'text-emerald-500' : 'text-amber-500'}`}>
+                              {nb.accuracy}%
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
           </div>
         </div>
       )}
