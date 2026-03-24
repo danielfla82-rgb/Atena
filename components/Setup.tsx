@@ -70,8 +70,8 @@ const DraggableCard = React.memo(({
     const isAllocatedPast = allocatedWeek && currentWeekIndex && parseInt(allocatedWeek) < currentWeekIndex;
 
     // --- LÓGICA DE CORES POR DESEMPENHO ---
-    const target = notebook.targetAccuracy || 90;
-    const accuracy = notebook.accuracy || 0;
+    const target = Number(notebook.targetAccuracy) || 90;
+    const accuracy = Number(notebook.accuracy) || 0;
     const criticalThreshold = target * 0.75; 
 
     // --- LÓGICA DE PRÓXIMA REVISÃO ---
@@ -86,7 +86,7 @@ const DraggableCard = React.memo(({
 
     let buttonClass = 'border-slate-300 dark:border-slate-600 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 group-hover/check:border-slate-400 dark:group-hover/check:border-slate-500 hover:bg-slate-300 dark:hover:bg-slate-600';
     let textClass = isCompleted && isWeek ? 'text-slate-500 line-through' : 'text-slate-900 dark:text-slate-200';
-    let percentColorClass = notebook.accuracy < 60 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400';
+    let percentColorClass = accuracy >= target ? 'text-emerald-600 dark:text-emerald-400' : accuracy <= 60 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400';
     let tooltipText = "Pendente: Clique para marcar como concluído.";
 
     if (isCompleted) {
@@ -1068,9 +1068,11 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                                 if (!slot.completed || !slot.notebookId) return;
                                 const nb = notebooks.find(n => n.id === slot.notebookId);
                                 if (!nb) return;
-                                if (nb.accuracy > 0) { summaryStats.totalAcc += nb.accuracy; summaryStats.countAcc++; }
-                                if (nb.accuracy >= nb.targetAccuracy) summaryStats.success++;
-                                else if (nb.accuracy < 60) summaryStats.critical++;
+                                const target = Number(nb.targetAccuracy) || 90;
+                                const accuracy = Number(nb.accuracy) || 0;
+                                if (accuracy > 0) { summaryStats.totalAcc += accuracy; summaryStats.countAcc++; }
+                                if (accuracy >= target) summaryStats.success++;
+                                else if (accuracy <= 60) summaryStats.critical++;
                                 else summaryStats.warning++;
                             });
                         }

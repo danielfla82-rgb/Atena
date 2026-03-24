@@ -268,7 +268,7 @@ export const Library: React.FC = () => {
       const validNotebooks = notebooks.filter(n => n.discipline !== 'Revisão Geral');
       const total = validNotebooks.length;
       const disciplines = new Set(validNotebooks.map(n => n.discipline)).size;
-      const mastered = validNotebooks.filter(n => n.accuracy >= n.targetAccuracy).length;
+      const mastered = validNotebooks.filter(n => (Number(n.accuracy) || 0) >= (Number(n.targetAccuracy) || 90)).length;
       const globalAcc = total > 0 ? Math.round(validNotebooks.reduce((acc, n) => acc + n.accuracy, 0) / total) : 0;
       return { total, disciplines, mastered, globalAcc };
   }, [notebooks]);
@@ -294,7 +294,7 @@ export const Library: React.FC = () => {
                       return nb.nextReview.split('T')[0] <= today;
                   }
                   return false;
-              case 'critical': return nb.accuracy < 60 && nb.accuracy > 0;
+              case 'critical': return nb.accuracy <= 60 && nb.accuracy > 0;
               case 'new': return nb.accuracy === 0;
               case 'late': 
                   if (!nb.nextReview) return false;
@@ -310,8 +310,10 @@ export const Library: React.FC = () => {
           if (viewMode === 'discipline') {
               key = nb.discipline;
           } else {
-              if (nb.accuracy >= nb.targetAccuracy) key = 'Concluídos (Meta Batida)';
-              else if (nb.accuracy > 0) key = 'Em Andamento';
+              const target = Number(nb.targetAccuracy) || 90;
+              const accuracy = Number(nb.accuracy) || 0;
+              if (accuracy >= target) key = 'Concluídos (Meta Batida)';
+              else if (accuracy > 0) key = 'Em Andamento';
               else key = 'Não Iniciados';
           }
           if (!groups[key]) groups[key] = [];
@@ -740,7 +742,7 @@ export const Library: React.FC = () => {
                                           <p className="text-xs text-slate-500 truncate">{nb.subtitle}</p>
                                           
                                           <div className="flex md:hidden gap-3 mt-2 text-[10px] text-slate-500 font-mono">
-                                              <span>Acc: <strong className={nb.accuracy < 60 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400'}>{nb.accuracy}%</strong></span>
+                                              <span>Acc: <strong className={(Number(nb.accuracy) || 0) >= (Number(nb.targetAccuracy) || 90) ? 'text-emerald-600 dark:text-emerald-400' : (Number(nb.accuracy) || 0) <= 60 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}>{nb.accuracy}%</strong></span>
                                               <span>Rev: {nb.nextReview ? nb.nextReview.split('T')[0].split('-').reverse().join('/') : '--'}</span>
                                           </div>
                                       </div>
@@ -748,7 +750,7 @@ export const Library: React.FC = () => {
                                       <div className="flex items-center gap-4 md:gap-8 px-4 py-2 border-l border-slate-200 dark:border-slate-800/30">
                                           <div className="text-right hidden md:block">
                                               <p className="text-[10px] text-slate-500 uppercase font-bold">Acurácia</p>
-                                              <p className={`font-mono font-bold text-sm ${nb.accuracy >= nb.targetAccuracy ? 'text-emerald-600 dark:text-emerald-400' : nb.accuracy < 60 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}`}>{nb.accuracy}%</p>
+                                              <p className={`font-mono font-bold text-sm ${(Number(nb.accuracy) || 0) >= (Number(nb.targetAccuracy) || 90) ? 'text-emerald-600 dark:text-emerald-400' : (Number(nb.accuracy) || 0) <= 60 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}`}>{nb.accuracy}%</p>
                                           </div>
                                           <div className="text-right hidden md:block">
                                               <p className="text-[10px] text-slate-500 uppercase font-bold">Revisão</p>
@@ -1036,7 +1038,7 @@ export const Library: React.FC = () => {
                                   <div key={i} className="group relative flex flex-col items-center bg-white dark:bg-slate-900 px-2 py-1 rounded border border-slate-200 dark:border-slate-800 min-w-[60px]">
                                       <button type="button" onClick={() => removeHistoryItem(i)} className="absolute -top-1.5 -right-1.5 bg-red-600 text-slate-900 dark:text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110 z-10 cursor-pointer shadow-sm"><X size={10} strokeWidth={3} /></button>
                                       <span className="text-[10px] text-slate-500 font-mono">{new Date(h.date).toLocaleDateString(undefined, {day:'2-digit', month:'2-digit'})}</span>
-                                      <span className={`text-xs font-bold ${h.accuracy >= formData.targetAccuracy ? 'text-emerald-400' : h.accuracy < 60 ? 'text-red-400' : 'text-amber-400'}`}>{h.accuracy}%</span>
+                                      <span className={`text-xs font-bold ${(Number(h.accuracy) || 0) >= (Number(formData.targetAccuracy) || 90) ? 'text-emerald-400' : (Number(h.accuracy) || 0) <= 60 ? 'text-red-400' : 'text-amber-400'}`}>{h.accuracy}%</span>
                                   </div>
                               ))}
                               <div className="flex items-center text-xs text-slate-500 gap-1 ml-2"><TrendingUp size={16} /></div>

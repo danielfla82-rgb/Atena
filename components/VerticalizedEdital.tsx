@@ -95,7 +95,7 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
 
               // 2. Check Mastery Condition (Auto-Complete)
               // Só marca automaticamente se o usuário JÁ atingiu a meta no caderno vinculado.
-              const isMastered = match ? (match.accuracy >= match.targetAccuracy && match.accuracy > 0) : false;
+              const isMastered = match ? ((Number(match.accuracy) || 0) >= (Number(match.targetAccuracy) || 90) && (Number(match.accuracy) || 0) > 0) : false;
 
               // Se já está marcado, mantém (respeita marcação manual).
               // Se não está marcado, mas atingiu a meta, marca.
@@ -357,7 +357,7 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
           isScheduled: weeksArray.length > 0,
           matchesCount: 1,
           matchedId: match.id,
-          isMastered: match.accuracy >= match.targetAccuracy && match.accuracy > 0,
+          isMastered: ((Number(match.accuracy) || 0) >= (Number(match.targetAccuracy) || 90)) && (Number(match.accuracy) || 0) > 0,
           accuracy: match.accuracy,
           target: match.targetAccuracy,
           nextReview: match.nextReview ? new Date(match.nextReview).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : null
@@ -397,7 +397,7 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
                   return metrics.createdCount < metrics.totalTopics;
               }
               if (filterMode === 'low_accuracy') {
-                  return metrics.createdCount > 0 && metrics.avgAccuracy < 60;
+                  return metrics.createdCount > 0 && metrics.avgAccuracy <= 60;
               }
               return true;
           });
@@ -637,7 +637,7 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
                                                               {stats.isMastered && <span className="text-[9px] text-emerald-400 bg-emerald-900/20 border border-emerald-500/20 px-1 rounded inline-flex items-center gap-0.5"><Medal size={8}/> Dominado</span>}
                                                               {stats.matchedId && (
                                                                   <div className="flex items-center gap-1">
-                                                                      <span className={`text-[9px] px-1.5 rounded font-bold border ${stats.accuracy >= stats.target ? 'text-emerald-400 border-emerald-500/20 bg-emerald-500/10' : 'text-amber-400 border-amber-500/20 bg-amber-500/10'}`}>
+                                                                      <span className={`text-[9px] px-1.5 rounded font-bold border ${(Number(stats.accuracy) || 0) >= (Number(stats.target) || 90) ? 'text-emerald-400 border-emerald-500/20 bg-emerald-500/10' : (Number(stats.accuracy) || 0) <= 60 ? 'text-red-400 border-red-500/20 bg-red-500/10' : 'text-amber-400 border-amber-500/20 bg-amber-500/10'}`}>
                                                                           {stats.accuracy}% <span className="opacity-50">/ {stats.target}%</span>
                                                                       </span>
                                                                       {stats.nextReview && (

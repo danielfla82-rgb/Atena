@@ -123,8 +123,8 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
                 notebook: nb
             })),
             backgroundColor: activeNotebooks.map(nb => {
-                if (nb.accuracy >= nb.targetAccuracy) return '#10b981'; // Green
-                if (nb.accuracy < 60) return '#ef4444'; // Red
+                if ((Number(nb.accuracy) || 0) >= (Number(nb.targetAccuracy) || 90)) return '#10b981'; // Green
+                if (nb.accuracy <= 60) return '#ef4444'; // Red
                 return '#f59e0b'; // Amber
             }),
             borderWidth: 0
@@ -331,7 +331,7 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
                                   <p className="text-[10px] text-slate-500 truncate">{nb.name}</p>
                               </div>
                               <div className="flex items-center gap-2">
-                                  <span className={`text-xs font-bold px-1.5 py-0.5 rounded border ${nb.accuracy < 60 ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
+                                  <span className={`text-xs font-bold px-1.5 py-0.5 rounded border ${nb.accuracy <= 60 ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
                                       {nb.accuracy}%
                                   </span>
                                   <ExternalLink size={14} className="text-slate-600 group-hover:text-slate-900 dark:text-white" />

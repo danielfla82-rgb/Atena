@@ -100,7 +100,7 @@ export const StudySession: React.FC<Props> = ({ notebook, onClose }) => {
               
               <div className="mt-6 p-4 bg-slate-100 dark:bg-slate-800/50 rounded-lg text-sm text-slate-500 dark:text-slate-400 w-full">
                 <p className="flex items-center gap-2 mb-2"><Timer size={16} /> Dica Estratégica:</p>
-                <p>Este tópico tem peso <strong>{notebook.weight}</strong>. Foque na lei seca para aumentar sua precisão de {notebook.accuracy}% para {notebook.targetAccuracy}%.</p>
+                <p>Este tópico tem peso <strong>{notebook.weight}</strong>. Foque na lei seca para aumentar sua precisão de {notebook.accuracy}% para {Number(notebook.targetAccuracy) || 90}%.</p>
               </div>
             </>
           ) : (
@@ -148,7 +148,7 @@ export const StudySession: React.FC<Props> = ({ notebook, onClose }) => {
                        <AlertCircle size={18} /> Erro
                     </span>
                   ) : (
-                    <span className={`text-3xl font-bold font-mono ${currentCalc >= notebook.targetAccuracy ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    <span className={`text-3xl font-bold font-mono ${currentCalc >= (Number(notebook.targetAccuracy) || 90) ? 'text-emerald-400' : currentCalc <= 60 ? 'text-red-400' : 'text-amber-400'}`}>
                        {questions ? `${currentCalc}%` : '--'}
                     </span>
                   )}

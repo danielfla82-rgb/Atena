@@ -40,9 +40,9 @@ export const calculateNextReview = (
   let baseDays = 1;
 
   // 1. Definição do Intervalo Base (Função Degrau)
-  if (accuracy < 60) {
+  if (accuracy <= 60) {
     baseDays = settings.baseIntervals.learning;
-  } else if (accuracy >= 60 && accuracy <= 79) {
+  } else if (accuracy > 60 && accuracy <= 79) {
     baseDays = settings.baseIntervals.reviewing;
   } else if (accuracy >= 80 && accuracy <= 89) {
     baseDays = settings.baseIntervals.mastering;
@@ -89,10 +89,12 @@ export const calculateNextReview = (
   return nextDate;
 };
 
-export const getStatusColor = (accuracy: number, target: number): string => {
-  if (accuracy === 0) return '#94a3b8'; // Cinza/Slate-400 (Sem dados)
-  if (accuracy <= 60) return '#ef4444'; // Vermelho (Crítico)
-  if (accuracy < target) return '#f97316'; // Laranja (Atenção)
+export const getStatusColor = (accuracy: number, target: number = 90): string => {
+  const safeTarget = Number(target) || 90;
+  const safeAccuracy = Number(accuracy) || 0;
+  if (safeAccuracy === 0) return '#94a3b8'; // Cinza/Slate-400 (Sem dados)
+  if (safeAccuracy <= 60) return '#ef4444'; // Vermelho (Crítico)
+  if (safeAccuracy < safeTarget) return '#f97316'; // Laranja (Atenção)
   return '#22c55e'; // Verde (Dominado)
 };
 

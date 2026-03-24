@@ -136,10 +136,10 @@ const barChartOptions = {
 };
 
 const ALGO_TOOLTIPS: Record<string, { title: string, desc: string }> = {
-    learning: { title: "Aprendizado (< 60%)", desc: "Fase de aquisição ou reconstrução. O sistema entende que você ainda não aprendeu. Intervalo curto para evitar perda." },
-    reviewing: { title: "Revisão (60% - 79%)", desc: "Fase de fixação. Você entende o assunto, mas comete erros ou tem lacunas. Intervalo médio-curto." },
+    learning: { title: "Aprendizado (<= 60%)", desc: "Fase de aquisição ou reconstrução. O sistema entende que você ainda não aprendeu. Intervalo curto para evitar perda." },
+    reviewing: { title: "Revisão (61% - 79%)", desc: "Fase de fixação. Você entende o assunto, mas comete erros ou tem lacunas. Intervalo médio-curto." },
     mastering: { title: "Domínio (80% - 89%)", desc: "Fase de polimento. O conteúdo está sólido, quase excelente. Intervalo médio." },
-    maintaining: { title: "Manutenção (> 90%)", desc: "Você dominou o tópico. O objetivo é apenas combater a Curva do Esquecimento. Intervalo longo." }
+    maintaining: { title: "Manutenção (>= 90%)", desc: "Você dominou o tópico. O objetivo é apenas combater a Curva do Esquecimento. Intervalo longo." }
 };
 
 const ORDERED_ALGO_KEYS = ['learning', 'reviewing', 'mastering', 'maintaining'];
@@ -377,14 +377,14 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       const avgAccuracy = planningNotebooks.length > 0 ? Math.round(totalAcc / planningNotebooks.length) : 0;
       
       const totalTopics = notebooks.filter(n => n.discipline !== 'Revisão Geral').length;
-      const completedTopics = notebooks.filter(n => (n.status === 'Dominado' || n.accuracy >= n.targetAccuracy) && n.discipline !== 'Revisão Geral').length;
+      const completedTopics = notebooks.filter(n => (n.status === 'Dominado' || (Number(n.accuracy) || 0) >= (Number(n.targetAccuracy) || 90)) && n.discipline !== 'Revisão Geral').length;
       const progressPercent = totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0;
 
       const breakdown: Record<string, { total: number, completed: number, accSum: number, accCount: number }> = {};
       notebooks.filter(n => n.discipline !== 'Revisão Geral').forEach(n => {
           if (!breakdown[n.discipline]) breakdown[n.discipline] = { total: 0, completed: 0, accSum: 0, accCount: 0 };
           breakdown[n.discipline].total++;
-          if (n.status === 'Dominado' || n.accuracy >= n.targetAccuracy) breakdown[n.discipline].completed++;
+          if (n.status === 'Dominado' || (Number(n.accuracy) || 0) >= (Number(n.targetAccuracy) || 90)) breakdown[n.discipline].completed++;
           
           if (completedIdsInPlanning.has(n.id) && n.accuracy > 0) {
               breakdown[n.discipline].accSum += n.accuracy;
@@ -633,7 +633,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
               <div className="flex justify-between items-end"><div className="flex flex-col gap-0.5"><span className="text-xs font-bold text-emerald-600">{metrics.avgAccuracy}% Acertos</span><span className="text-xs font-bold text-red-500">{metrics.avgAccuracy > 0 ? 100 - metrics.avgAccuracy : 0}% Erros</span></div><span className="text-4xl font-black text-slate-900 dark:text-white">{metrics.avgAccuracy}%</span></div>
               {expandedMetric === 'performance' && (
                   <div className="mt-6 flex-1 w-full relative animate-in fade-in slide-in-from-top-4">
-                      <Bar data={{ labels: metrics.disciplineStats.map(d => d.name), datasets: [{ label: 'Acurácia (%)', data: metrics.disciplineStats.map(d => d.accuracy), backgroundColor: metrics.disciplineStats.map(d => d.accuracy < 70 ? '#ef4444' : '#10b981'), borderRadius: 4 }] }} options={{ ...barChartOptions, plugins: { ...barChartOptions.plugins, textOnBars: true } }} plugins={[textOnBarsPlugin]} />
+                      <Bar data={{ labels: metrics.disciplineStats.map(d => d.name), datasets: [{ label: 'Acurácia (%)', data: metrics.disciplineStats.map(d => d.accuracy), backgroundColor: metrics.disciplineStats.map(d => d.accuracy <= 60 ? '#ef4444' : d.accuracy >= 90 ? '#10b981' : '#f59e0b'), borderRadius: 4 }] }} options={{ ...barChartOptions, plugins: { ...barChartOptions.plugins, textOnBars: true } }} plugins={[textOnBarsPlugin]} />
                   </div>
               )}
           </div>
