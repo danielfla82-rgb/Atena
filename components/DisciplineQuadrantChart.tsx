@@ -15,6 +15,9 @@ import { Scatter } from 'react-chartjs-2';
 
 ChartJS.register(LinearScale, PointElement, LineElement, Tooltip, Legend);
 
+const WEIGHTS = [Weight.ALTO, Weight.MEDIO, Weight.BAIXO];
+const RELEVANCES = [Relevance.BAIXA, Relevance.MEDIA, Relevance.ALTA];
+
 interface Props {
   data: Discipline[];
   onNavigate?: (view: string) => void;
@@ -40,14 +43,11 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
     return result;
   }, [data, editalFilter, disciplineFilter]);
 
-  const weights = [Weight.ALTO, Weight.MEDIO, Weight.BAIXO];
-  const relevances = [Relevance.BAIXA, Relevance.MEDIA, Relevance.ALTA];
-
   const matrix = useMemo(() => {
     const grid: Record<string, { count: number; disciplines: Discipline[]; avgAccuracy: number | null }> = {};
     
-    weights.forEach(w => {
-      relevances.forEach(r => {
+    WEIGHTS.forEach(w => {
+      RELEVANCES.forEach(r => {
         grid[`${w}-${r}`] = { count: 0, disciplines: [], avgAccuracy: null };
       });
     });
@@ -76,12 +76,12 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
     });
 
     return grid;
-  }, [filteredData, weights, relevances, notebooks]);
+  }, [filteredData, notebooks]);
 
   const getCellColor = (count: number, avgAcc: number | null) => {
     if (count === 0) return 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 text-slate-400';
     if (avgAcc === null) return 'bg-slate-100 dark:bg-slate-800/50 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400';
-    if (avgAcc >= 85) return 'bg-emerald-100 dark:bg-emerald-900/40 border-emerald-300 dark:border-emerald-700/50 text-emerald-900 dark:text-emerald-100 hover:bg-emerald-200 dark:hover:bg-emerald-900/60';
+    if (avgAcc >= 85) return 'bg-green-100 dark:bg-green-900/40 border-green-300 dark:border-green-700/50 text-green-900 dark:text-green-100 hover:bg-green-200 dark:hover:bg-green-900/60';
     if (avgAcc >= 60) return 'bg-amber-100 dark:bg-amber-900/40 border-amber-300 dark:border-amber-700/50 text-amber-900 dark:text-amber-100 hover:bg-amber-200 dark:hover:bg-amber-900/60';
     return 'bg-red-100 dark:bg-red-900/40 border-red-300 dark:border-red-700/50 text-red-900 dark:text-red-100 hover:bg-red-200 dark:hover:bg-red-900/60';
   };
@@ -217,7 +217,7 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
     <div className="w-full flex flex-col h-full">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
         <div className="flex items-center gap-3">
-          <div className="bg-emerald-100 dark:bg-emerald-900/30 p-2 rounded-lg text-emerald-600 dark:text-emerald-400">
+          <div className="bg-green-100 dark:bg-green-900/30 p-2 rounded-lg text-green-600 dark:text-green-400">
             <Target size={20} />
           </div>
           <div>
@@ -244,14 +244,14 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
           <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700">
             <button 
               onClick={() => setViewMode('heatmap')} 
-              className={`p-1.5 rounded-md transition-all ${viewMode === 'heatmap' ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+              className={`p-1.5 rounded-md transition-all ${viewMode === 'heatmap' ? 'bg-white dark:bg-slate-700 text-green-600 dark:text-green-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
               title="Visualização em Grade (Heatmap)"
             >
               <Grid3X3 size={16} />
             </button>
             <button 
               onClick={() => setViewMode('scatter')} 
-              className={`p-1.5 rounded-md transition-all ${viewMode === 'scatter' ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+              className={`p-1.5 rounded-md transition-all ${viewMode === 'scatter' ? 'bg-white dark:bg-slate-700 text-green-600 dark:text-green-400 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
               title="Gráfico de Dispersão"
             >
               <ScatterIcon size={16} />
@@ -266,7 +266,7 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
             <div className="flex mb-2">
               <div className="w-24 flex-shrink-0"></div>
               <div className="flex-1 grid grid-cols-3 gap-2">
-                {relevances.map(r => (
+                {RELEVANCES.map(r => (
                   <div key={r} className="text-center text-[10px] font-bold text-slate-500 uppercase tracking-wider">{r}</div>
                 ))}
               </div>
@@ -278,7 +278,7 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
               </div>
               
               <div className="w-24 flex-shrink-0 flex flex-col gap-2 pr-2">
-                {weights.map(w => (
+                {WEIGHTS.map(w => (
                   <div key={w} className="flex-1 flex items-center justify-end text-[10px] font-bold text-slate-500 uppercase tracking-wider text-right">
                     {w}
                   </div>
@@ -286,9 +286,9 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
               </div>
 
               <div className="flex-1 flex flex-col gap-2">
-                {weights.map(w => (
+                {WEIGHTS.map(w => (
                   <div key={w} className="flex-1 grid grid-cols-3 gap-2">
-                    {relevances.map(r => {
+                    {RELEVANCES.map(r => {
                       const cell = matrix[`${w}-${r}`];
                       const colorClass = getCellColor(cell.count, cell.avgAccuracy);
                       const label = getQuadrantLabel(w, r);
@@ -340,7 +340,7 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
             <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-900">
               <div>
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Target size={18} className="text-emerald-500" />
+                  <Target size={18} className="text-green-500" />
                   Disciplinas: {selectedCell.title}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{selectedCell.disciplines.length} disciplinas neste quadrante</p>
@@ -366,7 +366,7 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
                           <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1">{disc.edital || 'Sem edital'}</p>
                           {avgAccuracy !== null && (
                             <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                              avgAccuracy >= 80 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                              avgAccuracy >= 80 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
                               avgAccuracy >= 60 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
                               avgAccuracy >= 40 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
                               'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
@@ -381,7 +381,7 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
                           setSelectedCell(null);
                           if (onNavigate) onNavigate('disciplines');
                         }}
-                        className="mt-3 w-full py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-slate-600 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1"
+                        className="mt-3 w-full py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-green-100 dark:hover:bg-green-900/30 text-slate-600 dark:text-slate-300 hover:text-green-600 dark:hover:text-green-400 rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1"
                       >
                         <ExternalLink size={12} /> Gerenciar
                       </button>

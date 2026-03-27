@@ -71,7 +71,7 @@ export const Nietzsche: React.FC = () => {
   const renderInterpretation = (text: string) => {
       const parts = text.split(/\*\*(.*?)\*\*/g);
       return parts.map((part, i) => 
-          i % 2 === 1 ? <strong key={i} className="text-emerald-400 font-bold">{part}</strong> : part
+          i % 2 === 1 ? <strong key={i} className="text-green-400 font-bold">{part}</strong> : part
       );
   };
 
@@ -81,9 +81,9 @@ export const Nietzsche: React.FC = () => {
       <div className="z-10 text-center max-w-3xl px-6 w-full">
         <div className="flex justify-center mb-10">
             {/* MASSIVE IMAGE CONTAINER */}
-            <div className="w-72 h-72 md:w-96 md:h-96 lg:w-[450px] lg:h-[450px] rounded-full border-4 border-slate-200 dark:border-slate-800 shadow-[0_0_100px_rgba(16,185,129,0.15)] overflow-hidden relative group transition-all duration-700 hover:shadow-[0_0_120px_rgba(16,185,129,0.3)] hover:scale-105">
+            <div className="w-72 h-72 md:w-96 md:h-96 lg:w-[450px] lg:h-[450px] rounded-full border-4 border-slate-200 dark:border-slate-800 shadow-[0_0_100px_rgba(34,197,94,0.15)] overflow-hidden relative group transition-all duration-700 hover:shadow-[0_0_120px_rgba(34,197,94,0.3)] hover:scale-105">
                 <img src="https://i.postimg.cc/rFFwpKjm/Gemini-Generated-Image-tchb4stchb4stchb.png" alt="Nietzsche" className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 grayscale group-hover:grayscale-0" />
-                <div className="absolute inset-0 bg-emerald-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none mix-blend-overlay"></div>
+                <div className="absolute inset-0 bg-green-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none mix-blend-overlay"></div>
             </div>
         </div>
         
@@ -91,9 +91,9 @@ export const Nietzsche: React.FC = () => {
         
         {data && (
             <div className="mb-12 animate-in fade-in zoom-in duration-700 relative">
-                <Quote className="text-emerald-800 w-16 h-16 mx-auto mb-6 opacity-40" />
+                <Quote className="text-green-800 w-16 h-16 mx-auto mb-6 opacity-40" />
                 <p className="text-2xl md:text-4xl font-medium text-slate-100 leading-relaxed tracking-wide mb-8 drop-shadow-lg italic font-serif">"{data.aphorism}"</p>
-                <div className="inline-flex items-center gap-2 text-emerald-500 border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 rounded-full text-sm font-bold uppercase tracking-widest mb-8"><BookOpen size={14} />{data.source}</div>
+                <div className="inline-flex items-center gap-2 text-green-500 border border-green-500/30 bg-green-500/10 px-4 py-2 rounded-full text-sm font-bold uppercase tracking-widest mb-8"><BookOpen size={14} />{data.source}</div>
                 <div className="mt-2">
                     {!showInterpretation ? (
                         <button onClick={() => setShowInterpretation(true)} className="text-slate-500 hover:text-slate-900 dark:text-white text-xs uppercase tracking-[0.2em] flex items-center gap-2 mx-auto transition-colors">
@@ -101,7 +101,7 @@ export const Nietzsche: React.FC = () => {
                         </button>
                     ) : (
                         <div className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 p-6 rounded-xl max-w-xl mx-auto animate-in slide-in-from-top-2 shadow-2xl">
-                            <h4 className="text-emerald-500 text-xs font-bold uppercase mb-2 flex items-center justify-center gap-2"><Flame size={12}/> Interpretação</h4>
+                            <h4 className="text-green-500 text-xs font-bold uppercase mb-2 flex items-center justify-center gap-2"><Flame size={12}/> Interpretação</h4>
                             <p className="text-slate-600 dark:text-slate-300 text-base leading-relaxed italic">
                                 {renderInterpretation(data.interpretation)}
                             </p>
@@ -111,8 +111,8 @@ export const Nietzsche: React.FC = () => {
             </div>
         )}
         <div className="mt-8">
-            <button onClick={summonNietzsche} disabled={loading} className="group relative px-10 py-5 bg-transparent border border-slate-300 dark:border-slate-700 hover:border-emerald-500/50 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white transition-all duration-300 rounded-lg overflow-hidden uppercase tracking-widest text-xs font-bold">
-                <div className="absolute inset-0 w-0 bg-emerald-900/20 transition-all duration-[400ms] ease-out group-hover:w-full"></div>
+            <button onClick={summonNietzsche} disabled={loading} className="group relative px-10 py-5 bg-transparent border border-slate-300 dark:border-slate-700 hover:border-green-500/50 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white transition-all duration-300 rounded-lg overflow-hidden uppercase tracking-widest text-xs font-bold">
+                <div className="absolute inset-0 w-0 bg-green-900/20 transition-all duration-[400ms] ease-out group-hover:w-full"></div>
                 <span className="relative flex items-center gap-3">{loading ? <Loader2 className="animate-spin" size={16}/> : <Flame size={16} />}{loading ? "Consultando..." : data ? "Outra Máxima" : "Invocar Incentivo Brutal"}</span>
             </button>
         </div>

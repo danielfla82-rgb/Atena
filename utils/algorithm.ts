@@ -1,4 +1,4 @@
-import { Relevance, Trend, AlgorithmConfig, Weight, WEIGHT_SCORE, RELEVANCE_SCORE, TREND_SCORE } from '../types';
+import { Relevance, Trend, AlgorithmConfig, Weight, WEIGHT_SCORE, RELEVANCE_SCORE, TREND_SCORE, NotebookStatus } from '../types';
 
 /**
  * DOCUMENTAÇÃO MATEMÁTICA - ALGORITMO ATENA V2
@@ -89,13 +89,28 @@ export const calculateNextReview = (
   return nextDate;
 };
 
-export const getStatusColor = (accuracy: number, target: number = 90): string => {
+export const getStatusColor = (accuracy: number, target: number = 90, status?: NotebookStatus): string => {
   const safeTarget = Number(target) || 90;
   const safeAccuracy = Number(accuracy) || 0;
+  const criticalThreshold = safeTarget * 0.75;
+  
+  // Se o status for Dominado, retorna verde independente da acurácia (V10.5)
+  // Aceita tanto o enum quanto a string legada 'Dominado'
+  if (status === NotebookStatus.MASTERED || (status as any) === 'Dominado') return '#22c55e'; // Verde (Dominado)
+
   if (safeAccuracy === 0) return '#94a3b8'; // Cinza/Slate-400 (Sem dados)
-  if (safeAccuracy <= 60) return '#ef4444'; // Vermelho (Crítico)
+  if (safeAccuracy < criticalThreshold) return '#ef4444'; // Vermelho (Crítico)
   if (safeAccuracy < safeTarget) return '#f97316'; // Laranja (Atenção)
   return '#22c55e'; // Verde (Dominado)
+};
+
+export const getAccuracyColorClass = (accuracy: number, target: number = 90, status?: NotebookStatus): string => {
+  const color = getStatusColor(accuracy, target, status);
+  if (color === '#22c55e') return 'text-green-600 dark:text-green-400';
+  if (color === '#ef4444') return 'text-red-600 dark:text-red-400';
+  if (color === '#94a3b8') return 'text-slate-500 dark:text-slate-400';
+  // Laranja/Amber para Atenção
+  return 'text-amber-600 dark:text-amber-400';
 };
 
 /**

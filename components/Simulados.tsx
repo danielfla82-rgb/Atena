@@ -153,7 +153,7 @@ export const Simulados: React.FC = () => {
                               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 text-sm font-medium">%</span>
                             </div>
                             {result?.accuracy !== undefined && result.accuracy > 0 && (
-                              <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0" title="Resultado salvo">
+                              <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400 flex items-center justify-center flex-shrink-0" title="Resultado salvo">
                                 <CheckCircle size={16} />
                               </div>
                             )}

@@ -352,7 +352,13 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
                                       <div className="flex items-center gap-4">
                                           <div className="text-right hidden sm:block">
                                               <p className="text-[10px] text-slate-500 uppercase font-bold">Acurácia</p>
-                                              <p className={`font-mono font-bold text-sm ${nb.accuracy <= 60 ? 'text-red-400' : 'text-emerald-400'}`}>{nb.accuracy}%</p>
+                                              <p className={`font-mono font-bold text-sm ${
+                                                nb.status === 'Dominado' || nb.accuracy >= (Number(nb.targetAccuracy) || 90) 
+                                                  ? 'text-emerald-400' 
+                                                  : nb.accuracy < ((Number(nb.targetAccuracy) || 90) * 0.75) 
+                                                    ? 'text-red-400' 
+                                                    : 'text-amber-400'
+                                              }`}>{nb.accuracy}%</p>
                                           </div>
                                           <div className="flex gap-2">
                                               <button onClick={(e) => { e.stopPropagation(); handleEdit(nb); }} className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white rounded-lg transition-colors group-hover:bg-slate-700" title="Abrir Editor Principal">
@@ -412,7 +418,13 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
                                   <div className="flex items-center gap-4">
                                       <div className="text-right hidden sm:block">
                                           <p className="text-[10px] text-slate-500 uppercase font-bold">Acurácia</p>
-                                          <p className={`font-mono font-bold text-sm ${nb.accuracy <= 60 ? 'text-red-400' : 'text-emerald-400'}`}>{nb.accuracy}%</p>
+                                          <p className={`font-mono font-bold text-sm ${
+                                            nb.status === 'Dominado' || nb.accuracy >= (Number(nb.targetAccuracy) || 90) 
+                                              ? 'text-emerald-400' 
+                                              : nb.accuracy < ((Number(nb.targetAccuracy) || 90) * 0.75) 
+                                                ? 'text-red-400' 
+                                                : 'text-amber-400'
+                                          }`}>{nb.accuracy}%</p>
                                       </div>
                                       <div className="flex gap-2">
                                           <button onClick={(e) => { e.stopPropagation(); handleEdit(nb); }} className="p-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white rounded-lg transition-colors group-hover:bg-slate-700" title="Abrir Editor Principal">

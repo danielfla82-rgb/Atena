@@ -57,14 +57,14 @@ export const WeeklyProgress: React.FC = () => {
     return (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 h-full flex flex-col justify-between relative overflow-hidden group">
             {/* Background Decor */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none group-hover:bg-emerald-500/10 transition-colors"></div>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/5 rounded-full blur-2xl pointer-events-none group-hover:bg-green-500/10 transition-colors"></div>
 
             {/* Header */}
             <div className="relative z-10">
                 <div className="flex justify-between items-start">
                     <div>
                         <h3 className="text-slate-900 dark:text-white font-bold text-lg flex items-center gap-2 mb-1">
-                            <Clock className="text-emerald-500" size={20} />
+                            <Clock className="text-green-500" size={20} />
                             Meta da Semana
                         </h3>
                         <p className="text-slate-500 dark:text-slate-400 text-xs font-medium">
@@ -72,7 +72,7 @@ export const WeeklyProgress: React.FC = () => {
                         </p>
                     </div>
                     {stats.percent >= 100 && (
-                        <div className="bg-emerald-500/20 p-2 rounded-full text-emerald-400">
+                        <div className="bg-green-500/20 p-2 rounded-full text-green-400">
                             <CheckCircle2 size={20} />
                         </div>
                     )}
@@ -81,7 +81,7 @@ export const WeeklyProgress: React.FC = () => {
 
             {/* Main Metric */}
             <div className="flex items-baseline gap-2 my-4 relative z-10">
-                <span className={`text-6xl font-black tracking-tight ${stats.percent >= 100 ? 'text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
+                <span className={`text-6xl font-black tracking-tight ${stats.percent >= 100 ? 'text-green-400' : 'text-slate-900 dark:text-white'}`}>
                     {stats.percent}<span className="text-4xl">%</span>
                 </span>
             </div>
@@ -89,7 +89,7 @@ export const WeeklyProgress: React.FC = () => {
             {/* Progress Bar */}
             <div className="w-full bg-slate-50 dark:bg-slate-950 h-3 rounded-full overflow-hidden border border-slate-200 dark:border-slate-800 mb-3 relative z-10">
                 <div 
-                    className={`h-full transition-all duration-1000 ease-out ${stats.percent >= 100 ? 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.5)]' : 'bg-emerald-600'}`} 
+                    className={`h-full transition-all duration-1000 ease-out ${stats.percent >= 100 ? 'bg-green-400 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-green-600'}`} 
                     style={{ width: `${Math.min(stats.percent, 100)}%` }}
                 ></div>
             </div>
@@ -105,7 +105,7 @@ export const WeeklyProgress: React.FC = () => {
                         <AlertCircle size={12} /> Vazio
                     </span>
                 ) : stats.percent >= 100 ? (
-                    <span className="text-emerald-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                    <span className="text-green-400 font-bold uppercase tracking-wider flex items-center gap-1">
                         Objetivo Concluído
                     </span>
                 ) : (
@@ -114,7 +114,7 @@ export const WeeklyProgress: React.FC = () => {
                             Faltam <strong>{stats.total - stats.completed}</strong>
                         </span>
                         {stats.dailyPace > 0 && (
-                            <span className="text-[10px] text-white font-bold bg-emerald-600 px-2 py-0.5 rounded shadow-sm flex items-center gap-1">
+                            <span className="text-[10px] text-white font-bold bg-green-600 px-2 py-0.5 rounded shadow-sm flex items-center gap-1">
                                 {stats.daysLeft === 1 ? "Meta Hoje:" : "Meta Diária:"} {stats.dailyPace}
                             </span>
                         )}

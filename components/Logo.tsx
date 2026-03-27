@@ -30,13 +30,13 @@ export const Logo: React.FC<Props> = ({ className = "", size = 'md' }) => {
   // Ícone de Fallback (Símbolo de Atena: Escudo + Sabedoria)
   if (error || isInvalidUrl) {
     return (
-      <div className={`relative flex items-center justify-center bg-gradient-to-br from-emerald-900 to-slate-900 rounded-xl border border-emerald-500/30 text-emerald-500 shadow-lg overflow-hidden group ${sizeClasses[size]} ${className}`}>
+      <div className={`relative flex items-center justify-center bg-gradient-to-br from-green-900 to-slate-900 rounded-xl border border-green-500/30 text-green-500 shadow-lg overflow-hidden group ${sizeClasses[size]} ${className}`}>
         {/* Fundo sutil */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-emerald-500/10 to-transparent"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-green-500/10 to-transparent"></div>
         
         {/* Ícone Composto */}
-        <Shield className="w-[70%] h-[70%] text-emerald-600 absolute" strokeWidth={1.5} />
-        <Feather className="w-[40%] h-[40%] text-emerald-100 z-10 drop-shadow-md" strokeWidth={2} />
+        <Shield className="w-[70%] h-[70%] text-green-600 absolute" strokeWidth={1.5} />
+        <Feather className="w-[40%] h-[40%] text-green-100 z-10 drop-shadow-md" strokeWidth={2} />
       </div>
     );
   }

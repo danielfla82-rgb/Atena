@@ -6,7 +6,7 @@ import { Plus, Trash2, StickyNote, Palette, Calendar, Layout, List, CalendarDays
 const COLORS = {
     yellow: 'bg-yellow-200 text-yellow-900 border-yellow-300 placeholder-yellow-900/50',
     blue: 'bg-blue-200 text-blue-900 border-blue-300 placeholder-blue-900/50',
-    green: 'bg-emerald-200 text-emerald-900 border-emerald-300 placeholder-emerald-900/50',
+    green: 'bg-green-200 text-green-900 border-green-300 placeholder-green-900/50',
     pink: 'bg-pink-200 text-pink-900 border-pink-300 placeholder-pink-900/50',
     purple: 'bg-purple-200 text-purple-900 border-purple-300 placeholder-purple-900/50',
     slate: 'bg-slate-700 text-slate-100 border-slate-600 placeholder-slate-400'
@@ -15,7 +15,7 @@ const COLORS = {
 const COLOR_MAP = {
     yellow: 'bg-yellow-200',
     blue: 'bg-blue-200',
-    green: 'bg-emerald-200',
+    green: 'bg-green-200',
     pink: 'bg-pink-200',
     purple: 'bg-purple-200',
     slate: 'bg-slate-700'
@@ -185,7 +185,7 @@ export const Notes: React.FC = () => {
             {viewMode === 'sticky' && (
                 <button 
                     onClick={addNote}
-                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors font-bold shadow-lg shadow-emerald-900/20"
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg transition-colors font-bold shadow-lg shadow-green-900/20"
                 >
                     <Plus size={18} /> Nova Nota
                 </button>

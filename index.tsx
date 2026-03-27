@@ -11,11 +11,11 @@ if (typeof window !== 'undefined') {
   let envDetected = false;
   
   try {
-    // @ts-ignore
+    // @ts-expect-error - import.meta.env is a Vite feature
     if (typeof import.meta !== 'undefined' && import.meta.env) {
-      // @ts-ignore
+      // @ts-expect-error - import.meta.env is a Vite feature
       const k1 = import.meta.env.VITE_API_KEY;
-      // @ts-ignore
+      // @ts-expect-error - import.meta.env is a Vite feature
       const k2 = import.meta.env.VITE_GEMINI_API_KEY;
       
       if (k1 || k2) {

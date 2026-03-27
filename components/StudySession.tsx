@@ -73,9 +73,9 @@ export const StudySession: React.FC<Props> = ({ notebook, onClose }) => {
         <div className="p-8 flex flex-col items-center">
           {!showResults ? (
             <>
-              <div className="w-48 h-48 rounded-full border-4 border-emerald-500/20 flex items-center justify-center mb-8 relative">
-                 <div className="absolute inset-0 rounded-full border-4 border-emerald-500 border-t-transparent animate-[spin_3s_linear_infinite]" style={{display: isActive ? 'block' : 'none'}}></div>
-                 <div className="text-5xl font-mono text-emerald-400 font-bold tracking-wider">
+              <div className="w-48 h-48 rounded-full border-4 border-green-500/20 flex items-center justify-center mb-8 relative">
+                 <div className="absolute inset-0 rounded-full border-4 border-green-500 border-t-transparent animate-[spin_3s_linear_infinite]" style={{display: isActive ? 'block' : 'none'}}></div>
+                 <div className="text-5xl font-mono text-green-400 font-bold tracking-wider">
                    {formatTime(seconds)}
                  </div>
               </div>
@@ -84,7 +84,7 @@ export const StudySession: React.FC<Props> = ({ notebook, onClose }) => {
                 {!isActive ? (
                   <button 
                     onClick={() => setIsActive(true)}
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all hover:scale-[1.02]"
+                    className="flex-1 bg-green-600 hover:bg-green-500 text-white py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all hover:scale-[1.02]"
                   >
                     <Play size={24} fill="currentColor" /> Iniciar Sessão
                   </button>
@@ -106,7 +106,7 @@ export const StudySession: React.FC<Props> = ({ notebook, onClose }) => {
           ) : (
             <form onSubmit={handleSubmit} className="w-full space-y-6">
               <div className="text-center mb-4">
-                <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto mb-2" />
+                <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-2" />
                 <h3 className="text-lg font-bold text-slate-900 dark:text-white">Sessão Finalizada</h3>
                 <p className="text-slate-500 dark:text-slate-400">Registre seu desempenho para o algoritmo.</p>
               </div>
@@ -118,7 +118,7 @@ export const StudySession: React.FC<Props> = ({ notebook, onClose }) => {
                     type="number" 
                     value={questions}
                     onChange={e => setQuestions(e.target.value)}
-                    className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white text-center text-xl font-bold focus:ring-2 focus:ring-emerald-500 outline-none"
+                    className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white text-center text-xl font-bold focus:ring-2 focus:ring-green-500 outline-none"
                     placeholder="0"
                     min="1"
                     required
@@ -131,7 +131,7 @@ export const StudySession: React.FC<Props> = ({ notebook, onClose }) => {
                     value={correct}
                     onChange={e => setCorrect(e.target.value)}
                     className={`w-full bg-slate-100 dark:bg-slate-800 border rounded-lg p-3 text-slate-900 dark:text-white text-center text-xl font-bold focus:ring-2 outline-none
-                      ${isInvalid ? 'border-red-500 focus:ring-red-500' : 'border-slate-300 dark:border-slate-700 focus:ring-emerald-500'}
+                      ${isInvalid ? 'border-red-500 focus:ring-red-500' : 'border-slate-300 dark:border-slate-700 focus:ring-green-500'}
                     `}
                     placeholder="0"
                     min="0"
@@ -148,7 +148,7 @@ export const StudySession: React.FC<Props> = ({ notebook, onClose }) => {
                        <AlertCircle size={18} /> Erro
                     </span>
                   ) : (
-                    <span className={`text-3xl font-bold font-mono ${currentCalc >= (Number(notebook.targetAccuracy) || 90) ? 'text-emerald-400' : currentCalc <= 60 ? 'text-red-400' : 'text-amber-400'}`}>
+                    <span className={`text-3xl font-bold font-mono ${currentCalc >= (Number(notebook.targetAccuracy) || 90) ? 'text-green-400' : currentCalc <= 60 ? 'text-red-400' : 'text-amber-400'}`}>
                        {questions ? `${currentCalc}%` : '--'}
                     </span>
                   )}
@@ -157,7 +157,7 @@ export const StudySession: React.FC<Props> = ({ notebook, onClose }) => {
               <button 
                 type="submit"
                 disabled={isInvalid || !questions}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-3 rounded-xl font-bold transition-all"
+                className="w-full bg-green-600 hover:bg-green-500 disabled:bg-slate-700 disabled:text-slate-500 text-white py-3 rounded-xl font-bold transition-all"
               >
                 Atualizar Algoritmo
               </button>

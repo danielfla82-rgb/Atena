@@ -5,7 +5,8 @@ import { get, set } from 'idb-keyval';
 import { 
   Notebook, Cycle, AthensConfig, SavedReport, ProtocolItem, 
   FrameworkData, Note, NotebookStatus, ScheduleItem,
-  Weight, Relevance, Trend, Discipline, MockExam, MockExamResult
+  Weight, Relevance, Trend, Discipline, MockExam, MockExamResult,
+  WEIGHT_SCORE, RELEVANCE_SCORE
 } from './types';
 
 // Defaults
@@ -787,7 +788,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
           } catch (e: any) { 
               setNotebooks(previousNotebooks); 
-              let msg = e.message || JSON.stringify(e);
+              const msg = e.message || JSON.stringify(e);
               throw new Error(msg);
           }
       }
@@ -848,7 +849,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               // 1. Update the PRIVATE version
               const payload = mapNotebookToDB(mergedForDB);
               delete (payload as any).id;
-              // @ts-ignore
+              // @ts-expect-error - user_id is not in the type definition
               payload.user_id = user.id; // Ensure it stays/becomes private
 
               const { error } = await supabase.from('notebooks').update(payload).eq('id', targetId);
@@ -1471,6 +1472,11 @@ export const useMergedDisciplines = () => {
       }
     });
 
-    return Array.from(disciplineMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+    return Array.from(disciplineMap.values()).sort((a, b) => {
+      const scoreA = (WEIGHT_SCORE[a.weight] || 0) * (RELEVANCE_SCORE[a.relevance] || 0);
+      const scoreB = (WEIGHT_SCORE[b.weight] || 0) * (RELEVANCE_SCORE[b.relevance] || 0);
+      if (scoreB !== scoreA) return scoreB - scoreA;
+      return a.name.localeCompare(b.name);
+    });
   }, [disciplines, notebooks]);
 };

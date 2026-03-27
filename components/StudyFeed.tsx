@@ -5,7 +5,7 @@ import { Type, Schema } from '@google/genai';
 import { Heart, Share2, Bookmark, Bot, Sparkles, Upload, FileText, X, Layers, CheckCircle2, XCircle, HelpCircle, Play, FileSearch, AlertTriangle, Paperclip, Loader2, StopCircle, Zap, HardDrive, Cpu, Wifi, Filter, Book, RefreshCw, History, ArrowRight } from 'lucide-react';
 import { Weight } from '../types';
 import { get, set } from 'idb-keyval';
-// @ts-ignore
+// @ts-expect-error - no types available
 import * as pdfjsLibProxy from 'pdfjs-dist';
 
 // --- PDF.js Configuration ---

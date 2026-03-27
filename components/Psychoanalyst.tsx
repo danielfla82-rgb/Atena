@@ -74,12 +74,12 @@ export const Psychoanalyst: React.FC = () => {
 
         // Função interna para processar negrito inline
         const parseInline = (str: string) => str.split(/\*\*(.*?)\*\*/g).map((part, i) => 
-            i % 2 === 1 ? <strong key={i} className="font-bold text-emerald-300 bg-emerald-950/30 px-1 rounded">{part}</strong> : part
+            i % 2 === 1 ? <strong key={i} className="font-bold text-green-300 bg-green-950/30 px-1 rounded">{part}</strong> : part
         );
 
         // Headers
         if (trimmed.startsWith('### ')) 
-            return <h3 key={index} className="text-emerald-400 font-bold mt-3 mb-2 text-sm uppercase tracking-wider border-b border-emerald-500/20 pb-1">{parseInline(trimmed.replace(/^###\s+/, ''))}</h3>;
+            return <h3 key={index} className="text-green-400 font-bold mt-3 mb-2 text-sm uppercase tracking-wider border-b border-green-500/20 pb-1">{parseInline(trimmed.replace(/^###\s+/, ''))}</h3>;
         
         if (trimmed.startsWith('## ')) 
             return <h2 key={index} className="text-slate-900 dark:text-white font-bold mt-4 mb-2 text-base">{parseInline(trimmed.replace(/^##\s+/, ''))}</h2>;
@@ -88,7 +88,7 @@ export const Psychoanalyst: React.FC = () => {
         if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
            return (
              <div key={index} className="flex gap-2 ml-1 mb-2 items-start">
-                <span className="text-emerald-500 mt-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+                <span className="text-green-500 mt-1.5 w-1.5 h-1.5 rounded-full bg-green-500 shrink-0"></span>
                 <span className="text-slate-200 leading-relaxed text-sm md:text-base">{parseInline(trimmed.replace(/^[-*]\s+/, ''))}</span>
              </div>
            );
@@ -120,10 +120,10 @@ export const Psychoanalyst: React.FC = () => {
          <div className="flex items-center gap-4">
              <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-slate-600 shadow-2xl relative">
                  <img src={bgImage} alt="Analyst" className="w-full h-full object-cover" />
-                 <div className="absolute inset-0 bg-emerald-500/10 mix-blend-overlay"></div>
+                 <div className="absolute inset-0 bg-green-500/10 mix-blend-overlay"></div>
              </div>
              <div>
-                 <h2 className="text-2xl font-bold text-slate-900 dark:text-white drop-shadow-md flex items-center gap-2">Analista Junguiano <Sparkles size={14} className="text-emerald-400"/></h2>
+                 <h2 className="text-2xl font-bold text-slate-900 dark:text-white drop-shadow-md flex items-center gap-2">Analista Junguiano <Sparkles size={14} className="text-green-400"/></h2>
                  <p className="text-slate-600 dark:text-slate-300 text-sm font-medium drop-shadow">Integração do Inconsciente e da Sombra.</p>
              </div>
          </div>
@@ -145,12 +145,12 @@ export const Psychoanalyst: React.FC = () => {
                          <img src={bgImage} alt="AI" className="w-full h-full object-cover" />
                      </div>
                  )}
-                 <div className={`relative p-5 rounded-3xl text-base leading-relaxed shadow-xl backdrop-blur-md ${msg.role === 'user' ? 'bg-emerald-600/90 text-white rounded-tr-sm border border-emerald-500/30 max-w-[85%]' : 'bg-white dark:bg-slate-900/80 text-slate-100 rounded-tl-sm border border-slate-300 dark:border-slate-700/50 min-w-[300px]'}`}>
+                 <div className={`relative p-5 rounded-3xl text-base leading-relaxed shadow-xl backdrop-blur-md ${msg.role === 'user' ? 'bg-green-600/90 text-white rounded-tr-sm border border-green-500/30 max-w-[85%]' : 'bg-white dark:bg-slate-900/80 text-slate-100 rounded-tl-sm border border-slate-300 dark:border-slate-700/50 min-w-[300px]'}`}>
                      {msg.role === 'user' ? msg.text : renderMarkdown(msg.text)}
                  </div>
                  {msg.role === 'user' && (
-                     <div className="hidden md:flex w-10 h-10 rounded-full bg-emerald-900/50 items-center justify-center flex-shrink-0 mt-2 border border-emerald-500/30">
-                         <User size={18} className="text-emerald-400" />
+                     <div className="hidden md:flex w-10 h-10 rounded-full bg-green-900/50 items-center justify-center flex-shrink-0 mt-2 border border-green-500/30">
+                         <User size={18} className="text-green-400" />
                      </div>
                  )}
              </div>
@@ -161,7 +161,7 @@ export const Psychoanalyst: React.FC = () => {
                      <img src={bgImage} alt="AI" className="w-full h-full object-cover grayscale" />
                  </div>
                  <div className="bg-white dark:bg-slate-900/80 backdrop-blur-md border border-slate-300 dark:border-slate-700/50 p-4 rounded-3xl rounded-tl-sm flex items-center gap-3 text-slate-600 dark:text-slate-300">
-                     <Loader2 size={18} className="animate-spin text-emerald-500" />
+                     <Loader2 size={18} className="animate-spin text-green-500" />
                      <span className="text-sm font-medium">Analisando Arquétipos...</span>
                  </div>
              </div>
@@ -184,7 +184,7 @@ export const Psychoanalyst: React.FC = () => {
                     disabled={loading}
                     autoFocus
                   />
-                  <button onClick={handleSend} disabled={!input.trim() || loading} className="p-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-100 dark:bg-slate-800 disabled:text-slate-600 text-white rounded-xl transition-all shadow-lg hover:scale-105">
+                  <button onClick={handleSend} disabled={!input.trim() || loading} className="p-3 bg-green-600 hover:bg-green-500 disabled:bg-slate-100 dark:bg-slate-800 disabled:text-slate-600 text-white rounded-xl transition-all shadow-lg hover:scale-105">
                       <Send size={20} />
                   </button>
               </div>

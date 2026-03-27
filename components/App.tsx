@@ -38,7 +38,7 @@ const AppContent: React.FC = () => {
   const { user, activeSession, endSession } = useStore();
 
   // Efeito: Abre o menu automaticamente se estiver navegando em um de seus sub-itens
-  useEffect(() => {
+  React.useEffect(() => {
     const strategyViews = ['dashboard', 'setup', 'verticalized', 'library', 'notes', 'review-list'];
     const intelligenceViews = ['diagnostics'];
     const mentalViews = ['framework', 'nietzsche', 'psycho', 'protocol', 'tips'];
@@ -94,13 +94,13 @@ const AppContent: React.FC = () => {
         {/* Header do Projeto (Desktop) - UPDATED TEXT */}
         <div className="mb-10 mt-2 hidden md:flex flex-col items-center text-center cursor-pointer group" onClick={() => setView('selection')}>
             <div className="relative mb-4 transition-transform group-hover:scale-105 duration-500">
-                <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+                <div className="absolute inset-0 bg-green-500/20 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
                 <Logo size="2xl" className="relative z-10 drop-shadow-2xl" />
             </div>
-            <h1 className="text-2xl font-black tracking-[0.2em] text-slate-900 dark:text-white leading-none group-hover:text-emerald-400 transition-colors">
+            <h1 className="text-2xl font-black tracking-[0.2em] text-slate-900 dark:text-white leading-none group-hover:text-green-400 transition-colors">
                 ATENA
             </h1>
-            <p className="text-[10px] text-emerald-500 font-bold uppercase tracking-[0.2em] mt-2 opacity-80 group-hover:opacity-100 group-hover:tracking-[0.3em] transition-all whitespace-nowrap">
+            <p className="text-[10px] text-green-500 font-bold uppercase tracking-[0.2em] mt-2 opacity-80 group-hover:opacity-100 group-hover:tracking-[0.3em] transition-all whitespace-nowrap">
                 PLANEJAMENTO DE CONCURSO
             </p>
         </div>
@@ -123,7 +123,7 @@ const AppContent: React.FC = () => {
               <div className={`overflow-hidden transition-all duration-300 ease-in-out space-y-1 ${strategyMenuOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
                   <button 
                     onClick={() => { setView('dashboard'); setSidebarOpen(false); }}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('dashboard') ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border-emerald-500' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 hover:text-slate-900 dark:text-white font-medium'}`}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('dashboard') ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border-green-500' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 hover:text-slate-900 dark:text-white font-medium'}`}
                   >
                     <LayoutDashboard size={18} />
                     <span className="text-sm">Dashboard</span>
@@ -131,7 +131,7 @@ const AppContent: React.FC = () => {
                   
                   <button 
                     onClick={() => { setView('setup'); setSidebarOpen(false); }}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('setup') ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border-emerald-500' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 hover:text-slate-900 dark:text-white font-medium'}`}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('setup') ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border-green-500' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 hover:text-slate-900 dark:text-white font-medium'}`}
                   >
                     <Layers size={18} />
                     <span className="text-sm">Planejamento</span>
@@ -139,7 +139,7 @@ const AppContent: React.FC = () => {
 
                   <button 
                     onClick={() => { setView('verticalized'); setSidebarOpen(false); }}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('verticalized') ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border-emerald-500' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 hover:text-slate-900 dark:text-white font-medium'}`}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('verticalized') ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border-green-500' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 hover:text-slate-900 dark:text-white font-medium'}`}
                   >
                     <ListChecks size={18} />
                     <span className="text-sm">Edital Verticalizado</span>
@@ -147,7 +147,7 @@ const AppContent: React.FC = () => {
 
                   <button 
                     onClick={() => { setView('review-list'); setSidebarOpen(false); }}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('review-list') ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border-emerald-500' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 hover:text-slate-900 dark:text-white font-medium'}`}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('review-list') ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border-green-500' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 hover:text-slate-900 dark:text-white font-medium'}`}
                   >
                     <CalendarCheck size={18} />
                     <span className="text-sm">Lista de Revisão</span>
@@ -155,7 +155,7 @@ const AppContent: React.FC = () => {
 
                   <button 
                     onClick={() => { setView('library'); setSidebarOpen(false); }}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('library') ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border-emerald-500' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 hover:text-slate-900 dark:text-white font-medium'}`}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('library') ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border-green-500' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 hover:text-slate-900 dark:text-white font-medium'}`}
                   >
                     <LibraryIcon size={18} />
                     <span className="text-sm">Banco de Disciplinas</span>
@@ -163,7 +163,7 @@ const AppContent: React.FC = () => {
 
                   <button 
                     onClick={() => { setView('notes'); setSidebarOpen(false); }}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('notes') ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border-emerald-500' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 hover:text-slate-900 dark:text-white font-medium'}`}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('notes') ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border-green-500' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 hover:text-slate-900 dark:text-white font-medium'}`}
                   >
                     <StickyNote size={18} />
                     <span className="text-sm">Anotações</span>
@@ -209,9 +209,9 @@ const AppContent: React.FC = () => {
               <div className={`overflow-hidden transition-all duration-300 ease-in-out space-y-1 ${mentalMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
                   <button 
                       onClick={() => { setView('framework'); setSidebarOpen(false); }}
-                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('framework') ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border-emerald-500' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white hover:bg-slate-100 dark:bg-slate-800/50'}`}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('framework') ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border-green-500' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white hover:bg-slate-100 dark:bg-slate-800/50'}`}
                     >
-                      <Pyramid size={16} className={isActive('framework') ? 'text-emerald-400' : ''}/>
+                      <Pyramid size={16} className={isActive('framework') ? 'text-green-400' : ''}/>
                       <span className="text-sm font-medium">Framework</span>
                   </button>
 
@@ -278,7 +278,7 @@ const AppContent: React.FC = () => {
               <p className="text-xs font-bold text-slate-900 dark:text-white truncate leading-tight" title={user?.email || 'Visitante'}>
                   {user?.email || 'Visitante'}
               </p>
-              <p className="text-[10px] text-emerald-400 font-mono mt-0.5">Online</p>
+              <p className="text-[10px] text-green-400 font-mono mt-0.5">Online</p>
             </div>
             <button onClick={() => setView('login')} className="text-slate-500 hover:text-red-400 transition-colors p-1" title="Sair">
                 <LogOut size={16} />
@@ -290,7 +290,7 @@ const AppContent: React.FC = () => {
       {/* --- Main Content Area --- */}
       <main className="flex-1 overflow-y-auto h-screen relative">
          {/* Background Glow */}
-         <div className="fixed top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-900/10 via-slate-950 to-slate-950 pointer-events-none -z-10"></div>
+         <div className="fixed top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-green-900/10 via-slate-950 to-slate-950 pointer-events-none -z-10"></div>
          
          {/* Roteamento de Views */}
          {view === 'dashboard' ? <Dashboard onNavigate={(v) => setView(v as any)} /> : 

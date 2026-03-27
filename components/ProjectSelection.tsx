@@ -80,7 +80,7 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
       percent = Math.max(0, Math.min(100, percent));
 
       // Color Logic based on urgency
-      let colorClass = 'bg-emerald-500';
+      let colorClass = 'bg-green-500';
       let statusText = 'Fase Inicial';
       
       if (percent > 90 || daysLeft <= 7) {
@@ -119,14 +119,14 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 z-20">
                 <div className="animate-in fade-in zoom-in duration-500 flex flex-col items-center">
                     <h1 className="text-4xl md:text-6xl font-black text-slate-900 dark:text-white mb-4 tracking-tighter uppercase drop-shadow-2xl transition-colors">
-                        PROJETO <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-cyan-600 dark:from-emerald-400 dark:to-cyan-400">ATENA</span>
+                        PROJETO <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-cyan-600 dark:from-green-400 dark:to-cyan-400">ATENA</span>
                     </h1>
                     <div className="flex items-center gap-4 md:gap-8 w-full justify-center">
-                        <div className="h-px w-12 md:w-24 bg-gradient-to-r from-transparent to-emerald-500/50"></div>
+                        <div className="h-px w-12 md:w-24 bg-gradient-to-r from-transparent to-green-500/50"></div>
                         <h2 className="text-lg md:text-xl font-bold text-slate-700 dark:text-slate-200 uppercase tracking-[0.3em] drop-shadow-lg text-shadow-sm transition-colors">
                             Selecione sua Missão
                         </h2>
-                        <div className="h-px w-12 md:w-24 bg-gradient-to-l from-transparent to-emerald-500/50"></div>
+                        <div className="h-px w-12 md:w-24 bg-gradient-to-l from-transparent to-green-500/50"></div>
                     </div>
                 </div>
             </div>
@@ -137,7 +137,7 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
             
             <div className="flex justify-between items-center">
                 <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2 transition-colors">
-                    <FolderOpen size={24} className="text-emerald-600 dark:text-emerald-500"/> Meus Projetos Ativos
+                    <FolderOpen size={24} className="text-green-600 dark:text-green-500"/> Meus Projetos Ativos
                 </h3>
             </div>
 
@@ -160,12 +160,12 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
                     {!isGuest && (
                         <button 
                             onClick={() => setIsCreating(true)}
-                            className="group bg-white/30 dark:bg-slate-900/30 border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-emerald-500/50 p-8 rounded-2xl flex flex-col items-center justify-center text-center transition-all hover:bg-white/60 dark:hover:bg-white dark:bg-slate-900/60 min-h-[200px]"
+                            className="group bg-white/30 dark:bg-slate-900/30 border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-green-500/50 p-8 rounded-2xl flex flex-col items-center justify-center text-center transition-all hover:bg-white/60 dark:hover:bg-white dark:bg-slate-900/60 min-h-[200px]"
                         >
-                            <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-emerald-600 dark:text-emerald-500 mb-4 group-hover:scale-110 transition-transform">
+                            <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center text-green-600 dark:text-green-500 mb-4 group-hover:scale-110 transition-transform">
                                 <PlusCircle size={32} />
                             </div>
-                            <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">Iniciar Novo Ciclo</h3>
+                            <h3 className="text-lg font-bold text-slate-700 dark:text-slate-200 group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors">Iniciar Novo Ciclo</h3>
                             <p className="text-sm text-slate-500 mt-2">Começar um planejamento do zero.</p>
                         </button>
                     )}
@@ -180,7 +180,7 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
                             onClick={() => handleSelectCycle(cycle.id)}
                             className={`group bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border p-6 rounded-2xl text-left transition-all hover:-translate-y-1 hover:shadow-2xl cursor-pointer relative overflow-hidden flex flex-col justify-between min-h-[220px]
                                 ${activeCycleId === cycle.id 
-                                    ? 'border-emerald-500/50 ring-1 ring-emerald-500/20' 
+                                    ? 'border-green-500/50 ring-1 ring-green-500/20' 
                                     : 'border-slate-200 dark:border-slate-800 hover:border-slate-400 dark:hover:border-slate-600'}
                             `}
                         >
@@ -206,17 +206,17 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
 
                             <div>
                                 <div className="flex justify-between items-start mb-4">
-                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeCycleId === cycle.id ? 'bg-emerald-500 text-slate-900 dark:text-white shadow-lg shadow-emerald-900/50' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
+                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${activeCycleId === cycle.id ? 'bg-green-500 text-slate-900 dark:text-white shadow-lg shadow-green-900/50' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
                                         <LayoutDashboard size={20} />
                                     </div>
                                     {activeCycleId === cycle.id && (
-                                        <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 px-2 py-1 rounded-full uppercase font-bold tracking-wider">
+                                        <span className="text-[10px] bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400 border border-green-500/30 px-2 py-1 rounded-full uppercase font-bold tracking-wider">
                                             Ativo
                                         </span>
                                     )}
                                 </div>
                                 
-                                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors truncate">
+                                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1 group-hover:text-green-600 dark:group-hover:text-green-400 transition-colors truncate">
                                     {cycle.name}
                                 </h3>
                                 <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-4">
@@ -250,7 +250,7 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
                                 <div className="flex justify-between items-center text-xs text-slate-500 pt-2 border-t border-slate-200 dark:border-slate-800/50 transition-colors">
                                     {timeMetrics?.hasExamDate ? (
                                         <span className="flex items-center gap-1.5 font-mono text-slate-700 dark:text-slate-300">
-                                            <Flag size={12} className={timeMetrics.daysLeft < 30 ? "text-red-500" : "text-emerald-500"} /> 
+                                            <Flag size={12} className={timeMetrics.daysLeft < 30 ? "text-red-500" : "text-green-500"} /> 
                                             {timeMetrics.daysLeft > 0 ? (
                                                 <>Faltam <strong className="text-slate-900 dark:text-white">{timeMetrics.daysLeft}</strong> dias</>
                                             ) : (
@@ -263,7 +263,7 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
                                         </span>
                                     )}
                                     
-                                    <span className="group-hover:translate-x-1 transition-transform flex items-center gap-1 text-emerald-600 dark:text-emerald-500 font-bold ml-auto">
+                                    <span className="group-hover:translate-x-1 transition-transform flex items-center gap-1 text-green-600 dark:text-green-500 font-bold ml-auto">
                                         Acessar <ArrowRight size={12} />
                                     </span>
                                 </div>
@@ -315,7 +315,7 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
                         </p>
                         <button 
                             type="submit"
-                            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-emerald-900/20 mt-2"
+                            className="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-green-900/20 mt-2"
                         >
                             Criar e Iniciar
                         </button>

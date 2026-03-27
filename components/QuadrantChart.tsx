@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Notebook, Weight, Relevance, WEIGHT_SCORE, RELEVANCE_SCORE } from '../types';
+import { Notebook, Weight, Relevance, WEIGHT_SCORE, RELEVANCE_SCORE, NotebookStatus } from '../types';
 import { AlertTriangle, CheckCircle2, Minus, Target, Grid3X3, ScatterChart as ScatterIcon, X, ExternalLink } from 'lucide-react';
 import { getStatusColor } from '../utils/algorithm';
 import { useStore } from '../store';
@@ -16,6 +16,9 @@ import {
 import { Scatter } from 'react-chartjs-2';
 
 ChartJS.register(LinearScale, PointElement, LineElement, Tooltip, Legend);
+
+const WEIGHTS = [Weight.ALTO, Weight.MEDIO, Weight.BAIXO];
+const RELEVANCES = [Relevance.BAIXA, Relevance.MEDIA, Relevance.ALTA];
 
 interface Props {
   data: Notebook[];
@@ -43,15 +46,12 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
   }, [data, editalFilter, disciplineFilter]);
 
   // --- HEATMAP LOGIC ---
-  const weights = [Weight.ALTO, Weight.MEDIO, Weight.BAIXO];
-  const relevances = [Relevance.BAIXA, Relevance.MEDIA, Relevance.ALTA];
-
   const matrix = useMemo(() => {
     const grid: Record<string, { count: number; totalAcc: number; notebooks: Notebook[] }> = {};
     
     // Initialize grid
-    weights.forEach(w => {
-      relevances.forEach(r => {
+    WEIGHTS.forEach(w => {
+      RELEVANCES.forEach(r => {
         grid[`${w}-${r}`] = { count: 0, totalAcc: 0, notebooks: [] };
       });
     });
@@ -74,7 +74,7 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
 
   const getCellColor = (count: number, avgAcc: number) => {
     if (count === 0) return 'bg-slate-100 dark:bg-slate-800/30 border-slate-200 dark:border-slate-800 text-slate-600';
-    if (avgAcc >= 85) return 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/30';
+    if (avgAcc >= 85) return 'bg-green-500/20 border-green-500/50 text-green-400 hover:bg-green-500/30';
     if (avgAcc >= 60) return 'bg-amber-500/20 border-amber-500/50 text-amber-400 hover:bg-amber-500/30';
     return 'bg-red-500/20 border-red-500/50 text-red-400 hover:bg-red-500/30';
   };
@@ -123,8 +123,12 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
                 notebook: nb
             })),
             backgroundColor: activeNotebooks.map(nb => {
-                if ((Number(nb.accuracy) || 0) >= (Number(nb.targetAccuracy) || 90)) return '#10b981'; // Green
-                if (nb.accuracy <= 60) return '#ef4444'; // Red
+                const target = Number(nb.targetAccuracy) || 90;
+                const accuracy = Number(nb.accuracy) || 0;
+                const isMastered = nb.status === 'Dominado' || nb.status === NotebookStatus.MASTERED;
+                
+                if (accuracy >= target || isMastered) return '#10b981'; // Green
+                if (accuracy < (target * 0.75)) return '#ef4444'; // Red
                 return '#f59e0b'; // Amber
             }),
             borderWidth: 0
@@ -179,7 +183,7 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
       <div className="flex justify-between items-start mb-6">
         <div>
            <h3 className="text-slate-900 dark:text-white font-bold text-lg flex items-center gap-2">
-             <Target className="text-emerald-500" /> Matriz Estratégica
+             <Target className="text-green-500" /> Matriz Estratégica
            </h3>
            <p className="text-slate-500 dark:text-slate-400 text-xs">Análise de Peso vs Relevância (Apenas Tópicos Ativos)</p>
         </div>
@@ -191,26 +195,26 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
                 placeholder="Filtrar por disciplina..." 
                 value={disciplineFilter} 
                 onChange={(e) => setDisciplineFilter(e.target.value)} 
-                className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white outline-none focus:border-emerald-500 w-48"
+                className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white outline-none focus:border-green-500 w-48"
             />
             <input 
                 type="text" 
                 placeholder="Filtrar por concurso..." 
                 value={editalFilter} 
                 onChange={(e) => setEditalFilter(e.target.value)} 
-                className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white outline-none focus:border-emerald-500 w-48"
+                className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white outline-none focus:border-green-500 w-48"
             />
             <div className="flex bg-slate-50 dark:bg-slate-950 p-1 rounded-lg border border-slate-200 dark:border-slate-800">
                 <button 
                     onClick={() => setViewMode('heatmap')}
-                    className={`p-2 rounded-md transition-all ${viewMode === 'heatmap' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
+                    className={`p-2 rounded-md transition-all ${viewMode === 'heatmap' ? 'bg-green-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
                     title="Mapa de Calor"
                 >
                     <Grid3X3 size={20} />
                 </button>
                 <button 
                     onClick={() => setViewMode('scatter')}
-                    className={`p-2 rounded-md transition-all ${viewMode === 'scatter' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
+                    className={`p-2 rounded-md transition-all ${viewMode === 'scatter' ? 'bg-green-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
                     title="Gráfico de Dispersão"
                 >
                     <ScatterIcon size={20} />
@@ -231,13 +235,13 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
                 <div className="flex flex-1 gap-2">
                     {/* Y-Axis Ticks */}
                     <div className="flex flex-col justify-between py-2 text-[10px] text-slate-500 font-bold text-right w-16 pr-2">
-                        {weights.map(w => <span key={w} className="h-full flex items-center justify-end">{w}</span>)}
+                        {WEIGHTS.map(w => <span key={w} className="h-full flex items-center justify-end">{w}</span>)}
                     </div>
 
                     {/* The Grid */}
                     <div className="flex-1 grid grid-cols-3 grid-rows-3 gap-2">
-                        {weights.map((w) => (
-                            relevances.map((r) => {
+                        {WEIGHTS.map((w) => (
+                            RELEVANCES.map((r) => {
                                 const cellData = matrix[`${w}-${r}`];
                                 const avgAcc = cellData.count > 0 ? Math.round(cellData.totalAcc / cellData.count) : 0;
                                 
@@ -278,7 +282,7 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
 
                 {/* X-Axis Ticks */}
                 <div className="flex ml-16 pl-2 pt-2 gap-2">
-                     {relevances.map(r => (
+                     {RELEVANCES.map(r => (
                          <div key={r} className="flex-1 text-center text-[10px] text-slate-500 font-bold uppercase truncate">
                             {r}
                          </div>
@@ -299,7 +303,7 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
                  <div className="absolute top-0 right-0 text-[10px] bg-white dark:bg-slate-900/90 p-2 rounded border border-slate-300 dark:border-slate-700 text-slate-500 dark:text-slate-400 backdrop-blur-sm pointer-events-none">
                     <div className="flex items-center gap-1.5 mb-1"><div className="w-2 h-2 rounded-full bg-red-500"></div> Crítico</div>
                     <div className="flex items-center gap-1.5 mb-1"><div className="w-2 h-2 rounded-full bg-orange-500"></div> Atenção</div>
-                    <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-emerald-500"></div> Dominado</div>
+                    <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-green-500"></div> Dominado</div>
                  </div>
             </div>
         )}
@@ -313,7 +317,7 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
                   <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-800">
                       <div>
                           <h4 className="text-slate-900 dark:text-white font-bold text-sm uppercase tracking-wide">Quadrante Selecionado</h4>
-                          <p className="text-emerald-500 text-xs font-bold mt-0.5">{selectedCell.title}</p>
+                          <p className="text-green-500 text-xs font-bold mt-0.5">{selectedCell.title}</p>
                       </div>
                       <button onClick={() => setSelectedCell(null)} className="text-slate-500 hover:text-slate-900 dark:text-white transition-colors">
                           <X size={20} />
@@ -331,7 +335,13 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
                                   <p className="text-[10px] text-slate-500 truncate">{nb.name}</p>
                               </div>
                               <div className="flex items-center gap-2">
-                                  <span className={`text-xs font-bold px-1.5 py-0.5 rounded border ${nb.accuracy <= 60 ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
+                                  <span className={`text-xs font-bold px-1.5 py-0.5 rounded border ${
+                                    nb.status === 'Dominado' || nb.accuracy >= (Number(nb.targetAccuracy) || 90) 
+                                      ? 'bg-green-500/10 text-green-400 border-green-500/20' 
+                                      : nb.accuracy < ((Number(nb.targetAccuracy) || 90) * 0.75) 
+                                        ? 'bg-red-500/10 text-red-400 border-red-500/20' 
+                                        : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                  }`}>
                                       {nb.accuracy}%
                                   </span>
                                   <ExternalLink size={14} className="text-slate-600 group-hover:text-slate-900 dark:text-white" />

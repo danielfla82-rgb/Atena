@@ -3,13 +3,13 @@ import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react'
 import { useStore } from '../store';
 import { supabase } from './supabase';
 import { Notebook, Weight, Relevance, Trend, NotebookStatus, ScheduleItem } from '../types';
-import { calculateNextReview, DEFAULT_ALGO_CONFIG, calculateUrgencyScore } from '../utils/algorithm';
+import { calculateNextReview, DEFAULT_ALGO_CONFIG, calculateUrgencyScore, getAccuracyColorClass, getStatusColor } from '../utils/algorithm';
 import { 
     Search, Plus, Trash2, Edit2, Square, ChevronRight, ChevronDown, 
     BookOpen, Layers, CheckCircle2, LayoutGrid, Clock, AlertTriangle, Star, 
     History, Sparkles, X, Save, Maximize2, Thermometer,
     Pencil, Link as LinkIcon, XCircle, ZoomIn, ChevronLeft, Calendar, Loader2, TrendingUp, Info, Scale, FileCode, Flag, List, Book, Brain, BrainCircuit, AlertCircle, PlayCircle,
-    Zap, Gauge, HelpCircle, Globe, Lock, Copy, FileText, Filter, Download
+    Zap, Gauge, HelpCircle, Globe, Lock, Copy, FileText, Filter, Download, CalendarX
 } from 'lucide-react';
 
 // ORDEM LÓGICA CORRETA PARA EXIBIÇÃO
@@ -294,8 +294,14 @@ export const Library: React.FC = () => {
                       return nb.nextReview.split('T')[0] <= today;
                   }
                   return false;
-              case 'critical': return nb.accuracy <= 60 && nb.accuracy > 0;
+              case 'critical': return nb.accuracy < ((Number(nb.targetAccuracy) || 90) * 0.75) && nb.accuracy > 0;
               case 'new': return nb.accuracy === 0;
+              case 'no_review': return !nb.nextReview;
+              case 'neglected': {
+                  // Uma disciplina é negligenciada se NENHUM de seus cadernos está no ciclo ativo
+                  const disciplineNotebooks = notebooks.filter(n => n.discipline === nb.discipline);
+                  return !disciplineNotebooks.some(n => isScheduledInActiveCycle(n.id));
+              }
               case 'late': 
                   if (!nb.nextReview) return false;
                   return new Date(nb.nextReview).toISOString().split('T')[0] < new Date().toISOString().split('T')[0];
@@ -333,7 +339,7 @@ export const Library: React.FC = () => {
           groups[key].sort((a, b) => a.name.localeCompare(b.name));
       });
       return { groups, sortedKeys };
-  }, [notebooks, searchTerm, activeFilter, viewMode, editalFilter]);
+  }, [notebooks, searchTerm, activeFilter, viewMode, editalFilter, isScheduledInActiveCycle]);
 
   const toggleGroup = (key: string) => {
       setExpandedGroups(prev => ({ ...prev, [key]: !prev[key] }));
@@ -563,11 +569,11 @@ export const Library: React.FC = () => {
     <div className="p-6 max-w-7xl mx-auto space-y-6 pb-20 relative h-full flex flex-col">
       {lightboxIndex !== null && (
           <div className="fixed inset-0 z-[60] bg-slate-50 dark:bg-slate-950/95 flex items-center justify-center p-4 backdrop-blur-sm">
-             <button onClick={() => setLightboxIndex(null)} className="absolute top-4 right-4 text-slate-900 dark:text-white hover:text-emerald-500 z-50"><X size={32} /></button>
+             <button onClick={() => setLightboxIndex(null)} className="absolute top-4 right-4 text-slate-900 dark:text-white hover:text-green-500 z-50"><X size={32} /></button>
              {formData.images.length > 1 && (
                  <>
-                    <button onClick={() => navigateLightbox('prev')} className="absolute left-4 p-2 bg-slate-100 dark:bg-slate-800/50 rounded-full hover:bg-emerald-600 text-white"><ChevronLeft size={32}/></button>
-                    <button onClick={() => navigateLightbox('next')} className="absolute right-4 p-2 bg-slate-100 dark:bg-slate-800/50 rounded-full hover:bg-emerald-600 text-white"><ChevronRight size={32}/></button>
+                    <button onClick={() => navigateLightbox('prev')} className="absolute left-4 p-2 bg-slate-100 dark:bg-slate-800/50 rounded-full hover:bg-green-600 text-white"><ChevronLeft size={32}/></button>
+                    <button onClick={() => navigateLightbox('next')} className="absolute right-4 p-2 bg-slate-100 dark:bg-slate-800/50 rounded-full hover:bg-green-600 text-white"><ChevronRight size={32}/></button>
                  </>
              )}
              <img src={formData.images[lightboxIndex]} className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" />
@@ -600,7 +606,7 @@ export const Library: React.FC = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-slate-200 dark:border-slate-800 pb-6 gap-4 flex-shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
-            <LayoutGrid className="text-emerald-500" /> Banco de Disciplinas
+            <LayoutGrid className="text-green-500" /> Banco de Disciplinas
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">
             Gerencie seus cadernos e acompanhe o progresso por tópico.
@@ -613,7 +619,7 @@ export const Library: React.FC = () => {
                 <select 
                     value={editalFilter} 
                     onChange={(e) => setEditalFilter(e.target.value)} 
-                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg py-2 pl-3 pr-8 text-sm text-slate-900 dark:text-white focus:border-emerald-500 outline-none appearance-none cursor-pointer hover:bg-slate-100 dark:bg-slate-800"
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg py-2 pl-3 pr-8 text-sm text-slate-900 dark:text-white focus:border-green-500 outline-none appearance-none cursor-pointer hover:bg-slate-100 dark:bg-slate-800"
                 >
                     <option value="">Todos Editais</option>
                     {uniqueEditais.map(e => <option key={e} value={e}>{e}</option>)}
@@ -628,12 +634,12 @@ export const Library: React.FC = () => {
                     placeholder="Buscar tópicos..." 
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
-                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg py-2 pl-9 pr-3 text-sm text-slate-900 dark:text-white focus:border-emerald-500 outline-none"
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg py-2 pl-9 pr-3 text-sm text-slate-900 dark:text-white focus:border-green-500 outline-none"
                 />
              </div>
              <div className="flex bg-white dark:bg-slate-900 p-1 rounded-lg border border-slate-300 dark:border-slate-700">
                  <button onClick={() => setViewMode('discipline')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${viewMode === 'discipline' ? 'bg-slate-700 text-slate-900 dark:text-white shadow' : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white'}`}>Por Disciplina</button>
-                 <button onClick={() => setViewMode('status')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${viewMode === 'status' ? 'bg-emerald-600 text-white shadow' : 'text-slate-500 dark:text-slate-400 hover:text-white'}`}>Por Status</button>
+                 <button onClick={() => setViewMode('status')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${viewMode === 'status' ? 'bg-green-600 text-white shadow' : 'text-slate-500 dark:text-slate-400 hover:text-white'}`}>Por Status</button>
              </div>
              
              <button 
@@ -644,7 +650,7 @@ export const Library: React.FC = () => {
                 <Download size={18} /> <span className="hidden md:inline">Backup</span>
              </button>
 
-             <button onClick={handleOpenCreate} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-sm transition-colors shadow-lg shadow-emerald-900/20 whitespace-nowrap justify-center"><Plus size={18} /> Novo Caderno</button>
+             <button onClick={handleOpenCreate} className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-bold text-sm transition-colors shadow-lg shadow-green-900/20 whitespace-nowrap justify-center"><Plus size={18} /> Novo Caderno</button>
         </div>
       </div>
 
@@ -659,8 +665,8 @@ export const Library: React.FC = () => {
               <div><p className="text-[10px] text-slate-500 font-bold uppercase">Disciplinas</p><p className="text-xl font-bold text-slate-900 dark:text-white">{stats.disciplines}</p></div>
           </div>
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden">
-              <div className="p-3 bg-emerald-900/20 rounded-lg text-emerald-500"><CheckCircle2 size={24} /></div>
-              <div><p className="text-[10px] text-slate-500 font-bold uppercase">Dominados</p><p className="text-xl font-bold text-emerald-400">{stats.mastered}</p></div>
+              <div className="p-3 bg-green-900/20 rounded-lg text-green-500"><CheckCircle2 size={24} /></div>
+              <div><p className="text-[10px] text-slate-500 font-bold uppercase">Dominados</p><p className="text-xl font-bold text-green-400">{stats.mastered}</p></div>
           </div>
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden">
               <div className="p-3 bg-indigo-900/20 rounded-lg text-indigo-500"><Thermometer size={24} /></div>
@@ -672,6 +678,8 @@ export const Library: React.FC = () => {
           {[
               { id: 'all', label: 'Todos' },
               { id: 'review', label: 'Em Revisão', icon: Clock },
+              { id: 'no_review', label: 'Sem Revisão', icon: CalendarX },
+              { id: 'neglected', label: 'Disciplinas Negligenciadas', icon: AlertCircle },
               { id: 'critical', label: 'Críticos (<60%)', icon: AlertTriangle },
               { id: 'new', label: 'Novos', icon: Sparkles },
               { id: 'late', label: 'Atrasados', icon: History },
@@ -692,6 +700,7 @@ export const Library: React.FC = () => {
               const items = groupedData.groups[groupKey];
               const isExpanded = expandedGroups[groupKey];
               const avgAcc = Math.round(items.reduce((acc, i) => acc + i.accuracy, 0) / items.length);
+              const avgTarget = Math.round(items.reduce((acc, i) => acc + (Number(i.targetAccuracy) || 90), 0) / items.length);
               
               return (
                   <div key={groupKey} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden transition-all">
@@ -700,7 +709,7 @@ export const Library: React.FC = () => {
                         className="px-6 py-4 flex items-center justify-between cursor-pointer hover:bg-slate-100 dark:bg-slate-800/50 transition-colors"
                       >
                           <div className="flex items-center gap-4">
-                              <div className={`p-2 rounded-lg ${viewMode === 'status' ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'} ${viewMode === 'status' && groupKey.includes('Concluídos') ? 'bg-emerald-500' : viewMode === 'status' && groupKey.includes('Andamento') ? 'bg-blue-500' : viewMode === 'status' ? 'bg-slate-700' : 'bg-slate-100 dark:bg-slate-800'}`}>
+                              <div className={`p-2 rounded-lg ${viewMode === 'status' ? 'text-slate-900 dark:text-white' : 'text-slate-500 dark:text-slate-400'} ${viewMode === 'status' && groupKey.includes('Concluídos') ? 'bg-green-500' : viewMode === 'status' && groupKey.includes('Andamento') ? 'bg-blue-500' : viewMode === 'status' ? 'bg-slate-700' : 'bg-slate-100 dark:bg-slate-800'}`}>
                                   {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                               </div>
                               <div>
@@ -709,7 +718,7 @@ export const Library: React.FC = () => {
                               </div>
                           </div>
                           <div className="flex items-center gap-4">
-                              <div className={`px-2 py-1 rounded text-xs font-bold border ${avgAcc >= 90 ? 'bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-500/30' : avgAcc < 60 ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-300 dark:border-red-500/30' : 'bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-500/30'}`}>
+                              <div className={`px-2 py-1 rounded text-xs font-bold border ${avgAcc >= avgTarget ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 border-green-300 dark:border-green-500/30' : avgAcc < (avgTarget * 0.75) ? 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400 border-red-300 dark:border-red-500/30' : 'bg-amber-100 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-500/30'}`}>
                                   Avg: {avgAcc}%
                               </div>
                           </div>
@@ -742,7 +751,7 @@ export const Library: React.FC = () => {
                                           <p className="text-xs text-slate-500 truncate">{nb.subtitle}</p>
                                           
                                           <div className="flex md:hidden gap-3 mt-2 text-[10px] text-slate-500 font-mono">
-                                              <span>Acc: <strong className={(Number(nb.accuracy) || 0) >= (Number(nb.targetAccuracy) || 90) ? 'text-emerald-600 dark:text-emerald-400' : (Number(nb.accuracy) || 0) <= 60 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}>{nb.accuracy}%</strong></span>
+                                              <span>Acc: <strong className={getAccuracyColorClass(Number(nb.accuracy), Number(nb.targetAccuracy), nb.status)}>{nb.accuracy}%</strong></span>
                                               <span>Rev: {nb.nextReview ? nb.nextReview.split('T')[0].split('-').reverse().join('/') : '--'}</span>
                                           </div>
                                       </div>
@@ -750,7 +759,7 @@ export const Library: React.FC = () => {
                                       <div className="flex items-center gap-4 md:gap-8 px-4 py-2 border-l border-slate-200 dark:border-slate-800/30">
                                           <div className="text-right hidden md:block">
                                               <p className="text-[10px] text-slate-500 uppercase font-bold">Acurácia</p>
-                                              <p className={`font-mono font-bold text-sm ${(Number(nb.accuracy) || 0) >= (Number(nb.targetAccuracy) || 90) ? 'text-emerald-600 dark:text-emerald-400' : (Number(nb.accuracy) || 0) <= 60 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400'}`}>{nb.accuracy}%</p>
+                                              <p className={`font-mono font-bold text-sm ${getAccuracyColorClass(Number(nb.accuracy), Number(nb.targetAccuracy), nb.status)}`}>{nb.accuracy}%</p>
                                           </div>
                                           <div className="text-right hidden md:block">
                                               <p className="text-[10px] text-slate-500 uppercase font-bold">Revisão</p>
@@ -760,7 +769,7 @@ export const Library: React.FC = () => {
                                           </div>
                                           
                                           <div className="flex gap-2">
-                                              <button type="button" onClick={() => startSession(nb)} className="p-2 bg-emerald-600/10 hover:bg-emerald-600 text-emerald-500 hover:text-white rounded-lg transition-colors" title="Iniciar Sessão">
+                                              <button type="button" onClick={() => startSession(nb)} className="p-2 bg-green-600/10 hover:bg-green-600 text-green-500 hover:text-white rounded-lg transition-colors" title="Iniciar Sessão">
                                                   <Maximize2 size={18} />
                                               </button>
                                               
@@ -802,7 +811,7 @@ export const Library: React.FC = () => {
             {/* Modal Header */}
             <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900">
                 <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <Pencil size={24} className="text-emerald-500"/> {editingId ? (formData.isGlobal ? 'Caderno Público (Template)' : 'Editar Caderno') : 'Novo Caderno'}
+                    <Pencil size={24} className="text-green-500"/> {editingId ? (formData.isGlobal ? 'Caderno Público (Template)' : 'Editar Caderno') : 'Novo Caderno'}
                 </h3>
                 <button onClick={() => !isSaving && setIsModalOpen(false)} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white" disabled={isSaving}><X size={28} /></button>
             </div>
@@ -823,8 +832,8 @@ export const Library: React.FC = () => {
               )}
 
               <div className="space-y-4">
-                  <div className="flex justify-between items-center border-b border-emerald-500/20 pb-2">
-                      <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest">1. Identificação</h4>
+                  <div className="flex justify-between items-center border-b border-green-500/20 pb-2">
+                      <h4 className="text-sm font-bold text-green-500 uppercase tracking-widest">1. Identificação</h4>
                       
                       {/* GLOBAL TOGGLE */}
                       <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800">
@@ -848,26 +857,26 @@ export const Library: React.FC = () => {
                   {/* NOVO CAMPO: EDITAL */}
                   <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-4 rounded-xl mb-2">
                     <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wider flex items-center gap-2">
-                        <FileText size={16} className="text-emerald-500" /> Edital / Prova Alvo
+                        <FileText size={16} className="text-green-500" /> Edital / Prova Alvo
                     </label>
                     <input 
                         value={formData.edital} 
                         onChange={e => handleChange('edital', e.target.value)} 
-                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500 transition-colors font-medium" 
+                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500 transition-colors font-medium" 
                         placeholder="Ex: Receita Federal 2025, Auditor Fiscal SEFAZ-SP..."
                     />
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Disciplina</label><input required list="disciplines" value={formData.discipline} onChange={e => handleChange('discipline', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500" /><datalist id="disciplines">{existingDisciplines.map(d => <option key={d} value={d} />)}</datalist></div>
-                    <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Nome do Tópico</label><input required value={formData.name} onChange={e => handleChange('name', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500" /></div>
+                    <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Disciplina</label><input required list="disciplines" value={formData.discipline} onChange={e => handleChange('discipline', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" /><datalist id="disciplines">{existingDisciplines.map(d => <option key={d} value={d} />)}</datalist></div>
+                    <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Nome do Tópico</label><input required value={formData.name} onChange={e => handleChange('name', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" /></div>
                   </div>
-                  <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Subtópico / Foco</label><input value={formData.subtitle} onChange={e => handleChange('subtitle', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500" /></div>
+                  <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Subtópico / Foco</label><input value={formData.subtitle} onChange={e => handleChange('subtitle', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" /></div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Link Caderno TEC</label>
-                        <div className="relative"><LinkIcon className="absolute left-3 top-3 text-slate-500" size={16} /><input type="url" value={formData.tecLink} onChange={e => handleChange('tecLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-emerald-500" placeholder="https://tecconcursos..." /></div>
+                        <div className="relative"><LinkIcon className="absolute left-3 top-3 text-slate-500" size={16} /><input type="url" value={formData.tecLink} onChange={e => handleChange('tecLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" placeholder="https://tecconcursos..." /></div>
                     </div>
                     <div>
                         <label className="block text-[10px] font-bold text-red-400 mb-1 uppercase tracking-wider">Caderno de Erros</label>
@@ -882,7 +891,7 @@ export const Library: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Link Externo 1</label>
-                        <div className="relative"><Book className="absolute left-3 top-3 text-slate-500" size={16} /><input type="url" value={formData.lawLink} onChange={e => handleChange('lawLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-emerald-500" placeholder="Planalto..." /></div>
+                        <div className="relative"><Book className="absolute left-3 top-3 text-slate-500" size={16} /><input type="url" value={formData.lawLink} onChange={e => handleChange('lawLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" placeholder="Planalto..." /></div>
                     </div>
                     <div>
                         <label className="block text-[10px] font-bold text-purple-400 mb-1 uppercase tracking-wider">Link Externo 2</label>
@@ -896,7 +905,7 @@ export const Library: React.FC = () => {
               </div>
               
               <div className="space-y-4 pt-2">
-                  <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">2. Estratégia & Performance</h4>
+                  <h4 className="text-sm font-bold text-green-500 uppercase tracking-widest border-b border-green-500/20 pb-2">2. Estratégia & Performance</h4>
                   
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {/* ... (Performance inputs remain same) ... */}
@@ -904,9 +913,9 @@ export const Library: React.FC = () => {
                           <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase flex items-center gap-1 cursor-help">
                               Peso <HelpCircle size={12} className="text-slate-600"/>
                           </label>
-                          <select value={formData.weight} onChange={(e) => handleChange('weight', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-emerald-500 text-sm">{Object.values(Weight).map(w => <option key={w} value={w}>{w}</option>)}</select>
+                          <select value={formData.weight} onChange={(e) => handleChange('weight', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-green-500 text-sm">{Object.values(Weight).map(w => <option key={w} value={w}>{w}</option>)}</select>
                           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                              <strong className="block text-emerald-400">{SCORE_TOOLTIPS.weight.title}</strong>
+                              <strong className="block text-green-400">{SCORE_TOOLTIPS.weight.title}</strong>
                               <span className="text-slate-500 dark:text-slate-400">{SCORE_TOOLTIPS.weight.desc}</span>
                           </div>
                       </div>
@@ -915,9 +924,9 @@ export const Library: React.FC = () => {
                           <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase flex items-center gap-1 cursor-help">
                               Relevância <HelpCircle size={12} className="text-slate-600"/>
                           </label>
-                          <select value={formData.relevance} onChange={(e) => handleChange('relevance', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-emerald-500 text-sm">{Object.values(Relevance).map(r => <option key={r} value={r}>{r}</option>)}</select>
+                          <select value={formData.relevance} onChange={(e) => handleChange('relevance', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-green-500 text-sm">{Object.values(Relevance).map(r => <option key={r} value={r}>{r}</option>)}</select>
                           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                              <strong className="block text-emerald-400">{SCORE_TOOLTIPS.relevance.title}</strong>
+                              <strong className="block text-green-400">{SCORE_TOOLTIPS.relevance.title}</strong>
                               <span className="text-slate-500 dark:text-slate-400">{SCORE_TOOLTIPS.relevance.desc}</span>
                           </div>
                       </div>
@@ -926,14 +935,14 @@ export const Library: React.FC = () => {
                           <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase flex items-center gap-1 cursor-help">
                               Tendência <HelpCircle size={12} className="text-slate-600"/>
                           </label>
-                          <select value={formData.trend} onChange={(e) => handleChange('trend', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-emerald-500 text-sm">{Object.values(Trend).map(t => <option key={t} value={t}>{t}</option>)}</select>
+                          <select value={formData.trend} onChange={(e) => handleChange('trend', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-green-500 text-sm">{Object.values(Trend).map(t => <option key={t} value={t}>{t}</option>)}</select>
                           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                              <strong className="block text-emerald-400">{SCORE_TOOLTIPS.trend.title}</strong>
+                              <strong className="block text-green-400">{SCORE_TOOLTIPS.trend.title}</strong>
                               <span className="text-slate-500 dark:text-slate-400">{SCORE_TOOLTIPS.trend.desc}</span>
                           </div>
                       </div>
 
-                      <div><label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Meta (%)</label><input type="number" min="0" max="100" value={formData.targetAccuracy} onChange={e => handleChange('targetAccuracy', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-emerald-500 text-sm text-center font-bold" /></div>
+                      <div><label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Meta (%)</label><input type="number" min="0" max="100" value={formData.targetAccuracy} onChange={e => handleChange('targetAccuracy', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-green-500 text-sm text-center font-bold" /></div>
                   </div>
 
                   <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-3 flex items-center justify-between shadow-inner">
@@ -948,13 +957,13 @@ export const Library: React.FC = () => {
                           </div>
                           <div className="h-8 w-px bg-slate-100 dark:bg-slate-800 mx-2"></div>
                           <div className="text-right">
-                              <span className="text-[9px] block text-emerald-500 uppercase font-bold">Final (Editável)</span>
+                              <span className="text-[9px] block text-green-500 uppercase font-bold">Final (Editável)</span>
                               <input 
                                   type="number" 
                                   min="0" max="100"
                                   value={formData.customScore !== '' ? formData.customScore : calculatedScore} 
                                   onChange={(e) => handleChange('customScore', e.target.value)}
-                                  className="w-16 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded text-center font-bold text-slate-900 dark:text-white text-lg focus:border-emerald-500 outline-none p-1"
+                                  className="w-16 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded text-center font-bold text-slate-900 dark:text-white text-lg focus:border-green-500 outline-none p-1"
                               />
                           </div>
                       </div>
@@ -965,7 +974,7 @@ export const Library: React.FC = () => {
                       <select 
                           value={formData.scheduledWeek || ''} 
                           onChange={(e) => handleChange('scheduledWeek', e.target.value)} 
-                          className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-emerald-500 text-sm"
+                          className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-green-500 text-sm"
                       >
                           <option value="">Não Agendado</option>
                           {weeksList.map(w => (
@@ -978,7 +987,7 @@ export const Library: React.FC = () => {
                       <div className="flex flex-col md:flex-row gap-4 items-end">
                           <div className="flex-1 w-full">
                              <div className="flex justify-between mb-1">
-                                <label className="block text-[10px] font-bold text-emerald-400 uppercase">Acurácia na Revisão de Hoje (%)</label>
+                                <label className="block text-[10px] font-bold text-green-400 uppercase">Acurácia na Revisão de Hoje (%)</label>
                                 {formData.accuracyHistory && formData.accuracyHistory.length > 0 && (
                                     <span className="text-[9px] text-slate-500 font-mono flex items-center gap-1">
                                         <History size={12}/> Histórico
@@ -986,8 +995,8 @@ export const Library: React.FC = () => {
                                 )}
                              </div>
                              <div className="flex gap-2">
-                                <input type="number" min="0" max="100" value={formData.accuracy} onChange={e => handleChange('accuracy', e.target.value)} className="flex-1 bg-white dark:bg-slate-900 border border-slate-600 rounded-lg p-3 text-slate-900 dark:text-white font-mono text-center font-bold text-xl focus:border-emerald-500 outline-none" placeholder="0" />
-                                <button type="button" onClick={handleConcludeReview} disabled={isSaving} className="px-6 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg shadow-emerald-900/30 border border-emerald-500/50">
+                                <input type="number" min="0" max="100" value={formData.accuracy} onChange={e => handleChange('accuracy', e.target.value)} className="flex-1 bg-white dark:bg-slate-900 border border-slate-600 rounded-lg p-3 text-slate-900 dark:text-white font-mono text-center font-bold text-xl focus:border-green-500 outline-none" placeholder="0" />
+                                <button type="button" onClick={handleConcludeReview} disabled={isSaving} className="px-6 bg-green-600 hover:bg-green-500 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg shadow-green-900/30 border border-green-500/50">
                                     {isSaving ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />} 
                                     Concluir Revisão
                                 </button>
@@ -1008,7 +1017,7 @@ export const Library: React.FC = () => {
                                      <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400">
                                          <span className="uppercase tracking-widest text-slate-500 flex items-center gap-1"><BrainCircuit size={16}/> Algoritmo Atena:</span>
                                          <div className="flex items-center gap-2">
-                                            <div className="text-emerald-400 bg-emerald-900/20 px-2 py-1 rounded border border-emerald-500/20 flex items-center gap-1 cursor-pointer hover:bg-emerald-900/40 transition-colors relative overflow-hidden">
+                                            <div className="text-green-400 bg-green-900/20 px-2 py-1 rounded border border-green-500/20 flex items-center gap-1 cursor-pointer hover:bg-green-900/40 transition-colors relative overflow-hidden">
                                                 <Calendar size={16} className="pointer-events-none" /> 
                                                 <span className="font-bold text-xs pointer-events-none">{computedNextReviewData.date.toLocaleDateString()}</span>
                                                 <input 
@@ -1038,7 +1047,7 @@ export const Library: React.FC = () => {
                                   <div key={i} className="group relative flex flex-col items-center bg-white dark:bg-slate-900 px-2 py-1 rounded border border-slate-200 dark:border-slate-800 min-w-[60px]">
                                       <button type="button" onClick={() => removeHistoryItem(i)} className="absolute -top-1.5 -right-1.5 bg-red-600 text-slate-900 dark:text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110 z-10 cursor-pointer shadow-sm"><X size={10} strokeWidth={3} /></button>
                                       <span className="text-[10px] text-slate-500 font-mono">{new Date(h.date).toLocaleDateString(undefined, {day:'2-digit', month:'2-digit'})}</span>
-                                      <span className={`text-xs font-bold ${(Number(h.accuracy) || 0) >= (Number(formData.targetAccuracy) || 90) ? 'text-emerald-400' : (Number(h.accuracy) || 0) <= 60 ? 'text-red-400' : 'text-amber-400'}`}>{h.accuracy}%</span>
+                                      <span className={`text-xs font-bold ${getAccuracyColorClass(Number(h.accuracy), Number(formData.targetAccuracy), formData.status)}`}>{h.accuracy}%</span>
                                   </div>
                               ))}
                               <div className="flex items-center text-xs text-slate-500 gap-1 ml-2"><TrendingUp size={16} /></div>
@@ -1059,26 +1068,26 @@ export const Library: React.FC = () => {
                       </div>
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {ORDERED_ALGO_KEYS.map((key) => { const val = currentIntervals[key as keyof typeof currentIntervals]; return (<div key={key} className="group relative"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-help flex items-center gap-1">{INTERVAL_LABELS[key] || key}<HelpCircle size={12} className="text-slate-600"/></label><input type="number" value={val} onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-white text-center font-bold outline-none focus:border-purple-500" />{ALGO_TOOLTIPS[key] && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"><strong className="block text-emerald-400 mb-1">{ALGO_TOOLTIPS[key].title}</strong><span className="text-slate-600 dark:text-slate-300 leading-tight block">{ALGO_TOOLTIPS[key].desc}</span><div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800"></div></div>)}</div>)})}
+                      {ORDERED_ALGO_KEYS.map((key) => { const val = currentIntervals[key as keyof typeof currentIntervals]; return (<div key={key} className="group relative"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-help flex items-center gap-1">{INTERVAL_LABELS[key] || key}<HelpCircle size={12} className="text-slate-600"/></label><input type="number" value={val} onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-white text-center font-bold outline-none focus:border-purple-500" />{ALGO_TOOLTIPS[key] && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"><strong className="block text-green-400 mb-1">{ALGO_TOOLTIPS[key].title}</strong><span className="text-slate-600 dark:text-slate-300 leading-tight block">{ALGO_TOOLTIPS[key].desc}</span><div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800"></div></div>)}</div>)})}
                   </div>
               </div>
 
               <div className="space-y-4 pt-2">
-                <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2">3. Rascunhos & Anotações</h4>
+                <h4 className="text-sm font-bold text-green-500 uppercase tracking-widest border-b border-green-500/20 pb-2">3. Rascunhos & Anotações</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Anotações / Resumo</label><textarea value={formData.notes} onChange={e => handleChange('notes', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500 transition-all min-h-[200px] resize-none text-sm custom-scrollbar" placeholder="Mnemônicos..." /></div>
+                    <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Anotações / Resumo</label><textarea value={formData.notes} onChange={e => handleChange('notes', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500 transition-all min-h-[200px] resize-none text-sm custom-scrollbar" placeholder="Mnemônicos..." /></div>
                     <div className="flex flex-col h-full">
                         <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Galeria de Mapas Mentais</label>
                         <div className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 min-h-[200px] flex flex-col">
                             <div className="grid grid-cols-3 gap-2 mb-3">
                                 {formData.images.map((img, idx) => (
-                                    <div key={idx} className="relative group aspect-square bg-white dark:bg-slate-900 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 hover:border-emerald-500 transition-colors cursor-pointer">
+                                    <div key={idx} className="relative group aspect-square bg-white dark:bg-slate-900 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 hover:border-green-500 transition-colors cursor-pointer">
                                         <img src={img} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" onClick={() => setLightboxIndex(idx)} />
                                         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 pointer-events-none"><ZoomIn size={18} className="text-slate-900 dark:text-white" /></div>
                                         <button type="button" onClick={(e) => { e.stopPropagation(); removeImage(idx); }} className="absolute top-1 right-1 bg-red-600 hover:bg-red-500 text-slate-900 dark:text-white rounded p-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto"><Trash2 size={14} /></button>
                                     </div>
                                 ))}
-                                <div onClick={() => fileInputRef.current?.click()} className="aspect-square border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-emerald-500 hover:bg-slate-700/50 transition-colors text-slate-500 hover:text-emerald-500"><Plus size={28} /><span className="text-[10px] uppercase font-bold mt-1">Add Imagem</span></div>
+                                <div onClick={() => fileInputRef.current?.click()} className="aspect-square border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-green-500 hover:bg-slate-700/50 transition-colors text-slate-500 hover:text-green-500"><Plus size={28} /><span className="text-[10px] uppercase font-bold mt-1">Add Imagem</span></div>
                             </div>
                             <input type="file" ref={fileInputRef} className="hidden" accept="image/*" multiple onChange={handleImageUpload} />
                             <p className="text-[10px] text-slate-500 mt-auto text-center italic">Suporta múltiplas imagens. Clique em uma imagem para ampliar.</p>
@@ -1089,7 +1098,7 @@ export const Library: React.FC = () => {
             </form>
             <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex gap-4">
                 <button type="button" onClick={() => !isSaving && setIsModalOpen(false)} disabled={isSaving} className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 py-3 rounded-xl hover:bg-slate-700 font-medium transition-colors disabled:opacity-50">Cancelar</button>
-                <button type="button" onClick={handleSave} disabled={isSaving} className="flex-1 bg-emerald-600 text-white py-3 rounded-xl hover:bg-emerald-500 font-bold shadow-lg shadow-emerald-900/20 transition-all flex items-center justify-center gap-2 disabled:bg-emerald-800 disabled:text-emerald-400 disabled:cursor-wait">
+                <button type="button" onClick={handleSave} disabled={isSaving} className="flex-1 bg-green-600 text-white py-3 rounded-xl hover:bg-green-500 font-bold shadow-lg shadow-green-900/20 transition-all flex items-center justify-center gap-2 disabled:bg-green-800 disabled:text-green-400 disabled:cursor-wait">
                     {isSaving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
                     {isSaving ? "Salvando..." : (formData.isGlobal ? "Salvar e Publicar Cópia" : "Salvar Alterações")}
                 </button>

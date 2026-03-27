@@ -3,7 +3,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, NotebookStatus, ScheduleItem } from '../types';
 import { Plus, Search, Pencil, BarChart3, Calendar, Lock, ChevronDown, Layout, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, Flag, Inbox, Scale, Download, PanelLeftClose, PanelLeftOpen, Archive, Minus, Meh, Frown, Smile, History, ChevronRight, Maximize2, Activity, ChevronUp, Layers, CheckCircle2, Loader2, X, FileText, Key, BrainCircuit, HelpCircle, Target, TrendingUp, Sparkles, RefreshCw } from 'lucide-react';
-import { getStatusColor, DEFAULT_ALGO_CONFIG } from '../utils/algorithm';
+import { getStatusColor, getAccuracyColorClass, DEFAULT_ALGO_CONFIG } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'; 
 
@@ -15,10 +15,10 @@ const PACE_SETTINGS: Record<string, { hours: number, blocks: number }> = {
 };
 
 const ALGO_TOOLTIPS: Record<string, { title: string, desc: string }> = {
-    learning: { title: "Aprendizado (< 60%)", desc: "Fase de aquisição ou reconstrução. O sistema entende que você ainda não aprendeu. Intervalo curto para evitar perda." },
-    reviewing: { title: "Revisão (60% - 79%)", desc: "Fase de fixação. Você entende o assunto, mas comete erros ou tem lacunas. Intervalo médio-curto." },
-    mastering: { title: "Domínio (80% - 89%)", desc: "Fase de polimento. O conteúdo está sólido, quase excelente. Intervalo médio." },
-    maintaining: { title: "Manutenção (> 90%)", desc: "Você dominou o tópico. O objetivo é apenas combater a Curva do Esquecimento. Intervalo longo." }
+    learning: { title: "Aprendizado (Crítico)", desc: "Fase de aquisição ou reconstrução. O sistema entende que você ainda não aprendeu. Intervalo curto para evitar perda." },
+    reviewing: { title: "Revisão (Atenção)", desc: "Fase de fixação. Você entende o assunto, mas comete erros ou tem lacunas. Intervalo médio-curto." },
+    mastering: { title: "Domínio (Quase na Meta)", desc: "Fase de polimento. O conteúdo está sólido, quase excelente. Intervalo médio." },
+    maintaining: { title: "Manutenção (Meta Atingida)", desc: "Você dominou o tópico. O objetivo é apenas combater a Curva do Esquecimento. Intervalo longo." }
 };
 
 // MEMOIZED COMPONENT TO PREVENT RE-RENDERS ON DRAG/SEARCH
@@ -57,7 +57,7 @@ const DraggableCard = React.memo(({
     scheduledWeekId?: string | null;
     currentWeekIndex?: number;
 }) => {
-    const statusColor = getStatusColor(notebook.accuracy, notebook.targetAccuracy);
+    const statusColor = getStatusColor(notebook.accuracy, notebook.targetAccuracy, notebook.status);
     const isLibrary = origin === 'library';
     const isWeek = origin === 'week';
     
@@ -73,6 +73,7 @@ const DraggableCard = React.memo(({
     const target = Number(notebook.targetAccuracy) || 90;
     const accuracy = Number(notebook.accuracy) || 0;
     const criticalThreshold = target * 0.75; 
+    const isMastered = notebook.status === NotebookStatus.MASTERED;
 
     // --- LÓGICA DE PRÓXIMA REVISÃO ---
     let nextReviewWeek = null;
@@ -86,25 +87,33 @@ const DraggableCard = React.memo(({
 
     let buttonClass = 'border-slate-300 dark:border-slate-600 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 group-hover/check:border-slate-400 dark:group-hover/check:border-slate-500 hover:bg-slate-300 dark:hover:bg-slate-600';
     let textClass = isCompleted && isWeek ? 'text-slate-500 line-through' : 'text-slate-900 dark:text-slate-200';
-    let percentColorClass = accuracy >= target ? 'text-emerald-600 dark:text-emerald-400' : accuracy <= 60 ? 'text-red-600 dark:text-red-400' : 'text-amber-600 dark:text-amber-400';
-    let tooltipText = "Pendente: Clique para marcar como concluído.";
+    
+    // PRIORIDADE: Sincronizar com a cor do status (dot)
+    let percentColorClass = getAccuracyColorClass(notebook.accuracy, notebook.targetAccuracy, notebook.status);
+
+    let tooltipText = `Pendente: Clique para marcar como concluído. (Meta: ${target}%)`;
 
     if (isCompleted) {
-        if (accuracy >= target) {
-            buttonClass = 'bg-emerald-100 dark:bg-emerald-900/30 border-emerald-300 dark:border-emerald-500/50 text-emerald-700 dark:text-emerald-400';
-            textClass = 'text-emerald-700/70 dark:text-emerald-500/70 line-through decoration-emerald-500/30';
-            percentColorClass = 'text-emerald-700/70 dark:text-emerald-500/70';
-            tooltipText = "Desempenho de Elite: Meta atingida!";
-        } else if (accuracy < criticalThreshold) {
+        if (statusColor === '#22c55e') {
+            buttonClass = 'bg-green-100 dark:bg-green-900/30 border-green-300 dark:border-green-500/50 text-green-700 dark:text-green-400';
+            textClass = 'text-green-700/70 dark:text-green-500/70 line-through decoration-green-500/30';
+            percentColorClass = 'text-green-700/70 dark:text-green-500/70';
+            tooltipText = `Desempenho de Elite: Meta atingida! (${target}%)`;
+        } else if (statusColor === '#ef4444') {
             buttonClass = 'bg-red-100 dark:bg-red-900/30 border-red-300 dark:border-red-500/50 text-red-700 dark:text-red-400';
             textClass = 'text-red-700/70 dark:text-red-500/70 line-through decoration-red-500/30';
             percentColorClass = 'text-red-700/70 dark:text-red-500/70';
             tooltipText = `Crítico: Acurácia muito abaixo da meta (${target}%).`;
+        } else if (statusColor === '#94a3b8') {
+            buttonClass = 'bg-slate-100 dark:bg-slate-900/30 border-slate-300 dark:border-slate-500/50 text-slate-700 dark:text-slate-400';
+            textClass = 'text-slate-700/70 dark:text-slate-500/70 line-through decoration-slate-500/30';
+            percentColorClass = 'text-slate-700/70 dark:text-slate-500/70';
+            tooltipText = `Sem dados de acurácia.`;
         } else {
             buttonClass = 'bg-amber-100 dark:bg-amber-900/30 border-amber-300 dark:border-amber-500/50 text-amber-700 dark:text-amber-400';
             textClass = 'text-amber-700/70 dark:text-amber-500/70 line-through decoration-amber-500/30';
             percentColorClass = 'text-amber-700/70 dark:text-amber-500/70';
-            tooltipText = "Atenção: Meta não atingida. Reforce a revisão.";
+            tooltipText = `Atenção: Meta não atingida (${target}%). Reforce a revisão.`;
         }
     }
 
@@ -115,7 +124,7 @@ const DraggableCard = React.memo(({
             onDragOver={(e) => { if(isWeek && !disabled) e.preventDefault(); }}
             onDrop={(e) => { if(isWeek && !disabled && onDropOnCard && index !== undefined) onDropOnCard(e, index); }}
             className={`
-                group relative bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl p-3 cursor-grab active:cursor-grabbing hover:border-emerald-500/50 transition-all shadow-sm
+                group relative bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl p-3 cursor-grab active:cursor-grabbing hover:border-green-500/50 transition-all shadow-sm
                 ${disabled ? 'opacity-50 pointer-events-none' : ''}
                 ${isCompact ? 'text-xs' : 'text-sm'}
                 ${isCompleted && isWeek ? 'bg-white dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-70 hover:opacity-100' : ''}
@@ -123,7 +132,7 @@ const DraggableCard = React.memo(({
             `}
         >
             {isLibrary && (
-                <div className={`absolute right-0 top-0 p-1 rounded-bl-lg text-[9px] uppercase font-bold tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border-l border-b z-10 flex items-center gap-1 bg-white dark:bg-slate-900/90 border-slate-300 dark:border-slate-700 text-emerald-500 rounded-tr-xl`}>
+                <div className={`absolute right-0 top-0 p-1 rounded-bl-lg text-[9px] uppercase font-bold tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none border-l border-b z-10 flex items-center gap-1 bg-white dark:bg-slate-900/90 border-slate-300 dark:border-slate-700 text-green-500 rounded-tr-xl`}>
                     <Calendar size={10}/> + Agendar
                 </div>
             )}
@@ -176,7 +185,7 @@ const DraggableCard = React.memo(({
                          <span 
                             className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded border transition-colors
                                 ${allocatedWeek && !isAllocatedPast
-                                    ? 'text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/20 border-emerald-300 dark:border-emerald-500/30 opacity-90' 
+                                    ? 'text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/20 border-green-300 dark:border-green-500/30 opacity-90' 
                                     : 'text-slate-500 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700'
                                 }
                             `} 
@@ -261,11 +270,11 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
                 }
             });
         }
-    }, [availableDisciplines.length]); 
+    }, [availableDisciplines, config, updateConfig]); 
 
-    const weights: Record<string, number> = config.calculatorState?.weights || {};
-    const selectedDiscs = new Set<string>(config.calculatorState?.selectedDisciplines || []);
-    const customDiscs: string[] = config.calculatorState?.customDisciplines || [];
+    const weights: Record<string, number> = useMemo(() => config.calculatorState?.weights || {}, [config.calculatorState?.weights]);
+    const selectedDiscs = useMemo(() => new Set<string>(config.calculatorState?.selectedDisciplines || []), [config.calculatorState?.selectedDisciplines]);
+    const customDiscs: string[] = useMemo(() => config.calculatorState?.customDisciplines || [], [config.calculatorState?.customDisciplines]);
 
     const getTopicCount = useCallback((discName: string) => {
         if (config.structuredEdital && config.structuredEdital.length > 0) {
@@ -308,7 +317,7 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
 
         // 2. Calculate deficit to reach target
         const currentSum = items.reduce((sum, item) => sum + item.blocks, 0);
-        let deficit = paceTarget.blocks - currentSum;
+        const deficit = paceTarget.blocks - currentSum;
 
         // 3. Distribute deficit based on largest remainders
         // Sort by remainder descending
@@ -420,7 +429,7 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
     return (
         <div className="flex-1 flex flex-col p-4 md:p-8 animate-in fade-in zoom-in duration-500 max-w-6xl mx-auto w-full overflow-y-auto custom-scrollbar">
              <div className="text-center mb-8">
-                <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-4 shadow-xl shadow-emerald-900/10 mx-auto border border-slate-300 dark:border-slate-700"><Scale size={32} className="text-emerald-500" /></div>
+                <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800/50 rounded-full flex items-center justify-center mb-4 shadow-xl shadow-green-900/10 mx-auto border border-slate-300 dark:border-slate-700"><Scale size={32} className="text-green-500" /></div>
                 <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Planejamento de Ciclo</h2>
                 <p className="text-slate-500 dark:text-slate-400 text-sm max-w-xl mx-auto">Defina os pesos estratégicos. O algoritmo Atena distribuirá sua carga de <strong className="text-slate-900 dark:text-white">{paceTarget.blocks} blocos/semana (Ritmo Padrão)</strong>.</p>
             </div>
@@ -437,17 +446,17 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
                                 const count = getTopicCount(d);
                                 return (
                                     <div key={d} className={`flex items-center gap-4 p-3 rounded-lg border transition-all ${selectedDiscs.has(d) ? 'bg-slate-100 dark:bg-slate-800/50 border-slate-300 dark:border-slate-700' : 'bg-slate-50 dark:bg-slate-950/30 border-slate-200 dark:border-slate-800 opacity-60'}`}>
-                                        <input type="checkbox" checked={selectedDiscs.has(d)} onChange={() => toggleDisc(d)} className="w-4 h-4 rounded border-slate-600 text-emerald-600 focus:ring-offset-0 focus:ring-0 cursor-pointer accent-emerald-500" />
+                                        <input type="checkbox" checked={selectedDiscs.has(d)} onChange={() => toggleDisc(d)} className="w-4 h-4 rounded border-slate-600 text-green-600 focus:ring-offset-0 focus:ring-0 cursor-pointer accent-green-500" />
                                         <div className="flex-1 min-w-0">
                                             <div className="font-bold text-sm text-slate-200 truncate flex items-center gap-2">
                                                 {d} 
                                                 {count > 0 && <span className="text-[9px] text-slate-500 bg-white dark:bg-slate-900 px-1.5 rounded border border-slate-300 dark:border-slate-700">{count} tópicos</span>}
                                             </div>
-                                            {selectedDiscs.has(d) && <div className="text-[10px] text-emerald-500 font-mono mt-0.5">{weights[d] || 1} pts • {((weights[d] || 1) / totalWeight * 100).toFixed(1)}%</div>}
+                                            {selectedDiscs.has(d) && <div className="text-[10px] text-green-500 font-mono mt-0.5">{weights[d] || 1} pts • {((weights[d] || 1) / totalWeight * 100).toFixed(1)}%</div>}
                                         </div>
                                         {selectedDiscs.has(d) && (
                                             <div className="flex items-center gap-2">
-                                                <input type="range" min="0.5" max="5" step="0.5" value={weights[d] || 1} onChange={(e) => updateWeight(d, parseFloat(e.target.value))} className="w-24 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-emerald-500" />
+                                                <input type="range" min="0.5" max="5" step="0.5" value={weights[d] || 1} onChange={(e) => updateWeight(d, parseFloat(e.target.value))} className="w-24 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-green-500" />
                                                 <span className="text-xs font-bold w-6 text-center text-slate-900 dark:text-white">{weights[d] || 1}</span>
                                             </div>
                                         )}
@@ -455,7 +464,7 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
                                 );
                             })}
                             <div className="pt-2 flex gap-2">
-                                <input type="text" value={newDiscName} onChange={(e) => setNewDiscName(e.target.value)} placeholder="Nova Disciplina..." className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:border-emerald-500" />
+                                <input type="text" value={newDiscName} onChange={(e) => setNewDiscName(e.target.value)} placeholder="Nova Disciplina..." className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" />
                                 <button onClick={handleAddDiscipline} disabled={!newDiscName} className="px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-700 text-slate-900 dark:text-white rounded-lg text-xs font-bold transition-colors disabled:opacity-50"><Plus size={14} /></button>
                             </div>
                         </div>
@@ -475,14 +484,14 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
                             {projection && projection.requiredPace > 0 && (
                                 <div className="flex justify-between items-center pb-2 border-b border-slate-200 dark:border-slate-800">
                                     <span className="text-xs text-slate-500 dark:text-slate-400">Ritmo Necessário</span>
-                                    <span className={`text-sm font-bold ${projection.requiredPace > paceTarget.blocks ? 'text-red-400' : 'text-emerald-400'}`}>
+                                    <span className={`text-sm font-bold ${projection.requiredPace > paceTarget.blocks ? 'text-red-400' : 'text-green-400'}`}>
                                         {projection.requiredPace} Blocos/sem
                                     </span>
                                 </div>
                             )}
                             <div className="flex justify-between items-center pb-2 border-b border-slate-200 dark:border-slate-800">
                                 <span className="text-xs text-slate-500 dark:text-slate-400">Total Alocado</span>
-                                <span className={`text-sm font-bold ${isBalanced ? 'text-emerald-400' : isOver ? 'text-red-400' : 'text-amber-400'}`}>{totalAllocated} Blocos</span>
+                                <span className={`text-sm font-bold ${isBalanced ? 'text-green-400' : isOver ? 'text-red-400' : 'text-amber-400'}`}>{totalAllocated} Blocos</span>
                             </div>
                             
                             {!isBalanced && (
@@ -505,7 +514,7 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
                                 <div className="pt-2">
                                     <div className="text-[10px] text-slate-500 font-bold uppercase mb-2">Estimativa de Conclusão (Ritmo Atual)</div>
                                     <div className="text-2xl font-bold text-slate-900 dark:text-white mb-1">{projection.weeks} Semanas</div>
-                                    <div className="text-xs text-slate-500 dark:text-slate-400">Data Prevista: <span className={`${projection.status === 'danger' ? 'text-red-400 line-through decoration-red-500/50' : 'text-emerald-400'}`}>{projection.date.toLocaleDateString()}</span></div>
+                                    <div className="text-xs text-slate-500 dark:text-slate-400">Data Prevista: <span className={`${projection.status === 'danger' ? 'text-red-400 line-through decoration-red-500/50' : 'text-green-400'}`}>{projection.date.toLocaleDateString()}</span></div>
                                     {projection.totalItems > 0 && <div className="text-[10px] text-slate-500 mt-1">Baseado em {projection.totalItems} tópicos pendentes.</div>}
                                 </div>
                             )}
@@ -520,9 +529,9 @@ const CycleCalculator = ({ paceTarget }: { paceTarget: { hours: number, blocks: 
                                     <span className="text-slate-600 dark:text-slate-300 truncate max-w-[120px]" title={item.name}>{item.name}</span>
                                     <div className="flex items-center gap-2">
                                         <div className="w-16 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                            <div className="h-full bg-emerald-500" style={{ width: `${item.percentage * 100}%` }}></div>
+                                            <div className="h-full bg-green-500" style={{ width: `${item.percentage * 100}%` }}></div>
                                         </div>
-                                        <span className="font-mono font-bold text-emerald-400 w-6 text-right">{item.blocks}</span>
+                                        <span className="font-mono font-bold text-green-400 w-6 text-right">{item.blocks}</span>
                                     </div>
                                 </div>
                             ))}
@@ -544,7 +553,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
   const [viewMode, setViewMode] = useState<'timeline' | 'calculator'>('timeline');
   const [searchTerm, setSearchTerm] = useState('');
   const [showStats, setShowStats] = useState(false);
-  const [libraryFilter, setLibraryFilter] = useState<'all' | 'unallocated' | 'overdue' | 'zero_accuracy' | 'high_weight'>('all');
+  const [libraryFilter, setLibraryFilter] = useState<'all' | 'unallocated' | 'overdue' | 'zero_accuracy' | 'high_weight' | 'no_review'>('all');
   const [disciplineFilter, setDisciplineFilter] = useState<string>('');
   const [editalFilter, setEditalFilter] = useState<string>(''); // NOVO ESTADO
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -674,6 +683,8 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
         result = result.filter(nb => nb.accuracy === 0);
     } else if (libraryFilter === 'high_weight') {
         result = result.filter(nb => nb.weight === Weight.ALTO);
+    } else if (libraryFilter === 'no_review') {
+        result = result.filter(nb => !nb.nextReview);
     }
 
     result.sort((a, b) => a.discipline.localeCompare(b.discipline) || a.name.localeCompare(b.name));
@@ -815,7 +826,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
           <div className={`p-4 border-b border-slate-200 dark:border-slate-800 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
             {!isSidebarCollapsed && (
                 <div className="flex items-center gap-2">
-                    <h2 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider"><Layout size={14} className="text-emerald-500 inline mr-1" /> Banco</h2>
+                    <h2 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider"><Layout size={14} className="text-green-500 inline mr-1" /> Banco</h2>
                     {pendingCount > 0 && <span className="bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded text-[9px] font-bold border border-blue-500/30" title="Pendentes">{pendingCount}</span>}
                 </div>
             )}
@@ -837,7 +848,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                     
                     {/* NOVO FILTRO: EDITAL */}
                     <div className="relative">
-                        <select value={editalFilter} onChange={(e) => setEditalFilter(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg py-2 pl-3 pr-8 text-xs text-slate-900 dark:text-white focus:border-emerald-500 outline-none appearance-none cursor-pointer hover:bg-white dark:bg-slate-900">
+                        <select value={editalFilter} onChange={(e) => setEditalFilter(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg py-2 pl-3 pr-8 text-xs text-slate-900 dark:text-white focus:border-green-500 outline-none appearance-none cursor-pointer hover:bg-white dark:bg-slate-900">
                             <option value="">Filtrar por Edital (Todos)</option>
                             {uniqueEditais.map(e => (<option key={e} value={e}>{e}</option>))}
                         </select>
@@ -845,26 +856,26 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                     </div>
 
                     <div className="relative">
-                        <select value={disciplineFilter} onChange={(e) => setDisciplineFilter(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg py-2 pl-3 pr-8 text-xs text-slate-900 dark:text-white focus:border-emerald-500 outline-none appearance-none cursor-pointer hover:bg-white dark:bg-slate-900">
+                        <select value={disciplineFilter} onChange={(e) => setDisciplineFilter(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg py-2 pl-3 pr-8 text-xs text-slate-900 dark:text-white focus:border-green-500 outline-none appearance-none cursor-pointer hover:bg-white dark:bg-slate-900">
                             <option value="">Filtrar por Disciplina (Todas)</option>
                             {existingDisciplines.map(d => (<option key={d} value={d}>{d}</option>))}
                         </select>
                         <div className="absolute right-3 top-2.5 pointer-events-none text-slate-500"><ChevronDown size={12} /></div>
                     </div>
                     <div className="flex gap-2 flex-wrap">
-                        {['all', 'unallocated', 'overdue', 'zero_accuracy', 'high_weight'].map((f: any) => (
+                        {['all', 'unallocated', 'overdue', 'no_review', 'zero_accuracy', 'high_weight'].map((f: any) => (
                             <button key={f} onClick={() => setLibraryFilter(f)} className={`flex-1 py-1.5 text-[10px] rounded border font-bold min-w-[60px] ${libraryFilter === f ? 'bg-slate-100 dark:bg-slate-800 border-slate-600 text-slate-900 dark:text-white' : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-500'}`}>
-                                {f === 'all' ? 'Todos' : f === 'unallocated' ? 'Pendentes' : f === 'overdue' ? 'Atrasados' : f === 'zero_accuracy' ? '0% Acertos' : 'Peso Alto'}
+                                {f === 'all' ? 'Todos' : f === 'unallocated' ? 'Pendentes' : f === 'overdue' ? 'Atrasados' : f === 'no_review' ? 'Sem Revisão' : f === 'zero_accuracy' ? '0% Acertos' : 'Peso Alto'}
                             </button>
                         ))}
                     </div>
                     <div className="relative">
                         <Search className="absolute left-3 top-2.5 text-slate-500" size={14} />
-                        <input type="text" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg py-2 pl-9 pr-3 text-xs text-slate-900 dark:text-white focus:border-emerald-500 outline-none" />
+                        <input type="text" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg py-2 pl-9 pr-3 text-xs text-slate-900 dark:text-white focus:border-green-500 outline-none" />
                     </div>
                     <div className="flex justify-between items-center text-[10px] text-slate-500 font-bold">
                         <span>Total: {libraryNotebooks.length}</span>
-                        <span className="text-emerald-500 flex items-center gap-1">Arraste <ArrowRight size={10} /></span>
+                        <span className="text-green-500 flex items-center gap-1">Arraste <ArrowRight size={10} /></span>
                     </div>
                 </div>
                 
@@ -899,7 +910,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                  <div className="flex flex-col">
                     <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mb-1">Início</span>
                     <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5">
-                        <Calendar size={14} className="text-emerald-500" />
+                        <Calendar size={14} className="text-green-500" />
                         <input type="date" value={config.startDate || ''} onChange={(e) => updateConfig({...config, startDate: e.target.value})} className="bg-transparent outline-none text-xs text-slate-900 dark:text-white cursor-pointer font-medium" />
                     </div>
                  </div>
@@ -920,15 +931,15 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
 
             <div className="w-full lg:w-auto flex justify-center order-3 lg:order-2">
                 <div className="flex bg-slate-50 dark:bg-slate-950 p-1 rounded-xl border border-slate-200 dark:border-slate-800 shadow-xl">
-                    <button onClick={() => setViewMode('timeline')} className={`px-4 md:px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${viewMode === 'timeline' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 dark:text-slate-400 hover:text-white hover:bg-slate-100 dark:bg-slate-800'}`}><GanttChartSquare size={16} /> Visão Tática</button>
-                    <button onClick={() => setViewMode('calculator')} className={`px-4 md:px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${viewMode === 'calculator' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 dark:text-slate-400 hover:text-white hover:bg-slate-100 dark:bg-slate-800'}`}><Calculator size={16} /> Planejamento</button>
+                    <button onClick={() => setViewMode('timeline')} className={`px-4 md:px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${viewMode === 'timeline' ? 'bg-green-600 text-white shadow-lg' : 'text-slate-500 dark:text-slate-400 hover:text-white hover:bg-slate-100 dark:bg-slate-800'}`}><GanttChartSquare size={16} /> Visão Tática</button>
+                    <button onClick={() => setViewMode('calculator')} className={`px-4 md:px-6 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${viewMode === 'calculator' ? 'bg-green-600 text-white shadow-lg' : 'text-slate-500 dark:text-slate-400 hover:text-white hover:bg-slate-100 dark:bg-slate-800'}`}><Calculator size={16} /> Planejamento</button>
                 </div>
             </div>
 
             <div className="flex items-center gap-3 w-full lg:w-auto lg:flex-1 justify-between lg:justify-end order-2 lg:order-3">
                  <div className="relative group w-full md:w-auto min-w-[180px]">
-                    <button onClick={() => setShowPaceSelector(!showPaceSelector)} className="relative w-full flex items-center px-4 py-2 gap-3 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-300 dark:border-slate-700 hover:border-emerald-500/50 transition-all shadow-sm group">
-                        <div className="flex items-center justify-center bg-white dark:bg-slate-900 p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-emerald-500 group-hover:text-emerald-400 transition-colors"><Timer size={16} /></div>
+                    <button onClick={() => setShowPaceSelector(!showPaceSelector)} className="relative w-full flex items-center px-4 py-2 gap-3 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-300 dark:border-slate-700 hover:border-green-500/50 transition-all shadow-sm group">
+                        <div className="flex items-center justify-center bg-white dark:bg-slate-900 p-1.5 rounded-lg border border-slate-300 dark:border-slate-700 text-green-500 group-hover:text-green-400 transition-colors"><Timer size={16} /></div>
                         <div className="flex flex-col items-start flex-1 min-w-0">
                              <span className="text-[9px] text-slate-500 font-bold uppercase leading-tight">Ritmo Padrão</span>
                              <span className="text-slate-900 dark:text-white text-xs font-bold truncate">{config.studyPace} ({PACE_SETTINGS[config.studyPace || 'Intermediário'].blocks} bl)</span>
@@ -940,7 +951,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                             <div className="fixed inset-0 z-40" onClick={() => setShowPaceSelector(false)}></div>
                             <div className="absolute top-full right-0 mt-2 w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100 flex flex-col p-1">
                                 {Object.keys(PACE_SETTINGS).map((paceKey) => (
-                                    <button key={paceKey} onClick={() => { updateConfig({...config, studyPace: paceKey as any}); setShowPaceSelector(false); }} className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-bold transition-all ${config.studyPace === paceKey ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/20' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 hover:text-white'}`}>
+                                    <button key={paceKey} onClick={() => { updateConfig({...config, studyPace: paceKey as any}); setShowPaceSelector(false); }} className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-bold transition-all ${config.studyPace === paceKey ? 'bg-green-600 text-white shadow-lg shadow-green-900/20' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:bg-slate-800 hover:text-white'}`}>
                                         <span>{paceKey}</span>
                                         <span className="opacity-70 text-[10px] font-mono bg-black/20 px-1.5 rounded">{PACE_SETTINGS[paceKey].blocks} bl</span>
                                     </button>
@@ -949,8 +960,8 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                         </>
                     )}
                  </div>
-                 <button onClick={exportDatabase} className="h-[42px] w-[42px] flex items-center justify-center rounded-xl transition-all border bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-700 hover:text-slate-900 dark:text-white hover:bg-slate-700 hover:border-emerald-500/50" title="Fazer Backup Manual (.json)"><Download size={18} /></button>
-                 <button onClick={() => { setLocalConfig(config); setIsConfigOpen(true); }} className={`h-[42px] w-[42px] flex items-center justify-center rounded-xl transition-all border flex-shrink-0 ${isConfigOpen ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-700 hover:text-slate-900 dark:text-white hover:bg-slate-700'}`}><Settings2 size={18} /></button>
+                 <button onClick={exportDatabase} className="h-[42px] w-[42px] flex items-center justify-center rounded-xl transition-all border bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-700 hover:text-slate-900 dark:text-white hover:bg-slate-700 hover:border-green-500/50" title="Fazer Backup Manual (.json)"><Download size={18} /></button>
+                 <button onClick={() => { setLocalConfig(config); setIsConfigOpen(true); }} className={`h-[42px] w-[42px] flex items-center justify-center rounded-xl transition-all border flex-shrink-0 ${isConfigOpen ? 'bg-green-500/20 text-green-400 border-green-500/50' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-700 hover:text-slate-900 dark:text-white hover:bg-slate-700'}`}><Settings2 size={18} /></button>
             </div>
          </header>
 
@@ -959,7 +970,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                  <div className={`overflow-hidden transition-all duration-300 ease-in-out bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex-shrink-0 ${showStats ? 'max-h-64 opacity-100' : 'max-h-0 opacity-0 border-none'}`}>
                     <div className="p-4 h-64 flex gap-6">
                         <div className="flex-1">
-                            <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase flex items-center gap-2"><BarChart3 size={14} className="text-emerald-500"/> Distribuição de Matérias</h3>
+                            <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase flex items-center gap-2"><BarChart3 size={14} className="text-green-500"/> Distribuição de Matérias</h3>
                             <ResponsiveContainer width="100%" height="80%">
                                 <BarChart data={allocationData} layout="vertical" margin={{left: 0, right: 30}}>
                                     <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false}/>
@@ -976,7 +987,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                             <div><p className="text-xs text-slate-500 uppercase font-bold">Total Alocado</p><p className="text-lg font-bold text-slate-900 dark:text-white truncate">{totalAllocatedBlocks} Blocos</p></div>
                             <div>
                                 <p className="text-xs text-slate-500 uppercase font-bold">Progresso Temporal</p>
-                                <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full mt-1 overflow-hidden"><div className="h-full bg-emerald-500" style={{width: `${(weeks.filter(w => w.isPast).length / weeks.length) * 100}%`}}></div></div>
+                                <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full mt-1 overflow-hidden"><div className="h-full bg-green-500" style={{width: `${(weeks.filter(w => w.isPast).length / weeks.length) * 100}%`}}></div></div>
                                 <p className="text-xs text-right text-slate-500 dark:text-slate-400 mt-1">{weeks.filter(w => w.isPast).length} / {weeks.length} Semanas</p>
                             </div>
                         </div>
@@ -993,7 +1004,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                                 return (
                                     <div key="past-group" onClick={() => setIsPastExpanded(true)} className="w-16 h-full bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:bg-slate-800 hover:border-slate-300 dark:border-slate-700 rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group shadow-sm hover:shadow-xl relative overflow-hidden flex-shrink-0" title="Clique para expandir o histórico">
                                         <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagmonds-light.png')] opacity-5 pointer-events-none"></div>
-                                        <div className="vertical-text text-slate-500 font-bold uppercase tracking-widest text-xs whitespace-nowrap group-hover:text-emerald-400 transition-colors flex items-center gap-2" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
+                                        <div className="vertical-text text-slate-500 font-bold uppercase tracking-widest text-xs whitespace-nowrap group-hover:text-green-400 transition-colors flex items-center gap-2" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
                                             <History size={16} className="rotate-90" />
                                             <span>Histórico ({pastWeeksCount})</span>
                                         </div>
@@ -1070,9 +1081,10 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                                 if (!nb) return;
                                 const target = Number(nb.targetAccuracy) || 90;
                                 const accuracy = Number(nb.accuracy) || 0;
+                                const isMastered = nb.status === 'Dominado' || nb.status === NotebookStatus.MASTERED;
                                 if (accuracy > 0) { summaryStats.totalAcc += accuracy; summaryStats.countAcc++; }
-                                if (accuracy >= target) summaryStats.success++;
-                                else if (accuracy <= 60) summaryStats.critical++;
+                                if (accuracy >= target || isMastered) summaryStats.success++;
+                                else if (accuracy < (target * 0.75)) summaryStats.critical++;
                                 else summaryStats.warning++;
                             });
                         }
@@ -1082,20 +1094,20 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
 
                         if (isCollapsed) {
                             return (
-                                <div key={week.id} onClick={() => setExpandedWeekId(week.id)} className="w-24 h-full bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 hover:bg-white dark:bg-slate-900 rounded-2xl flex flex-col items-center py-4 cursor-pointer transition-all duration-300 group shadow-sm hover:shadow-xl relative overflow-hidden" title={`Semana ${week.index} - Clique para expandir`}>
+                                <div key={week.id} onClick={() => setExpandedWeekId(week.id)} className="w-24 h-full bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 hover:border-green-500/50 hover:bg-white dark:bg-slate-900 rounded-2xl flex flex-col items-center py-4 cursor-pointer transition-all duration-300 group shadow-sm hover:shadow-xl relative overflow-hidden" title={`Semana ${week.index} - Clique para expandir`}>
                                     <div className="absolute inset-0 bg-slate-50 dark:bg-slate-950/30 group-hover:bg-transparent transition-colors" />
                                     <div className="flex flex-col gap-1 mb-2 z-10 w-full items-center">
-                                        <div className={`mb-2 px-2 py-0.5 rounded text-[10px] font-bold border ${isTargetMet ? 'bg-emerald-900/20 text-emerald-400 border-emerald-500/30' : 'bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800'}`}>{blocksCompleted}/{blocksCount}</div>
+                                        <div className={`mb-2 px-2 py-0.5 rounded text-[10px] font-bold border ${isTargetMet ? 'bg-green-900/20 text-green-400 border-green-500/30' : 'bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800'}`}>{blocksCompleted}/{blocksCount}</div>
                                         {hasActivity ? (
                                             <div className="flex flex-col gap-1 w-full px-5">
-                                                {summaryStats.success > 0 && (<div className="flex items-center justify-between text-[9px] text-emerald-400 font-bold w-full"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50"></span><span>{summaryStats.success}</span></div>)}
+                                                {summaryStats.success > 0 && (<div className="flex items-center justify-between text-[9px] text-green-400 font-bold w-full"><span className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-sm shadow-green-500/50"></span><span>{summaryStats.success}</span></div>)}
                                                 {summaryStats.warning > 0 && (<div className="flex items-center justify-between text-[9px] text-amber-400 font-bold w-full"><span className="w-1.5 h-1.5 rounded-full bg-amber-500 shadow-sm"></span><span>{summaryStats.warning}</span></div>)}
                                                 {summaryStats.critical > 0 && (<div className="flex items-center justify-between text-[9px] text-red-400 font-bold w-full"><span className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-sm"></span><span>{summaryStats.critical}</span></div>)}
                                             </div>
                                         ) : (<span className="w-1.5 h-1.5 rounded-full bg-slate-700 mt-1"></span>)}
                                     </div>
                                     <div className="flex-1 flex items-center justify-center z-10 w-full relative"><span className="text-xs font-bold text-slate-500 group-hover:text-slate-900 dark:text-white whitespace-nowrap tracking-widest uppercase absolute" style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}>Semana {week.index}</span></div>
-                                    <div className="mt-4 z-10 flex flex-col items-center gap-1"><Activity size={14} className={isTargetMet ? "text-emerald-500" : "text-slate-600"} />{avgAccuracy > 0 && <span className={`text-[9px] font-mono font-bold ${avgAccuracy >= 80 ? 'text-emerald-400' : 'text-slate-500'}`}>{avgAccuracy}%</span>}</div>
+                                    <div className="mt-4 z-10 flex flex-col items-center gap-1"><Activity size={14} className={isTargetMet ? "text-green-500" : "text-slate-600"} />{avgAccuracy > 0 && <span className={`text-[9px] font-mono font-bold ${avgAccuracy >= 80 ? 'text-green-400' : 'text-slate-500'}`}>{avgAccuracy}%</span>}</div>
                                 </div>
                             );
                         }
@@ -1110,7 +1122,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                             <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex items-center gap-2 z-20 whitespace-nowrap">
                                 <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-50 dark:bg-slate-950 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-800 shadow-sm">~{dailyAvg} / dia</div>
                                 {week.index === currentWeekIndex && (
-                                    <div className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-widest bg-emerald-100 dark:bg-emerald-900/30 px-2 py-0.5 rounded border border-emerald-300 dark:border-emerald-500/30 shadow-sm flex items-center gap-1">
+                                    <div className="text-[10px] font-bold text-green-700 dark:text-green-400 uppercase tracking-widest bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded border border-green-300 dark:border-green-500/30 shadow-sm flex items-center gap-1">
                                         <CheckCircle2 size={10} /> HOJE: {completedTodayCount}
                                     </div>
                                 )}
@@ -1118,7 +1130,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                             
                             {/* BOTÃO DE RECOLHER HISTÓRICO (Aparece apenas na primeira semana expandida) */}
                             {week.isPast && isPastExpanded && week.id === firstPastWeekId && (
-                                <button onClick={(e) => { e.stopPropagation(); setIsPastExpanded(false); }} className="absolute -left-3 top-1/2 -translate-y-1/2 bg-slate-100 dark:bg-slate-800 text-emerald-500 hover:text-slate-900 dark:text-white p-1 rounded-full shadow-lg border border-slate-300 dark:border-slate-700 z-50 hover:scale-110 transition-transform" title="Recolher Histórico"><PanelLeftClose size={16} /></button>
+                                <button onClick={(e) => { e.stopPropagation(); setIsPastExpanded(false); }} className="absolute -left-3 top-1/2 -translate-y-1/2 bg-slate-100 dark:bg-slate-800 text-green-500 hover:text-slate-900 dark:text-white p-1 rounded-full shadow-lg border border-slate-300 dark:border-slate-700 z-50 hover:scale-110 transition-transform" title="Recolher Histórico"><PanelLeftClose size={16} /></button>
                             )}
 
                             {week.isPast && (<button onClick={(e) => { e.stopPropagation(); setExpandedWeekId(null); }} className="absolute -right-3 top-1/2 -translate-y-1/2 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white p-1 rounded-full shadow-lg border border-slate-300 dark:border-slate-700 z-50 hover:scale-110 transition-transform" title="Recolher Semana"><ChevronRight size={16} /></button>)}
@@ -1126,20 +1138,20 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                                 <div className="flex justify-between items-start">
                                     <div><span className="font-black block text-base flex items-center gap-2 text-slate-900 dark:text-white">SEMANA {week.index} {week.isPast && <Lock size={14} />}</span><span className={`text-[10px] font-bold uppercase tracking-widest ${week.isPast ? 'line-through decoration-slate-600 opacity-50' : 'text-slate-500'}`}>{week.label}</span></div>
                                     <div className="flex flex-col items-end">
-                                        <div className="flex items-baseline gap-1"><span className={`text-lg font-black ${isTargetMet ? 'text-emerald-400' : 'text-slate-900 dark:text-white'}`}>{blocksCompleted}</span><span className="text-sm font-medium text-slate-600">/</span><span className={`text-lg font-black ${isOverloaded ? 'text-red-400' : isAllocated ? 'text-emerald-400' : 'text-slate-900 dark:text-white'}`}>{blocksCount}</span></div>
-                                        <span className="text-[9px] text-slate-500 uppercase font-bold flex items-center gap-1">{blocksRemaining > 0 ? (<span className="text-amber-500">{blocksRemaining} Restantes</span>) : blocksCount > 0 ? (<span className="text-emerald-500 flex items-center gap-1"><Check size={8}/> Feito</span>) : ("Vazio")}</span>
+                                        <div className="flex items-baseline gap-1"><span className={`text-lg font-black ${isTargetMet ? 'text-green-400' : 'text-slate-900 dark:text-white'}`}>{blocksCompleted}</span><span className="text-sm font-medium text-slate-600">/</span><span className={`text-lg font-black ${isOverloaded ? 'text-red-400' : isAllocated ? 'text-green-400' : 'text-slate-900 dark:text-white'}`}>{blocksCount}</span></div>
+                                        <span className="text-[9px] text-slate-500 uppercase font-bold flex items-center gap-1">{blocksRemaining > 0 ? (<span className="text-amber-500">{blocksRemaining} Restantes</span>) : blocksCount > 0 ? (<span className="text-green-500 flex items-center gap-1"><Check size={8}/> Feito</span>) : ("Vazio")}</span>
                                     </div>
                                 </div>
-                                {!week.isPast && (<div className="flex items-center gap-2 mt-1"><div className="relative w-full"><select value={weekPaceName} onChange={(e) => updateWeekPace(week.id, e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950/50 border border-slate-300 dark:border-slate-700 rounded px-2 py-1 text-[10px] text-slate-600 dark:text-slate-300 outline-none focus:border-emerald-500 appearance-none font-medium cursor-pointer hover:bg-slate-100 dark:bg-slate-800"><option value="Iniciante">Iniciante (15)</option><option value="Básico">Básico (30)</option><option value="Intermediário">Interm. (45)</option><option value="Avançado">Avançado (66)</option></select><div className="absolute right-2 top-1.5 pointer-events-none text-slate-500"><ChevronDown size={10} /></div></div></div>)}
+                                {!week.isPast && (<div className="flex items-center gap-2 mt-1"><div className="relative w-full"><select value={weekPaceName} onChange={(e) => updateWeekPace(week.id, e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950/50 border border-slate-300 dark:border-slate-700 rounded px-2 py-1 text-[10px] text-slate-600 dark:text-slate-300 outline-none focus:border-green-500 appearance-none font-medium cursor-pointer hover:bg-slate-100 dark:bg-slate-800"><option value="Iniciante">Iniciante (15)</option><option value="Básico">Básico (30)</option><option value="Intermediário">Interm. (45)</option><option value="Avançado">Avançado (66)</option></select><div className="absolute right-2 top-1.5 pointer-events-none text-slate-500"><ChevronDown size={10} /></div></div></div>)}
                                 <div className="space-y-2 mt-1">
                                     <div className="w-full h-1 bg-slate-50 dark:bg-slate-950 rounded-full overflow-hidden flex relative group border border-slate-200 dark:border-slate-800"><div className={`h-full transition-all duration-500 ${isOverloaded ? 'bg-red-500' : 'bg-slate-600'}`} style={{ width: `${loadPercentage}%` }}></div></div>
                                     <div className="flex justify-between items-center min-h-[24px]">
-                                        {isTargetMet ? (<span className="text-[10px] text-emerald-500 font-bold flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 w-full justify-center"><Check size={10} /> Meta Batida</span>) : isAllAllocatedDone ? (<span className="text-[10px] text-amber-400 font-bold flex items-center gap-1 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 w-full justify-center"><Meh size={10} /> Ritmo Baixo ({blocksCompleted}/{weekTarget.blocks})</span>) : isLate ? (<span className="text-[10px] text-red-400 font-bold flex items-center gap-1 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20 w-full justify-center"><AlertCircle size={10} /> Atrasado ({blocksCount - blocksCompleted} pendentes)</span>) : missingBlocks > 0 ? (
+                                        {isTargetMet ? (<span className="text-[10px] text-green-500 font-bold flex items-center gap-1 bg-green-500/10 px-2 py-0.5 rounded border border-green-500/20 w-full justify-center"><Check size={10} /> Meta Batida</span>) : isAllAllocatedDone ? (<span className="text-[10px] text-amber-400 font-bold flex items-center gap-1 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 w-full justify-center"><Meh size={10} /> Ritmo Baixo ({blocksCompleted}/{weekTarget.blocks})</span>) : isLate ? (<span className="text-[10px] text-red-400 font-bold flex items-center gap-1 bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20 w-full justify-center"><AlertCircle size={10} /> Atrasado ({blocksCount - blocksCompleted} pendentes)</span>) : missingBlocks > 0 ? (
                                             <div className="flex w-full justify-between items-center"><span className="text-[10px] text-slate-500 font-bold flex items-center gap-1">Planejar: +{missingBlocks}</span>{blocksCount > 0 && (<div className="flex items-center gap-2 text-xs font-mono"><span className="text-blue-400 flex items-center gap-1" title="Disciplinas Novas (0% acerto)"><Sparkles size={12} /> {newItemsCount} <span className="opacity-60">({Math.round((newItemsCount/blocksCount)*100)}%)</span></span><span className="text-purple-400 flex items-center gap-1" title="Revisões (>0% acerto)"><RefreshCw size={12} /> {reviewItemsCount} <span className="opacity-60">({Math.round((reviewItemsCount/blocksCount)*100)}%)</span></span></div>)}</div>
                                         ) : (<span className="text-[10px] text-blue-400 font-bold flex items-center gap-1"><Archive size={10} /> Planejamento OK</span>)}
                                     </div>
                                 </div>
-                                {hasActivity && (<div className="flex justify-between items-center pt-2 border-t border-slate-200 dark:border-slate-800/50 mt-1"><div className="flex items-center gap-3">{summaryStats.success > 0 && <span className="text-[9px] font-bold text-emerald-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> {summaryStats.success}</span>}{summaryStats.warning > 0 && <span className="text-[9px] font-bold text-amber-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span> {summaryStats.warning}</span>}{summaryStats.critical > 0 && <span className="text-[9px] font-bold text-red-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-500"></span> {summaryStats.critical}</span>}</div></div>)}
+                                {hasActivity && (<div className="flex justify-between items-center pt-2 border-t border-slate-200 dark:border-slate-800/50 mt-1"><div className="flex items-center gap-3">{summaryStats.success > 0 && <span className="text-[9px] font-bold text-green-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> {summaryStats.success}</span>}{summaryStats.warning > 0 && <span className="text-[9px] font-bold text-amber-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span> {summaryStats.warning}</span>}{summaryStats.critical > 0 && <span className="text-[9px] font-bold text-red-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-500"></span> {summaryStats.critical}</span>}</div></div>)}
                             </div>
                             <div className="p-3 space-y-2 overflow-y-auto flex-1 custom-scrollbar relative bg-white dark:bg-slate-900/50">
                                 {week.isPast && <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagmonds-light.png')] opacity-10 pointer-events-none z-0"></div>}
@@ -1149,7 +1161,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                                     if (!nb) return null;
                                     return (<DraggableCard key={slot.instanceId || `fallback-${originalIndex}`} instanceId={slot.instanceId} notebook={nb} isCompleted={slot.completed} onDragStart={onDragStart} onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)} onEdit={handleEditClick} onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} onRemove={(instId) => handleRemoveFromWeek(instId, week.id)} isCompact origin="week" disabled={week.isPast} index={originalIndex} currentWeekIndex={currentWeekIndex} />);
                                 })}
-                                {completedItems.length > 0 && (<div className="pt-2"><button onClick={(e) => toggleCompletedWeek(week.id, e)} className="w-full flex items-center justify-between px-3 py-2 bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-500 hover:text-slate-900 dark:text-white hover:bg-slate-100 dark:bg-slate-800 hover:border-slate-300 dark:border-slate-700 transition-all group"><span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-2"><CheckCircle2 size={12} className="text-emerald-500" />{isCompletedListExpanded ? 'Ocultar' : 'Mostrar'} {completedItems.length} Concluídos</span>{isCompletedListExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</button></div>)}
+                                {completedItems.length > 0 && (<div className="pt-2"><button onClick={(e) => toggleCompletedWeek(week.id, e)} className="w-full flex items-center justify-between px-3 py-2 bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-500 hover:text-slate-900 dark:text-white hover:bg-slate-100 dark:bg-slate-800 hover:border-slate-300 dark:border-slate-700 transition-all group"><span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-2"><CheckCircle2 size={12} className="text-green-500" />{isCompletedListExpanded ? 'Ocultar' : 'Mostrar'} {completedItems.length} Concluídos</span>{isCompletedListExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</button></div>)}
                                 {isCompletedListExpanded && completedItems.map(({ slot, originalIndex }) => {
                                     if (!slot || !slot.notebookId) return null; 
                                     const nb = notebooks.find(n => n.id === slot.notebookId);

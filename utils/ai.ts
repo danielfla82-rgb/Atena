@@ -9,9 +9,9 @@ import { GoogleGenAI } from "@google/genai";
 export const getApiKey = (): string => {
   try {
     // 1. Tenta Env Var injetada pela plataforma AI Studio
-    // @ts-ignore
+    // @ts-expect-error - process is not defined in browser
     if (typeof process !== 'undefined' && process.env && process.env.GEMINI_API_KEY) {
-      // @ts-ignore
+      // @ts-expect-error - process is not defined in browser
       return process.env.GEMINI_API_KEY;
     }
 

@@ -4,11 +4,11 @@ import { useTheme } from '../ThemeContext';
 import { QuadrantChart } from './QuadrantChart';
 import { DisciplineQuadrantChart } from './DisciplineQuadrantChart';
 import { WeeklyProgress } from './WeeklyProgress';
-import { Weight, WEIGHT_SCORE } from '../types';
-import { DEFAULT_ALGO_CONFIG, calculateUrgencyScore } from '../utils/algorithm';
+import { Weight, WEIGHT_SCORE, Trend, RELEVANCE_SCORE, NotebookStatus } from '../types';
+import { DEFAULT_ALGO_CONFIG, calculateUrgencyScore, getAccuracyColorClass } from '../utils/algorithm';
 import { 
   Target, Settings, TrendingUp, TrendingDown, Minus,
-  ChevronDown, Database, Terminal, Flame, Loader2, Settings2, HelpCircle, ChevronUp, Book, ChevronLeft, ChevronRight, X, FileText, Key, BrainCircuit
+  ChevronDown, Database, Terminal, Flame, Loader2, Settings2, HelpCircle, ChevronUp, Book, ChevronLeft, ChevronRight, X, FileText, Key, BrainCircuit, Sparkles
 } from 'lucide-react';
 
 import {
@@ -136,10 +136,10 @@ const barChartOptions = {
 };
 
 const ALGO_TOOLTIPS: Record<string, { title: string, desc: string }> = {
-    learning: { title: "Aprendizado (<= 60%)", desc: "Fase de aquisição ou reconstrução. O sistema entende que você ainda não aprendeu. Intervalo curto para evitar perda." },
-    reviewing: { title: "Revisão (61% - 79%)", desc: "Fase de fixação. Você entende o assunto, mas comete erros ou tem lacunas. Intervalo médio-curto." },
-    mastering: { title: "Domínio (80% - 89%)", desc: "Fase de polimento. O conteúdo está sólido, quase excelente. Intervalo médio." },
-    maintaining: { title: "Manutenção (>= 90%)", desc: "Você dominou o tópico. O objetivo é apenas combater a Curva do Esquecimento. Intervalo longo." }
+    learning: { title: "Aprendizado (Crítico)", desc: "Fase de aquisição ou reconstrução. O sistema entende que você ainda não aprendeu. Intervalo curto para evitar perda." },
+    reviewing: { title: "Revisão (Atenção)", desc: "Fase de fixação. Você entende o assunto, mas comete erros ou tem lacunas. Intervalo médio-curto." },
+    mastering: { title: "Domínio (Quase na Meta)", desc: "Fase de polimento. O conteúdo está sólido, quase excelente. Intervalo médio." },
+    maintaining: { title: "Manutenção (Meta Atingida)", desc: "Você dominou o tópico. O objetivo é apenas combater a Curva do Esquecimento. Intervalo longo." }
 };
 
 const ORDERED_ALGO_KEYS = ['learning', 'reviewing', 'mastering', 'maintaining'];
@@ -211,7 +211,7 @@ const DashboardSection = ({
                 className={`w-full p-4 flex items-center justify-between transition-colors ${isOpen ? 'bg-slate-50 dark:bg-slate-800/80' : 'hover:bg-slate-50 dark:hover:bg-slate-800/30'}`}
             >
                 <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${isOpen ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
+                    <div className={`p-2 rounded-lg ${isOpen ? 'bg-green-500/20 text-green-600 dark:text-green-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'}`}>
                         {icon}
                     </div>
                     <div className="text-left">
@@ -274,7 +274,17 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
   const [apiKey, setApiKey] = useState('');
   const [showSql, setShowSql] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [quoteIndex, setQuoteIndex] = useState(0);
+  const [quoteIndex, setQuoteIndex] = useState(() => {
+    const lastIndex = parseInt(localStorage.getItem('atena_last_quote_index') || '-1');
+    let newIndex = Math.floor(Math.random() * NIETZSCHE_DATA.length);
+    if (NIETZSCHE_DATA.length > 1) {
+        while (newIndex === lastIndex) {
+            newIndex = Math.floor(Math.random() * NIETZSCHE_DATA.length);
+        }
+    }
+    localStorage.setItem('atena_last_quote_index', newIndex.toString());
+    return newIndex;
+  });
   const [expandedMetric, setExpandedMetric] = useState<'performance' | 'progress' | null>(null);
   const [viewedMonthOffset, setViewedMonthOffset] = useState(0);
   const [worstTopicsDiscipline, setWorstTopicsDiscipline] = useState<string | null>(null);
@@ -289,7 +299,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
     }
   }, [theme]);
 
-  useEffect(() => {
+  React.useEffect(() => {
       if (isConfigOpen) {
           const storedKey = localStorage.getItem('atena_api_key');
           if (storedKey) setApiKey(storedKey);
@@ -338,17 +348,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
 
   const today = getLocalDateString(new Date())!;
   
-  useEffect(() => {
-      const lastIndex = parseInt(localStorage.getItem('atena_last_quote_index') || '-1');
-      let newIndex = Math.floor(Math.random() * NIETZSCHE_DATA.length);
-      if (NIETZSCHE_DATA.length > 1) {
-          while (newIndex === lastIndex) {
-              newIndex = Math.floor(Math.random() * NIETZSCHE_DATA.length);
-          }
-      }
-      localStorage.setItem('atena_last_quote_index', newIndex.toString());
-      setQuoteIndex(newIndex);
-  }, []);
+
 
   const nietzscheItem = NIETZSCHE_DATA[quoteIndex] || NIETZSCHE_DATA[0];
 
@@ -381,23 +381,42 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       const completedTopics = notebooks.filter(n => (n.status === 'Dominado' || (Number(n.accuracy) || 0) >= (Number(n.targetAccuracy) || 90)) && n.discipline !== 'Revisão Geral').length;
       const progressPercent = totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0;
 
-      const breakdown: Record<string, { total: number, completed: number, accSum: number, accCount: number }> = {};
+      const breakdown: Record<string, { total: number, completed: number, accSum: number, accCount: number, targetSum: number }> = {};
       notebooks.filter(n => n.discipline !== 'Revisão Geral').forEach(n => {
-          if (!breakdown[n.discipline]) breakdown[n.discipline] = { total: 0, completed: 0, accSum: 0, accCount: 0 };
+          if (!breakdown[n.discipline]) breakdown[n.discipline] = { total: 0, completed: 0, accSum: 0, accCount: 0, targetSum: 0 };
           breakdown[n.discipline].total++;
-          if (n.status === 'Dominado' || (Number(n.accuracy) || 0) >= (Number(n.targetAccuracy) || 90)) breakdown[n.discipline].completed++;
+          const target = Number(n.targetAccuracy) || 90;
+          breakdown[n.discipline].targetSum += target;
+          if (n.status === 'Dominado' || (Number(n.accuracy) || 0) >= target) breakdown[n.discipline].completed++;
           
-          if (completedIdsInPlanning.has(n.id) && n.accuracy > 0) {
+          if (n.accuracy > 0) {
               breakdown[n.discipline].accSum += n.accuracy;
               breakdown[n.discipline].accCount++;
           }
       });
 
-      const disciplineStats = Object.entries(breakdown).map(([name, stats]) => ({
-          name,
-          accuracy: stats.accCount > 0 ? Math.round(stats.accSum / stats.accCount) : 0,
-          progress: stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0
-      })).sort((a, b) => b.accuracy - a.accuracy).slice(0, 7);
+      const disciplineStats = mergedDisciplines
+          .filter(d => d.name !== 'Revisão Geral')
+          .map(disc => {
+              const stats = breakdown[disc.name] || { total: 0, completed: 0, accSum: 0, accCount: 0, targetSum: 0 };
+              const avgAccuracy = stats.accCount > 0 ? Math.round(stats.accSum / stats.accCount) : 0;
+              const avgTarget = stats.total > 0 ? Math.round(stats.targetSum / stats.total) : 90;
+              const score = calculateUrgencyScore(disc.weight, disc.relevance, Trend.ESTAVEL);
+              
+              return {
+                  name: disc.name,
+                  accuracy: avgAccuracy,
+                  target: avgTarget,
+                  progress: stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0,
+                  score,
+                  relevance: disc.relevance
+              };
+          })
+          .sort((a, b) => {
+              const relA = RELEVANCE_SCORE[a.relevance] || 0;
+              const relB = RELEVANCE_SCORE[b.relevance] || 0;
+              return relB - relA || b.score - a.score;
+          });
 
       const activitySet = new Set<string>();
       notebooks.forEach(n => {
@@ -452,7 +471,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       }
 
       return { avgAccuracy, completedTopics, pendingTopics: totalTopics - completedTopics, progressPercent, calendarGrid, currentStreak, monthName, disciplineStats };
-  }, [notebooks, today, cycles, activeCycleId, viewedMonthOffset]);
+  }, [notebooks, today, cycles, activeCycleId, viewedMonthOffset, mergedDisciplines]);
 
   const evolutionData = useMemo(() => {
         // --- EVOLUTION LOGIC V3: SNAPSHOT POR SEMANA ---
@@ -618,7 +637,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                       ) : (
                           <div className="space-y-2">
                               <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-3 relative group">
-                                  <textarea readOnly value={FIX_SQL} className="w-full h-40 bg-transparent text-emerald-400 font-mono text-xs outline-none resize-none" />
+                                  <textarea readOnly value={FIX_SQL} className="w-full h-40 bg-transparent text-green-400 font-mono text-xs outline-none resize-none" />
                                   <button onClick={() => navigator.clipboard.writeText(FIX_SQL)} className="absolute top-2 right-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-700 text-slate-900 dark:text-white px-2 py-1 rounded text-[10px] uppercase font-bold border border-slate-300 dark:border-slate-700">Copiar</button>
                               </div>
                           </div>
@@ -630,17 +649,19 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className={`bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-xl p-5 shadow-lg border border-slate-200 dark:border-slate-800 flex flex-col justify-between transition-all duration-300 relative overflow-hidden ${expandedMetric === 'performance' ? 'h-80' : 'h-32'}`}>
-              <div className="flex justify-between items-start"><span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Desempenho Global</span><button onClick={() => setExpandedMetric(expandedMetric === 'performance' ? null : 'performance')} className="text-slate-500 dark:text-slate-400 hover:text-emerald-600">{expandedMetric === 'performance' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}</button></div>
-              <div className="flex justify-between items-end"><div className="flex flex-col gap-0.5"><span className="text-xs font-bold text-emerald-600">{metrics.avgAccuracy}% Acertos</span><span className="text-xs font-bold text-red-500">{metrics.avgAccuracy > 0 ? 100 - metrics.avgAccuracy : 0}% Erros</span></div><span className="text-4xl font-black text-slate-900 dark:text-white">{metrics.avgAccuracy}%</span></div>
+              <div className="flex justify-between items-start"><span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Desempenho Global</span><button onClick={() => setExpandedMetric(expandedMetric === 'performance' ? null : 'performance')} className="text-slate-500 dark:text-slate-400 hover:text-green-600">{expandedMetric === 'performance' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}</button></div>
+              <div className="flex justify-between items-end"><div className="flex flex-col gap-0.5"><span className="text-xs font-bold text-green-600">{metrics.avgAccuracy}% Acertos</span><span className="text-xs font-bold text-red-500">{metrics.avgAccuracy > 0 ? 100 - metrics.avgAccuracy : 0}% Erros</span></div><span className="text-4xl font-black text-slate-900 dark:text-white">{metrics.avgAccuracy}%</span></div>
               {expandedMetric === 'performance' && (
-                  <div className="mt-6 flex-1 w-full relative animate-in fade-in slide-in-from-top-4">
-                      <Bar data={{ labels: metrics.disciplineStats.map(d => d.name), datasets: [{ label: 'Acurácia (%)', data: metrics.disciplineStats.map(d => d.accuracy), backgroundColor: metrics.disciplineStats.map(d => d.accuracy <= 60 ? '#ef4444' : d.accuracy >= 90 ? '#10b981' : '#f59e0b'), borderRadius: 4 }] }} options={{ ...barChartOptions, plugins: { ...barChartOptions.plugins, textOnBars: true }, onHover: (event, chartElement) => { if (event.native && event.native.target) { (event.native.target as HTMLElement).style.cursor = chartElement[0] ? 'pointer' : 'default'; } }, onClick: (event, elements) => { if (elements.length > 0) { const index = elements[0].index; const disciplineName = metrics.disciplineStats[index].name; setWorstTopicsDiscipline(disciplineName); } } }} plugins={[textOnBarsPlugin]} />
+                  <div className="mt-6 flex-1 w-full relative animate-in fade-in slide-in-from-top-4 overflow-x-auto custom-scrollbar">
+                      <div style={{ minWidth: metrics.disciplineStats.length > 8 ? `${metrics.disciplineStats.length * 80}px` : '100%', height: '100%' }}>
+                          <Bar data={{ labels: metrics.disciplineStats.map(d => d.name), datasets: [{ label: 'Acurácia (%)', data: metrics.disciplineStats.map(d => d.accuracy), backgroundColor: metrics.disciplineStats.map(d => d.accuracy < (d.target * 0.75) ? '#ef4444' : d.accuracy >= d.target ? '#10b981' : '#f59e0b'), borderRadius: 4 }] }} options={{ ...barChartOptions, plugins: { ...barChartOptions.plugins, textOnBars: true }, onHover: (event, chartElement) => { if (event.native && event.native.target) { (event.native.target as HTMLElement).style.cursor = chartElement[0] ? 'pointer' : 'default'; } }, onClick: (event, elements) => { if (elements.length > 0) { const index = elements[0].index; const disciplineName = metrics.disciplineStats[index].name; setWorstTopicsDiscipline(disciplineName); } } }} plugins={[textOnBarsPlugin]} />
+                      </div>
                   </div>
               )}
           </div>
           <div className={`bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-xl p-5 shadow-lg border border-slate-200 dark:border-slate-800 flex flex-col justify-between transition-all duration-300 relative overflow-hidden ${expandedMetric === 'progress' ? 'h-80' : 'h-32'}`}>
-              <div className="flex justify-between items-start"><span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Progresso Edital</span><button onClick={() => setExpandedMetric(expandedMetric === 'progress' ? null : 'progress')} className="text-slate-500 dark:text-slate-400 hover:text-emerald-600">{expandedMetric === 'progress' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}</button></div>
-              <div className="flex justify-between items-end"><div className="flex flex-col"><span className="text-xs font-semibold text-emerald-600">{metrics.completedTopics} Concluídos</span><span className="text-xs font-semibold text-orange-500">{metrics.pendingTopics} Pendentes</span></div><span className="text-4xl font-black text-slate-900 dark:text-white">{metrics.progressPercent}%</span></div>
+              <div className="flex justify-between items-start"><span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Progresso Edital</span><button onClick={() => setExpandedMetric(expandedMetric === 'progress' ? null : 'progress')} className="text-slate-500 dark:text-slate-400 hover:text-green-600">{expandedMetric === 'progress' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}</button></div>
+              <div className="flex justify-between items-end"><div className="flex flex-col"><span className="text-xs font-semibold text-green-600">{metrics.completedTopics} Concluídos</span><span className="text-xs font-semibold text-orange-500">{metrics.pendingTopics} Pendentes</span></div><span className="text-4xl font-black text-slate-900 dark:text-white">{metrics.progressPercent}%</span></div>
               {expandedMetric === 'progress' && (
                   <div className="mt-6 flex-1 w-full relative animate-in fade-in slide-in-from-top-4">
                       <Bar data={{ labels: metrics.disciplineStats.map(d => d.name), datasets: [{ label: 'Conclusão (%)', data: metrics.disciplineStats.map(d => d.progress), backgroundColor: '#3b82f6', borderRadius: 4 }] }} options={barChartOptions} plugins={[textOnBarsPlugin]} />
@@ -680,18 +701,18 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                       </button>
                   </div>
               </div>
-              <div className="flex flex-col items-center w-full"><div className="grid grid-cols-7 gap-1.5 mb-2 w-fit">{['D','S','T','Q','Q','S','S'].map((d, i) => (<div key={i} className="text-[9px] font-bold text-slate-500 dark:text-slate-400 dark:text-slate-600 w-9 text-center">{d}</div>))}</div><div className="grid grid-cols-7 gap-1.5 w-fit">{metrics.calendarGrid.map((day, idx) => (<div key={idx} className={`h-9 w-9 rounded-lg flex items-center justify-center transition-all relative group text-[10px] font-bold ${!day.day ? 'bg-transparent' : day.active ? 'bg-emerald-500 text-slate-900 dark:text-white shadow-md shadow-emerald-900/20' : day.isFuture ? 'bg-slate-50 dark:bg-slate-900/30 text-slate-600 dark:text-slate-300 dark:text-slate-700 border border-slate-100 dark:border-slate-800/50' : 'bg-slate-100 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 dark:text-slate-600 border border-slate-200 dark:border-slate-800'} ${day.isToday ? 'ring-1 ring-emerald-400 ring-offset-1 ring-offset-white dark:ring-offset-slate-900' : ''}`} title={day.date}>{day.day}</div>))}</div></div>
+              <div className="flex flex-col items-center w-full"><div className="grid grid-cols-7 gap-1.5 mb-2 w-fit">{['D','S','T','Q','Q','S','S'].map((d, i) => (<div key={i} className="text-[9px] font-bold text-slate-500 dark:text-slate-400 dark:text-slate-600 w-9 text-center">{d}</div>))}</div><div className="grid grid-cols-7 gap-1.5 w-fit">{metrics.calendarGrid.map((day, idx) => (<div key={idx} className={`h-9 w-9 rounded-lg flex items-center justify-center transition-all relative group text-[10px] font-bold ${!day.day ? 'bg-transparent' : day.active ? 'bg-green-500 text-slate-900 dark:text-white shadow-md shadow-green-900/20' : day.isFuture ? 'bg-slate-50 dark:bg-slate-900/30 text-slate-600 dark:text-slate-300 dark:text-slate-700 border border-slate-100 dark:border-slate-800/50' : 'bg-slate-100 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 dark:text-slate-600 border border-slate-200 dark:border-slate-800'} ${day.isToday ? 'ring-1 ring-green-400 ring-offset-1 ring-offset-white dark:ring-offset-slate-900' : ''}`} title={day.date}>{day.day}</div>))}</div></div>
           </div>
           <div className="h-full"><WeeklyProgress /></div>
       </div>
 
       <div className="grid grid-cols-1 gap-6">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 flex flex-col h-full min-h-[340px] shadow-2xl relative overflow-hidden">
-             <div className={`absolute top-0 right-0 m-6 px-3 py-2 rounded-lg border backdrop-blur-md z-10 flex items-center gap-3 transition-all duration-500 ${evolutionData.trend.status === 'up' ? 'bg-emerald-100 dark:bg-emerald-900/40 border-emerald-500/30 text-emerald-700 dark:text-emerald-100' : evolutionData.trend.status === 'down' ? 'bg-red-100 dark:bg-red-900/40 border-red-500/30 text-red-700 dark:text-red-100' : 'bg-slate-100 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'}`}>
-                 <div className={`p-1.5 rounded-full ${evolutionData.trend.status === 'up' ? 'bg-emerald-500 text-slate-900 dark:text-white' : evolutionData.trend.status === 'down' ? 'bg-red-500 text-slate-900 dark:text-white' : 'bg-slate-400 dark:bg-slate-600 text-slate-900 dark:text-white'}`}>{evolutionData.trend.status === 'up' ? <TrendingUp size={14} /> : evolutionData.trend.status === 'down' ? <TrendingDown size={14} /> : <Minus size={14} />}</div>
+             <div className={`absolute top-0 right-0 m-6 px-3 py-2 rounded-lg border backdrop-blur-md z-10 flex items-center gap-3 transition-all duration-500 ${evolutionData.trend.status === 'up' ? 'bg-green-100 dark:bg-green-900/40 border-green-500/30 text-green-700 dark:text-green-100' : evolutionData.trend.status === 'down' ? 'bg-red-100 dark:bg-red-900/40 border-red-500/30 text-red-700 dark:text-red-100' : 'bg-slate-100 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'}`}>
+                 <div className={`p-1.5 rounded-full ${evolutionData.trend.status === 'up' ? 'bg-green-500 text-slate-900 dark:text-white' : evolutionData.trend.status === 'down' ? 'bg-red-500 text-slate-900 dark:text-white' : 'bg-slate-400 dark:bg-slate-600 text-slate-900 dark:text-white'}`}>{evolutionData.trend.status === 'up' ? <TrendingUp size={14} /> : evolutionData.trend.status === 'down' ? <TrendingDown size={14} /> : <Minus size={14} />}</div>
                  <div className="flex flex-col"><span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Análise de Tendência</span><span className="text-xs font-medium leading-tight max-w-[180px]">{evolutionData.trend.message}</span></div>
              </div>
-             <div className="flex justify-between items-end mb-6"><div><h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2"><TrendingUp size={24} className="text-emerald-500"/>Evolução</h3><p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Média de acurácia semanal</p></div></div>
+             <div className="flex justify-between items-end mb-6"><div><h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2"><TrendingUp size={24} className="text-green-500"/>Evolução</h3><p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Média de acurácia semanal</p></div></div>
              <div className="flex-1 w-full relative"><Line data={evolutionData.chartData} options={chartOptions} /></div>
           </div>
       </div>
@@ -707,13 +728,13 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       {isConfigOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl w-full max-w-4xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900"><h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2"><Settings size={20} className="text-emerald-500"/> Configurações do Ciclo</h2><button onClick={() => !isSaving && setIsConfigOpen(false)} disabled={isSaving} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"><X size={24} /></button></div>
+            <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900"><h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2"><Settings size={20} className="text-green-500"/> Configurações do Ciclo</h2><button onClick={() => !isSaving && setIsConfigOpen(false)} disabled={isSaving} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"><X size={24} /></button></div>
             <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-8">
-              <div className="space-y-4"><h3 className="text-sm font-bold text-emerald-600 dark:text-emerald-500 uppercase tracking-widest border-b border-emerald-500/20 pb-2 flex items-center gap-2"><FileText size={16} /> Configuração do Edital</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Cargo Alvo</label><input type="text" value={localConfig.targetRole} onChange={(e) => setLocalConfig({...localConfig, targetRole: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500" /></div><div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Banca Examinadora</label><input type="text" value={localConfig.banca || ''} onChange={(e) => setLocalConfig({...localConfig, banca: e.target.value})} placeholder="Ex: FGV, Cebraspe" className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500" /></div></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Data da Prova</label><div className="relative"><Calendar className="absolute left-3 top-3 text-slate-500" size={16} /><input type="date" value={localConfig.examDate || ''} onChange={(e) => setLocalConfig({...localConfig, examDate: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg py-3 pl-10 text-slate-900 dark:text-white outline-none focus:border-emerald-500 cursor-pointer" /></div></div><div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Link do Edital</label><input type="url" value={localConfig.editalLink || ''} onChange={(e) => setLocalConfig({...localConfig, editalLink: e.target.value})} placeholder="https://..." className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500" /></div></div><div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Conteúdo Programático</label><textarea value={localConfig.editalText || ''} onChange={(e) => setLocalConfig({...localConfig, editalText: e.target.value})} className="w-full h-32 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-xs text-slate-600 dark:text-slate-300 font-mono outline-none focus:border-emerald-500 resize-none custom-scrollbar" /></div></div>
-              <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800"><h3 className="text-sm font-bold text-cyan-600 dark:text-cyan-500 uppercase tracking-widest border-b border-cyan-500/20 pb-2 flex items-center gap-2"><Key size={16} /> Integração IA</h3><div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-4 rounded-xl"><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase">Google Gemini API Key</label><input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="AIzaSy..." className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-cyan-500 font-mono text-sm" /></div></div>
-              <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800"><h3 className="text-sm font-bold text-purple-600 dark:text-purple-500 uppercase tracking-widest border-b border-purple-500/20 pb-2 flex items-center gap-2"><BrainCircuit size={16} /> Ajuste do Algoritmo</h3><div className="grid grid-cols-2 md:grid-cols-4 gap-4">{ORDERED_ALGO_KEYS.map((key) => (<div key={key} className="group relative"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-help flex items-center gap-1">{ALGO_TOOLTIPS[key]?.title || key} <HelpCircle size={10}/></label><input type="number" value={currentIntervals[key as keyof typeof currentIntervals]} onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-white text-center font-bold outline-none focus:border-purple-500" /></div>))}</div></div>
+              <div className="space-y-4"><h3 className="text-sm font-bold text-green-600 dark:text-green-500 uppercase tracking-widest border-b border-green-500/20 pb-2 flex items-center gap-2"><FileText size={16} /> Configuração do Edital</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Cargo Alvo</label><input type="text" value={localConfig.targetRole} onChange={(e) => setLocalConfig({...localConfig, targetRole: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" /></div><div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Banca Examinadora</label><input type="text" value={localConfig.banca || ''} onChange={(e) => setLocalConfig({...localConfig, banca: e.target.value})} placeholder="Ex: FGV, Cebraspe" className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" /></div></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Data da Prova</label><div className="relative"><Calendar className="absolute left-3 top-3 text-slate-500" size={16} /><input type="date" value={localConfig.examDate || ''} onChange={(e) => setLocalConfig({...localConfig, examDate: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg py-3 pl-10 text-slate-900 dark:text-white outline-none focus:border-green-500 cursor-pointer" /></div></div><div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Link do Edital</label><input type="url" value={localConfig.editalLink || ''} onChange={(e) => setLocalConfig({...localConfig, editalLink: e.target.value})} placeholder="https://..." className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" /></div></div><div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Conteúdo Programático</label><textarea value={localConfig.editalText || ''} onChange={(e) => setLocalConfig({...localConfig, editalText: e.target.value})} className="w-full h-32 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-xs text-slate-600 dark:text-slate-300 font-mono outline-none focus:border-green-500 resize-none custom-scrollbar" /></div></div>
+              <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800"><h3 className="text-sm font-bold text-green-600 dark:text-green-500 uppercase tracking-widest border-b border-green-500/20 pb-2 flex items-center gap-2"><Key size={16} /> Integração IA</h3><div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-4 rounded-xl"><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase">Google Gemini API Key</label><input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="AIzaSy..." className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500 font-mono text-sm" /></div></div>
+              <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800"><h3 className="text-sm font-bold text-green-600 dark:text-green-500 uppercase tracking-widest border-b border-green-500/20 pb-2 flex items-center gap-2"><BrainCircuit size={16} /> Ajuste do Algoritmo</h3><div className="grid grid-cols-2 md:grid-cols-4 gap-4">{ORDERED_ALGO_KEYS.map((key) => (<div key={key} className="group relative"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-help flex items-center gap-1">{ALGO_TOOLTIPS[key]?.title || key} <HelpCircle size={10}/></label><input type="number" value={currentIntervals[key as keyof typeof currentIntervals]} onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-white text-center font-bold outline-none focus:border-green-500" /></div>))}</div></div>
             </div>
-            <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-end gap-3"><button onClick={() => !isSaving && setIsConfigOpen(false)} disabled={isSaving} className="px-4 py-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">Cancelar</button><button onClick={handleSaveConfig} disabled={isSaving} className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg flex items-center gap-2 disabled:opacity-50">{isSaving ? <Loader2 size={18} className="animate-spin" /> : <Settings2 size={18} />}Salvar Alterações</button></div>
+            <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-end gap-3"><button onClick={() => !isSaving && setIsConfigOpen(false)} disabled={isSaving} className="px-4 py-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">Cancelar</button><button onClick={handleSaveConfig} disabled={isSaving} className="px-6 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl shadow-lg flex items-center gap-2 disabled:opacity-50">{isSaving ? <Loader2 size={18} className="animate-spin" /> : <Settings2 size={18} />}Salvar Alterações</button></div>
           </div>
         </div>
       )}
@@ -735,8 +756,47 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
             </div>
             <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
               {(() => {
-                const worstTopics = notebooks
-                  .filter(n => n.discipline === worstTopicsDiscipline && n.accuracy > 0)
+                const disciplineNotebooks = notebooks.filter(n => n.discipline === worstTopicsDiscipline && (n.accuracy > 0 || n.lastPractice));
+                
+                const topicsMap = new Map<string, { name: string, discipline: string, totalAcc: number, count: number, score: number, targetAcc: number, masteredCount: number }>();
+                
+                disciplineNotebooks.forEach(nb => {
+                  const existing = topicsMap.get(nb.name);
+                  const score = nb.customScore !== null && nb.customScore !== undefined 
+                    ? nb.customScore 
+                    : calculateUrgencyScore(nb.weight, nb.relevance, nb.trend);
+                  const target = Number(nb.targetAccuracy) || 90;
+                  const isMastered = nb.status === 'Dominado' || nb.status === NotebookStatus.MASTERED;
+                    
+                  if (existing) {
+                    existing.totalAcc += nb.accuracy;
+                    existing.count += 1;
+                    existing.score = Math.max(existing.score, score);
+                    existing.targetAcc = Math.max(existing.targetAcc, target);
+                    if (isMastered) existing.masteredCount++;
+                  } else {
+                    topicsMap.set(nb.name, { 
+                      name: nb.name, 
+                      discipline: nb.discipline,
+                      totalAcc: nb.accuracy, 
+                      count: 1, 
+                      score,
+                      targetAcc: target,
+                      masteredCount: isMastered ? 1 : 0
+                    });
+                  }
+                });
+                
+                const worstTopics = Array.from(topicsMap.values())
+                  .map(t => ({ 
+                    id: t.name,
+                    name: t.name, 
+                    discipline: t.discipline,
+                    accuracy: Math.round(t.totalAcc / t.count), 
+                    score: t.score,
+                    targetAccuracy: t.targetAcc,
+                    isMastered: t.masteredCount === t.count
+                  }))
                   .sort((a, b) => a.accuracy - b.accuracy)
                   .slice(0, 10);
 
@@ -746,25 +806,22 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
 
                 return (
                   <div className="space-y-3">
-                    {worstTopics.map((nb, i) => {
-                      const score = nb.customScore !== null && nb.customScore !== undefined 
-                        ? nb.customScore 
-                        : calculateUrgencyScore(nb.weight, nb.relevance, nb.trend);
-                      
+                    {worstTopics.map((topic, i) => {
                       return (
-                        <div key={nb.id} className="flex items-center justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+                        <div key={topic.id} className="flex items-center justify-between p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
                           <div className="flex items-center gap-4 overflow-hidden">
                             <span className="text-sm font-bold text-slate-400 dark:text-slate-500 w-6 text-center">{i + 1}º</span>
                             <div className="truncate">
-                              <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{nb.subtitle}</p>
+                              <p className="text-[10px] font-black text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-0.5">{topic.discipline}</p>
+                              <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{topic.name}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-4 shrink-0">
-                            <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase border ${score > 75 ? 'bg-red-500/10 text-red-500 border-red-500/20' : score > 45 ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-700'}`}>
-                              Score: {score}
+                            <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase border ${topic.score > 75 ? 'bg-red-500/10 text-red-500 border-red-500/20' : topic.score > 45 ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-700'}`}>
+                              Score: {topic.score}
                             </span>
-                            <span className={`font-mono font-bold text-lg ${nb.accuracy <= 60 ? 'text-red-500' : nb.accuracy >= 90 ? 'text-emerald-500' : 'text-amber-500'}`}>
-                              {nb.accuracy}%
+                            <span className={`font-mono font-bold text-lg ${getAccuracyColorClass(topic.accuracy, topic.targetAccuracy, topic.isMastered ? NotebookStatus.MASTERED : undefined)}`}>
+                              {topic.accuracy}%
                             </span>
                           </div>
                         </div>
