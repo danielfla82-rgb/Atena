@@ -189,7 +189,7 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
       <div className="flex flex-col xl:flex-row justify-between items-start xl:items-end border-b border-slate-200 dark:border-slate-800 pb-6 gap-4 flex-shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
-            <CalendarCheck className="text-emerald-500" /> Lista de Revisão
+            <CalendarCheck className="text-green-500" /> Lista de Revisão
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">
             Organização inteligente baseada na urgência do algoritmo.
@@ -203,7 +203,7 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
                 <select 
                     value={editalFilter}
                     onChange={(e) => setEditalFilter(e.target.value)}
-                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg py-2 pl-3 pr-8 text-xs text-slate-900 dark:text-white focus:border-emerald-500 outline-none appearance-none cursor-pointer hover:bg-slate-100 dark:bg-slate-800"
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg py-2 pl-3 pr-8 text-xs text-slate-900 dark:text-white focus:border-green-500 outline-none appearance-none cursor-pointer hover:bg-slate-100 dark:bg-slate-800"
                 >
                     <option value="">Todos Editais</option>
                     {uniqueEditais.map(e => <option key={e} value={e}>{e}</option>)}
@@ -216,7 +216,7 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
                 <select 
                     value={disciplineFilter}
                     onChange={(e) => setDisciplineFilter(e.target.value)}
-                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg py-2 pl-3 pr-8 text-xs text-slate-900 dark:text-white focus:border-emerald-500 outline-none appearance-none cursor-pointer hover:bg-slate-100 dark:bg-slate-800"
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg py-2 pl-3 pr-8 text-xs text-slate-900 dark:text-white focus:border-green-500 outline-none appearance-none cursor-pointer hover:bg-slate-100 dark:bg-slate-800"
                 >
                     <option value="">Todas Disciplinas</option>
                     {uniqueDisciplines.map(d => <option key={d} value={d}>{d}</option>)}
@@ -229,7 +229,7 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
                 <select 
                     value={weightFilter}
                     onChange={(e) => setWeightFilter(e.target.value)}
-                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg py-2 pl-3 pr-8 text-xs text-slate-900 dark:text-white focus:border-emerald-500 outline-none appearance-none cursor-pointer hover:bg-slate-100 dark:bg-slate-800"
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg py-2 pl-3 pr-8 text-xs text-slate-900 dark:text-white focus:border-green-500 outline-none appearance-none cursor-pointer hover:bg-slate-100 dark:bg-slate-800"
                 >
                     <option value="">Qualquer Peso</option>
                     {Object.values(Weight).map(w => <option key={w} value={w}>{w}</option>)}
@@ -245,7 +245,7 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
                     placeholder="Buscar..." 
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
-                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg py-2 pl-9 pr-3 text-sm text-slate-900 dark:text-white focus:border-emerald-500 outline-none"
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg py-2 pl-9 pr-3 text-sm text-slate-900 dark:text-white focus:border-green-500 outline-none"
                 />
             </div>
 
@@ -279,13 +279,13 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
             onClick={() => handleFilterClick('today')}
             className={`p-4 rounded-xl flex items-center gap-4 transition-all border text-left group
                 ${activeFilter === 'today' 
-                    ? 'bg-emerald-900/30 border-emerald-500/50 shadow-lg shadow-emerald-900/20 scale-[1.02]' 
-                    : 'bg-white dark:bg-slate-900/50 border-emerald-500/20 hover:bg-white dark:bg-slate-900 hover:border-emerald-500/40'}
+                    ? 'bg-green-900/30 border-green-500/50 shadow-lg shadow-green-900/20 scale-[1.02]' 
+                    : 'bg-white dark:bg-slate-900/50 border-green-500/20 hover:bg-white dark:bg-slate-900 hover:border-green-500/40'}
             `}
           >
-              <div className={`p-3 rounded-lg transition-colors ${activeFilter === 'today' ? 'bg-emerald-500 text-slate-900 dark:text-white' : 'bg-emerald-900/20 text-emerald-500 group-hover:text-emerald-400'}`}><CalendarCheck2 size={24}/></div>
+              <div className={`p-3 rounded-lg transition-colors ${activeFilter === 'today' ? 'bg-green-500 text-slate-900 dark:text-white' : 'bg-green-900/20 text-green-500 group-hover:text-green-400'}`}><CalendarCheck2 size={24}/></div>
               <div>
-                  <p className={`text-[10px] font-bold uppercase tracking-wider ${activeFilter === 'today' ? 'text-emerald-300' : 'text-emerald-400'}`}>Hoje</p>
+                  <p className={`text-[10px] font-bold uppercase tracking-wider ${activeFilter === 'today' ? 'text-green-300' : 'text-green-400'}`}>Hoje</p>
                   <p className="text-2xl font-bold text-slate-900 dark:text-white">{categorizedData.todayList.length}</p>
               </div>
           </button>
@@ -347,14 +347,21 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
                                               </span>
                                               <h3 className="font-bold text-slate-200 truncate">{nb.discipline}</h3>
                                           </div>
-                                          <p className="text-sm text-slate-500 dark:text-slate-400 truncate">{nb.name} <span className="opacity-50 text-xs">• {nb.subtitle}</span></p>
+                                          <p className="text-sm text-slate-500 dark:text-slate-400 truncate">
+                                              {nb.name} <span className="opacity-50 text-xs">• {nb.subtitle}</span>
+                                              {nb.extraSubtopics && nb.extraSubtopics.length > 0 && (
+                                                  <span className="ml-2 text-[9px] bg-red-500/10 text-red-400 border border-red-500/20 px-1 rounded uppercase font-bold">
+                                                      +{nb.extraSubtopics.length}
+                                                  </span>
+                                              )}
+                                          </p>
                                       </div>
                                       <div className="flex items-center gap-4">
                                           <div className="text-right hidden sm:block">
                                               <p className="text-[10px] text-slate-500 uppercase font-bold">Acurácia</p>
                                               <p className={`font-mono font-bold text-sm ${
                                                 nb.status === 'Dominado' || nb.accuracy >= (Number(nb.targetAccuracy) || 90) 
-                                                  ? 'text-emerald-400' 
+                                                  ? 'text-green-400' 
                                                   : nb.accuracy < ((Number(nb.targetAccuracy) || 90) * 0.75) 
                                                     ? 'text-red-400' 
                                                     : 'text-amber-400'
@@ -376,17 +383,17 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
 
           {/* SECTION: TODAY */}
           {(activeFilter === 'all' || activeFilter === 'today') && (
-              <div className="bg-white dark:bg-slate-900/50 border border-emerald-900/30 rounded-xl overflow-hidden shadow-sm">
+              <div className="bg-white dark:bg-slate-900/50 border border-green-900/30 rounded-xl overflow-hidden shadow-sm">
                   <button 
                     onClick={() => toggleSection('today')}
                     className="w-full flex items-center justify-between p-4 bg-white dark:bg-slate-900 hover:bg-slate-100 dark:bg-slate-800/80 transition-colors group"
                   >
                       <div className="flex items-center gap-3">
-                          <div className={`p-1.5 rounded-md ${expandedSections.today ? 'bg-emerald-500 text-slate-900 dark:text-white' : 'bg-emerald-900/20 text-emerald-500'}`}>
+                          <div className={`p-1.5 rounded-md ${expandedSections.today ? 'bg-green-500 text-slate-900 dark:text-white' : 'bg-green-900/20 text-green-500'}`}>
                               {expandedSections.today ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                           </div>
                           <div className="text-left">
-                              <h3 className="text-sm font-bold text-emerald-400 uppercase tracking-widest flex items-center gap-2">
+                              <h3 className="text-sm font-bold text-green-400 uppercase tracking-widest flex items-center gap-2">
                                   Para Hoje
                               </h3>
                           </div>
@@ -397,30 +404,37 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
                   </button>
 
                   {expandedSections.today && (
-                      <div className="p-3 space-y-3 border-t border-emerald-900/20 bg-emerald-900/5">
+                      <div className="p-3 space-y-3 border-t border-green-900/20 bg-green-900/5">
                           {categorizedData.todayList.length === 0 && (
                               <div className="p-6 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl text-slate-600 text-sm flex flex-col items-center">
-                                  <CheckCircle2 size={28} className="mb-2 text-emerald-500/50" />
+                                  <CheckCircle2 size={28} className="mb-2 text-green-500/50" />
                                   Tudo em dia! Nenhuma revisão agendada especificamente para hoje.
                               </div>
                           )}
                           {categorizedData.todayList.map(nb => (
-                              <div key={nb.id} className="group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 p-4 rounded-xl transition-all hover:bg-slate-100 dark:bg-slate-800 flex items-center justify-between cursor-pointer" onClick={() => handleEdit(nb)}>
+                              <div key={nb.id} className="group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-green-500/50 p-4 rounded-xl transition-all hover:bg-slate-100 dark:bg-slate-800 flex items-center justify-between cursor-pointer" onClick={() => handleEdit(nb)}>
                                   <div className="flex-1 min-w-0 pr-4">
                                       <div className="flex items-center gap-2 mb-1">
-                                          <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded font-bold uppercase">
+                                          <span className="text-[10px] bg-green-500/10 text-green-400 border border-green-500/20 px-1.5 py-0.5 rounded font-bold uppercase">
                                               Hoje
                                           </span>
                                           <h3 className="font-bold text-slate-200 truncate">{nb.discipline}</h3>
                                       </div>
-                                      <p className="text-sm text-slate-500 dark:text-slate-400 truncate">{nb.name} <span className="opacity-50 text-xs">• {nb.subtitle}</span></p>
+                                      <p className="text-sm text-slate-500 dark:text-slate-400 truncate">
+                                          {nb.name} <span className="opacity-50 text-xs">• {nb.subtitle}</span>
+                                          {nb.extraSubtopics && nb.extraSubtopics.length > 0 && (
+                                              <span className="ml-2 text-[9px] bg-green-500/10 text-green-400 border border-green-500/20 px-1 rounded uppercase font-bold">
+                                                  +{nb.extraSubtopics.length}
+                                              </span>
+                                          )}
+                                      </p>
                                   </div>
                                   <div className="flex items-center gap-4">
                                       <div className="text-right hidden sm:block">
                                           <p className="text-[10px] text-slate-500 uppercase font-bold">Acurácia</p>
                                           <p className={`font-mono font-bold text-sm ${
                                             nb.status === 'Dominado' || nb.accuracy >= (Number(nb.targetAccuracy) || 90) 
-                                              ? 'text-emerald-400' 
+                                              ? 'text-green-400' 
                                               : nb.accuracy < ((Number(nb.targetAccuracy) || 90) * 0.75) 
                                                 ? 'text-red-400' 
                                                 : 'text-amber-400'
@@ -497,7 +511,7 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
                                                                   ? 'bg-indigo-900/20 text-indigo-400 border-indigo-500/20' 
                                                                   : isAllocatedPastOnly 
                                                                       ? 'bg-amber-900/20 text-amber-400 border-amber-500/20' 
-                                                                      : 'bg-emerald-900/10 text-emerald-500 border-emerald-500/20'
+                                                                      : 'bg-green-900/10 text-green-500 border-green-500/20'
                                                           }
                                                       `}>
                                                           {isAllocatedPastOnly 
@@ -509,7 +523,14 @@ export const ReviewList: React.FC<Props> = ({ onNavigate }) => {
                                                   )}
                                               </div>
                                           </div>
-                                          <p className="text-xs text-slate-500 truncate">{nb.name}</p>
+                                          <p className="text-xs text-slate-500 truncate">
+                                              {nb.name} {nb.subtitle && <span className="opacity-50">• {nb.subtitle}</span>}
+                                              {nb.extraSubtopics && nb.extraSubtopics.length > 0 && (
+                                                  <span className="ml-2 text-[9px] bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-300 dark:border-slate-700 px-1 rounded uppercase font-bold">
+                                                      +{nb.extraSubtopics.length}
+                                                  </span>
+                                              )}
+                                          </p>
                                       </div>
                                       <button onClick={(e) => { e.stopPropagation(); handleEdit(nb); }} className="text-slate-600 hover:text-slate-900 dark:text-white transition-colors" title="Abrir Editor">
                                           <Edit2 size={16} />

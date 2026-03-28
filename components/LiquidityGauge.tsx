@@ -36,7 +36,7 @@ export const LiquidityGauge: React.FC<Props> = ({ notebooks }) => {
       if (liq < 30) return 'text-red-500';
       if (liq < 60) return 'text-amber-500';
       if (liq < 85) return 'text-blue-400';
-      return 'text-emerald-500';
+      return 'text-green-500';
   };
 
   return (

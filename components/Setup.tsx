@@ -120,7 +120,11 @@ const DraggableCard = React.memo(({
     return (
         <div 
             draggable={!disabled}
-            onDragStart={(e) => onDragStart(e, notebook.id, origin, index)}
+            onDragStart={(e) => {
+                onDragStart(e, notebook.id, origin, index);
+                if (instanceId) e.dataTransfer.setData("instanceId", instanceId);
+                if (scheduledWeekId) e.dataTransfer.setData("sourceWeekId", scheduledWeekId);
+            }}
             onDragOver={(e) => { if(isWeek && !disabled) e.preventDefault(); }}
             onDrop={(e) => { if(isWeek && !disabled && onDropOnCard && index !== undefined) onDropOnCard(e, index); }}
             className={`
@@ -175,6 +179,11 @@ const DraggableCard = React.memo(({
                     </div>
                     <p className={`truncate mb-1 leading-tight font-medium ${isWeek ? (isCompleted ? 'text-slate-500' : 'text-slate-500 dark:text-slate-400') : 'text-slate-500 dark:text-slate-400'}`} title={notebook.name}>{notebook.name}</p>
                     {notebook.subtitle && <p className="text-slate-500 text-[10px] truncate">{notebook.subtitle}</p>}
+                    {notebook.extraSubtopics && notebook.extraSubtopics.length > 0 && (
+                        <span className="text-[8px] bg-green-100 dark:bg-green-500/10 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-500/20 px-1 rounded uppercase font-bold mt-0.5 inline-block">
+                            +{notebook.extraSubtopics.length} Subtópicos
+                        </span>
+                    )}
                 </div>
                 
                 <div className="flex flex-col items-end gap-1 flex-shrink-0">
@@ -548,7 +557,7 @@ interface Props {
 }
 
 export const Setup: React.FC<Props> = ({ onNavigate }) => {
-  const { notebooks, cycles, activeCycleId, config, updateConfig, moveNotebookToWeek, reorderSlotInWeek, toggleSlotCompletion, removeSlotFromWeek, exportDatabase, setFocusedNotebookId } = useStore();
+  const { notebooks, cycles, activeCycleId, config, updateConfig, moveNotebookToWeek, reorderSlotInWeek, moveSlotBetweenWeeks, toggleSlotCompletion, removeSlotFromWeek, exportDatabase, setFocusedNotebookId } = useStore();
   
   const [viewMode, setViewMode] = useState<'timeline' | 'calculator'>('timeline');
   const [searchTerm, setSearchTerm] = useState('');
@@ -760,8 +769,17 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
     e.stopPropagation();
     if (isPast) { alert("Você não pode alterar o planejamento de semanas que já passaram."); return; }
     const id = e.dataTransfer.getData("notebookId");
+    const origin = e.dataTransfer.getData("origin");
+    const sourceWeekId = e.dataTransfer.getData("sourceWeekId");
+    const instanceId = e.dataTransfer.getData("instanceId");
+    
     if (!id || !targetWeekId) return;
-    await moveNotebookToWeek(id, targetWeekId);
+    
+    if (origin === 'week' && sourceWeekId && sourceWeekId !== targetWeekId && instanceId) {
+        await moveSlotBetweenWeeks(instanceId, sourceWeekId, targetWeekId);
+    } else if (origin === 'library') {
+        await moveNotebookToWeek(id, targetWeekId);
+    }
   };
 
   const handleDropOnCard = useCallback(async (e: React.DragEvent, targetWeekId: string, targetIndex: number) => {
@@ -770,13 +788,19 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
       const sourceIndexStr = e.dataTransfer.getData("sourceIndex");
       const origin = e.dataTransfer.getData("origin");
       const id = e.dataTransfer.getData("notebookId");
+      const sourceWeekId = e.dataTransfer.getData("sourceWeekId");
+      const instanceId = e.dataTransfer.getData("instanceId");
 
       if (origin === 'week' && sourceIndexStr) {
-          await reorderSlotInWeek(targetWeekId, parseInt(sourceIndexStr), targetIndex);
+          if (sourceWeekId && sourceWeekId !== targetWeekId && instanceId) {
+              await moveSlotBetweenWeeks(instanceId, sourceWeekId, targetWeekId, targetIndex);
+          } else {
+              await reorderSlotInWeek(targetWeekId, parseInt(sourceIndexStr), targetIndex);
+          }
       } else if (origin === 'library') {
           await moveNotebookToWeek(id, targetWeekId);
       }
-  }, [reorderSlotInWeek, moveNotebookToWeek]);
+  }, [reorderSlotInWeek, moveNotebookToWeek, moveSlotBetweenWeeks]);
 
   const handleEditClick = useCallback((notebook: Notebook) => {
     setFocusedNotebookId(notebook.id);
@@ -978,7 +1002,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                                     <YAxis dataKey="name" type="category" stroke="#94a3b8" tick={{fontSize: 10}} width={120} />
                                     <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#f1f5f9', fontSize: '12px' }} cursor={{fill: '#1e293b'}} />
                                     <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={10}>
-                                        {allocationData.map((entry, index) => (<Cell key={`cell-${index}`} fill={['#10b981', '#06b6d4', '#8b5cf6', '#f59e0b'][index % 4]} />))}
+                                        {allocationData.map((entry, index) => (<Cell key={`cell-${index}`} fill={['#22c55e', '#06b6d4', '#8b5cf6', '#f59e0b'][index % 4]} />))}
                                     </Bar>
                                 </BarChart>
                             </ResponsiveContainer>
@@ -1159,14 +1183,14 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                                     if (!slot || !slot.notebookId) return null; 
                                     const nb = notebooks.find(n => n.id === slot.notebookId);
                                     if (!nb) return null;
-                                    return (<DraggableCard key={slot.instanceId || `fallback-${originalIndex}`} instanceId={slot.instanceId} notebook={nb} isCompleted={slot.completed} onDragStart={onDragStart} onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)} onEdit={handleEditClick} onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} onRemove={(instId) => handleRemoveFromWeek(instId, week.id)} isCompact origin="week" disabled={week.isPast} index={originalIndex} currentWeekIndex={currentWeekIndex} />);
+                                    return (<DraggableCard key={slot.instanceId || `fallback-${originalIndex}`} instanceId={slot.instanceId} notebook={nb} isCompleted={slot.completed} onDragStart={onDragStart} onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)} onEdit={handleEditClick} onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} onRemove={(instId) => handleRemoveFromWeek(instId, week.id)} isCompact origin="week" disabled={week.isPast} index={originalIndex} currentWeekIndex={currentWeekIndex} scheduledWeekId={week.id} />);
                                 })}
                                 {completedItems.length > 0 && (<div className="pt-2"><button onClick={(e) => toggleCompletedWeek(week.id, e)} className="w-full flex items-center justify-between px-3 py-2 bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-500 hover:text-slate-900 dark:text-white hover:bg-slate-100 dark:bg-slate-800 hover:border-slate-300 dark:border-slate-700 transition-all group"><span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-2"><CheckCircle2 size={12} className="text-green-500" />{isCompletedListExpanded ? 'Ocultar' : 'Mostrar'} {completedItems.length} Concluídos</span>{isCompletedListExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</button></div>)}
                                 {isCompletedListExpanded && completedItems.map(({ slot, originalIndex }) => {
                                     if (!slot || !slot.notebookId) return null; 
                                     const nb = notebooks.find(n => n.id === slot.notebookId);
                                     if (!nb) return null;
-                                    return (<DraggableCard key={slot.instanceId || `fallback-${originalIndex}`} instanceId={slot.instanceId} notebook={nb} isCompleted={slot.completed} onDragStart={onDragStart} onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)} onEdit={handleEditClick} onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} onRemove={(instId) => handleRemoveFromWeek(instId, week.id)} isCompact origin="week" disabled={week.isPast} index={originalIndex} currentWeekIndex={currentWeekIndex} />);
+                                    return (<DraggableCard key={slot.instanceId || `fallback-${originalIndex}`} instanceId={slot.instanceId} notebook={nb} isCompleted={slot.completed} onDragStart={onDragStart} onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)} onEdit={handleEditClick} onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} onRemove={(instId) => handleRemoveFromWeek(instId, week.id)} isCompact origin="week" disabled={week.isPast} index={originalIndex} currentWeekIndex={currentWeekIndex} scheduledWeekId={week.id} />);
                                 })}
                                 {weekSlots.length === 0 && !week.isPast && <div className="h-full flex flex-col items-center justify-center text-slate-700 text-xs italic opacity-50 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl m-2 bg-slate-50 dark:bg-slate-950/50 min-h-[100px]">Arraste matérias aqui</div>}
                             </div>

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ATENA CONCURSOS</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/quill@1.3.7/dist/quill.snow.css">
     <script>
       tailwind.config = {
         darkMode: 'class',
@@ -41,6 +42,30 @@
           width: 4px;
           height: 4px;
       }
+
+      /* Quill Dark Mode Adjustments */
+      .dark .ql-toolbar {
+          background-color: #1e293b;
+          border-color: #334155 !important;
+      }
+      .dark .ql-container {
+          background-color: #0f172a;
+          border-color: #334155 !important;
+          color: #f1f5f9;
+      }
+      .dark .ql-stroke {
+          stroke: #94a3b8 !important;
+      }
+      .dark .ql-fill {
+          fill: #94a3b8 !important;
+      }
+      .dark .ql-picker {
+          color: #94a3b8 !important;
+      }
+      .dark .ql-picker-options {
+          background-color: #1e293b !important;
+          border-color: #334155 !important;
+      }
     </style>
 <script type="importmap">
 {
@@ -56,7 +81,9 @@
     "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.89.0",
     "idb-keyval": "https://esm.sh/idb-keyval@^6.2.2",
     "pdfjs-dist": "https://esm.sh/pdfjs-dist@3.11.174",
-    "@hello-pangea/dnd": "https://esm.sh/@hello-pangea/dnd@^18.0.1"
+    "@hello-pangea/dnd": "https://esm.sh/@hello-pangea/dnd@^18.0.1",
+    "react-quill-new": "https://esm.sh/react-quill-new@^3.3.3",
+    "motion/react": "https://esm.sh/motion@^12.4.7/react"
   }
 }
 </script>

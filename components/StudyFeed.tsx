@@ -58,7 +58,7 @@ const QuizCard = memo(({ post }: { post: FeedPost }) => {
                 {post.quiz.options.map((option, idx) => {
                     let btnClass = "bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:bg-slate-800";
                     if (isRevealed) {
-                        if (idx === post.quiz!.correctIndex) btnClass = "bg-emerald-900/30 border-emerald-500 text-emerald-100 shadow-[0_0_10px_rgba(16,185,129,0.2)]";
+                        if (idx === post.quiz!.correctIndex) btnClass = "bg-green-900/30 border-green-500 text-green-100 shadow-[0_0_10px_rgba(16,185,129,0.2)]";
                         else if (idx === selectedOption) btnClass = "bg-red-900/30 border-red-500 text-red-100";
                         else btnClass = "bg-white dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 text-slate-500 opacity-50";
                     }
@@ -90,12 +90,12 @@ const FeedPostItem = memo(({ post, toggleLike, toggleSave }: { post: FeedPost, t
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xl animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="p-3 flex items-center justify-between border-b border-slate-200 dark:border-slate-800/50 bg-white dark:bg-slate-900/50">
                 <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${post.type === 'quiz' ? 'bg-purple-600' : 'bg-emerald-600'}`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${post.type === 'quiz' ? 'bg-purple-600' : 'bg-green-600'}`}>
                         {post.type === 'quiz' ? <HelpCircle size={16} /> : <Bot size={16} />}
                     </div>
                     <div className="min-w-0">
                         <h3 className="text-xs font-bold text-slate-900 dark:text-white truncate">{post.discipline}</h3>
-                        <p className="text-[10px] text-emerald-400 font-medium truncate flex items-center gap-1">
+                        <p className="text-[10px] text-green-400 font-medium truncate flex items-center gap-1">
                             {post.isFileContext && <Paperclip size={12} />}
                             {post.topic}
                         </p>
@@ -122,7 +122,7 @@ const FeedPostItem = memo(({ post, toggleLike, toggleSave }: { post: FeedPost, t
                     <button className="text-slate-500 hover:text-slate-900 dark:text-white transition-colors"><Share2 size={20} /></button>
                 </div>
                 <button onClick={() => toggleSave(post.id)}>
-                    <Bookmark size={20} className={`${post.isSaved ? 'fill-emerald-500 text-emerald-500' : 'text-slate-500 group-hover:text-slate-900 dark:text-white'}`} />
+                    <Bookmark size={20} className={`${post.isSaved ? 'fill-green-500 text-green-500' : 'text-slate-500 group-hover:text-slate-900 dark:text-white'}`} />
                 </button>
             </div>
         </div>
@@ -414,7 +414,7 @@ export const StudyFeed: React.FC = () => {
                     <button onClick={() => setMode('general')} className={`flex-1 py-2 text-xs font-bold uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-2 ${mode === 'general' ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white shadow' : 'text-slate-500 hover:text-slate-900 dark:text-white'}`}>
                         <Layers size={16} /> Geral
                     </button>
-                    <button onClick={() => setMode('custom')} className={`flex-1 py-2 text-xs font-bold uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-2 ${mode === 'custom' ? 'bg-slate-100 dark:bg-slate-800 text-emerald-400 shadow' : 'text-slate-500 hover:text-emerald-400'}`}>
+                    <button onClick={() => setMode('custom')} className={`flex-1 py-2 text-xs font-bold uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-2 ${mode === 'custom' ? 'bg-slate-100 dark:bg-slate-800 text-green-400 shadow' : 'text-slate-500 hover:text-green-400'}`}>
                         <Upload size={16} /> Arquivo
                     </button>
                 </div>
@@ -422,17 +422,17 @@ export const StudyFeed: React.FC = () => {
                 {/* Filters */}
                 {mode === 'general' && disciplinesList.length > 0 && (
                     <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar no-scrollbar">
-                        <button onClick={() => setSelectedDiscipline(null)} className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase border transition-all whitespace-nowrap ${!selectedDiscipline ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-900/20' : 'bg-white dark:bg-slate-900 text-slate-500 border-slate-200 dark:border-slate-800'}`}>Todas</button>
+                        <button onClick={() => setSelectedDiscipline(null)} className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase border transition-all whitespace-nowrap ${!selectedDiscipline ? 'bg-green-600 text-white border-green-500 shadow-lg shadow-green-900/20' : 'bg-white dark:bg-slate-900 text-slate-500 border-slate-200 dark:border-slate-800'}`}>Todas</button>
                         {disciplinesList.map(d => (
-                            <button key={d} onClick={() => setSelectedDiscipline(d)} className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase border transition-all whitespace-nowrap ${selectedDiscipline === d ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-900/20' : 'bg-white dark:bg-slate-900 text-slate-500 border-slate-200 dark:border-slate-800'}`}>{d}</button>
+                            <button key={d} onClick={() => setSelectedDiscipline(d)} className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase border transition-all whitespace-nowrap ${selectedDiscipline === d ? 'bg-green-600 text-white border-green-500 shadow-lg shadow-green-900/20' : 'bg-white dark:bg-slate-900 text-slate-500 border-slate-200 dark:border-slate-800'}`}>{d}</button>
                         ))}
                     </div>
                 )}
 
                 {/* File Upload Area */}
                 {mode === 'custom' && !customFile && (
-                    <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer transition-all bg-white dark:bg-slate-900/30 group">
-                        <Upload size={36} className="text-slate-600 group-hover:text-emerald-500 mb-2" />
+                    <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-slate-200 dark:border-slate-800 hover:border-green-500/50 rounded-2xl p-8 flex flex-col items-center justify-center cursor-pointer transition-all bg-white dark:bg-slate-900/30 group">
+                        <Upload size={36} className="text-slate-600 group-hover:text-green-500 mb-2" />
                         <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Enviar PDF, TXT ou Imagem</p>
                         <input type="file" ref={fileInputRef} className="hidden" accept=".pdf,.txt,image/*" onChange={handleFileUpload} />
                     </div>
@@ -441,7 +441,7 @@ export const StudyFeed: React.FC = () => {
                 {customFile && mode === 'custom' && !hasStarted && (
                     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl flex items-center justify-between">
                         <div className="flex items-center gap-3 overflow-hidden">
-                            <FileText className="text-emerald-500 shrink-0" size={24} />
+                            <FileText className="text-green-500 shrink-0" size={24} />
                             <span className="text-xs text-slate-600 dark:text-slate-300 truncate font-bold">{customFile.name}</span>
                         </div>
                         <button onClick={() => setCustomFile(null)} className="text-slate-500 hover:text-slate-900 dark:text-white"><X size={18}/></button>
@@ -451,12 +451,12 @@ export const StudyFeed: React.FC = () => {
                 {/* Start Button */}
                 {!hasStarted && (
                     <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 rounded-2xl text-center space-y-4 shadow-2xl">
-                        <Bot size={52} className="mx-auto text-emerald-500" />
+                        <Bot size={52} className="mx-auto text-green-500" />
                         <h3 className="text-slate-900 dark:text-white font-bold">Tutor de Elite Pronto</h3>
                         <p className="text-xs text-slate-500 dark:text-slate-400">Vou cruzar suas anotações e cadernos para gerar insights exclusivos e desafios de memorização.</p>
                         <button 
                             onClick={() => generateFeedPosts(true)}
-                            className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-emerald-900/20 transition-all active:scale-95 flex items-center justify-center gap-3"
+                            className="w-full py-4 bg-green-600 hover:bg-green-500 text-white font-black uppercase tracking-widest rounded-2xl shadow-lg shadow-green-900/20 transition-all active:scale-95 flex items-center justify-center gap-3"
                         >
                             <Sparkles size={24} /> Iniciar Estudo Ativo
                         </button>
@@ -492,11 +492,11 @@ export const StudyFeed: React.FC = () => {
                 {loading && (
                     <div className="flex flex-col items-center justify-center py-10 gap-4 bg-white dark:bg-slate-900/40 rounded-2xl border border-slate-200 dark:border-slate-800 backdrop-blur-md">
                         <div className="relative">
-                            <div className="absolute inset-0 bg-emerald-500/20 blur-xl rounded-full animate-pulse"></div>
-                            <Loader2 className="text-emerald-500 animate-spin relative" size={36} />
+                            <div className="absolute inset-0 bg-green-500/20 blur-xl rounded-full animate-pulse"></div>
+                            <Loader2 className="text-green-500 animate-spin relative" size={36} />
                         </div>
                         <div className="text-center px-6">
-                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500 animate-pulse">{loadingText}</p>
+                            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-green-500 animate-pulse">{loadingText}</p>
                             <p className="text-[10px] text-slate-500 mt-1">Analisando conteúdo...</p>
                         </div>
                     </div>

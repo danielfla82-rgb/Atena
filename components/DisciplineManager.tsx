@@ -74,13 +74,13 @@ export const DisciplineManager: React.FC = () => {
       <div className="flex justify-between items-end border-b border-slate-200 dark:border-slate-800 pb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
-            <Book className="text-emerald-500" /> Disciplinas Mães
+            <Book className="text-green-500" /> Disciplinas Mães
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">
             Gerencie as disciplinas principais, seus pesos e relevâncias. Disciplinas usadas em cadernos aparecem aqui automaticamente.
           </p>
         </div>
-        <button onClick={handleOpenCreate} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold text-sm transition-colors shadow-lg shadow-emerald-900/20">
+        <button onClick={handleOpenCreate} className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-bold text-sm transition-colors shadow-lg shadow-green-900/20">
           <Plus size={16} /> Nova Disciplina
         </button>
       </div>
@@ -106,7 +106,7 @@ export const DisciplineManager: React.FC = () => {
                   {discipline.edital && <span className="text-xs text-slate-500 dark:text-slate-400 font-mono bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded mt-1 inline-block">{discipline.edital}</span>}
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => handleOpenEdit(discipline)} className="p-1.5 text-slate-400 hover:text-emerald-500 bg-slate-100 dark:bg-slate-800 rounded-md transition-colors" title={isVirtual ? "Editar para salvar configurações" : "Editar"}><Edit2 size={14} /></button>
+                  <button onClick={() => handleOpenEdit(discipline)} className="p-1.5 text-slate-400 hover:text-green-500 bg-slate-100 dark:bg-slate-800 rounded-md transition-colors" title={isVirtual ? "Editar para salvar configurações" : "Editar"}><Edit2 size={14} /></button>
                   {!isVirtual && <button onClick={() => handleDelete(discipline.id)} className="p-1.5 text-slate-400 hover:text-red-500 bg-slate-100 dark:bg-slate-800 rounded-md transition-colors"><Trash2 size={14} /></button>}
                 </div>
               </div>
@@ -119,7 +119,7 @@ export const DisciplineManager: React.FC = () => {
                 </span>
                 {avgAccuracy !== null && (
                   <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded border border-slate-200 dark:border-slate-700 flex items-center gap-1 ${
-                    avgAccuracy >= 80 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                    avgAccuracy >= 80 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
                     avgAccuracy >= 60 ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
                     avgAccuracy >= 40 ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
                     'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
@@ -153,16 +153,16 @@ export const DisciplineManager: React.FC = () => {
               )}
               <div>
                 <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Nome da Disciplina</label>
-                <input type="text" value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500" placeholder="Ex: Direito Administrativo" />
+                <input type="text" value={formData.name || ''} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" placeholder="Ex: Direito Administrativo" />
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Edital (Opcional)</label>
-                <input type="text" value={formData.edital || ''} onChange={e => setFormData({ ...formData, edital: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500" placeholder="Ex: TCU 2024" />
+                <input type="text" value={formData.edital || ''} onChange={e => setFormData({ ...formData, edital: e.target.value })} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" placeholder="Ex: TCU 2024" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Peso</label>
-                  <select value={formData.weight} onChange={e => setFormData({ ...formData, weight: e.target.value as Weight })} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500">
+                  <select value={formData.weight} onChange={e => setFormData({ ...formData, weight: e.target.value as Weight })} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500">
                     <option value={Weight.BAIXO}>Baixo (1)</option>
                     <option value={Weight.MEDIO}>Médio (2)</option>
                     <option value={Weight.ALTO}>Alto (3)</option>
@@ -170,7 +170,7 @@ export const DisciplineManager: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Relevância</label>
-                  <select value={formData.relevance} onChange={e => setFormData({ ...formData, relevance: e.target.value as Relevance })} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500">
+                  <select value={formData.relevance} onChange={e => setFormData({ ...formData, relevance: e.target.value as Relevance })} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500">
                     <option value={Relevance.BAIXA}>Baixa (1)</option>
                     <option value={Relevance.MEDIA}>Média (2)</option>
                     <option value={Relevance.ALTA}>Alta (3)</option>
@@ -180,7 +180,7 @@ export const DisciplineManager: React.FC = () => {
             </div>
             <div className="p-6 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3">
               <button onClick={() => setIsModalOpen(false)} disabled={isSaving} className="px-4 py-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">Cancelar</button>
-              <button onClick={handleSave} disabled={!formData.name || isSaving} className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg flex items-center gap-2 disabled:opacity-50">
+              <button onClick={handleSave} disabled={!formData.name || isSaving} className="px-6 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl shadow-lg flex items-center gap-2 disabled:opacity-50">
                 {isSaving ? <Activity size={18} className="animate-spin" /> : <Save size={18} />}
                 {isSaving ? 'Salvando...' : 'Salvar'}
               </button>

@@ -127,7 +127,7 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
                 const accuracy = Number(nb.accuracy) || 0;
                 const isMastered = nb.status === 'Dominado' || nb.status === NotebookStatus.MASTERED;
                 
-                if (accuracy >= target || isMastered) return '#10b981'; // Green
+                if (accuracy >= target || isMastered) return '#22c55e'; // Green
                 if (accuracy < (target * 0.75)) return '#ef4444'; // Red
                 return '#f59e0b'; // Amber
             }),

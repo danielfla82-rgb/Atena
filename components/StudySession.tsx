@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Notebook } from '../types';
 import { useStore } from '../store';
-import { X, Play, Square, CheckCircle, Timer, AlertCircle } from 'lucide-react';
+import { X, Play, Square, CheckCircle, Timer, AlertCircle, Link as LinkIcon, FileText } from 'lucide-react';
 
 interface Props {
   notebook: Notebook;
@@ -102,6 +102,48 @@ export const StudySession: React.FC<Props> = ({ notebook, onClose }) => {
                 <p className="flex items-center gap-2 mb-2"><Timer size={16} /> Dica Estratégica:</p>
                 <p>Este tópico tem peso <strong>{notebook.weight}</strong>. Foque na lei seca para aumentar sua precisão de {notebook.accuracy}% para {Number(notebook.targetAccuracy) || 90}%.</p>
               </div>
+
+              {notebook.notes && (
+                <div className="mt-6 w-full">
+                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 flex items-center gap-2">
+                    <FileText size={14} /> Resumo & Anotações
+                  </h4>
+                  <div 
+                    className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-sm prose dark:prose-invert max-w-none custom-scrollbar max-h-[200px] overflow-y-auto"
+                    dangerouslySetInnerHTML={{ __html: notebook.notes }}
+                  />
+                </div>
+              )}
+
+              {(notebook.tecLink || (notebook.extraSubtopics && notebook.extraSubtopics.length > 0) || notebook.errorNotebookLink || (notebook.extraErrorNotebooks && notebook.extraErrorNotebooks.length > 0)) && (
+                <div className="mt-4 w-full space-y-2">
+                  {notebook.tecLink && (
+                    <a href={notebook.tecLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 w-full p-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-sm text-slate-700 dark:text-slate-300 transition-colors">
+                      <LinkIcon size={16} className="text-slate-400" />
+                      <span className="truncate flex-1">Caderno TEC Principal</span>
+                    </a>
+                  )}
+                  {notebook.extraSubtopics?.map((sub, idx) => sub.tecLink ? (
+                    <a key={idx} href={sub.tecLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 w-full p-3 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-sm text-slate-700 dark:text-slate-300 transition-colors">
+                      <LinkIcon size={16} className="text-slate-400" />
+                      <span className="truncate flex-1">{sub.subtitle || `Subtópico ${idx + 1}`}</span>
+                    </a>
+                  ) : null)}
+                  
+                  {notebook.errorNotebookLink && (
+                    <a href={notebook.errorNotebookLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 w-full p-3 bg-red-100/50 dark:bg-red-900/20 hover:bg-red-200/50 dark:hover:bg-red-900/30 rounded-lg text-sm text-red-700 dark:text-red-300 transition-colors border border-red-500/20">
+                      <XCircle size={16} className="text-red-500" />
+                      <span className="truncate flex-1">{notebook.errorNotebookComment || 'Caderno de Erros Principal'}</span>
+                    </a>
+                  )}
+                  {notebook.extraErrorNotebooks?.map((err, idx) => err.link ? (
+                    <a key={idx} href={err.link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 w-full p-3 bg-red-100/50 dark:bg-red-900/20 hover:bg-red-200/50 dark:hover:bg-red-900/30 rounded-lg text-sm text-red-700 dark:text-red-300 transition-colors border border-red-500/20">
+                      <XCircle size={16} className="text-red-500" />
+                      <span className="truncate flex-1">{err.comment || `Caderno de Erros ${idx + 1}`}</span>
+                    </a>
+                  ) : null)}
+                </div>
+              )}
             </>
           ) : (
             <form onSubmit={handleSubmit} className="w-full space-y-6">

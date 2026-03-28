@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useStore, useMergedDisciplines } from '../store';
 import { useTheme } from '../ThemeContext';
 import { QuadrantChart } from './QuadrantChart';
@@ -267,6 +267,15 @@ interface Props {
 
 export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
   const { notebooks, config, updateConfig, setFocusedNotebookId, cycles, activeCycleId, startSession, dbError } = useStore();
+  const performanceScrollRef = useRef<HTMLDivElement>(null);
+  const progressScrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollChart = (ref: React.RefObject<HTMLDivElement>, direction: 'left' | 'right') => {
+    if (ref.current) {
+      const scrollAmount = 300;
+      ref.current.scrollBy({ left: direction === 'left' ? -scrollAmount : scrollAmount, behavior: 'smooth' });
+    }
+  };
   const mergedDisciplines = useMergedDisciplines();
   const { theme } = useTheme();
   const [isConfigOpen, setIsConfigOpen] = useState(false);
@@ -570,7 +579,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
 
         if (labels.length === 0) {
              const todayStr = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-             return { chartData: { labels: [todayStr], datasets: [{ label: 'Evolução', data: [0], fill: true, borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', tension: 0.4 }] }, trend: trendInfo };
+             return { chartData: { labels: [todayStr], datasets: [{ label: 'Evolução', data: [0], fill: true, borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.1)', tension: 0.4 }] }, trend: trendInfo };
         }
 
         return {
@@ -581,17 +590,17 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                         label: 'Média Semanal',
                         data: actualValues,
                         fill: true,
-                        borderColor: '#10b981',
+                        borderColor: '#22c55e',
                         borderWidth: 3,
                         backgroundColor: (context: any) => {
                             const ctx = context.chart.ctx;
                             const gradient = ctx.createLinearGradient(0, 0, 0, 300);
-                            gradient.addColorStop(0, 'rgba(16, 185, 129, 0.25)');
-                            gradient.addColorStop(1, 'rgba(16, 185, 129, 0)');
+                            gradient.addColorStop(0, 'rgba(34, 197, 94, 0.25)');
+                            gradient.addColorStop(1, 'rgba(34, 197, 94, 0)');
                             return gradient;
                         },
                         pointBackgroundColor: '#020617',
-                        pointBorderColor: '#10b981',
+                        pointBorderColor: '#22c55e',
                         pointBorderWidth: 2,
                         pointRadius: 4,
                         pointHoverRadius: 6,
@@ -652,9 +661,27 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
               <div className="flex justify-between items-start"><span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Desempenho Global</span><button onClick={() => setExpandedMetric(expandedMetric === 'performance' ? null : 'performance')} className="text-slate-500 dark:text-slate-400 hover:text-green-600">{expandedMetric === 'performance' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}</button></div>
               <div className="flex justify-between items-end"><div className="flex flex-col gap-0.5"><span className="text-xs font-bold text-green-600">{metrics.avgAccuracy}% Acertos</span><span className="text-xs font-bold text-red-500">{metrics.avgAccuracy > 0 ? 100 - metrics.avgAccuracy : 0}% Erros</span></div><span className="text-4xl font-black text-slate-900 dark:text-white">{metrics.avgAccuracy}%</span></div>
               {expandedMetric === 'performance' && (
-                  <div className="mt-6 flex-1 w-full relative animate-in fade-in slide-in-from-top-4 overflow-x-auto custom-scrollbar">
-                      <div style={{ minWidth: metrics.disciplineStats.length > 8 ? `${metrics.disciplineStats.length * 80}px` : '100%', height: '100%' }}>
-                          <Bar data={{ labels: metrics.disciplineStats.map(d => d.name), datasets: [{ label: 'Acurácia (%)', data: metrics.disciplineStats.map(d => d.accuracy), backgroundColor: metrics.disciplineStats.map(d => d.accuracy < (d.target * 0.75) ? '#ef4444' : d.accuracy >= d.target ? '#10b981' : '#f59e0b'), borderRadius: 4 }] }} options={{ ...barChartOptions, plugins: { ...barChartOptions.plugins, textOnBars: true }, onHover: (event, chartElement) => { if (event.native && event.native.target) { (event.native.target as HTMLElement).style.cursor = chartElement[0] ? 'pointer' : 'default'; } }, onClick: (event, elements) => { if (elements.length > 0) { const index = elements[0].index; const disciplineName = metrics.disciplineStats[index].name; setWorstTopicsDiscipline(disciplineName); } } }} plugins={[textOnBarsPlugin]} />
+                  <div className="mt-6 flex-1 w-full relative animate-in fade-in slide-in-from-top-4 group">
+                      {metrics.disciplineStats.length > 8 && (
+                          <>
+                              <button 
+                                  onClick={() => scrollChart(performanceScrollRef, 'left')}
+                                  className="absolute left-0 top-1/2 -translate-y-1/2 z-20 p-1.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-full shadow-lg text-slate-600 dark:text-slate-300 hover:bg-green-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 -ml-2"
+                              >
+                                  <ChevronLeft size={18} />
+                              </button>
+                              <button 
+                                  onClick={() => scrollChart(performanceScrollRef, 'right')}
+                                  className="absolute right-0 top-1/2 -translate-y-1/2 z-20 p-1.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-full shadow-lg text-slate-600 dark:text-slate-300 hover:bg-green-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 -mr-2"
+                              >
+                                  <ChevronRight size={18} />
+                              </button>
+                          </>
+                      )}
+                      <div ref={performanceScrollRef} className="w-full h-full overflow-x-auto custom-scrollbar scroll-smooth">
+                          <div style={{ minWidth: metrics.disciplineStats.length > 8 ? `${metrics.disciplineStats.length * 80}px` : '100%', height: '100%' }}>
+                              <Bar data={{ labels: metrics.disciplineStats.map(d => [d.name, `${d.score}`]), datasets: [{ label: 'Acurácia (%)', data: metrics.disciplineStats.map(d => d.accuracy), backgroundColor: metrics.disciplineStats.map(d => d.accuracy < (d.target * 0.75) ? '#ef4444' : d.accuracy >= d.target ? '#22c55e' : '#f59e0b'), borderRadius: 4 }] }} options={{ ...barChartOptions, plugins: { ...barChartOptions.plugins, textOnBars: true }, onHover: (event, chartElement) => { if (event.native && event.native.target) { (event.native.target as HTMLElement).style.cursor = chartElement[0] ? 'pointer' : 'default'; } }, onClick: (event, elements) => { if (elements.length > 0) { const index = elements[0].index; const disciplineName = metrics.disciplineStats[index].name; setWorstTopicsDiscipline(disciplineName); } } }} plugins={[textOnBarsPlugin]} />
+                          </div>
                       </div>
                   </div>
               )}
@@ -663,8 +690,28 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
               <div className="flex justify-between items-start"><span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Progresso Edital</span><button onClick={() => setExpandedMetric(expandedMetric === 'progress' ? null : 'progress')} className="text-slate-500 dark:text-slate-400 hover:text-green-600">{expandedMetric === 'progress' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}</button></div>
               <div className="flex justify-between items-end"><div className="flex flex-col"><span className="text-xs font-semibold text-green-600">{metrics.completedTopics} Concluídos</span><span className="text-xs font-semibold text-orange-500">{metrics.pendingTopics} Pendentes</span></div><span className="text-4xl font-black text-slate-900 dark:text-white">{metrics.progressPercent}%</span></div>
               {expandedMetric === 'progress' && (
-                  <div className="mt-6 flex-1 w-full relative animate-in fade-in slide-in-from-top-4">
-                      <Bar data={{ labels: metrics.disciplineStats.map(d => d.name), datasets: [{ label: 'Conclusão (%)', data: metrics.disciplineStats.map(d => d.progress), backgroundColor: '#3b82f6', borderRadius: 4 }] }} options={barChartOptions} plugins={[textOnBarsPlugin]} />
+                  <div className="mt-6 flex-1 w-full relative animate-in fade-in slide-in-from-top-4 group">
+                      {metrics.disciplineStats.length > 8 && (
+                          <>
+                              <button 
+                                  onClick={() => scrollChart(progressScrollRef, 'left')}
+                                  className="absolute left-0 top-1/2 -translate-y-1/2 z-20 p-1.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-full shadow-lg text-slate-600 dark:text-slate-300 hover:bg-green-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 -ml-2"
+                              >
+                                  <ChevronLeft size={18} />
+                              </button>
+                              <button 
+                                  onClick={() => scrollChart(progressScrollRef, 'right')}
+                                  className="absolute right-0 top-1/2 -translate-y-1/2 z-20 p-1.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-full shadow-lg text-slate-600 dark:text-slate-300 hover:bg-green-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 -mr-2"
+                              >
+                                  <ChevronRight size={18} />
+                              </button>
+                          </>
+                      )}
+                      <div ref={progressScrollRef} className="w-full h-full overflow-x-auto custom-scrollbar scroll-smooth">
+                          <div style={{ minWidth: metrics.disciplineStats.length > 8 ? `${metrics.disciplineStats.length * 80}px` : '100%', height: '100%' }}>
+                              <Bar data={{ labels: metrics.disciplineStats.map(d => [d.name, `${d.score}`]), datasets: [{ label: 'Conclusão (%)', data: metrics.disciplineStats.map(d => d.progress), backgroundColor: '#3b82f6', borderRadius: 4 }] }} options={barChartOptions} plugins={[textOnBarsPlugin]} />
+                          </div>
+                      </div>
                   </div>
               )}
           </div>

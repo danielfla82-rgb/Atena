@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS notebooks (
     subtitle TEXT,
     tec_link TEXT,
     error_notebook_link TEXT,
+    error_notebook_comment TEXT,
     favorite_questions_link TEXT,
     law_link TEXT,
     obsidian_link TEXT,
@@ -42,6 +43,8 @@ CREATE TABLE IF NOT EXISTS notebooks (
     is_week_completed BOOLEAN DEFAULT FALSE,
     notes TEXT DEFAULT '',
     images JSONB DEFAULT '[]'::jsonb,
+    extra_subtopics JSONB DEFAULT '[]'::jsonb,
+    extra_error_notebooks JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

@@ -76,6 +76,15 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
               if (subScore >= 0.65) return true;
           }
           
+          if (nb.extraSubtopics && nb.extraSubtopics.length > 0) {
+              for (const extra of nb.extraSubtopics) {
+                  if (extra.subtitle) {
+                      const extraScore = calculateSimilarity(extra.subtitle, topicName);
+                      if (extraScore >= 0.65) return true;
+                  }
+              }
+          }
+          
           return false;
       });
 
@@ -411,8 +420,8 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
       return (
           <div className="p-6 max-w-4xl mx-auto h-full flex flex-col items-center justify-center text-center space-y-6 animate-in fade-in zoom-in">
               <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 rounded-2xl shadow-2xl max-w-lg w-full relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-cyan-500"></div>
-                  <ListChecks size={64} className="text-emerald-500 mx-auto mb-6" />
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 to-cyan-500"></div>
+                  <ListChecks size={64} className="text-green-500 mx-auto mb-6" />
                   <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Edital Verticalizado Inteligente</h2>
                   <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
                       Ainda não processamos seu edital. A IA irá ler o conteúdo programático, estruturar os tópicos e calcular a probabilidade de cobrança.
@@ -423,14 +432,14 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
                             value={localEditalText}
                             onChange={(e) => setLocalEditalText(e.target.value)}
                             placeholder="Cole o Conteúdo Programático do Edital aqui..."
-                            className="w-full h-40 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl p-4 text-slate-900 dark:text-white text-xs font-mono focus:border-emerald-500 outline-none resize-none custom-scrollbar"
+                            className="w-full h-40 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl p-4 text-slate-900 dark:text-white text-xs font-mono focus:border-green-500 outline-none resize-none custom-scrollbar"
                         />
                   </div>
 
                   <button 
                       onClick={processEditalWithAI} 
                       disabled={isProcessing || !localEditalText}
-                      className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-100 dark:bg-slate-800 disabled:text-slate-600 text-white font-bold rounded-xl shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-2 transition-all"
+                      className="w-full py-4 bg-green-600 hover:bg-green-500 disabled:bg-slate-100 dark:bg-slate-800 disabled:text-slate-600 text-white font-bold rounded-xl shadow-lg shadow-green-900/20 flex items-center justify-center gap-2 transition-all"
                   >
                       {isProcessing ? <Loader2 size={20} className="animate-spin" /> : <Sparkles size={20} />}
                       {isProcessing ? "IA Analisando Edital..." : "Gerar Edital Verticalizado"}
@@ -445,7 +454,7 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-slate-200 dark:border-slate-800 pb-6 gap-4 flex-shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
-            <ListChecks className="text-emerald-500" /> Edital Verticalizado
+            <ListChecks className="text-green-500" /> Edital Verticalizado
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">
             Auditoria de cobertura, análise de probabilidade e cruzamento com o ciclo.
@@ -459,11 +468,11 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
                     placeholder="Filtrar tópicos..." 
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
-                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg py-2 pl-9 pr-3 text-sm text-slate-900 dark:text-white focus:border-emerald-500 outline-none"
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg py-2 pl-9 pr-3 text-sm text-slate-900 dark:text-white focus:border-green-500 outline-none"
                 />
              </div>
              <button onClick={openReprocessModal} className="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg border border-slate-300 dark:border-slate-700 font-medium text-xs transition-colors shadow-sm">
-                 <Sparkles size={14} className="text-emerald-500" /> Reprocessar
+                 <Sparkles size={14} className="text-green-500" /> Reprocessar
              </button>
         </div>
       </div>
@@ -500,12 +509,12 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
               </div>
 
               <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden">
-                  <div className="p-3 bg-emerald-900/20 rounded-lg text-emerald-500"><CheckCircle2 size={20} /></div>
+                  <div className="p-3 bg-green-900/20 rounded-lg text-green-500"><CheckCircle2 size={20} /></div>
                   <div>
                       <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Concluídos</p>
-                      <p className="text-2xl font-bold text-emerald-400">{stats.completedTopics} <span className="text-xs text-slate-500 font-normal">({Math.round((stats.completedTopics/stats.totalTopics)*100)}%)</span></p>
+                      <p className="text-2xl font-bold text-green-400">{stats.completedTopics} <span className="text-xs text-slate-500 font-normal">({Math.round((stats.completedTopics/stats.totalTopics)*100)}%)</span></p>
                   </div>
-                  <div className="absolute bottom-0 left-0 h-1 bg-emerald-500 transition-all duration-1000" style={{ width: `${(stats.completedTopics/stats.totalTopics)*100}%` }}></div>
+                  <div className="absolute bottom-0 left-0 h-1 bg-green-500 transition-all duration-1000" style={{ width: `${(stats.completedTopics/stats.totalTopics)*100}%` }}></div>
               </div>
 
               <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden">
@@ -516,10 +525,10 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
                   </div>
               </div>
 
-              <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-emerald-500/30 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden shadow-lg shadow-emerald-900/10">
-                  <div className="p-3 bg-emerald-500 rounded-lg text-slate-900 dark:text-white shadow-md"><TrendingUp size={20} /></div>
+              <div className="bg-gradient-to-br from-slate-900 to-slate-800 border border-green-500/30 p-4 rounded-xl flex items-center gap-4 relative overflow-hidden shadow-lg shadow-green-900/10">
+                  <div className="p-3 bg-green-500 rounded-lg text-slate-900 dark:text-white shadow-md"><TrendingUp size={20} /></div>
                   <div>
-                      <p className="text-[10px] text-emerald-300 font-bold uppercase tracking-wider">Meta Diária</p>
+                      <p className="text-[10px] text-green-300 font-bold uppercase tracking-wider">Meta Diária</p>
                       <p className="text-2xl font-bold text-slate-900 dark:text-white">
                           {stats.pace > 0 ? stats.pace : '?'} <span className="text-xs text-slate-500 dark:text-slate-400 font-normal">tópicos/dia</span>
                       </p>
@@ -551,7 +560,7 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
                         onClick={() => setExpandedDiscipline(isExpanded ? null : discipline.name)}
                       >
                           <div className="flex items-center gap-4">
-                              <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded-lg text-emerald-500">
+                              <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded-lg text-green-500">
                                   {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                               </div>
                               <div>
@@ -573,7 +582,7 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
 
                                       {/* NEW: Avg Accuracy Badge */}
                                       {metrics && metrics.avgAccuracy > 0 && (
-                                          <span className="px-1.5 py-0.5 rounded border text-[10px] font-bold uppercase flex items-center gap-1 bg-emerald-900/20 text-emerald-400 border-emerald-500/20">
+                                          <span className="px-1.5 py-0.5 rounded border text-[10px] font-bold uppercase flex items-center gap-1 bg-green-900/20 text-green-400 border-green-500/20">
                                               Acurácia Média: {metrics.avgAccuracy}%
                                           </span>
                                       )}
@@ -585,7 +594,7 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
                               {/* Bulk Toggle Button - Only visible on hover/expand or if progress > 0 for UX */}
                               <button 
                                 onClick={(e) => toggleAllDisciplineTopics(discipline.name, !isAllChecked, e)}
-                                className={`text-[10px] uppercase font-bold px-2 py-1 rounded border transition-colors flex items-center gap-1 ${isAllChecked ? 'text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-700 hover:text-slate-900 dark:text-white hover:bg-slate-100 dark:bg-slate-800' : 'text-emerald-500 border-emerald-500/30 hover:bg-emerald-900/20'}`}
+                                className={`text-[10px] uppercase font-bold px-2 py-1 rounded border transition-colors flex items-center gap-1 ${isAllChecked ? 'text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-700 hover:text-slate-900 dark:text-white hover:bg-slate-100 dark:bg-slate-800' : 'text-green-500 border-green-500/30 hover:bg-green-900/20'}`}
                                 title={isAllChecked ? "Desmarcar Todos" : "Marcar Todos como Concluído"}
                               >
                                   {isAllChecked ? <Square size={12}/> : <CheckSquare size={12}/>}
@@ -594,9 +603,9 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
 
                               <div className="flex items-center gap-4">
                                   <div className="hidden md:block w-32 h-2 bg-slate-50 dark:bg-slate-950 rounded-full overflow-hidden">
-                                      <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                                      <div className="h-full bg-green-500 transition-all duration-500" style={{ width: `${progress}%` }}></div>
                                   </div>
-                                  <span className="text-sm font-bold text-emerald-400 w-8 text-right">{progress}%</span>
+                                  <span className="text-sm font-bold text-green-400 w-8 text-right">{progress}%</span>
                               </div>
                           </div>
                       </div>
@@ -623,21 +632,21 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
                                               return (
                                                   <tr key={idx} className="hover:bg-slate-100 dark:bg-slate-800/20 transition-colors group">
                                                       <td className="p-4 text-center">
-                                                          <button onClick={(e) => { e.stopPropagation(); toggleCheck(discipline.name, topic.name); }} className="text-slate-500 hover:text-emerald-500 transition-colors">
-                                                              {topic.checked ? <CheckSquare size={18} className="text-emerald-500" /> : <Square size={18} />}
+                                                          <button onClick={(e) => { e.stopPropagation(); toggleCheck(discipline.name, topic.name); }} className="text-slate-500 hover:text-green-500 transition-colors">
+                                                              {topic.checked ? <CheckSquare size={18} className="text-green-500" /> : <Square size={18} />}
                                                           </button>
                                                       </td>
                                                       <td 
-                                                        className={`p-4 font-medium cursor-pointer hover:text-emerald-400 transition-colors ${topic.checked ? 'text-slate-500 line-through' : 'text-slate-200'}`}
+                                                        className={`p-4 font-medium cursor-pointer hover:text-green-400 transition-colors ${topic.checked ? 'text-slate-500 line-through' : 'text-slate-200'}`}
                                                         onClick={() => handleTopicClick(topic.name, discipline.name, stats.matchedId)}
                                                       >
                                                           {topic.name}
                                                           <div className="flex gap-2 items-center mt-1">
                                                               {stats.matchedId && <span className="text-[9px] text-slate-600 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 px-1 rounded inline-block">Integrado</span>}
-                                                              {stats.isMastered && <span className="text-[9px] text-emerald-400 bg-emerald-900/20 border border-emerald-500/20 px-1 rounded inline-flex items-center gap-0.5"><Medal size={8}/> Dominado</span>}
+                                                              {stats.isMastered && <span className="text-[9px] text-green-400 bg-green-900/20 border border-green-500/20 px-1 rounded inline-flex items-center gap-0.5"><Medal size={8}/> Dominado</span>}
                                                               {stats.matchedId && (
                                                                   <div className="flex items-center gap-1">
-                                                                      <span className={`text-[9px] px-1.5 rounded font-bold border ${(Number(stats.accuracy) || 0) >= (Number(stats.target) || 90) ? 'text-emerald-400 border-emerald-500/20 bg-emerald-500/10' : (Number(stats.accuracy) || 0) <= 60 ? 'text-red-400 border-red-500/20 bg-red-500/10' : 'text-amber-400 border-amber-500/20 bg-amber-500/10'}`}>
+                                                                      <span className={`text-[9px] px-1.5 rounded font-bold border ${(Number(stats.accuracy) || 0) >= (Number(stats.target) || 90) ? 'text-green-400 border-green-500/20 bg-green-500/10' : (Number(stats.accuracy) || 0) <= 60 ? 'text-red-400 border-red-500/20 bg-red-500/10' : 'text-amber-400 border-amber-500/20 bg-amber-500/10'}`}>
                                                                           {stats.accuracy}% <span className="opacity-50">/ {stats.target}%</span>
                                                                       </span>
                                                                       {stats.nextReview && (
@@ -659,7 +668,7 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
                                                       </td>
                                                       <td className="p-4 text-center">
                                                           {stats.isScheduled ? (
-                                                              <span className="flex items-center justify-center gap-1 text-emerald-400 font-bold text-xs bg-emerald-900/10 border border-emerald-500/20 px-2 py-1 rounded">
+                                                              <span className="flex items-center justify-center gap-1 text-green-400 font-bold text-xs bg-green-900/10 border border-green-500/20 px-2 py-1 rounded">
                                                                   <Calendar size={12} /> {stats.weeksLabel}
                                                               </span>
                                                           ) : (
@@ -673,7 +682,7 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
                                                                 flex items-center justify-center gap-2 w-full py-1.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-all shadow-lg
                                                                 ${stats.matchedId 
                                                                     ? 'bg-blue-600/10 text-blue-400 border border-blue-500/30 hover:bg-blue-600 hover:text-white' 
-                                                                    : 'bg-emerald-600/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600 hover:text-white'}
+                                                                    : 'bg-green-600/10 text-green-400 border border-green-500/30 hover:bg-green-600 hover:text-white'}
                                                             `}
                                                             title={stats.matchedId ? "Ir para o Caderno" : "Criar Caderno"}
                                                           >
@@ -707,7 +716,7 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
               <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
                   <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900">
                       <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                          <Sparkles size={20} className="text-emerald-500"/> Reprocessar Edital
+                          <Sparkles size={20} className="text-green-500"/> Reprocessar Edital
                       </h3>
                       <button onClick={() => setShowReprocessModal(false)} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white transition-colors">
                           <X size={24} />
@@ -730,7 +739,7 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
                           value={localEditalText}
                           onChange={(e) => setLocalEditalText(e.target.value)}
                           placeholder="Cole aqui o texto do edital..."
-                          className="w-full h-64 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl p-4 text-slate-900 dark:text-white text-xs font-mono focus:border-emerald-500 outline-none resize-none custom-scrollbar"
+                          className="w-full h-64 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl p-4 text-slate-900 dark:text-white text-xs font-mono focus:border-green-500 outline-none resize-none custom-scrollbar"
                       />
                   </div>
 
@@ -744,7 +753,7 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
                       <button 
                           onClick={processEditalWithAI} 
                           disabled={isProcessing || !localEditalText}
-                          className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-900/20 flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="px-6 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl shadow-lg shadow-green-900/20 flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                           {isProcessing ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
                           {isProcessing ? "Processando..." : "Confirmar e Processar"}

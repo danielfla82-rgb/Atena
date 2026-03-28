@@ -48,7 +48,7 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-4 relative overflow-hidden transition-colors duration-300">
       {/* Background Effects */}
       <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-slate-200 via-slate-50 to-white dark:from-slate-900 dark:via-slate-950 dark:to-black z-0 transition-colors duration-300"></div>
-      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-[100px] pointer-events-none"></div>
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-green-500/5 rounded-full blur-[100px] pointer-events-none"></div>
       <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-indigo-500/5 rounded-full blur-[100px] pointer-events-none"></div>
 
       <div className="relative z-10 flex flex-col items-center text-center max-w-md w-full">
@@ -58,7 +58,7 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
         </div>
 
         <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white mb-4 tracking-tight uppercase drop-shadow-2xl transition-colors">
-          ATENA <span className="bg-gradient-to-r from-emerald-600 to-cyan-600 dark:from-emerald-400 dark:to-cyan-400 bg-clip-text text-transparent">CONCURSOS</span>
+          ATENA <span className="bg-gradient-to-r from-green-600 to-cyan-600 dark:from-green-400 dark:to-cyan-400 bg-clip-text text-transparent">CONCURSOS</span>
         </h1>
         
         <p className="text-slate-500 dark:text-slate-400 mb-8 text-lg font-light tracking-wide transition-colors">
@@ -76,33 +76,33 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
 
             <form onSubmit={handleAuth} className="space-y-4">
                 <div className="relative group">
-                    <Mail className="absolute left-3 top-3 text-slate-500 dark:text-slate-400 dark:text-slate-500 group-focus-within:text-emerald-600 dark:group-focus-within:text-emerald-500 transition-colors" size={18} />
+                    <Mail className="absolute left-3 top-3 text-slate-500 dark:text-slate-400 dark:text-slate-500 group-focus-within:text-green-600 dark:group-focus-within:text-green-500 transition-colors" size={18} />
                     <input 
                         type="email" 
                         required
                         placeholder="Email" 
                         value={email}
                         onChange={e => setEmail(e.target.value)}
-                        className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pl-10 text-slate-900 dark:text-white outline-none focus:border-emerald-500 transition-all placeholder:text-slate-500 dark:text-slate-400 dark:placeholder:text-slate-600"
+                        className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pl-10 text-slate-900 dark:text-white outline-none focus:border-green-500 transition-all placeholder:text-slate-500 dark:text-slate-400 dark:placeholder:text-slate-600"
                     />
                 </div>
                 
                 <div className="relative group">
-                    <Lock className="absolute left-3 top-3 text-slate-500 dark:text-slate-400 dark:text-slate-500 group-focus-within:text-emerald-600 dark:group-focus-within:text-emerald-500 transition-colors" size={18} />
+                    <Lock className="absolute left-3 top-3 text-slate-500 dark:text-slate-400 dark:text-slate-500 group-focus-within:text-green-600 dark:group-focus-within:text-green-500 transition-colors" size={18} />
                     <input 
                         type="password" 
                         required
                         placeholder="Senha" 
                         value={password}
                         onChange={e => setPassword(e.target.value)}
-                        className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pl-10 text-slate-900 dark:text-white outline-none focus:border-emerald-500 transition-all placeholder:text-slate-500 dark:text-slate-400 dark:placeholder:text-slate-600"
+                        className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl py-3 pl-10 text-slate-900 dark:text-white outline-none focus:border-green-500 transition-all placeholder:text-slate-500 dark:text-slate-400 dark:placeholder:text-slate-600"
                     />
                 </div>
 
                 <button 
                     type="submit" 
                     disabled={loading}
-                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl shadow-lg shadow-emerald-900/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full py-3 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl shadow-lg shadow-green-900/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {loading ? <Loader2 className="animate-spin" size={20} /> : <LogIn size={20} />}
                     Entrar

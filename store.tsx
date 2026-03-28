@@ -38,11 +38,14 @@ const mapNotebookFromDB = (db: any): Notebook => {
         subtitle: db.subtitle || '',
         tecLink: db.tec_link || db.tecLink || '',
         errorNotebookLink: db.error_notebook_link || db.errorNotebookLink || '',
+        errorNotebookComment: db.error_notebook_comment || db.errorNotebookComment || '',
         favoriteQuestionsLink: db.favorite_questions_link || db.favoriteQuestionsLink || '',
         lawLink: db.law_link || db.lawLink || '',
         obsidianLink: db.obsidian_link || db.obsidianLink || '',
         geminiLink1: db.gemini_link_1 || db.geminiLink1 || '',
         geminiLink2: db.gemini_link_2 || db.geminiLink2 || '',
+        extraSubtopics: db.extra_subtopics || db.extraSubtopics || [],
+        extraErrorNotebooks: db.extra_error_notebooks || db.extraErrorNotebooks || [],
         targetAccuracy: Number(db.target_accuracy || db.targetAccuracy || 90),
         accuracy: Number(db.accuracy || 0),
         weight: db.weight || Weight.MEDIO,
@@ -73,11 +76,14 @@ const mapNotebookToDB = (nb: Partial<Notebook>) => {
         subtitle: nb.subtitle || null,
         tec_link: nb.tecLink || null,
         error_notebook_link: nb.errorNotebookLink || null,
+        error_notebook_comment: nb.errorNotebookComment || null,
         favorite_questions_link: nb.favoriteQuestionsLink || null,
         law_link: nb.lawLink || null,
         obsidian_link: nb.obsidianLink || null,
         gemini_link_1: nb.geminiLink1 || null,
         gemini_link_2: nb.geminiLink2 || null,
+        extra_subtopics: nb.extraSubtopics || null,
+        extra_error_notebooks: nb.extraErrorNotebooks || null,
         target_accuracy: nb.targetAccuracy,
         accuracy: nb.accuracy,
         status: nb.status,
@@ -335,7 +341,9 @@ interface StoreContextType {
   deleteDiscipline: (id: string) => Promise<void>;
   
   moveNotebookToWeek: (notebookId: string, weekId: string) => Promise<void>;
+  updateNotebookSchedule: (notebookId: string, newWeekId: string | null) => Promise<void>;
   reorderSlotInWeek: (weekId: string, oldIndex: number, newIndex: number) => Promise<void>;
+  moveSlotBetweenWeeks: (instanceId: string, sourceWeekId: string, targetWeekId: string, targetIndex?: number) => Promise<void>;
   toggleSlotCompletion: (instanceId: string, weekId: string) => Promise<void>;
   removeSlotFromWeek: (instanceId: string, weekId: string) => Promise<void>;
 
@@ -946,20 +954,18 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateCycleSchedule = async (cycleId: string, modifier: (schedule: Record<string, ScheduleItem[]>) => Record<string, ScheduleItem[]>) => {
-      let newScheduleState: Record<string, ScheduleItem[]> | null = null;
+      const cycle = cycles.find(c => c.id === cycleId);
+      if (!cycle) return;
+
+      const currentSchedule = cycle.schedule ? JSON.parse(JSON.stringify(cycle.schedule)) : {};
+      const newSchedule = modifier(currentSchedule);
       const previousCycles = [...cycles];
-      setCycles(prev => {
-          return prev.map(c => {
-              if (c.id !== cycleId) return c;
-              const currentSchedule = c.schedule ? JSON.parse(JSON.stringify(c.schedule)) : {};
-              const newSchedule = modifier(currentSchedule);
-              newScheduleState = newSchedule;
-              return { ...c, schedule: newSchedule };
-          });
-      });
-      if (!isGuest && user && newScheduleState) {
+
+      setCycles(prev => prev.map(c => c.id === cycleId ? { ...c, schedule: newSchedule } : c));
+
+      if (!isGuest && user) {
           try { 
-              const { error } = await supabase.from('cycles').update({ schedule: newScheduleState }).eq('id', cycleId); 
+              const { error } = await supabase.from('cycles').update({ schedule: newSchedule }).eq('id', cycleId); 
               if (error) throw error;
           } catch (e) { 
               console.error("Failed to update cycle schedule:", e); 
@@ -1035,9 +1041,37 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (!activeCycleId) { editNotebook(targetId, { weekId }); return; }
       const newSlot: ScheduleItem = { instanceId: generateId(), notebookId: targetId, completed: false };
       await updateCycleSchedule(activeCycleId, (schedule) => {
-          if (!schedule[weekId]) schedule[weekId] = [];
-          schedule[weekId] = [...schedule[weekId], newSlot];
-          return schedule;
+          const newSchedule = { ...schedule };
+          if (!newSchedule[weekId]) newSchedule[weekId] = [];
+          newSchedule[weekId] = [...newSchedule[weekId], newSlot];
+          return newSchedule;
+      });
+  };
+
+  const updateNotebookSchedule = async (notebookId: string, newWeekId: string | null) => {
+      if (!activeCycleId) return;
+      
+      await updateCycleSchedule(activeCycleId, (schedule) => {
+          const newSchedule = { ...schedule };
+          
+          // Remove from all weeks
+          Object.keys(newSchedule).forEach(wId => {
+              if (Array.isArray(newSchedule[wId])) {
+                  newSchedule[wId] = newSchedule[wId].filter(s => s.notebookId !== notebookId);
+              }
+          });
+          
+          // Add to new week if provided
+          if (newWeekId) {
+              if (!newSchedule[newWeekId]) newSchedule[newWeekId] = [];
+              newSchedule[newWeekId] = [...newSchedule[newWeekId], { 
+                  instanceId: generateId(), 
+                  notebookId, 
+                  completed: false 
+              }];
+          }
+          
+          return newSchedule;
       });
   };
 
@@ -1095,6 +1129,31 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       await updateCycleSchedule(activeCycleId, (schedule) => {
           if (!schedule[weekId]) return schedule;
           schedule[weekId] = schedule[weekId].filter(s => s.instanceId !== instanceId);
+          return schedule;
+      });
+  };
+
+  const moveSlotBetweenWeeks = async (instanceId: string, sourceWeekId: string, targetWeekId: string, targetIndex?: number) => {
+      if (!activeCycleId) return;
+      await updateCycleSchedule(activeCycleId, (schedule) => {
+          if (!schedule[sourceWeekId]) return schedule;
+          const sourceList = [...schedule[sourceWeekId]];
+          const slotIndex = sourceList.findIndex(s => s.instanceId === instanceId);
+          if (slotIndex === -1) return schedule;
+          
+          const [slot] = sourceList.splice(slotIndex, 1);
+          schedule[sourceWeekId] = sourceList;
+          
+          if (!schedule[targetWeekId]) schedule[targetWeekId] = [];
+          const targetList = [...schedule[targetWeekId]];
+          
+          if (targetIndex !== undefined) {
+              targetList.splice(targetIndex, 0, slot);
+          } else {
+              targetList.push(slot);
+          }
+          schedule[targetWeekId] = targetList;
+          
           return schedule;
       });
   };
@@ -1426,7 +1485,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       createCycle, selectCycle, deleteCycle, updateConfig,
       addNotebook, editNotebook, deleteNotebook, updateNotebookAccuracy, fetchNotebookImages, 
       addDiscipline, editDiscipline, deleteDiscipline,
-      moveNotebookToWeek, reorderSlotInWeek, toggleSlotCompletion, removeSlotFromWeek,
+      moveNotebookToWeek, updateNotebookSchedule, reorderSlotInWeek, moveSlotBetweenWeeks, toggleSlotCompletion, removeSlotFromWeek,
       saveReport, deleteReport,
       addProtocolItem, toggleProtocolItem, deleteProtocolItem,
       updateFramework,

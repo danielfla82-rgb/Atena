@@ -30,7 +30,7 @@ export const Protocol: React.FC = () => {
       switch(type) {
           case 'Medicamento': return <Pill size={18} className="text-red-400" />;
           case 'Refeição': return <Utensils size={18} className="text-orange-400" />;
-          default: return <Coffee size={18} className="text-emerald-400" />;
+          default: return <Coffee size={18} className="text-green-400" />;
       }
   };
 
@@ -130,7 +130,7 @@ export const Protocol: React.FC = () => {
                           <div className="flex items-center gap-4">
                               <button 
                                 onClick={() => toggleProtocolItem(item.id)}
-                                className={`w-6 h-6 rounded border flex items-center justify-center transition-colors ${item.checked ? 'bg-emerald-500 border-emerald-500 text-slate-900 dark:text-white' : 'border-slate-600 hover:border-emerald-500'}`}
+                                className={`w-6 h-6 rounded border flex items-center justify-center transition-colors ${item.checked ? 'bg-green-500 border-green-500 text-slate-900 dark:text-white' : 'border-slate-600 hover:border-green-500'}`}
                               >
                                   {item.checked && <Check size={14} />}
                               </button>

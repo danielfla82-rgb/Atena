@@ -189,7 +189,7 @@ export const Diagnostics: React.FC = () => {
         // 1. Headers (H2 - Seções Principais)
         if (trimmed.startsWith('## ')) {
             return (
-                <div key={i} className="mt-8 mb-4 border-l-4 border-emerald-500 pl-4 py-1 bg-gradient-to-r from-emerald-900/20 to-transparent rounded-r-lg">
+                <div key={i} className="mt-8 mb-4 border-l-4 border-green-500 pl-4 py-1 bg-gradient-to-r from-green-900/20 to-transparent rounded-r-lg">
                     <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-wide uppercase">
                         {trimmed.replace(/^##\s*/, '')}
                     </h2>
@@ -200,8 +200,8 @@ export const Diagnostics: React.FC = () => {
         // 2. Sub-headers (H3)
         if (trimmed.startsWith('### ')) {
             return (
-                <h3 key={i} className="text-lg font-semibold text-emerald-400 mt-6 mb-2 flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+                <h3 key={i} className="text-lg font-semibold text-green-400 mt-6 mb-2 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
                     {trimmed.replace(/^###\s*/, '')}
                 </h3>
             );
@@ -214,7 +214,7 @@ export const Diagnostics: React.FC = () => {
             const parts = content.split(/\*\*(.*?)\*\*/g);
             return (
                 <div key={i} className="flex gap-3 ml-2 mb-2 group">
-                    <div className="mt-2 w-1.5 h-1.5 rounded-full bg-slate-600 group-hover:bg-emerald-400 transition-colors flex-shrink-0"></div>
+                    <div className="mt-2 w-1.5 h-1.5 rounded-full bg-slate-600 group-hover:bg-green-400 transition-colors flex-shrink-0"></div>
                     <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-base flex-1">
                         {parts.map((part, idx) => 
                             idx % 2 === 1 ? <strong key={idx} className="text-slate-900 dark:text-white font-bold">{part}</strong> : part
@@ -227,8 +227,8 @@ export const Diagnostics: React.FC = () => {
         // 4. Blockquotes (Insights)
         if (trimmed.startsWith('> ')) {
             return (
-                <div key={i} className="my-6 relative pl-8 pr-4 py-4 bg-slate-100 dark:bg-slate-800/50 rounded-r-xl border-l-2 border-emerald-500/50 italic text-slate-200">
-                    <Quote size={20} className="absolute left-2 top-2 text-emerald-500/20" />
+                <div key={i} className="my-6 relative pl-8 pr-4 py-4 bg-slate-100 dark:bg-slate-800/50 rounded-r-xl border-l-2 border-green-500/50 italic text-slate-200">
+                    <Quote size={20} className="absolute left-2 top-2 text-green-500/20" />
                     {trimmed.replace(/^>\s*/, '')}
                 </div>
             );
@@ -257,7 +257,7 @@ export const Diagnostics: React.FC = () => {
             return (
                 <p key={i} className="text-slate-600 dark:text-slate-300 mb-3 leading-7 text-base font-light">
                     {parts.map((part, idx) => 
-                        idx % 2 === 1 ? <strong key={idx} className="text-emerald-300 font-bold bg-emerald-900/20 px-1 rounded">{part}</strong> : part
+                        idx % 2 === 1 ? <strong key={idx} className="text-green-300 font-bold bg-green-900/20 px-1 rounded">{part}</strong> : part
                     )}
                 </p>
             );
@@ -271,21 +271,21 @@ export const Diagnostics: React.FC = () => {
     <div className="p-6 max-w-7xl mx-auto space-y-8 pb-20 relative">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-slate-200 dark:border-slate-800 pb-6 gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3"><Activity className="text-emerald-500" /> Central de Inteligência</h1>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3"><Activity className="text-green-500" /> Central de Inteligência</h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1">Auditoria algorítmica e diagnósticos.</p>
         </div>
         <div className="flex gap-4">
             <button onClick={() => setShowHistory(true)} className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:border-slate-500 rounded-lg text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:text-white transition-all flex items-center gap-2 text-sm"><History size={16} /> Histórico</button>
             <div className="flex bg-white dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
-            <button onClick={() => setActiveTab('tactical')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'tactical' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 dark:text-slate-400 hover:text-white'}`}><BrainCircuit size={16} /> Tático</button>
-            <button onClick={() => setActiveTab('edital')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'edital' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 dark:text-slate-400 hover:text-white'}`}><FileText size={16} /> Edital</button>
+            <button onClick={() => setActiveTab('tactical')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'tactical' ? 'bg-green-600 text-white shadow-lg' : 'text-slate-500 dark:text-slate-400 hover:text-white'}`}><BrainCircuit size={16} /> Tático</button>
+            <button onClick={() => setActiveTab('edital')} className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${activeTab === 'edital' ? 'bg-green-600 text-white shadow-lg' : 'text-slate-500 dark:text-slate-400 hover:text-white'}`}><FileText size={16} /> Edital</button>
             </div>
         </div>
       </div>
 
       {loading && (
         <div className="flex flex-col items-center justify-center py-32 text-center">
-          <Loader2 size={48} className="text-emerald-500 animate-spin mb-4" />
+          <Loader2 size={48} className="text-green-500 animate-spin mb-4" />
           <h3 className="text-xl font-bold text-slate-900 dark:text-white">Processando Dados...</h3>
         </div>
       )}
@@ -323,15 +323,15 @@ export const Diagnostics: React.FC = () => {
         <>
           {!tacticalAnalysis ? (
             <div className="flex flex-col items-center justify-center py-20 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl border-dashed">
-              <BrainCircuit size={40} className="text-emerald-500 mb-6" />
+              <BrainCircuit size={40} className="text-green-500 mb-6" />
               <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Diagnóstico de Performance</h2>
-              <button onClick={runTacticalDiagnostics} className="px-8 py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold shadow-lg shadow-emerald-900/20 flex items-center gap-3 transition-all hover:scale-105 mt-4"><Sparkles size={20} /> Gerar Diagnóstico</button>
+              <button onClick={runTacticalDiagnostics} className="px-8 py-4 bg-green-600 hover:bg-green-500 text-white rounded-xl font-bold shadow-lg shadow-green-900/20 flex items-center gap-3 transition-all hover:scale-105 mt-4"><Sparkles size={20} /> Gerar Diagnóstico</button>
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
                <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl shadow-2xl relative overflow-hidden">
-                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500 to-cyan-500"></div>
-                 <button onClick={handleSaveCurrentReport} className="absolute top-6 right-6 p-2 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-600 text-slate-500 dark:text-slate-400 hover:text-white rounded-lg transition-colors z-20"><Save size={20} /></button>
+                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-green-500 to-cyan-500"></div>
+                 <button onClick={handleSaveCurrentReport} className="absolute top-6 right-6 p-2 bg-slate-100 dark:bg-slate-800 hover:bg-green-600 text-slate-500 dark:text-slate-400 hover:text-white rounded-lg transition-colors z-20"><Save size={20} /></button>
                  
                  <div className="p-10 max-w-none">
                     {/* Rendered Markdown Output */}
@@ -361,27 +361,27 @@ export const Diagnostics: React.FC = () => {
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8">
                <div className="flex flex-col md:flex-row gap-8 items-start">
                   <div className="flex-1 space-y-4 w-full">
-                     <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2"><TrendingUp className="text-emerald-500"/> Probabilidade de Aprovação</h2>
-                     <textarea value={tempEditalText} onChange={(e) => setTempEditalText(e.target.value)} placeholder="Cole o edital aqui..." className="w-full h-64 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl p-4 text-slate-600 dark:text-slate-300 font-mono text-sm focus:border-emerald-500 outline-none resize-none custom-scrollbar" />
-                     <button onClick={runEditalAudit} disabled={!tempEditalText} className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold shadow-lg shadow-emerald-900/20 flex items-center justify-center gap-3 transition-all"><Target size={20} /> Calcular Probabilidade</button>
+                     <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2"><TrendingUp className="text-green-500"/> Probabilidade de Aprovação</h2>
+                     <textarea value={tempEditalText} onChange={(e) => setTempEditalText(e.target.value)} placeholder="Cole o edital aqui..." className="w-full h-64 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl p-4 text-slate-600 dark:text-slate-300 font-mono text-sm focus:border-green-500 outline-none resize-none custom-scrollbar" />
+                     <button onClick={runEditalAudit} disabled={!tempEditalText} className="w-full py-4 bg-green-600 hover:bg-green-500 text-white rounded-xl font-bold shadow-lg shadow-green-900/20 flex items-center justify-center gap-3 transition-all"><Target size={20} /> Calcular Probabilidade</button>
                   </div>
                </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
-                <div className="absolute top-0 right-0 z-20"><button onClick={handleSaveCurrentReport} className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-emerald-600 text-slate-600 dark:text-slate-300 hover:text-white rounded-lg transition-colors text-xs font-bold uppercase tracking-wider shadow-lg"><Save size={14} /> Salvar</button></div>
+                <div className="absolute top-0 right-0 z-20"><button onClick={handleSaveCurrentReport} className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-green-600 text-slate-600 dark:text-slate-300 hover:text-white rounded-lg transition-colors text-xs font-bold uppercase tracking-wider shadow-lg"><Save size={14} /> Salvar</button></div>
                 <div className="md:col-span-1 bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 flex flex-col items-center justify-center relative overflow-hidden">
                     <h3 className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest text-xs mb-4 z-10">Probabilidade</h3>
-                    <div className="text-5xl font-extrabold text-emerald-400">{editalAnalysis.passingProbability}%</div>
+                    <div className="text-5xl font-extrabold text-green-400">{editalAnalysis.passingProbability}%</div>
                     <span className="text-xs text-slate-500 uppercase tracking-wider mt-1 font-bold">{editalAnalysis.readinessScore}</span>
                 </div>
                 <div className="md:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 h-full flex flex-col justify-center">
                     <div className="flex items-center gap-4 mb-4">
-                         <div className="p-3 bg-emerald-500/10 rounded-full"><FileText className="text-emerald-500" size={24}/></div>
+                         <div className="p-3 bg-green-500/10 rounded-full"><FileText className="text-green-500" size={24}/></div>
                          <div><p className="text-slate-500 dark:text-slate-400 text-xs uppercase font-bold">Cobertura</p><p className="text-2xl font-bold text-slate-900 dark:text-white">{editalAnalysis.overallCoverage}% Concluído</p></div>
                     </div>
                     <div className="bg-slate-100 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-300 dark:border-slate-700/50">
-                        <h4 className="text-emerald-400 font-bold text-sm mb-2 flex items-center gap-2"><Sparkles size={14}/> Insight</h4>
+                        <h4 className="text-green-400 font-bold text-sm mb-2 flex items-center gap-2"><Sparkles size={14}/> Insight</h4>
                         <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed italic">"{editalAnalysis.strategicInsight}"</p>
                     </div>
                 </div>
@@ -396,7 +396,7 @@ export const Diagnostics: React.FC = () => {
                                 <YAxis dataKey="name" type="category" stroke="#cbd5e1" tick={{fontSize: 10}} width={120} />
                                 <RechartsTooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#f1f5f9' }} />
                                 <Bar dataKey="coverage" name="Cobertura" fill="#22d3ee" radius={[0, 4, 4, 0]} barSize={12} stackId="a" />
-                                <Bar dataKey="accuracy" name="Acurácia" fill="#10b981" radius={[0, 4, 4, 0]} barSize={12} />
+                                <Bar dataKey="accuracy" name="Acurácia" fill="#22c55e" radius={[0, 4, 4, 0]} barSize={12} />
                             </BarChart>
                         </ResponsiveContainer>
                     </div>
@@ -415,7 +415,7 @@ export const Diagnostics: React.FC = () => {
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
                 {reports.map(report => (
-                    <div key={report.id} onClick={() => loadReport(report)} className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 hover:border-emerald-500/50 transition-colors cursor-pointer group relative">
+                    <div key={report.id} onClick={() => loadReport(report)} className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 hover:border-green-500/50 transition-colors cursor-pointer group relative">
                         <h4 className="text-slate-200 text-sm font-medium line-clamp-2">{report.summary}</h4>
                         <button onClick={(e) => { e.stopPropagation(); deleteReport(report.id); }} className="absolute bottom-2 right-2 text-slate-600 hover:text-red-400 p-1 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
                     </div>

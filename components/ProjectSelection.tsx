@@ -295,7 +295,7 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
                                 value={newCycleName}
                                 onChange={e => setNewCycleName(e.target.value)}
                                 placeholder="Ex: Receita Federal 2025"
-                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500 transition-colors"
+                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500 transition-colors"
                                 required
                             />
                         </div>
@@ -306,7 +306,7 @@ export const ProjectSelection: React.FC<Props> = ({ onNavigate }) => {
                                 value={newCycleRole}
                                 onChange={e => setNewCycleRole(e.target.value)}
                                 placeholder="Ex: Auditor Fiscal"
-                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-emerald-500 transition-colors"
+                                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500 transition-colors"
                                 required
                             />
                         </div>

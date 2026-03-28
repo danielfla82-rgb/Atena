@@ -66,8 +66,14 @@ export interface Notebook {
   tecLink?: string;
   /** Link para Caderno de Erros (Novo V6.1) */
   errorNotebookLink?: string;
+  /** Comentário para o Caderno de Erros Principal (Novo V10.7) */
+  errorNotebookComment?: string;
   /** Link para Questões Favoritas (Novo V6.1) */
   favoriteQuestionsLink?: string;
+  /** Cadernos de erros adicionais (Novo V10.7) */
+  extraErrorNotebooks?: { link: string; comment: string }[];
+  /** Subtópicos adicionais e seus links (Novo V6.2) */
+  extraSubtopics?: { subtitle: string; tecLink: string }[];
   /** Link externo para texto de lei ou legislação */
   lawLink?: string;
   /** Link externo para anotações (Obsidian/Notion) - NOVO */

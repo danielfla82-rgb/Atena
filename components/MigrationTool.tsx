@@ -206,7 +206,7 @@ export const MigrationTool: React.FC<{ onClose: () => void }> = ({ onClose }) =>
                         <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-4 h-64 overflow-y-auto font-mono text-xs text-slate-600 dark:text-slate-300 space-y-1 custom-scrollbar">
                             {logs.length === 0 && <span className="text-slate-600 italic">Aguardando logs...</span>}
                             {logs.map((log, i) => (
-                                <div key={i} className={log.includes('❌') ? 'text-red-400' : log.includes('✅') ? 'text-emerald-400' : ''}>
+                                <div key={i} className={log.includes('❌') ? 'text-red-400' : log.includes('✅') ? 'text-green-400' : ''}>
                                     {log}
                                 </div>
                             ))}
@@ -215,7 +215,7 @@ export const MigrationTool: React.FC<{ onClose: () => void }> = ({ onClose }) =>
 
                         {status === 'done' && (
                             <div className="flex justify-center pt-4">
-                                <button onClick={onClose} className="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg flex items-center gap-2">
+                                <button onClick={onClose} className="px-6 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg flex items-center gap-2">
                                     <CheckCircle2 size={18} /> Concluir
                                 </button>
                             </div>

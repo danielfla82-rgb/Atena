@@ -1,5 +1,7 @@
 
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import ReactQuill from 'react-quill-new';
 import { useStore } from '../store';
 import { supabase } from './supabase';
 import { Notebook, Weight, Relevance, Trend, NotebookStatus, ScheduleItem } from '../types';
@@ -14,6 +16,23 @@ import {
 
 // ORDEM LÓGICA CORRETA PARA EXIBIÇÃO
 const ORDERED_ALGO_KEYS = ['learning', 'reviewing', 'mastering', 'maintaining'];
+
+const quillModules = {
+  toolbar: [
+    [{ 'header': [1, 2, false] }],
+    ['bold', 'italic', 'underline', 'strike'],
+    [{ 'color': [] }, { 'background': [] }],
+    [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+    ['clean']
+  ],
+};
+
+const quillFormats = [
+  'header',
+  'bold', 'italic', 'underline', 'strike',
+  'color', 'background',
+  'list'
+];
 
 export const Library: React.FC = () => {
   const { 
@@ -32,14 +51,15 @@ export const Library: React.FC = () => {
     startSession,
     fetchNotebookImages,
     isGuest,
-    removeSlotFromWeek,
-    moveNotebookToWeek
+    updateNotebookSchedule
   } = useStore();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [editalFilter, setEditalFilter] = useState<string>(''); // NOVO ESTADO
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [showFineTuning, setShowFineTuning] = useState(false);
+  const [showDisciplineWeights, setShowDisciplineWeights] = useState(false);
   
   // DELETE MODAL STATE
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -53,7 +73,9 @@ export const Library: React.FC = () => {
   const initialFormState = {
     edital: '',
     discipline: '', name: '', subtitle: '', 
-    tecLink: '', errorNotebookLink: '', favoriteQuestionsLink: '',
+    tecLink: '', errorNotebookLink: '', errorNotebookComment: '', favoriteQuestionsLink: '',
+    extraErrorNotebooks: [] as { link: string; comment: string }[],
+    extraSubtopics: [] as { subtitle: string; tecLink: string }[],
     lawLink: '', obsidianLink: '', 
     geminiLink1: '', geminiLink2: '',
     accuracy: 0, targetAccuracy: 90,
@@ -181,7 +203,10 @@ export const Library: React.FC = () => {
           
           tecLink: notebook.tecLink || '',
           errorNotebookLink: notebook.errorNotebookLink || '',
+          errorNotebookComment: notebook.errorNotebookComment || '',
           favoriteQuestionsLink: notebook.favoriteQuestionsLink || '',
+          extraErrorNotebooks: notebook.extraErrorNotebooks || [],
+          extraSubtopics: notebook.extraSubtopics || [],
           lawLink: notebook.lawLink || '',
           obsidianLink: notebook.obsidianLink || '',
           geminiLink1: notebook.geminiLink1 || '',
@@ -467,25 +492,7 @@ export const Library: React.FC = () => {
         }
 
         if (activeCycleId && targetNbId && formData.scheduledWeek !== initialScheduledWeek) {
-             const cycle = cycles.find(c => c.id === activeCycleId);
-             
-             if (cycle?.schedule) {
-                 const removals: {wId: string, iId: string}[] = [];
-                 Object.entries(cycle.schedule).forEach(([wId, slots]) => {
-                     (slots as ScheduleItem[]).forEach(slot => {
-                         if (slot.notebookId === targetNbId) {
-                             removals.push({ wId, iId: slot.instanceId });
-                         }
-                     });
-                 });
-                 for (const item of removals) {
-                     await removeSlotFromWeek(item.iId, item.wId);
-                 }
-             }
-
-             if (formData.scheduledWeek) {
-                 await moveNotebookToWeek(targetNbId, formData.scheduledWeek);
-             }
+             await updateNotebookSchedule(targetNbId, formData.scheduledWeek);
         }
 
         setIsModalOpen(false);
@@ -747,6 +754,11 @@ export const Library: React.FC = () => {
                                               {nb.weight === Weight.ALTO && <span className="text-[9px] bg-red-100 dark:bg-red-500/10 text-red-700 dark:text-red-400 border border-red-300 dark:border-red-500/20 px-1.5 rounded uppercase font-bold">Peso Max</span>}
                                               {viewMode === 'status' && <span className="text-[9px] text-slate-500 border border-slate-300 dark:border-slate-700 px-1.5 rounded uppercase font-bold">{nb.discipline}</span>}
                                               {isScheduled && <span className="text-[9px] bg-indigo-100 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-500/20 px-1.5 rounded uppercase font-bold flex items-center gap-1"><span className="w-1 h-1 bg-indigo-500 dark:bg-indigo-400 rounded-full animate-pulse"></span> No Ciclo</span>}
+                                              {nb.extraSubtopics && nb.extraSubtopics.length > 0 && (
+                                                  <span className="text-[9px] bg-green-100 dark:bg-green-500/10 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-500/20 px-1.5 rounded uppercase font-bold flex items-center gap-1">
+                                                      +{nb.extraSubtopics.length} Subtópicos
+                                                  </span>
+                                              )}
                                           </div>
                                           <p className="text-xs text-slate-500 truncate">{nb.subtitle}</p>
                                           
@@ -871,17 +883,169 @@ export const Library: React.FC = () => {
                     <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Disciplina</label><input required list="disciplines" value={formData.discipline} onChange={e => handleChange('discipline', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" /><datalist id="disciplines">{existingDisciplines.map(d => <option key={d} value={d} />)}</datalist></div>
                     <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Nome do Tópico</label><input required value={formData.name} onChange={e => handleChange('name', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" /></div>
                   </div>
-                  <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Subtópico / Foco</label><input value={formData.subtitle} onChange={e => handleChange('subtitle', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" /></div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Subtópico / Foco</label><input value={formData.subtitle} onChange={e => handleChange('subtitle', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" /></div>
                     <div>
                         <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Link Caderno TEC</label>
                         <div className="relative"><LinkIcon className="absolute left-3 top-3 text-slate-500" size={16} /><input type="url" value={formData.tecLink} onChange={e => handleChange('tecLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" placeholder="https://tecconcursos..." /></div>
                     </div>
-                    <div>
-                        <label className="block text-[10px] font-bold text-red-400 mb-1 uppercase tracking-wider">Caderno de Erros</label>
-                        <div className="relative"><XCircle className="absolute left-3 top-3 text-red-500" size={16} /><input type="url" value={formData.errorNotebookLink} onChange={e => handleChange('errorNotebookLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-red-500/20 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-red-500 placeholder-red-900/50" placeholder="Link de Erros..." /></div>
+                  </div>
+
+                  <div className="space-y-3 pt-4 border-t border-slate-200 dark:border-slate-700">
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Subtópicos Adicionais</label>
+                    {(() => {
+                        const rows = formData.extraSubtopics || [];
+
+                        const handleRowChange = (index: number, field: 'subtitle' | 'tecLink', value: string) => {
+                            const newRows = rows.map((row, i) => i === index ? { ...row, [field]: value } : row);
+                            handleChange('extraSubtopics', newRows);
+                        };
+
+                        const addRow = () => {
+                            handleChange('extraSubtopics', [...rows, { subtitle: '', tecLink: '' }]);
+                        };
+
+                        const removeRow = (index: number) => {
+                            handleChange('extraSubtopics', rows.filter((_, i) => i !== index));
+                        };
+
+                        return (
+                            <div className="space-y-2">
+                                {rows.map((row, i) => (
+                                    <div key={i} className="flex items-center gap-2">
+                                        <input 
+                                            value={row.subtitle} 
+                                            onChange={e => handleRowChange(i, 'subtitle', e.target.value)} 
+                                            className="flex-1 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" 
+                                            placeholder="Subtópico / Foco Adicional" 
+                                        />
+                                        <div className="relative flex-1">
+                                            <LinkIcon className="absolute left-3 top-3 text-slate-500" size={16} />
+                                            <input 
+                                                type="url" 
+                                                value={row.tecLink} 
+                                                onChange={e => handleRowChange(i, 'tecLink', e.target.value)} 
+                                                className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" 
+                                                placeholder="Link Caderno TEC..." 
+                                            />
+                                        </div>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => removeRow(i)} 
+                                            className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                                            title="Remover linha"
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </div>
+                                ))}
+                                <button 
+                                    type="button" 
+                                    onClick={addRow} 
+                                    className="flex items-center gap-2 text-xs font-bold text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 transition-colors mt-2"
+                                >
+                                    <Plus size={14} /> Adicionar Subtópico Adicional
+                                </button>
+                            </div>
+                        );
+                    })()}
+                  </div>
+                  
+                  <div className="space-y-3 pt-4 border-t border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center justify-between">
+                        <label className="block text-xs font-bold text-red-400 uppercase tracking-wider">Cadernos de Erros</label>
                     </div>
+                    
+                    {(() => {
+                        const rows = formData.extraErrorNotebooks || [];
+                        
+                        const handleRowChange = (index: number, field: 'link' | 'comment', value: string) => {
+                            const newRows = rows.map((row, i) => i === index ? { ...row, [field]: value } : row);
+                            handleChange('extraErrorNotebooks', newRows);
+                        };
+
+                        const addRow = () => {
+                            handleChange('extraErrorNotebooks', [...rows, { link: '', comment: '' }]);
+                        };
+
+                        const removeRow = (index: number) => {
+                            handleChange('extraErrorNotebooks', rows.filter((_, i) => i !== index));
+                        };
+
+                        return (
+                            <div className="space-y-3">
+                                {/* Primary Error Notebook */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                    <div className="relative">
+                                        <XCircle className="absolute left-3 top-3 text-red-500" size={16} />
+                                        <input 
+                                            type="url" 
+                                            value={formData.errorNotebookLink} 
+                                            onChange={e => handleChange('errorNotebookLink', e.target.value)} 
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border border-red-500/20 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-red-500 placeholder-red-900/50" 
+                                            placeholder="Link do Caderno de Erros Principal..." 
+                                        />
+                                    </div>
+                                    <div className="relative">
+                                        <input 
+                                            type="text"
+                                            value={formData.errorNotebookComment || ''} 
+                                            onChange={e => handleChange('errorNotebookComment', e.target.value)} 
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-red-500" 
+                                            placeholder="Comentário sobre este caderno..." 
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Extra Error Notebooks */}
+                                {rows.map((row, i) => (
+                                    <div key={i} className="flex items-start gap-2">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 flex-1">
+                                            <div className="relative">
+                                                <XCircle className="absolute left-3 top-3 text-red-500" size={16} />
+                                                <input 
+                                                    type="url" 
+                                                    value={row.link} 
+                                                    onChange={e => handleRowChange(i, 'link', e.target.value)} 
+                                                    className="w-full bg-slate-100 dark:bg-slate-800 border border-red-500/20 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-red-500 placeholder-red-900/50" 
+                                                    placeholder="Link Adicional..." 
+                                                />
+                                            </div>
+                                            <div className="relative">
+                                                <input 
+                                                    type="text"
+                                                    value={row.comment} 
+                                                    onChange={e => handleRowChange(i, 'comment', e.target.value)} 
+                                                    className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-red-500" 
+                                                    placeholder="Comentário..." 
+                                                />
+                                            </div>
+                                        </div>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => removeRow(i)} 
+                                            className="p-2.5 text-slate-400 hover:text-red-500 transition-colors bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-300 dark:border-slate-700"
+                                            title="Remover"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                ))}
+
+                                <button 
+                                    type="button" 
+                                    onClick={addRow} 
+                                    className="flex items-center gap-2 text-[10px] font-bold text-red-500 hover:text-red-400 transition-colors uppercase tracking-widest"
+                                >
+                                    <Plus size={14} /> Incluir mais caderno de erros
+                                </button>
+                            </div>
+                        );
+                    })()}
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4">
                     <div>
                         <label className="block text-[10px] font-bold text-yellow-400 mb-1 uppercase tracking-wider">Questões Favoritas</label>
                         <div className="relative"><Star className="absolute left-3 top-3 text-yellow-500" size={16} /><input type="url" value={formData.favoriteQuestionsLink} onChange={e => handleChange('favoriteQuestionsLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-yellow-500/20 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-yellow-500 placeholder-yellow-900/50" placeholder="Link Favoritas..." /></div>
@@ -902,180 +1066,259 @@ export const Library: React.FC = () => {
                         <div className="relative"><Brain className="absolute left-3 top-3 text-cyan-500" size={16} /><input type="url" value={formData.geminiLink1} onChange={e => handleChange('geminiLink1', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-cyan-500/20 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-cyan-500 placeholder-cyan-900/50" placeholder="Link Chat..." /></div>
                     </div>
                   </div>
+
+                  {/* Planejamento e Revisão */}
+                  <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-4">
+                      <div>
+                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Planejamento (Semana)</label>
+                          <select 
+                              value={formData.scheduledWeek || ''} 
+                              onChange={(e) => handleChange('scheduledWeek', e.target.value)} 
+                              className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-green-500 text-sm"
+                          >
+                              <option value="">Não Agendado</option>
+                              {weeksList.map(w => (
+                                  <option key={w.id} value={w.id}>{w.label}</option>
+                              ))}
+                          </select>
+                      </div>
+
+                      <div className="bg-slate-100 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-300 dark:border-slate-700 flex flex-col items-stretch gap-4 shadow-inner">
+                          <div className="flex flex-col md:flex-row gap-4 items-end">
+                              <div className="w-full md:w-24">
+                                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Meta (%)</label>
+                                  <input 
+                                      type="number" 
+                                      min="0" max="100" 
+                                      value={formData.targetAccuracy} 
+                                      onChange={e => handleChange('targetAccuracy', e.target.value)} 
+                                      className="w-full bg-white dark:bg-slate-900 border border-slate-600 rounded-lg p-3 text-slate-900 dark:text-white font-mono text-center font-bold text-xl focus:border-green-500 outline-none" 
+                                  />
+                              </div>
+                              <div className="flex-1 w-full">
+                                 <div className="flex justify-between mb-1">
+                                    <label className="block text-[10px] font-bold text-green-400 uppercase">Acurácia na Revisão de Hoje (%)</label>
+                                    {formData.accuracyHistory && formData.accuracyHistory.length > 0 && (
+                                        <span className="text-[9px] text-slate-500 font-mono flex items-center gap-1">
+                                            <History size={12}/> Histórico
+                                        </span>
+                                    )}
+                                 </div>
+                                 <div className="flex gap-2">
+                                    <input type="number" min="0" max="100" value={formData.accuracy} onChange={e => handleChange('accuracy', e.target.value)} className="flex-1 bg-white dark:bg-slate-900 border border-slate-600 rounded-lg p-3 text-slate-900 dark:text-white font-mono text-center font-bold text-xl focus:border-green-500 outline-none" placeholder="0" />
+                                    <button type="button" onClick={handleConcludeReview} disabled={isSaving} className="px-6 bg-green-600 hover:bg-green-500 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg shadow-green-900/30 border border-green-500/50">
+                                        {isSaving ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />} 
+                                        Concluir Revisão
+                                    </button>
+                                 </div>
+                                 
+                                 {computedNextReviewData?.isNotStarted ? (
+                                     <div className="flex flex-col mt-3 gap-1 p-2 bg-white dark:bg-slate-900/50 rounded-lg border border-slate-300 dark:border-slate-700/50">
+                                         <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                                             <span className="uppercase tracking-widest text-slate-500 flex items-center gap-1"><BrainCircuit size={16}/> Algoritmo Atena:</span>
+                                             <span className="text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-2 py-1 rounded border border-slate-300 dark:border-slate-700 flex items-center gap-1">
+                                                <PlayCircle size={16} /> Aguardando Início
+                                             </span>
+                                         </div>
+                                         <p className="text-[9px] text-slate-500 mt-1 italic">Este caderno entrará no fluxo de revisão apenas após o primeiro estudo.</p>
+                                     </div>
+                                 ) : computedNextReviewData && (
+                                     <div className="flex flex-col mt-3 gap-1 p-2 bg-white dark:bg-slate-900/50 rounded-lg border border-slate-300 dark:border-slate-700/50">
+                                         <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                                             <span className="uppercase tracking-widest text-slate-500 flex items-center gap-1"><BrainCircuit size={16}/> Algoritmo Atena:</span>
+                                             <div className="flex items-center gap-2">
+                                                <div className="text-green-400 bg-green-900/20 px-2 py-1 rounded border border-green-500/20 flex items-center gap-1 cursor-pointer hover:bg-green-900/40 transition-colors relative overflow-hidden">
+                                                    <Calendar size={16} className="pointer-events-none" /> 
+                                                    <span className="font-bold text-xs pointer-events-none">{computedNextReviewData.date.toLocaleDateString()}</span>
+                                                    <input 
+                                                        type="date" 
+                                                        value={computedNextReviewData.date.toISOString().split('T')[0]}
+                                                        onChange={(e) => {
+                                                            if (e.target.value) {
+                                                                const newDate = new Date(e.target.value + 'T12:00:00.000Z');
+                                                                handleChange('nextReview', newDate.toISOString());
+                                                            }
+                                                        }}
+                                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                                                    />
+                                                </div>
+                                                <span className="text-slate-500 text-[9px] font-normal">{computedNextReviewData.label}</span>
+                                             </div>
+                                         </div>
+                                     </div>
+                                 )}
+
+                              </div>
+                          </div>
+                          
+                          {formData.accuracyHistory && formData.accuracyHistory.length > 0 && (
+                              <div className="border-t border-slate-300 dark:border-slate-700/50 pt-2 flex gap-2 overflow-x-auto pb-1 min-h-[45px]">
+                                  {formData.accuracyHistory.map((h, i) => (
+                                      <div key={i} className="group relative flex flex-col items-center bg-white dark:bg-slate-900 px-2 py-1 rounded border border-slate-200 dark:border-slate-800 min-w-[60px]">
+                                          <button type="button" onClick={() => removeHistoryItem(i)} className="absolute -top-1.5 -right-1.5 bg-red-600 text-slate-900 dark:text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110 z-10 cursor-pointer shadow-sm"><X size={10} strokeWidth={3} /></button>
+                                          <span className="text-[10px] text-slate-500 font-mono">{new Date(h.date).toLocaleDateString(undefined, {day:'2-digit', month:'2-digit'})}</span>
+                                          <span className={`text-xs font-bold ${getAccuracyColorClass(Number(h.accuracy), Number(formData.targetAccuracy), formData.status)}`}>{h.accuracy}%</span>
+                                      </div>
+                                  ))}
+                                  <div className="flex items-center text-xs text-slate-500 gap-1 ml-2"><TrendingUp size={16} /></div>
+                              </div>
+                          )}
+                      </div>
+                  </div>
               </div>
               
               <div className="space-y-4 pt-2">
-                  <h4 className="text-sm font-bold text-green-500 uppercase tracking-widest border-b border-green-500/20 pb-2">2. Estratégia & Performance</h4>
-                  
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {/* ... (Performance inputs remain same) ... */}
-                      <div className="group relative">
-                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase flex items-center gap-1 cursor-help">
-                              Peso <HelpCircle size={12} className="text-slate-600"/>
-                          </label>
-                          <select value={formData.weight} onChange={(e) => handleChange('weight', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-green-500 text-sm">{Object.values(Weight).map(w => <option key={w} value={w}>{w}</option>)}</select>
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                              <strong className="block text-green-400">{SCORE_TOOLTIPS.weight.title}</strong>
-                              <span className="text-slate-500 dark:text-slate-400">{SCORE_TOOLTIPS.weight.desc}</span>
-                          </div>
-                      </div>
-
-                      <div className="group relative">
-                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase flex items-center gap-1 cursor-help">
-                              Relevância <HelpCircle size={12} className="text-slate-600"/>
-                          </label>
-                          <select value={formData.relevance} onChange={(e) => handleChange('relevance', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-green-500 text-sm">{Object.values(Relevance).map(r => <option key={r} value={r}>{r}</option>)}</select>
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                              <strong className="block text-green-400">{SCORE_TOOLTIPS.relevance.title}</strong>
-                              <span className="text-slate-500 dark:text-slate-400">{SCORE_TOOLTIPS.relevance.desc}</span>
-                          </div>
-                      </div>
-
-                      <div className="group relative">
-                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase flex items-center gap-1 cursor-help">
-                              Tendência <HelpCircle size={12} className="text-slate-600"/>
-                          </label>
-                          <select value={formData.trend} onChange={(e) => handleChange('trend', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-green-500 text-sm">{Object.values(Trend).map(t => <option key={t} value={t}>{t}</option>)}</select>
-                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                              <strong className="block text-green-400">{SCORE_TOOLTIPS.trend.title}</strong>
-                              <span className="text-slate-500 dark:text-slate-400">{SCORE_TOOLTIPS.trend.desc}</span>
-                          </div>
-                      </div>
-
-                      <div><label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Meta (%)</label><input type="number" min="0" max="100" value={formData.targetAccuracy} onChange={e => handleChange('targetAccuracy', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-green-500 text-sm text-center font-bold" /></div>
-                  </div>
-
-                  <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-3 flex items-center justify-between shadow-inner">
-                      <div className="flex flex-col">
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Score Atena (Urgência)</span>
-                          <span className="text-xs text-slate-500 dark:text-slate-400">Nota final gerada pelo algoritmo (0-100).</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                          <div className="text-right">
-                              <span className="text-[9px] block text-slate-500 uppercase font-bold">Auto</span>
-                              <span className="text-sm font-mono text-slate-500 dark:text-slate-400">{calculatedScore}</span>
-                          </div>
-                          <div className="h-8 w-px bg-slate-100 dark:bg-slate-800 mx-2"></div>
-                          <div className="text-right">
-                              <span className="text-[9px] block text-green-500 uppercase font-bold">Final (Editável)</span>
-                              <input 
-                                  type="number" 
-                                  min="0" max="100"
-                                  value={formData.customScore !== '' ? formData.customScore : calculatedScore} 
-                                  onChange={(e) => handleChange('customScore', e.target.value)}
-                                  className="w-16 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded text-center font-bold text-slate-900 dark:text-white text-lg focus:border-green-500 outline-none p-1"
-                              />
-                          </div>
-                      </div>
-                  </div>
-
-                  <div>
-                      <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Planejamento (Semana)</label>
-                      <select 
-                          value={formData.scheduledWeek || ''} 
-                          onChange={(e) => handleChange('scheduledWeek', e.target.value)} 
-                          className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-green-500 text-sm"
+                  <div className="border-b border-green-500/20 pb-2 flex items-center justify-between">
+                      <h4 className="text-sm font-bold text-green-500 uppercase tracking-widest">
+                          2. PESOS DO ASSUNTO
+                      </h4>
+                      <button 
+                          type="button"
+                          onClick={() => setShowDisciplineWeights(!showDisciplineWeights)}
+                          className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
                       >
-                          <option value="">Não Agendado</option>
-                          {weeksList.map(w => (
-                              <option key={w.id} value={w.id}>{w.label}</option>
-                          ))}
-                      </select>
+                          <motion.div
+                              animate={{ rotate: showDisciplineWeights ? 180 : 0 }}
+                              transition={{ duration: 0.3 }}
+                          >
+                              <ChevronDown size={20} className="text-green-500" />
+                          </motion.div>
+                      </button>
                   </div>
+                  
+                  <AnimatePresence>
+                      {showDisciplineWeights && (
+                          <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: 'auto', opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{ duration: 0.3 }}
+                              className="overflow-hidden"
+                          >
+                              <div className="space-y-4 pt-4">
+                                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                      <div className="group relative">
+                                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase flex items-center gap-1 cursor-help">
+                                              Peso <HelpCircle size={12} className="text-slate-600"/>
+                                          </label>
+                                          <select value={formData.weight} onChange={(e) => handleChange('weight', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-green-500 text-sm">{Object.values(Weight).map(w => <option key={w} value={w}>{w}</option>)}</select>
+                                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                              <strong className="block text-green-400">{SCORE_TOOLTIPS.weight.title}</strong>
+                                              <span className="text-slate-500 dark:text-slate-400">{SCORE_TOOLTIPS.weight.desc}</span>
+                                          </div>
+                                      </div>
 
-                  <div className="bg-slate-100 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-300 dark:border-slate-700 flex flex-col items-stretch gap-4 shadow-inner">
-                      <div className="flex flex-col md:flex-row gap-4 items-end">
-                          <div className="flex-1 w-full">
-                             <div className="flex justify-between mb-1">
-                                <label className="block text-[10px] font-bold text-green-400 uppercase">Acurácia na Revisão de Hoje (%)</label>
-                                {formData.accuracyHistory && formData.accuracyHistory.length > 0 && (
-                                    <span className="text-[9px] text-slate-500 font-mono flex items-center gap-1">
-                                        <History size={12}/> Histórico
-                                    </span>
-                                )}
-                             </div>
-                             <div className="flex gap-2">
-                                <input type="number" min="0" max="100" value={formData.accuracy} onChange={e => handleChange('accuracy', e.target.value)} className="flex-1 bg-white dark:bg-slate-900 border border-slate-600 rounded-lg p-3 text-slate-900 dark:text-white font-mono text-center font-bold text-xl focus:border-green-500 outline-none" placeholder="0" />
-                                <button type="button" onClick={handleConcludeReview} disabled={isSaving} className="px-6 bg-green-600 hover:bg-green-500 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg shadow-green-900/30 border border-green-500/50">
-                                    {isSaving ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />} 
-                                    Concluir Revisão
-                                </button>
-                             </div>
-                             
-                             {computedNextReviewData?.isNotStarted ? (
-                                 <div className="flex flex-col mt-3 gap-1 p-2 bg-white dark:bg-slate-900/50 rounded-lg border border-slate-300 dark:border-slate-700/50">
-                                     <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                                         <span className="uppercase tracking-widest text-slate-500 flex items-center gap-1"><BrainCircuit size={16}/> Algoritmo Atena:</span>
-                                         <span className="text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-2 py-1 rounded border border-slate-300 dark:border-slate-700 flex items-center gap-1">
-                                            <PlayCircle size={16} /> Aguardando Início
-                                         </span>
-                                     </div>
-                                     <p className="text-[9px] text-slate-500 mt-1 italic">Este caderno entrará no fluxo de revisão apenas após o primeiro estudo.</p>
-                                 </div>
-                             ) : computedNextReviewData && (
-                                 <div className="flex flex-col mt-3 gap-1 p-2 bg-white dark:bg-slate-900/50 rounded-lg border border-slate-300 dark:border-slate-700/50">
-                                     <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                                         <span className="uppercase tracking-widest text-slate-500 flex items-center gap-1"><BrainCircuit size={16}/> Algoritmo Atena:</span>
-                                         <div className="flex items-center gap-2">
-                                            <div className="text-green-400 bg-green-900/20 px-2 py-1 rounded border border-green-500/20 flex items-center gap-1 cursor-pointer hover:bg-green-900/40 transition-colors relative overflow-hidden">
-                                                <Calendar size={16} className="pointer-events-none" /> 
-                                                <span className="font-bold text-xs pointer-events-none">{computedNextReviewData.date.toLocaleDateString()}</span>
-                                                <input 
-                                                    type="date" 
-                                                    value={computedNextReviewData.date.toISOString().split('T')[0]}
-                                                    onChange={(e) => {
-                                                        if (e.target.value) {
-                                                            const newDate = new Date(e.target.value + 'T12:00:00.000Z');
-                                                            handleChange('nextReview', newDate.toISOString());
-                                                        }
-                                                    }}
-                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-                                                />
-                                            </div>
-                                            <span className="text-slate-500 text-[9px] font-normal">{computedNextReviewData.label}</span>
-                                         </div>
-                                     </div>
-                                 </div>
-                             )}
+                                      <div className="group relative">
+                                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase flex items-center gap-1 cursor-help">
+                                              Relevância <HelpCircle size={12} className="text-slate-600"/>
+                                          </label>
+                                          <select value={formData.relevance} onChange={(e) => handleChange('relevance', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-green-500 text-sm">{Object.values(Relevance).map(r => <option key={r} value={r}>{r}</option>)}</select>
+                                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                              <strong className="block text-green-400">{SCORE_TOOLTIPS.relevance.title}</strong>
+                                              <span className="text-slate-500 dark:text-slate-400">{SCORE_TOOLTIPS.relevance.desc}</span>
+                                          </div>
+                                      </div>
 
-                          </div>
-                      </div>
-                      
-                      {formData.accuracyHistory && formData.accuracyHistory.length > 0 && (
-                          <div className="border-t border-slate-300 dark:border-slate-700/50 pt-2 flex gap-2 overflow-x-auto pb-1 min-h-[45px]">
-                              {formData.accuracyHistory.map((h, i) => (
-                                  <div key={i} className="group relative flex flex-col items-center bg-white dark:bg-slate-900 px-2 py-1 rounded border border-slate-200 dark:border-slate-800 min-w-[60px]">
-                                      <button type="button" onClick={() => removeHistoryItem(i)} className="absolute -top-1.5 -right-1.5 bg-red-600 text-slate-900 dark:text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110 z-10 cursor-pointer shadow-sm"><X size={10} strokeWidth={3} /></button>
-                                      <span className="text-[10px] text-slate-500 font-mono">{new Date(h.date).toLocaleDateString(undefined, {day:'2-digit', month:'2-digit'})}</span>
-                                      <span className={`text-xs font-bold ${getAccuracyColorClass(Number(h.accuracy), Number(formData.targetAccuracy), formData.status)}`}>{h.accuracy}%</span>
+                                      <div className="group relative">
+                                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase flex items-center gap-1 cursor-help">
+                                              Tendência <HelpCircle size={12} className="text-slate-600"/>
+                                          </label>
+                                          <select value={formData.trend} onChange={(e) => handleChange('trend', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-green-500 text-sm">{Object.values(Trend).map(t => <option key={t} value={t}>{t}</option>)}</select>
+                                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                              <strong className="block text-green-400">{SCORE_TOOLTIPS.trend.title}</strong>
+                                              <span className="text-slate-500 dark:text-slate-400">{SCORE_TOOLTIPS.trend.desc}</span>
+                                          </div>
+                                      </div>
                                   </div>
-                              ))}
-                              <div className="flex items-center text-xs text-slate-500 gap-1 ml-2"><TrendingUp size={16} /></div>
-                          </div>
+
+                                  <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-3 flex items-center justify-between shadow-inner">
+                                      <div className="flex flex-col">
+                                          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Score Atena (Urgência)</span>
+                                          <span className="text-xs text-slate-500 dark:text-slate-400">Nota final gerada pelo algoritmo (0-100).</span>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                          <div className="text-right">
+                                              <span className="text-[9px] block text-slate-500 uppercase font-bold">Auto</span>
+                                              <span className="text-sm font-mono text-slate-500 dark:text-slate-400">{calculatedScore}</span>
+                                          </div>
+                                          <div className="h-8 w-px bg-slate-100 dark:bg-slate-800 mx-2"></div>
+                                          <div className="text-right">
+                                              <span className="text-[9px] block text-green-500 uppercase font-bold">Final (Editável)</span>
+                                              <input 
+                                                  type="number" 
+                                                  min="0" max="100"
+                                                  value={formData.customScore !== '' ? formData.customScore : calculatedScore} 
+                                                  onChange={(e) => handleChange('customScore', e.target.value)}
+                                                  className="w-16 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded text-center font-bold text-slate-900 dark:text-white text-lg focus:border-green-500 outline-none p-1"
+                                              />
+                                          </div>
+                                      </div>
+                                  </div>
+                              </div>
+                          </motion.div>
                       )}
-                  </div>
+                  </AnimatePresence>
               </div>
 
               <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800">
-                  <div className="flex items-center justify-between border-b border-purple-500/20 pb-2">
-                      <h3 className="text-sm font-bold text-purple-500 uppercase tracking-widest flex items-center gap-2">
-                          <BrainCircuit size={18} /> Ajuste Fino do Algoritmo
-                      </h3>
-                      <div className="flex items-center gap-1">
-                          {[ { factor: 1, label: 'Normal' }, { factor: 2, label: 'Turbo 2x' }, { factor: 3, label: 'Turbo 3x' }, { factor: 4, label: 'Max 4x' } ].map(mode => (
-                              <button type="button" key={mode.factor} onClick={() => applyAcceleration(mode.factor)} className={`px-2 py-1 rounded text-[10px] font-bold transition-all flex items-center gap-1 border ${currentFactor === mode.factor ? 'bg-purple-600 text-white border-purple-500' : 'bg-white dark:bg-slate-900 text-slate-500 border-slate-300 dark:border-slate-700 hover:text-white'}`}>{mode.factor > 1 && <Zap size={10} />}{mode.label}</button>
-                          ))}
+                  <button 
+                      type="button"
+                      onClick={() => setShowFineTuning(!showFineTuning)}
+                      className="w-full flex items-center justify-between border-b border-green-500/20 pb-2 hover:bg-green-500/5 transition-colors group"
+                  >
+                      <h4 className="text-sm font-bold text-green-500 uppercase tracking-widest">
+                          3. AJUSTE DA REVISÃO
+                      </h4>
+                      <div className="flex items-center gap-3">
+                          {!showFineTuning && (
+                              <div className="hidden md:flex items-center gap-1">
+                                  {[ { factor: 1, label: 'Normal' }, { factor: 2, label: 'Turbo 2x' }, { factor: 3, label: 'Turbo 3x' }, { factor: 4, label: 'Max 4x' } ].map(mode => (
+                                      <span key={mode.factor} className={`px-1.5 py-0.5 rounded text-[8px] font-bold border ${currentFactor === mode.factor ? 'bg-green-600 text-white border-green-500' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'}`}>{mode.label}</span>
+                                  ))}
+                              </div>
+                          )}
+                          <ChevronDown size={18} className={`text-green-500 transition-transform duration-300 ${showFineTuning ? 'rotate-180' : ''}`} />
                       </div>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {ORDERED_ALGO_KEYS.map((key) => { const val = currentIntervals[key as keyof typeof currentIntervals]; return (<div key={key} className="group relative"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-help flex items-center gap-1">{INTERVAL_LABELS[key] || key}<HelpCircle size={12} className="text-slate-600"/></label><input type="number" value={val} onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-white text-center font-bold outline-none focus:border-purple-500" />{ALGO_TOOLTIPS[key] && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"><strong className="block text-green-400 mb-1">{ALGO_TOOLTIPS[key].title}</strong><span className="text-slate-600 dark:text-slate-300 leading-tight block">{ALGO_TOOLTIPS[key].desc}</span><div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800"></div></div>)}</div>)})}
-                  </div>
+                  </button>
+                  
+                  <AnimatePresence>
+                    {showFineTuning && (
+                      <motion.div 
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="overflow-hidden space-y-4"
+                      >
+                          <div className="flex items-center justify-end gap-1 mb-2">
+                              {[ { factor: 1, label: 'Normal' }, { factor: 2, label: 'Turbo 2x' }, { factor: 3, label: 'Turbo 3x' }, { factor: 4, label: 'Max 4x' } ].map(mode => (
+                                  <button type="button" key={mode.factor} onClick={() => applyAcceleration(mode.factor)} className={`px-2 py-1 rounded text-[10px] font-bold transition-all flex items-center gap-1 border ${currentFactor === mode.factor ? 'bg-green-600 text-white border-green-500' : 'bg-white dark:bg-slate-900 text-slate-500 border-slate-300 dark:border-slate-700 hover:text-white'}`}>{mode.factor > 1 && <Zap size={10} />}{mode.label}</button>
+                              ))}
+                          </div>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                              {ORDERED_ALGO_KEYS.map((key) => { const val = currentIntervals[key as keyof typeof currentIntervals]; return (<div key={key} className="group relative"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-help flex items-center gap-1">{INTERVAL_LABELS[key] || key}<HelpCircle size={12} className="text-slate-600"/></label><input type="number" value={val} onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-white text-center font-bold outline-none focus:border-green-500" />{ALGO_TOOLTIPS[key] && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"><strong className="block text-green-400 mb-1">{ALGO_TOOLTIPS[key].title}</strong><span className="text-slate-600 dark:text-slate-300 leading-tight block">{ALGO_TOOLTIPS[key].desc}</span><div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800"></div></div>)}</div>)})}
+                          </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
               </div>
 
               <div className="space-y-4 pt-2">
-                <h4 className="text-sm font-bold text-green-500 uppercase tracking-widest border-b border-green-500/20 pb-2">3. Rascunhos & Anotações</h4>
+                <h4 className="text-sm font-bold text-green-500 uppercase tracking-widest border-b border-green-500/20 pb-2">4. Rascunhos & Anotações</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Anotações / Resumo</label><textarea value={formData.notes} onChange={e => handleChange('notes', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500 transition-all min-h-[200px] resize-none text-sm custom-scrollbar" placeholder="Mnemônicos..." /></div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Anotações / Resumo</label>
+                        <div className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg overflow-hidden">
+                            <ReactQuill 
+                                theme="snow"
+                                value={formData.notes} 
+                                onChange={val => handleChange('notes', val)} 
+                                modules={quillModules}
+                                formats={quillFormats}
+                                className="h-[250px] text-slate-900 dark:text-white"
+                                placeholder="Mnemônicos, resumos, pontos importantes..."
+                            />
+                        </div>
+                    </div>
                     <div className="flex flex-col h-full">
                         <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Galeria de Mapas Mentais</label>
                         <div className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 min-h-[200px] flex flex-col">

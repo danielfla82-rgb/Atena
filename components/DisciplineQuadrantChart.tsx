@@ -131,7 +131,7 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
             const avgAccuracy = discNotebooks.length > 0 ? Math.round(discNotebooks.reduce((sum, nb) => sum + nb.accuracy, 0) / discNotebooks.length) : null;
             
             if (avgAccuracy === null) return 'rgba(148, 163, 184, 0.7)'; // Slate
-            if (avgAccuracy >= 85) return 'rgba(16, 185, 129, 0.7)'; // Emerald
+            if (avgAccuracy >= 85) return 'rgba(34, 197, 94, 0.7)'; // Green
             if (avgAccuracy >= 60) return 'rgba(245, 158, 11, 0.7)'; // Amber
             return 'rgba(239, 68, 68, 0.7)'; // Red
           }),
@@ -140,7 +140,7 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
             const avgAccuracy = discNotebooks.length > 0 ? Math.round(discNotebooks.reduce((sum, nb) => sum + nb.accuracy, 0) / discNotebooks.length) : null;
             
             if (avgAccuracy === null) return 'rgb(148, 163, 184)'; // Slate
-            if (avgAccuracy >= 85) return 'rgb(16, 185, 129)'; // Emerald
+            if (avgAccuracy >= 85) return 'rgb(34, 197, 94)'; // Green
             if (avgAccuracy >= 60) return 'rgb(245, 158, 11)'; // Amber
             return 'rgb(239, 68, 68)'; // Red
           }),
@@ -232,14 +232,14 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
             placeholder="Filtrar por disciplina..." 
             value={disciplineFilter}
             onChange={e => setDisciplineFilter(e.target.value)}
-            className="w-full sm:w-48 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white outline-none focus:border-emerald-500"
+            className="w-full sm:w-48 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white outline-none focus:border-green-500"
           />
           <input 
             type="text" 
             placeholder="Filtrar por Edital..." 
             value={editalFilter}
             onChange={e => setEditalFilter(e.target.value)}
-            className="w-full sm:w-48 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white outline-none focus:border-emerald-500"
+            className="w-full sm:w-48 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-sm text-slate-900 dark:text-white outline-none focus:border-green-500"
           />
           <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg border border-slate-200 dark:border-slate-700">
             <button 

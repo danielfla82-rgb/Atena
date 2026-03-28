@@ -9,7 +9,7 @@ export const Documentation: React.FC = () => {
       <div className="border-b border-slate-200 dark:border-slate-800 pb-6 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
-            <Book className="text-emerald-500" /> Documentação Técnica
+            <Book className="text-green-500" /> Documentação Técnica
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-2 text-lg">ATENA CONCURSOS v10.0 (Stable)</p>
         </div>
@@ -26,17 +26,17 @@ export const Documentation: React.FC = () => {
            <div className="bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Índice</p>
                <nav className="space-y-3">
-                   <a href="#visao-geral" className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 hover:text-emerald-400 transition-colors group">
-                       <span className="w-1.5 h-1.5 rounded-full bg-slate-600 group-hover:bg-emerald-500"></span> 1. Visão Geral
+                   <a href="#visao-geral" className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 hover:text-green-400 transition-colors group">
+                       <span className="w-1.5 h-1.5 rounded-full bg-slate-600 group-hover:bg-green-500"></span> 1. Visão Geral
                    </a>
-                   <a href="#arquitetura" className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 hover:text-emerald-400 transition-colors group">
-                       <span className="w-1.5 h-1.5 rounded-full bg-slate-600 group-hover:bg-emerald-500"></span> 2. Stack Tecnológica
+                   <a href="#arquitetura" className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 hover:text-green-400 transition-colors group">
+                       <span className="w-1.5 h-1.5 rounded-full bg-slate-600 group-hover:bg-green-500"></span> 2. Stack Tecnológica
                    </a>
-                   <a href="#algoritmo" className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 hover:text-emerald-400 transition-colors group">
-                       <span className="w-1.5 h-1.5 rounded-full bg-slate-600 group-hover:bg-emerald-500"></span> 3. O Algoritmo
+                   <a href="#algoritmo" className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 hover:text-green-400 transition-colors group">
+                       <span className="w-1.5 h-1.5 rounded-full bg-slate-600 group-hover:bg-green-500"></span> 3. O Algoritmo
                    </a>
-                   <a href="#dados" className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 hover:text-emerald-400 transition-colors group">
-                       <span className="w-1.5 h-1.5 rounded-full bg-slate-600 group-hover:bg-emerald-500"></span> 4. Modelagem de Dados
+                   <a href="#dados" className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 hover:text-green-400 transition-colors group">
+                       <span className="w-1.5 h-1.5 rounded-full bg-slate-600 group-hover:bg-green-500"></span> 4. Modelagem de Dados
                    </a>
                    <div className="border-t border-slate-300 dark:border-slate-700 my-2 pt-2"></div>
                    <a href="#sobre" className="flex items-center gap-2 text-sm font-bold text-amber-400 hover:text-amber-300 transition-colors group">
@@ -52,7 +52,7 @@ export const Documentation: React.FC = () => {
            {/* Section 1: Overview */}
            <section id="visao-geral" className="space-y-6 scroll-mt-24">
               <div className="flex items-center gap-3 border-b border-slate-200 dark:border-slate-800 pb-2">
-                 <Shield size={24} className="text-emerald-500" />
+                 <Shield size={24} className="text-green-500" />
                  <h2 className="text-2xl font-bold text-slate-900 dark:text-white">1. Visão Geral do Produto</h2>
               </div>
               <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 rounded-2xl text-slate-600 dark:text-slate-300 leading-relaxed shadow-xl">
@@ -119,7 +119,7 @@ export const Documentation: React.FC = () => {
                     Diferente do Anki (que usa apenas multiplicadores fixos), o Atena introduz variáveis de mercado ("Peso" e "Tendência").
                  </p>
 
-                 <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-xl border border-slate-200 dark:border-slate-800 font-mono text-sm text-emerald-400 overflow-x-auto shadow-inner relative z-10">
+                 <div className="bg-slate-50 dark:bg-slate-950 p-6 rounded-xl border border-slate-200 dark:border-slate-800 font-mono text-sm text-green-400 overflow-x-auto shadow-inner relative z-10">
                     <pre>{`// Função Core de Cálculo de Intervalo
 f(A, R, T) = BaseInterval(A) * Multiplier(R) * Multiplier(T)
 
@@ -179,17 +179,17 @@ Ajuste Fino (Multiplicadores):
            <section id="sobre" className="space-y-8 scroll-mt-24 pt-8">
               <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-200 dark:border-slate-800 shadow-2xl">
                   {/* Decorative Elements */}
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none"></div>
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-green-500/5 rounded-full blur-3xl pointer-events-none"></div>
                   <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none"></div>
 
                   <div className="p-8 md:p-12 relative z-10">
                       <div className="flex flex-col md:flex-row items-start gap-8">
                           <div className="md:w-1/3 flex flex-col items-center text-center md:text-left">
-                              <div className="w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-emerald-500/30 flex items-center justify-center mb-6 shadow-lg shadow-emerald-900/20">
-                                  <Shield size={48} className="text-emerald-500" />
+                              <div className="w-24 h-24 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-green-500/30 flex items-center justify-center mb-6 shadow-lg shadow-green-900/20">
+                                  <Shield size={48} className="text-green-500" />
                               </div>
                               <h2 className="text-3xl font-black text-slate-900 dark:text-white mb-2 uppercase tracking-tight">Deusa Atena</h2>
-                              <p className="text-sm text-emerald-400 font-bold uppercase tracking-widest mb-4">Pallas Athena</p>
+                              <p className="text-sm text-green-400 font-bold uppercase tracking-widest mb-4">Pallas Athena</p>
                               <p className="text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
                                   Filha de Zeus, nascida de sua cabeça, já vestida para a batalha. Ela não é apenas uma guerreira; ela é a general que vence antes do primeiro golpe.
                               </p>
@@ -208,7 +208,7 @@ Ajuste Fino (Multiplicadores):
 
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   <div className="bg-slate-100 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-300 dark:border-slate-700/50">
-                                      <h4 className="font-bold text-emerald-300 mb-2 flex items-center gap-2 text-sm">
+                                      <h4 className="font-bold text-green-300 mb-2 flex items-center gap-2 text-sm">
                                           <Sword size={14} /> Guerra Justa e Estratégica
                                       </h4>
                                       <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -225,7 +225,7 @@ Ajuste Fino (Multiplicadores):
                                   </div>
                               </div>
 
-                              <div className="border-l-2 border-emerald-500/30 pl-4 py-2 italic text-slate-500 dark:text-slate-400 text-sm">
+                              <div className="border-l-2 border-green-500/30 pl-4 py-2 italic text-slate-500 dark:text-slate-400 text-sm">
                                   "A vitória pertence àquele que calcula os riscos e domina o terreno antes da batalha."
                               </div>
                           </div>
