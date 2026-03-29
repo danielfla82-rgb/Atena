@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useStore } from '../store';
 import { Discipline, Weight, Relevance, WEIGHT_SCORE, RELEVANCE_SCORE } from '../types';
 import { Target, Grid3X3, ScatterChart as ScatterIcon, X, ExternalLink, CheckCircle2, TrendingUp, AlertTriangle } from 'lucide-react';
+import { abbreviateDiscipline } from '../utils/abbreviation';
 
 import {
   Chart as ChartJS,
@@ -299,6 +300,9 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
                           onClick={() => cell.count > 0 && setSelectedCell({ disciplines: cell.disciplines, title: `${w} / ${r}` })}
                           className={`relative rounded-xl border p-3 flex flex-col items-center justify-center transition-all duration-300 ${colorClass} ${cell.count > 0 ? 'cursor-pointer hover:scale-[1.02] hover:shadow-lg' : 'opacity-50'}`}
                         >
+                          <div className="absolute top-2 right-2 opacity-20">
+                            <span className="text-[8px] font-bold uppercase tracking-tighter">{label}</span>
+                          </div>
                           {cell.count > 0 && cell.avgAccuracy !== null ? (
                             <>
                               <div className="flex items-center gap-1 mb-1 font-bold">
@@ -361,7 +365,9 @@ export const DisciplineQuadrantChart: React.FC<Props> = ({ data, onNavigate }) =
                   return (
                     <div key={disc.id} className="bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow group flex flex-col justify-between">
                       <div>
-                        <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-1 line-clamp-2">{disc.name}</h4>
+                        <h4 className="font-bold text-slate-900 dark:text-white text-sm mb-1 line-clamp-2" title={disc.name}>
+                          {abbreviateDiscipline(disc.name)}
+                        </h4>
                         <div className="flex items-center justify-between mt-2">
                           <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1">{disc.edital || 'Sem edital'}</p>
                           {avgAccuracy !== null && (

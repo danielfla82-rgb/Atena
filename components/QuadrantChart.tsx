@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Notebook, Weight, Relevance, WEIGHT_SCORE, RELEVANCE_SCORE, NotebookStatus } from '../types';
 import { AlertTriangle, CheckCircle2, Minus, Target, Grid3X3, ScatterChart as ScatterIcon, X, ExternalLink } from 'lucide-react';
+import { abbreviateDiscipline } from '../utils/abbreviation';
 import { getStatusColor } from '../utils/algorithm';
 import { useStore } from '../store';
 
@@ -331,7 +332,9 @@ export const QuadrantChart: React.FC<Props> = ({ data, onNavigate }) => {
                             className="w-full text-left p-3 hover:bg-slate-100 dark:bg-slate-800 rounded-lg flex justify-between items-center group transition-colors"
                           >
                               <div className="min-w-0 pr-2">
-                                  <p className="text-xs font-bold text-slate-200 truncate">{nb.discipline}</p>
+                                  <p className="text-xs font-bold text-slate-200 truncate" title={nb.discipline}>
+                                      {abbreviateDiscipline(nb.discipline)}
+                                  </p>
                                   <p className="text-[10px] text-slate-500 truncate">{nb.name}</p>
                               </div>
                               <div className="flex items-center gap-2">

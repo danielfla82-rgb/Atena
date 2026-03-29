@@ -525,7 +525,7 @@ export const Library: React.FC = () => {
               Number(formData.targetAccuracy)
           );
           
-          const newHistory = [...(formData.accuracyHistory || []), { date: now, accuracy: newAccuracy }].slice(-3);
+          const newHistory = [...(formData.accuracyHistory || []), { date: now, accuracy: newAccuracy }].slice(-365);
           
           let newStatus = formData.status;
           if (formData.status === NotebookStatus.NOT_STARTED && newAccuracy > 0) {
@@ -853,7 +853,10 @@ export const Library: React.FC = () => {
 
               <div className="space-y-4">
                   <div className="flex justify-between items-center border-b border-green-500/20 pb-2">
-                      <h4 className="text-sm font-bold text-green-500 uppercase tracking-widest">1. Identificação</h4>
+                      <h4 className="text-sm font-bold text-green-500 uppercase tracking-widest flex items-center gap-2">
+                          <div className="w-4 h-4 rounded bg-green-500/20 flex items-center justify-center text-[8px] text-green-500">1</div>
+                          1. IDENTIFICAÇÃO
+                      </h4>
                       
                       {/* GLOBAL TOGGLE & EXPORT */}
                       <div className="flex items-center gap-2">
@@ -1126,8 +1129,8 @@ export const Library: React.FC = () => {
                           className="w-full flex items-center justify-between border-b border-green-500/20 pb-2 hover:bg-green-500/5 transition-colors group"
                       >
                           <h4 className="text-sm font-bold text-green-500 uppercase tracking-widest flex items-center gap-2">
-                              <div className="w-4 h-4 rounded bg-green-500/20 flex items-center justify-center text-[8px] text-green-500">1.1</div>
-                              PLANEJAMENTO & REVISÃO
+                              <div className="w-4 h-4 rounded bg-green-500/20 flex items-center justify-center text-[8px] text-green-500">2</div>
+                              2. PLANEJAMENTO & REVISÃO
                           </h4>
                           <ChevronDown size={18} className={`text-green-500 transition-transform duration-300 ${showPlanning ? 'rotate-180' : ''}`} />
                       </button>
@@ -1246,8 +1249,8 @@ export const Library: React.FC = () => {
                 <div className="space-y-4 pt-2">
                   <div className="border-b border-green-500/20 pb-2 flex items-center justify-between">
                       <h4 className="text-sm font-bold text-green-500 uppercase tracking-widest flex items-center gap-2">
-                          <div className="w-4 h-4 rounded bg-green-500/20 flex items-center justify-center text-[8px] text-green-500">2</div>
-                          PESOS DO ASSUNTO
+                          <div className="w-4 h-4 rounded bg-green-500/20 flex items-center justify-center text-[8px] text-green-500">3</div>
+                          3. DADOS GERAIS & PESOS
                       </h4>
                       <button 
                           type="button"
@@ -1344,8 +1347,8 @@ export const Library: React.FC = () => {
                       className="w-full flex items-center justify-between border-b border-green-500/20 pb-2 hover:bg-green-500/5 transition-colors group"
                   >
                       <h4 className="text-sm font-bold text-green-500 uppercase tracking-widest flex items-center gap-2">
-                          <div className="w-4 h-4 rounded bg-green-500/20 flex items-center justify-center text-[8px] text-green-500">3</div>
-                          AJUSTE DA REVISÃO
+                          <div className="w-4 h-4 rounded bg-green-500/20 flex items-center justify-center text-[8px] text-green-500">4</div>
+                          4. AJUSTE DA REVISÃO
                       </h4>
                       <div className="flex items-center gap-3">
                           {!showFineTuning && (
@@ -1384,7 +1387,7 @@ export const Library: React.FC = () => {
               </div>
 
               <div className="space-y-4 pt-2">
-                <h4 className="text-sm font-bold text-green-500 uppercase tracking-widest border-b border-green-500/20 pb-2">4. Rascunhos & Anotações</h4>
+                <h4 className="text-sm font-bold text-green-500 uppercase tracking-widest border-b border-green-500/20 pb-2">5. Rascunhos & Anotações</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Anotações / Resumo</label>

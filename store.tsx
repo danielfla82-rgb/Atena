@@ -89,7 +89,7 @@ const mapNotebookToDB = (nb: Partial<Notebook>) => {
         status: nb.status,
         last_practice: nb.lastPractice || null,
         next_review: nb.nextReview || null,
-        accuracy_history: nb.accuracyHistory || [],
+        accuracy_history: Array.isArray(nb.accuracyHistory) ? nb.accuracyHistory : [],
         week_id: nb.weekId || null,
         weight: nb.weight,
         relevance: nb.relevance,

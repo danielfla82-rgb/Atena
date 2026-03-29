@@ -10,6 +10,7 @@ import {
   Target, Settings, TrendingUp, TrendingDown, Minus,
   ChevronDown, Database, Terminal, Flame, Loader2, Settings2, HelpCircle, ChevronUp, Book, ChevronLeft, ChevronRight, X, FileText, Key, BrainCircuit, Sparkles
 } from 'lucide-react';
+import { abbreviateDiscipline } from '../utils/abbreviation';
 
 import {
   Chart as ChartJS,
@@ -116,7 +117,14 @@ const barChartOptions = {
         },
         x: {
             grid: { display: false },
-            ticks: { color: '#94a3b8', font: { size: 9 } },
+            ticks: { 
+                color: '#94a3b8', 
+                font: { size: 10, weight: 'bold' },
+                maxRotation: 45,
+                minRotation: 0,
+                autoSkip: false,
+                padding: 10
+            },
             border: { display: false }
         }
     },
@@ -128,9 +136,23 @@ const barChartOptions = {
             bodyColor: '#f8fafc',
             borderColor: '#334155',
             borderWidth: 1,
-            padding: 8,
-            cornerRadius: 6,
+            padding: 10,
+            cornerRadius: 8,
             displayColors: false,
+            callbacks: {
+                title: (tooltipItems: any) => {
+                    const index = tooltipItems[0].dataIndex;
+                    const dataset = tooltipItems[0].dataset;
+                    // We can't easily get the full name here unless we pass it in the dataset or a custom property
+                    // Let's try to get it from the chart's data if we can
+                    return tooltipItems[0].label;
+                },
+                label: (context: any) => {
+                    const value = context.raw;
+                    const label = context.dataset.label || '';
+                    return `${label}: ${value}%`;
+                }
+            }
         }
     }
 };
@@ -680,7 +702,39 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                       )}
                       <div ref={performanceScrollRef} className="w-full h-full overflow-x-auto custom-scrollbar scroll-smooth">
                           <div style={{ minWidth: metrics.disciplineStats.length > 8 ? `${metrics.disciplineStats.length * 80}px` : '100%', height: '100%' }}>
-                              <Bar data={{ labels: metrics.disciplineStats.map(d => [d.name, `${d.score}`]), datasets: [{ label: 'Acurácia (%)', data: metrics.disciplineStats.map(d => d.accuracy), backgroundColor: metrics.disciplineStats.map(d => d.accuracy < (d.target * 0.75) ? '#ef4444' : d.accuracy >= d.target ? '#22c55e' : '#f59e0b'), borderRadius: 4 }] }} options={{ ...barChartOptions, plugins: { ...barChartOptions.plugins, textOnBars: true }, onHover: (event, chartElement) => { if (event.native && event.native.target) { (event.native.target as HTMLElement).style.cursor = chartElement[0] ? 'pointer' : 'default'; } }, onClick: (event, elements) => { if (elements.length > 0) { const index = elements[0].index; const disciplineName = metrics.disciplineStats[index].name; setWorstTopicsDiscipline(disciplineName); } } }} plugins={[textOnBarsPlugin]} />
+                              <Bar 
+                                data={{ 
+                                  labels: metrics.disciplineStats.map(d => abbreviateDiscipline(d.name)), 
+                                  datasets: [{ 
+                                    label: 'Acurácia (%)', 
+                                    data: metrics.disciplineStats.map(d => d.accuracy), 
+                                    backgroundColor: metrics.disciplineStats.map(d => d.accuracy < (d.target * 0.75) ? '#ef4444' : d.accuracy >= d.target ? '#22c55e' : '#f59e0b'), 
+                                    borderRadius: 4,
+                                    fullNames: metrics.disciplineStats.map(d => d.name) // Custom property for tooltip
+                                  }] 
+                                }} 
+                                options={{ 
+                                  ...barChartOptions, 
+                                  plugins: { 
+                                    ...barChartOptions.plugins, 
+                                    textOnBars: true,
+                                    tooltip: {
+                                      ...barChartOptions.plugins.tooltip,
+                                      callbacks: {
+                                        ...barChartOptions.plugins.tooltip.callbacks,
+                                        title: (tooltipItems: any) => {
+                                          const dataset = tooltipItems[0].dataset;
+                                          const index = tooltipItems[0].dataIndex;
+                                          return dataset.fullNames ? dataset.fullNames[index] : tooltipItems[0].label;
+                                        }
+                                      }
+                                    }
+                                  }, 
+                                  onHover: (event, chartElement) => { if (event.native && event.native.target) { (event.native.target as HTMLElement).style.cursor = chartElement[0] ? 'pointer' : 'default'; } }, 
+                                  onClick: (event, elements) => { if (elements.length > 0) { const index = elements[0].index; const disciplineName = metrics.disciplineStats[index].name; setWorstTopicsDiscipline(disciplineName); } } 
+                                }} 
+                                plugins={[textOnBarsPlugin]} 
+                              />
                           </div>
                       </div>
                   </div>
@@ -709,7 +763,36 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                       )}
                       <div ref={progressScrollRef} className="w-full h-full overflow-x-auto custom-scrollbar scroll-smooth">
                           <div style={{ minWidth: metrics.disciplineStats.length > 8 ? `${metrics.disciplineStats.length * 80}px` : '100%', height: '100%' }}>
-                              <Bar data={{ labels: metrics.disciplineStats.map(d => [d.name, `${d.score}`]), datasets: [{ label: 'Conclusão (%)', data: metrics.disciplineStats.map(d => d.progress), backgroundColor: '#3b82f6', borderRadius: 4 }] }} options={barChartOptions} plugins={[textOnBarsPlugin]} />
+                              <Bar 
+                                data={{ 
+                                  labels: metrics.disciplineStats.map(d => abbreviateDiscipline(d.name)), 
+                                  datasets: [{ 
+                                    label: 'Conclusão (%)', 
+                                    data: metrics.disciplineStats.map(d => d.progress), 
+                                    backgroundColor: '#3b82f6', 
+                                    borderRadius: 4,
+                                    fullNames: metrics.disciplineStats.map(d => d.name) // Custom property for tooltip
+                                  }] 
+                                }} 
+                                options={{
+                                  ...barChartOptions,
+                                  plugins: {
+                                    ...barChartOptions.plugins,
+                                    tooltip: {
+                                      ...barChartOptions.plugins.tooltip,
+                                      callbacks: {
+                                        ...barChartOptions.plugins.tooltip.callbacks,
+                                        title: (tooltipItems: any) => {
+                                          const dataset = tooltipItems[0].dataset;
+                                          const index = tooltipItems[0].dataIndex;
+                                          return dataset.fullNames ? dataset.fullNames[index] : tooltipItems[0].label;
+                                        }
+                                      }
+                                    }
+                                  }
+                                }} 
+                                plugins={[textOnBarsPlugin]} 
+                              />
                           </div>
                       </div>
                   </div>
