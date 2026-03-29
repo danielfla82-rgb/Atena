@@ -940,25 +940,35 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const updateNotebookAccuracy = async (id: string, accuracy: number) => {
       let targetId = id;
-      const nb = notebooks.find(n => n.id === id);
-      if (nb?.isGlobal) {
+      // FIX: Use ref to get the absolute latest state
+      const currentNb = notebooksRef.current.find(n => n.id === id);
+      if (!currentNb) return;
+      
+      if (currentNb.isGlobal) {
           targetId = await ensureNotebookIsPrivate(id);
       }
 
-      let updatedNb: Notebook | undefined;
-      const previousNotebooks = [...notebooks];
-      setNotebooks(prev => prev.map(n => {
-         if (n.id !== targetId) return n;
-         const prevHistory = n.accuracyHistory ? [...n.accuracyHistory] : [];
-         const history = [...prevHistory, { date: new Date().toISOString(), accuracy }];
-         const updated = { ...n, accuracy, accuracyHistory: history.slice(-365), lastPractice: new Date().toISOString() };
-         updatedNb = updated;
-         return updated;
-      }));
+      const prevHistory = currentNb.accuracyHistory ? [...currentNb.accuracyHistory] : [];
+      const history = [...prevHistory, { date: new Date().toISOString(), accuracy }];
+      const updatedNb = { 
+          ...currentNb, 
+          accuracy, 
+          accuracyHistory: history.slice(-365), 
+          lastPractice: new Date().toISOString() 
+      };
+
+      const previousNotebooks = [...notebooksRef.current];
       
-      if (!isGuest && user && updatedNb) {
+      // Update Local State Optimistically
+      setNotebooks(prev => prev.map(n => n.id === targetId ? updatedNb : n));
+      
+      if (!isGuest && user) {
           try {
-              const payload = { accuracy: updatedNb.accuracy, accuracy_history: updatedNb.accuracyHistory, last_practice: updatedNb.lastPractice };
+              const payload = { 
+                  accuracy: updatedNb.accuracy, 
+                  accuracy_history: updatedNb.accuracyHistory, 
+                  last_practice: updatedNb.lastPractice 
+              };
               const { error } = await supabase.from('notebooks').update(payload).eq('id', targetId);
               if (error) throw error;
           } catch (e) { 
