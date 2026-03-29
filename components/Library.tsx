@@ -28,10 +28,10 @@ const quillModules = {
 };
 
 const quillFormats = [
-  'header',
-  'bold', 'italic', 'underline', 'strike',
-  'color', 'background',
-  'list'
+  'header', 'font', 'size',
+  'bold', 'italic', 'underline', 'strike', 'blockquote',
+  'list', 'indent',
+  'link', 'image', 'video', 'color', 'background'
 ];
 
 export const Library: React.FC = () => {
@@ -60,6 +60,7 @@ export const Library: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showFineTuning, setShowFineTuning] = useState(false);
   const [showDisciplineWeights, setShowDisciplineWeights] = useState(false);
+  const [showPlanning, setShowPlanning] = useState(false);
   
   // DELETE MODAL STATE
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -82,6 +83,7 @@ export const Library: React.FC = () => {
     weight: Weight.MEDIO, relevance: Relevance.MEDIA, trend: Trend.ESTAVEL,
     customScore: '' as string | number, 
     status: NotebookStatus.NOT_STARTED,
+    lastPractice: null as string | null,
     notes: '', images: [] as string[], accuracyHistory: [] as { date: string, accuracy: number }[],
     nextReview: '' as string | undefined | null,
     isGlobal: false,
@@ -215,6 +217,7 @@ export const Library: React.FC = () => {
           accuracy: notebook.accuracy, 
           status: notebook.status,
           accuracyHistory: notebook.accuracyHistory || [],
+          lastPractice: notebook.lastPractice || null,
           nextReview: notebook.nextReview || '',
           notes: notebook.notes || '',
           images: currentImages,
@@ -512,6 +515,7 @@ export const Library: React.FC = () => {
   const handleConcludeReview = async () => {
       setIsSaving(true);
       try {
+          const now = new Date().toISOString();
           const newAccuracy = Number(formData.accuracy);
           const nextDate = calculateNextReview(
               newAccuracy, 
@@ -521,24 +525,28 @@ export const Library: React.FC = () => {
               Number(formData.targetAccuracy)
           );
           
-          const newHistory = [...(formData.accuracyHistory || []), { date: new Date().toISOString(), accuracy: newAccuracy }].slice(-3);
+          const newHistory = [...(formData.accuracyHistory || []), { date: now, accuracy: newAccuracy }].slice(-3);
           
           let newStatus = formData.status;
           if (formData.status === NotebookStatus.NOT_STARTED && newAccuracy > 0) {
               newStatus = NotebookStatus.REVIEWING;
           }
           
+          const lastPractice = now;
+
           if(editingId) {
               await editNotebook(editingId, { 
                   accuracy: newAccuracy, 
                   accuracyHistory: newHistory, 
-                  lastPractice: new Date().toISOString(),
+                  lastPractice,
                   nextReview: nextDate.toISOString(),
                   status: newStatus
               });
               setFormData(prev => ({ 
                   ...prev, 
+                  accuracy: newAccuracy,
                   accuracyHistory: newHistory, 
+                  lastPractice,
                   nextReview: nextDate.toISOString(),
                   status: newStatus
               }));
@@ -756,7 +764,7 @@ export const Library: React.FC = () => {
                                               {isScheduled && <span className="text-[9px] bg-indigo-100 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-300 dark:border-indigo-500/20 px-1.5 rounded uppercase font-bold flex items-center gap-1"><span className="w-1 h-1 bg-indigo-500 dark:bg-indigo-400 rounded-full animate-pulse"></span> No Ciclo</span>}
                                               {nb.extraSubtopics && nb.extraSubtopics.length > 0 && (
                                                   <span className="text-[9px] bg-green-100 dark:bg-green-500/10 text-green-700 dark:text-green-300 border border-green-300 dark:border-green-500/20 px-1.5 rounded uppercase font-bold flex items-center gap-1">
-                                                      +{nb.extraSubtopics.length} Subtópicos
+                                                      +{nb.extraSubtopics.length} Maiores Cobranças
                                                   </span>
                                               )}
                                           </div>
@@ -847,22 +855,40 @@ export const Library: React.FC = () => {
                   <div className="flex justify-between items-center border-b border-green-500/20 pb-2">
                       <h4 className="text-sm font-bold text-green-500 uppercase tracking-widest">1. Identificação</h4>
                       
-                      {/* GLOBAL TOGGLE */}
-                      <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
-                              {formData.isGlobal ? <Globe size={16}/> : <Lock size={16}/>} 
-                              Visibilidade:
-                          </span>
+                      {/* GLOBAL TOGGLE & EXPORT */}
+                      <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                                  {formData.isGlobal ? <Globe size={16}/> : <Lock size={16}/>} 
+                                  Visibilidade:
+                              </span>
+                              <button 
+                                  type="button"
+                                  onClick={() => setFormData(prev => ({...prev, isGlobal: !prev.isGlobal}))}
+                                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${formData.isGlobal ? 'bg-indigo-600' : 'bg-slate-700'}`}
+                              >
+                                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${formData.isGlobal ? 'translate-x-4.5' : 'translate-x-1'}`} />
+                              </button>
+                              <span className={`text-xs font-bold ${formData.isGlobal ? 'text-indigo-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                                  {formData.isGlobal ? 'Publicar Cópia' : 'Privado'}
+                              </span>
+                          </div>
                           <button 
                               type="button"
-                              onClick={() => setFormData(prev => ({...prev, isGlobal: !prev.isGlobal}))}
-                              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${formData.isGlobal ? 'bg-indigo-600' : 'bg-slate-700'}`}
+                              onClick={() => {
+                                  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(formData, null, 2));
+                                  const downloadAnchorNode = document.createElement('a');
+                                  downloadAnchorNode.setAttribute("href",     dataStr);
+                                  downloadAnchorNode.setAttribute("download", `caderno_${formData.name.replace(/\s+/g, '_').toLowerCase()}.json`);
+                                  document.body.appendChild(downloadAnchorNode);
+                                  downloadAnchorNode.click();
+                                  downloadAnchorNode.remove();
+                              }}
+                              className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg border border-slate-200 dark:border-slate-700 text-[10px] font-bold uppercase tracking-wider transition-colors"
+                              title="Exportar para JSON"
                           >
-                              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${formData.isGlobal ? 'translate-x-4.5' : 'translate-x-1'}`} />
+                              <Download size={14} /> Exportar JSON
                           </button>
-                          <span className={`text-xs font-bold ${formData.isGlobal ? 'text-indigo-400' : 'text-slate-500 dark:text-slate-400'}`}>
-                              {formData.isGlobal ? 'Publicar Cópia' : 'Privado'}
-                          </span>
                       </div>
                   </div>
 
@@ -880,12 +906,28 @@ export const Library: React.FC = () => {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Disciplina</label><input required list="disciplines" value={formData.discipline} onChange={e => handleChange('discipline', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" /><datalist id="disciplines">{existingDisciplines.map(d => <option key={d} value={d} />)}</datalist></div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Pesos da Disciplina</label>
+                        <select 
+                            required 
+                            value={formData.discipline} 
+                            onChange={e => handleChange('discipline', e.target.value)} 
+                            className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500 appearance-none cursor-pointer"
+                        >
+                            <option value="">Selecione a Disciplina...</option>
+                            {existingDisciplines.map(d => (
+                                <option key={d} value={d}>{d}</option>
+                            ))}
+                            {!existingDisciplines.includes(formData.discipline) && formData.discipline && (
+                                <option value={formData.discipline}>{formData.discipline}</option>
+                            )}
+                        </select>
+                    </div>
                     <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Nome do Tópico</label><input required value={formData.name} onChange={e => handleChange('name', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" /></div>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Subtópico / Foco</label><input value={formData.subtitle} onChange={e => handleChange('subtitle', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" /></div>
+                    <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Maiores Cobranças</label><input value={formData.subtitle} onChange={e => handleChange('subtitle', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" placeholder="MAIORES COBRANÇAS..." /></div>
                     <div>
                         <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Link Caderno TEC</label>
                         <div className="relative"><LinkIcon className="absolute left-3 top-3 text-slate-500" size={16} /><input type="url" value={formData.tecLink} onChange={e => handleChange('tecLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" placeholder="https://tecconcursos..." /></div>
@@ -893,7 +935,7 @@ export const Library: React.FC = () => {
                   </div>
 
                   <div className="space-y-3 pt-4 border-t border-slate-200 dark:border-slate-700">
-                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Subtópicos Adicionais</label>
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Maiores Cobranças Adicionais</label>
                     {(() => {
                         const rows = formData.extraSubtopics || [];
 
@@ -918,7 +960,7 @@ export const Library: React.FC = () => {
                                             value={row.subtitle} 
                                             onChange={e => handleRowChange(i, 'subtitle', e.target.value)} 
                                             className="flex-1 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" 
-                                            placeholder="Subtópico / Foco Adicional" 
+                                            placeholder="Maiores Cobranças Adicionais" 
                                         />
                                         <div className="relative flex-1">
                                             <LinkIcon className="absolute left-3 top-3 text-slate-500" size={16} />
@@ -945,7 +987,7 @@ export const Library: React.FC = () => {
                                     onClick={addRow} 
                                     className="flex items-center gap-2 text-xs font-bold text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 transition-colors mt-2"
                                 >
-                                    <Plus size={14} /> Adicionar Subtópico Adicional
+                                    <Plus size={14} /> Adicionar Maiores Cobranças Adicionais
                                 </button>
                             </div>
                         );
@@ -1063,114 +1105,149 @@ export const Library: React.FC = () => {
                     </div>
                     <div>
                         <label className="block text-[10px] font-bold text-cyan-400 mb-1 uppercase tracking-wider">Link Externo 3</label>
-                        <div className="relative"><Brain className="absolute left-3 top-3 text-cyan-500" size={16} /><input type="url" value={formData.geminiLink1} onChange={e => handleChange('geminiLink1', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-cyan-500/20 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-cyan-500 placeholder-cyan-900/50" placeholder="Link Chat..." /></div>
+                        <div className="relative">
+                            <Brain className="absolute left-3 top-3 text-cyan-500" size={16} />
+                            <input 
+                                type="url" 
+                                value={formData.geminiLink1} 
+                                onChange={e => handleChange('geminiLink1', e.target.value)} 
+                                className="w-full bg-slate-100 dark:bg-slate-800 border border-cyan-500/20 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-cyan-500 placeholder-cyan-900/50" 
+                                placeholder="Link Gemini..." 
+                            />
+                        </div>
                     </div>
                   </div>
 
                   {/* Planejamento e Revisão */}
                   <div className="pt-4 border-t border-slate-200 dark:border-slate-800 space-y-4">
-                      <div>
-                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Planejamento (Semana)</label>
-                          <select 
-                              value={formData.scheduledWeek || ''} 
-                              onChange={(e) => handleChange('scheduledWeek', e.target.value)} 
-                              className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-green-500 text-sm"
-                          >
-                              <option value="">Não Agendado</option>
-                              {weeksList.map(w => (
-                                  <option key={w.id} value={w.id}>{w.label}</option>
-                              ))}
-                          </select>
-                      </div>
+                      <button 
+                          type="button"
+                          onClick={() => setShowPlanning(!showPlanning)}
+                          className="w-full flex items-center justify-between border-b border-green-500/20 pb-2 hover:bg-green-500/5 transition-colors group"
+                      >
+                          <h4 className="text-sm font-bold text-green-500 uppercase tracking-widest flex items-center gap-2">
+                              <div className="w-4 h-4 rounded bg-green-500/20 flex items-center justify-center text-[8px] text-green-500">1.1</div>
+                              PLANEJAMENTO & REVISÃO
+                          </h4>
+                          <ChevronDown size={18} className={`text-green-500 transition-transform duration-300 ${showPlanning ? 'rotate-180' : ''}`} />
+                      </button>
 
-                      <div className="bg-slate-100 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-300 dark:border-slate-700 flex flex-col items-stretch gap-4 shadow-inner">
-                          <div className="flex flex-col md:flex-row gap-4 items-end">
-                              <div className="w-full md:w-24">
-                                  <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Meta (%)</label>
-                                  <input 
-                                      type="number" 
-                                      min="0" max="100" 
-                                      value={formData.targetAccuracy} 
-                                      onChange={e => handleChange('targetAccuracy', e.target.value)} 
-                                      className="w-full bg-white dark:bg-slate-900 border border-slate-600 rounded-lg p-3 text-slate-900 dark:text-white font-mono text-center font-bold text-xl focus:border-green-500 outline-none" 
-                                  />
-                              </div>
-                              <div className="flex-1 w-full">
-                                 <div className="flex justify-between mb-1">
-                                    <label className="block text-[10px] font-bold text-green-400 uppercase">Acurácia na Revisão de Hoje (%)</label>
-                                    {formData.accuracyHistory && formData.accuracyHistory.length > 0 && (
-                                        <span className="text-[9px] text-slate-500 font-mono flex items-center gap-1">
-                                            <History size={12}/> Histórico
-                                        </span>
-                                    )}
-                                 </div>
-                                 <div className="flex gap-2">
-                                    <input type="number" min="0" max="100" value={formData.accuracy} onChange={e => handleChange('accuracy', e.target.value)} className="flex-1 bg-white dark:bg-slate-900 border border-slate-600 rounded-lg p-3 text-slate-900 dark:text-white font-mono text-center font-bold text-xl focus:border-green-500 outline-none" placeholder="0" />
-                                    <button type="button" onClick={handleConcludeReview} disabled={isSaving} className="px-6 bg-green-600 hover:bg-green-500 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg shadow-green-900/30 border border-green-500/50">
-                                        {isSaving ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />} 
-                                        Concluir Revisão
-                                    </button>
-                                 </div>
-                                 
-                                 {computedNextReviewData?.isNotStarted ? (
-                                     <div className="flex flex-col mt-3 gap-1 p-2 bg-white dark:bg-slate-900/50 rounded-lg border border-slate-300 dark:border-slate-700/50">
-                                         <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                                             <span className="uppercase tracking-widest text-slate-500 flex items-center gap-1"><BrainCircuit size={16}/> Algoritmo Atena:</span>
-                                             <span className="text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-2 py-1 rounded border border-slate-300 dark:border-slate-700 flex items-center gap-1">
-                                                <PlayCircle size={16} /> Aguardando Início
-                                             </span>
-                                         </div>
-                                         <p className="text-[9px] text-slate-500 mt-1 italic">Este caderno entrará no fluxo de revisão apenas após o primeiro estudo.</p>
-                                     </div>
-                                 ) : computedNextReviewData && (
-                                     <div className="flex flex-col mt-3 gap-1 p-2 bg-white dark:bg-slate-900/50 rounded-lg border border-slate-300 dark:border-slate-700/50">
-                                         <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                                             <span className="uppercase tracking-widest text-slate-500 flex items-center gap-1"><BrainCircuit size={16}/> Algoritmo Atena:</span>
-                                             <div className="flex items-center gap-2">
-                                                <div className="text-green-400 bg-green-900/20 px-2 py-1 rounded border border-green-500/20 flex items-center gap-1 cursor-pointer hover:bg-green-900/40 transition-colors relative overflow-hidden">
-                                                    <Calendar size={16} className="pointer-events-none" /> 
-                                                    <span className="font-bold text-xs pointer-events-none">{computedNextReviewData.date.toLocaleDateString()}</span>
-                                                    <input 
-                                                        type="date" 
-                                                        value={computedNextReviewData.date.toISOString().split('T')[0]}
-                                                        onChange={(e) => {
-                                                            if (e.target.value) {
-                                                                const newDate = new Date(e.target.value + 'T12:00:00.000Z');
-                                                                handleChange('nextReview', newDate.toISOString());
-                                                            }
-                                                        }}
-                                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-                                                    />
-                                                </div>
-                                                <span className="text-slate-500 text-[9px] font-normal">{computedNextReviewData.label}</span>
+                      <AnimatePresence>
+                          {showPlanning && (
+                              <motion.div
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: 'auto', opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  transition={{ duration: 0.3 }}
+                                  className="overflow-hidden space-y-4 pt-2"
+                              >
+                                  <div>
+                                      <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Planejamento (Semana)</label>
+                                      <select 
+                                          value={formData.scheduledWeek || ''} 
+                                          onChange={(e) => handleChange('scheduledWeek', e.target.value)} 
+                                          className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-green-500 text-sm"
+                                      >
+                                          <option value="">Não Agendado</option>
+                                          {weeksList.map(w => (
+                                              <option key={w.id} value={w.id}>{w.label}</option>
+                                          ))}
+                                      </select>
+                                  </div>
+
+                                  <div className="bg-slate-100 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-300 dark:border-slate-700 flex flex-col items-stretch gap-4 shadow-inner">
+                                      <div className="flex flex-col md:flex-row gap-4 items-end">
+                                          <div className="flex-1 w-full">
+                                             <div className="flex justify-between mb-1">
+                                                <label className="block text-[10px] font-bold text-green-400 uppercase">Acurácia na Revisão de Hoje (%)</label>
+                                                {formData.accuracyHistory && formData.accuracyHistory.length > 0 && (
+                                                    <span className="text-[9px] text-slate-500 font-mono flex items-center gap-1">
+                                                        <History size={12}/> Histórico
+                                                    </span>
+                                                )}
                                              </div>
-                                         </div>
-                                     </div>
-                                 )}
+                                             <div className="flex gap-2">
+                                                 <div className="flex-1 flex gap-2">
+                                                    <div className="flex-1">
+                                                        <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Acurácia (%)</label>
+                                                        <input type="number" min="0" max="100" value={formData.accuracy} onChange={e => handleChange('accuracy', e.target.value)} className="w-full bg-white dark:bg-slate-900 border border-slate-600 rounded-lg p-3 text-slate-900 dark:text-white font-mono text-center font-bold text-xl focus:border-green-500 outline-none" placeholder="0" />
+                                                    </div>
+                                                    <div className="w-24">
+                                                        <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Meta (%)</label>
+                                                        <input type="number" min="0" max="100" value={formData.targetAccuracy} onChange={e => handleChange('targetAccuracy', e.target.value)} className="w-full bg-white dark:bg-slate-900 border border-slate-600 rounded-lg p-3 text-slate-900 dark:text-white font-mono text-center font-bold text-xl focus:border-green-500 outline-none" placeholder="90" />
+                                                    </div>
+                                                 </div>
+                                                 <div className="flex items-end">
+                                                    <button type="button" onClick={handleConcludeReview} disabled={isSaving} className="h-[52px] px-6 bg-green-600 hover:bg-green-500 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg shadow-green-900/30 border border-green-500/50">
+                                                        {isSaving ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />} 
+                                                        Concluir
+                                                    </button>
+                                                 </div>
+                                             </div>
+                                             
+                                             {computedNextReviewData?.isNotStarted ? (
+                                                 <div className="flex flex-col mt-3 gap-1 p-2 bg-white dark:bg-slate-900/50 rounded-lg border border-slate-300 dark:border-slate-700/50">
+                                                     <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                                                         <span className="uppercase tracking-widest text-slate-500 flex items-center gap-1"><BrainCircuit size={16}/> Algoritmo Atena:</span>
+                                                         <span className="text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-2 py-1 rounded border border-slate-300 dark:border-slate-700 flex items-center gap-1">
+                                                            <PlayCircle size={16} /> Aguardando Início
+                                                         </span>
+                                                     </div>
+                                                     <p className="text-[9px] text-slate-500 mt-1 italic">Este caderno entrará no fluxo de revisão apenas após o primeiro estudo.</p>
+                                                 </div>
+                                             ) : computedNextReviewData && (
+                                                 <div className="flex flex-col mt-3 gap-1 p-2 bg-white dark:bg-slate-900/50 rounded-lg border border-slate-300 dark:border-slate-700/50">
+                                                     <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                                                         <span className="uppercase tracking-widest text-slate-500 flex items-center gap-1"><BrainCircuit size={16}/> Algoritmo Atena:</span>
+                                                         <div className="flex items-center gap-2">
+                                                            <div className="text-green-400 bg-green-900/20 px-2 py-1 rounded border border-green-500/20 flex items-center gap-1 cursor-pointer hover:bg-green-900/40 transition-colors relative overflow-hidden">
+                                                                <Calendar size={16} className="pointer-events-none" /> 
+                                                                <span className="font-bold text-xs pointer-events-none">{computedNextReviewData.date.toLocaleDateString()}</span>
+                                                                <input 
+                                                                    type="date" 
+                                                                    value={computedNextReviewData.date.toISOString().split('T')[0]}
+                                                                    onChange={(e) => {
+                                                                        if (e.target.value) {
+                                                                            const newDate = new Date(e.target.value + 'T12:00:00.000Z');
+                                                                            handleChange('nextReview', newDate.toISOString());
+                                                                        }
+                                                                    }}
+                                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                                                                />
+                                                            </div>
+                                                            <span className="text-slate-500 text-[9px] font-normal">{computedNextReviewData.label}</span>
+                                                         </div>
+                                                     </div>
+                                                 </div>
+                                             )}
 
-                              </div>
-                          </div>
-                          
-                          {formData.accuracyHistory && formData.accuracyHistory.length > 0 && (
-                              <div className="border-t border-slate-300 dark:border-slate-700/50 pt-2 flex gap-2 overflow-x-auto pb-1 min-h-[45px]">
-                                  {formData.accuracyHistory.map((h, i) => (
-                                      <div key={i} className="group relative flex flex-col items-center bg-white dark:bg-slate-900 px-2 py-1 rounded border border-slate-200 dark:border-slate-800 min-w-[60px]">
-                                          <button type="button" onClick={() => removeHistoryItem(i)} className="absolute -top-1.5 -right-1.5 bg-red-600 text-slate-900 dark:text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110 z-10 cursor-pointer shadow-sm"><X size={10} strokeWidth={3} /></button>
-                                          <span className="text-[10px] text-slate-500 font-mono">{new Date(h.date).toLocaleDateString(undefined, {day:'2-digit', month:'2-digit'})}</span>
-                                          <span className={`text-xs font-bold ${getAccuracyColorClass(Number(h.accuracy), Number(formData.targetAccuracy), formData.status)}`}>{h.accuracy}%</span>
+                                          </div>
                                       </div>
-                                  ))}
-                                  <div className="flex items-center text-xs text-slate-500 gap-1 ml-2"><TrendingUp size={16} /></div>
-                              </div>
+                                      
+                                      {formData.accuracyHistory && formData.accuracyHistory.length > 0 && (
+                                          <div className="border-t border-slate-300 dark:border-slate-700/50 pt-2 flex gap-2 overflow-x-auto pb-1 min-h-[45px]">
+                                              {formData.accuracyHistory.map((h, i) => (
+                                                  <div key={i} className="group relative flex flex-col items-center bg-white dark:bg-slate-900 px-2 py-1 rounded border border-slate-200 dark:border-slate-800 min-w-[60px]">
+                                                      <button type="button" onClick={() => removeHistoryItem(i)} className="absolute -top-1.5 -right-1.5 bg-red-600 text-slate-900 dark:text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110 z-10 cursor-pointer shadow-sm"><X size={10} strokeWidth={3} /></button>
+                                                      <span className="text-[10px] text-slate-500 font-mono">{new Date(h.date).toLocaleDateString(undefined, {day:'2-digit', month:'2-digit'})}</span>
+                                                      <span className={`text-xs font-bold ${getAccuracyColorClass(Number(h.accuracy), Number(formData.targetAccuracy), formData.status)}`}>{h.accuracy}%</span>
+                                                  </div>
+                                              ))}
+                                              <div className="flex items-center text-xs text-slate-500 gap-1 ml-2"><TrendingUp size={16} /></div>
+                                          </div>
+                                      )}
+                                  </div>
+                              </motion.div>
                           )}
-                      </div>
+                      </AnimatePresence>
                   </div>
-              </div>
-              
-              <div className="space-y-4 pt-2">
+                </div>
+
+                <div className="space-y-4 pt-2">
                   <div className="border-b border-green-500/20 pb-2 flex items-center justify-between">
-                      <h4 className="text-sm font-bold text-green-500 uppercase tracking-widest">
-                          2. PESOS DO ASSUNTO
+                      <h4 className="text-sm font-bold text-green-500 uppercase tracking-widest flex items-center gap-2">
+                          <div className="w-4 h-4 rounded bg-green-500/20 flex items-center justify-center text-[8px] text-green-500">2</div>
+                          PESOS DO ASSUNTO
                       </h4>
                       <button 
                           type="button"
@@ -1266,8 +1343,9 @@ export const Library: React.FC = () => {
                       onClick={() => setShowFineTuning(!showFineTuning)}
                       className="w-full flex items-center justify-between border-b border-green-500/20 pb-2 hover:bg-green-500/5 transition-colors group"
                   >
-                      <h4 className="text-sm font-bold text-green-500 uppercase tracking-widest">
-                          3. AJUSTE DA REVISÃO
+                      <h4 className="text-sm font-bold text-green-500 uppercase tracking-widest flex items-center gap-2">
+                          <div className="w-4 h-4 rounded bg-green-500/20 flex items-center justify-center text-[8px] text-green-500">3</div>
+                          AJUSTE DA REVISÃO
                       </h4>
                       <div className="flex items-center gap-3">
                           {!showFineTuning && (
@@ -1294,6 +1372,9 @@ export const Library: React.FC = () => {
                                   <button type="button" key={mode.factor} onClick={() => applyAcceleration(mode.factor)} className={`px-2 py-1 rounded text-[10px] font-bold transition-all flex items-center gap-1 border ${currentFactor === mode.factor ? 'bg-green-600 text-white border-green-500' : 'bg-white dark:bg-slate-900 text-slate-500 border-slate-300 dark:border-slate-700 hover:text-white'}`}>{mode.factor > 1 && <Zap size={10} />}{mode.label}</button>
                               ))}
                           </div>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                               {/* Meta field moved to review section */}
+                          </div>
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                               {ORDERED_ALGO_KEYS.map((key) => { const val = currentIntervals[key as keyof typeof currentIntervals]; return (<div key={key} className="group relative"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-help flex items-center gap-1">{INTERVAL_LABELS[key] || key}<HelpCircle size={12} className="text-slate-600"/></label><input type="number" value={val} onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-white text-center font-bold outline-none focus:border-green-500" />{ALGO_TOOLTIPS[key] && (<div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"><strong className="block text-green-400 mb-1">{ALGO_TOOLTIPS[key].title}</strong><span className="text-slate-600 dark:text-slate-300 leading-tight block">{ALGO_TOOLTIPS[key].desc}</span><div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-800"></div></div>)}</div>)})}
                           </div>
@@ -1314,7 +1395,7 @@ export const Library: React.FC = () => {
                                 onChange={val => handleChange('notes', val)} 
                                 modules={quillModules}
                                 formats={quillFormats}
-                                className="h-[250px] text-slate-900 dark:text-white"
+                                className="h-[500px] text-slate-900 dark:text-white"
                                 placeholder="Mnemônicos, resumos, pontos importantes..."
                             />
                         </div>

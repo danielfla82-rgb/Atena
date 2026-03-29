@@ -109,7 +109,7 @@ const AppContent: React.FC = () => {
                 className={`w-full flex items-center justify-between px-3 py-2 mt-2 mb-1 rounded-lg transition-colors group hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer select-none`}
               >
                   <span className={`text-[10px] uppercase font-bold tracking-wider ${strategyMenuOpen ? 'text-slate-900 dark:text-white' : 'text-slate-500 group-hover:text-slate-700 dark:group-hover:text-slate-600 dark:text-slate-300'}`}>
-                      Estratégia
+                      Planejamento
                   </span>
                   <ChevronDown size={14} className={`text-slate-500 transition-transform duration-300 ${strategyMenuOpen ? 'rotate-180 text-slate-900 dark:text-white' : ''}`} />
               </button>

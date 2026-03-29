@@ -381,7 +381,8 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 // V10 Optimized Columns + FIX: Images removed to prevent network bloat (Lazy fetching)
 const OPTIMIZED_COLUMNS = `
   id, user_id, edital, discipline, name, subtitle, 
-  tec_link, error_notebook_link, favorite_questions_link, law_link, obsidian_link, gemini_link_1, gemini_link_2,
+  tec_link, error_notebook_link, error_notebook_comment, favorite_questions_link, law_link, obsidian_link, gemini_link_1, gemini_link_2,
+  extra_subtopics, extra_error_notebooks,
   accuracy, target_accuracy, weight, relevance, trend, custom_score, status, 
   week_id, is_week_completed, last_practice, next_review, accuracy_history, notes
 `;
@@ -403,6 +404,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [notes, setNotes] = useState<Note[]>([]);
   const [mockExams, setMockExams] = useState<MockExam[]>([]);
   const [mockExamResults, setMockExamResults] = useState<MockExamResult[]>([]);
+
+  const cyclesRef = React.useRef<Cycle[]>([]);
+  const notebooksRef = React.useRef<Notebook[]>([]);
+
+  useEffect(() => {
+    cyclesRef.current = cycles;
+  }, [cycles]);
+
+  useEffect(() => {
+    notebooksRef.current = notebooks;
+  }, [notebooks]);
 
   const [activeSession, setActiveSession] = useState<Notebook | null>(null);
   const [pendingCreateData, setPendingCreateData] = useState<Partial<Notebook> | null>(null);
@@ -829,7 +841,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const editNotebook = async (id: string, data: Partial<Notebook>) => {
       let targetId = id;
-      const currentNb = notebooks.find(n => n.id === id);
+      // FIX: Use ref to get the absolute latest state and avoid race conditions
+      const currentNb = notebooksRef.current.find(n => n.id === id);
       
       if (!currentNb) return; // Should not happen
 
@@ -852,7 +865,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               // 4. Create Merged Object for DB Payload - CORREÇÃO CRÍTICA PARA PERSISTÊNCIA
               // O mapNotebookToDB converte undefined para NULL. Devemos passar o objeto MERGED (Completo)
               // para garantir que dados não editados não sejam sobrescritos por NULL.
-              const mergedForDB = { ...currentNb, ...dataToUpdate };
+              // FIX: Use the latest currentNb from ref again just in case
+              const latestNb = notebooksRef.current.find(n => n.id === targetId) || currentNb;
+              const mergedForDB = { ...latestNb, ...dataToUpdate };
 
               // 1. Update the PRIVATE version
               const payload = mapNotebookToDB(mergedForDB);
@@ -954,14 +969,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateCycleSchedule = async (cycleId: string, modifier: (schedule: Record<string, ScheduleItem[]>) => Record<string, ScheduleItem[]>) => {
-      const cycle = cycles.find(c => c.id === cycleId);
+      const cycle = cyclesRef.current.find(c => c.id === cycleId);
       if (!cycle) return;
 
       const currentSchedule = cycle.schedule ? JSON.parse(JSON.stringify(cycle.schedule)) : {};
       const newSchedule = modifier(currentSchedule);
-      const previousCycles = [...cycles];
+      const previousCycles = [...cyclesRef.current];
 
+      // Optimistic Update
       setCycles(prev => prev.map(c => c.id === cycleId ? { ...c, schedule: newSchedule } : c));
+      cyclesRef.current = cyclesRef.current.map(c => c.id === cycleId ? { ...c, schedule: newSchedule } : c);
 
       if (!isGuest && user) {
           try { 
@@ -970,6 +987,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           } catch (e) { 
               console.error("Failed to update cycle schedule:", e); 
               setCycles(previousCycles); 
+              cyclesRef.current = previousCycles;
           }
       }
   };
@@ -1051,6 +1069,13 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const updateNotebookSchedule = async (notebookId: string, newWeekId: string | null) => {
       if (!activeCycleId) return;
       
+      // Update notebook week_id in DB for consistency
+      if (!isGuest && user) {
+          supabase.from('notebooks').update({ week_id: newWeekId }).eq('id', notebookId).then(({error}) => {
+              if (error) console.error("Error updating notebook week_id:", error);
+          });
+      }
+
       await updateCycleSchedule(activeCycleId, (schedule) => {
           const newSchedule = { ...schedule };
           

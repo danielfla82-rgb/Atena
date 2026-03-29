@@ -2,9 +2,9 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, NotebookStatus, ScheduleItem } from '../types';
-import { Plus, Search, Pencil, BarChart3, Calendar, Lock, ChevronDown, Layout, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, Flag, Inbox, Scale, Download, PanelLeftClose, PanelLeftOpen, Archive, Minus, Meh, Frown, Smile, History, ChevronRight, Maximize2, Activity, ChevronUp, Layers, CheckCircle2, Loader2, X, FileText, Key, BrainCircuit, HelpCircle, Target, TrendingUp, Sparkles, RefreshCw } from 'lucide-react';
-import { getStatusColor, getAccuracyColorClass, DEFAULT_ALGO_CONFIG } from '../utils/algorithm';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid } from 'recharts';
+import { Plus, Search, Pencil, BarChart3, Calendar, Lock, ChevronDown, Layout, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, Flag, Inbox, Scale, Download, PanelLeftClose, PanelLeftOpen, Archive, Minus, Meh, Frown, Smile, History, ChevronRight, ChevronLeft, Maximize2, Activity, ChevronUp, Layers, CheckCircle2, Loader2, X, FileText, Key, BrainCircuit, HelpCircle, Target, TrendingUp, Sparkles, RefreshCw } from 'lucide-react';
+import { getStatusColor, getAccuracyColorClass, DEFAULT_ALGO_CONFIG, calculateUrgencyScore } from '../utils/algorithm';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid, LabelList } from 'recharts';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'; 
 
 const PACE_SETTINGS: Record<string, { hours: number, blocks: number }> = {
@@ -647,21 +647,21 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
   const paceTarget = PACE_SETTINGS[currentPace] || PACE_SETTINGS['Intermediário'];
 
   const allocationData = useMemo(() => {
-    const data: Record<string, number> = {};
-    if (activeCycle?.schedule) {
-        notebookScheduleMap.forEach((weekId, notebookId) => {
-            const nb = notebooks.find(n => n.id === notebookId);
-            if (nb && nb.discipline !== 'Revisão Geral') {
-                data[nb.discipline] = (data[nb.discipline] || 0) + 1;
-            }
-        });
-    } else {
-        notebooks.filter(n => n.discipline !== 'Revisão Geral' && n.weekId).forEach(nb => {
-            data[nb.discipline] = (data[nb.discipline] || 0) + 1;
-        });
-    }
-    return Object.keys(data).map(key => ({ name: key, count: data[key] })).sort((a, b) => b.count - a.count).slice(0, 8);
-  }, [notebooks, activeCycle, notebookScheduleMap]);
+    const data: Record<string, { count: number, totalScore: number }> = {};
+    notebooks.forEach(nb => {
+        if (nb.discipline !== 'Revisão Geral') {
+            if (!data[nb.discipline]) data[nb.discipline] = { count: 0, totalScore: 0 };
+            const score = nb.customScore !== undefined && nb.customScore !== '' ? Number(nb.customScore) : calculateUrgencyScore(nb);
+            data[nb.discipline].count += 1;
+            data[nb.discipline].totalScore += score;
+        }
+    });
+    return Object.keys(data).map(key => ({ 
+        name: key, 
+        count: data[key].count,
+        totalScore: Math.round(data[key].totalScore)
+    })).sort((a, b) => b.totalScore - a.totalScore);
+  }, [notebooks]);
 
   const totalAllocatedBlocks = useMemo(() => notebookScheduleMap.size, [notebookScheduleMap]);
 
@@ -993,19 +993,85 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
              <div className="flex flex-col h-full overflow-hidden">
                  <div className={`overflow-hidden transition-all duration-300 ease-in-out bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex-shrink-0 ${showStats ? 'max-h-64 opacity-100' : 'max-h-0 opacity-0 border-none'}`}>
                     <div className="p-4 h-64 flex gap-6">
-                        <div className="flex-1">
-                            <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase flex items-center gap-2"><BarChart3 size={14} className="text-green-500"/> Distribuição de Matérias</h3>
-                            <ResponsiveContainer width="100%" height="80%">
-                                <BarChart data={allocationData} layout="vertical" margin={{left: 0, right: 30}}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal={false}/>
-                                    <XAxis type="number" hide />
-                                    <YAxis dataKey="name" type="category" stroke="#94a3b8" tick={{fontSize: 10}} width={120} />
-                                    <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#f1f5f9', fontSize: '12px' }} cursor={{fill: '#1e293b'}} />
-                                    <Bar dataKey="count" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={10}>
-                                        {allocationData.map((entry, index) => (<Cell key={`cell-${index}`} fill={['#22c55e', '#06b6d4', '#8b5cf6', '#f59e0b'][index % 4]} />))}
-                                    </Bar>
-                                </BarChart>
-                            </ResponsiveContainer>
+                        <div className="flex-1 flex flex-col min-w-0">
+                            <div className="flex items-center justify-between mb-2">
+                                <h3 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase flex items-center gap-2">
+                                    <BarChart3 size={14} className="text-green-500"/> Importância por Disciplina (Score Atena)
+                                </h3>
+                                <div className="flex items-center gap-2">
+                                    <button 
+                                        onClick={() => {
+                                            const el = document.getElementById('discipline-chart-container');
+                                            if (el) el.scrollBy({ left: -200, behavior: 'smooth' });
+                                        }}
+                                        className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded border border-slate-200 dark:border-slate-800 text-slate-500 transition-colors"
+                                    >
+                                        <ChevronLeft size={14} />
+                                    </button>
+                                    <button 
+                                        onClick={() => {
+                                            const el = document.getElementById('discipline-chart-container');
+                                            if (el) el.scrollBy({ left: 200, behavior: 'smooth' });
+                                        }}
+                                        className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded border border-slate-200 dark:border-slate-800 text-slate-500 transition-colors"
+                                    >
+                                        <ChevronRight size={14} />
+                                    </button>
+                                </div>
+                            </div>
+                            <div 
+                                id="discipline-chart-container"
+                                className="flex-1 overflow-x-auto custom-scrollbar-hidden pb-2"
+                            >
+                                <div style={{ minWidth: Math.max(600, allocationData.length * 80), height: '100%' }}>
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={allocationData} margin={{ top: 20, right: 30, left: 20, bottom: 40 }}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} opacity={0.3} />
+                                            <XAxis 
+                                                dataKey="name" 
+                                                axisLine={false} 
+                                                tickLine={false} 
+                                                tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 'bold' }}
+                                                interval={0}
+                                                angle={-45}
+                                                textAnchor="end"
+                                                height={60}
+                                            />
+                                            <YAxis hide />
+                                            <Tooltip 
+                                                cursor={{ fill: 'rgba(34, 197, 94, 0.05)' }}
+                                                content={({ active, payload }) => {
+                                                    if (active && payload && payload.length) {
+                                                        const data = payload[0].payload;
+                                                        return (
+                                                            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2 rounded-lg shadow-xl text-[10px]">
+                                                                <p className="font-bold text-slate-900 dark:text-white mb-1">{data.name}</p>
+                                                                <p className="text-green-500 font-mono">Score Total: {data.totalScore}</p>
+                                                                <p className="text-slate-500">{data.count} tópicos</p>
+                                                            </div>
+                                                        );
+                                                    }
+                                                    return null;
+                                                }}
+                                            />
+                                            <Bar 
+                                                dataKey="totalScore" 
+                                                radius={[4, 4, 0, 0]}
+                                                fill="#22c55e"
+                                            >
+                                                <LabelList 
+                                                    dataKey="totalScore" 
+                                                    position="top" 
+                                                    fill="#22c55e" 
+                                                    fontSize={10} 
+                                                    fontWeight="bold"
+                                                    formatter={(val: any) => val}
+                                                />
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
                         </div>
                         <div className="w-64 border-l border-slate-200 dark:border-slate-800 pl-6 flex flex-col justify-center gap-4">
                             <div><p className="text-xs text-slate-500 uppercase font-bold">Total Alocado</p><p className="text-lg font-bold text-slate-900 dark:text-white truncate">{totalAllocatedBlocks} Blocos</p></div>
