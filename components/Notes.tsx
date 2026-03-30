@@ -63,9 +63,8 @@ const StickyNoteItem: React.FC<{ note: Note }> = ({ note }) => {
                 onChange={(e) => setContent(e.target.value)}
                 onBlur={handleBlur}
                 placeholder="Digite sua anotação..."
-                // Alterado para permitir redimensionamento livre e layout flexivel
-                className={`bg-transparent border-none resize outline-none text-sm leading-relaxed custom-scrollbar block min-w-[280px] min-h-[250px] ${note.isBold ? 'font-bold' : 'font-medium'}`}
-                style={{ width: '280px', height: '250px' }} // Tamanho inicial padrão inline
+                // Removido o style fixo que resetava o redimensionamento no re-render
+                className={`bg-transparent border-none resize outline-none text-sm leading-relaxed custom-scrollbar block w-[280px] h-[250px] min-w-[200px] min-h-[150px] ${note.isBold ? 'font-bold' : 'font-medium'}`}
             />
             
             <div className={`absolute top-2 right-2 flex gap-1 transition-opacity ${showPalette ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>

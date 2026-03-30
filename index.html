@@ -43,32 +43,46 @@
           height: 4px;
       }
 
-      /* Quill Dark Mode Adjustments */
+      /* Quill Dark Mode & Layout Adjustments */
       .dark .ql-toolbar {
           background-color: #1e293b;
           border-color: #334155 !important;
       }
       
-      /* Sticky Quill Toolbar */
+      /* Quill Layout Fix: Internal Scrolling */
+      .quill {
+          display: flex;
+          flex-direction: column;
+          border-radius: 0.5rem;
+      }
+
       .ql-toolbar {
-          position: sticky;
-          top: 0;
-          z-index: 10;
           background: white;
           border-top-left-radius: 0.5rem;
           border-top-right-radius: 0.5rem;
+          flex-shrink: 0;
+          border-bottom: 1px solid #ccc;
       }
+
       .dark .ql-toolbar {
           background-color: #1e293b;
       }
+
       .ql-container {
+          flex: 1;
+          overflow-y: auto !important;
           border-bottom-left-radius: 0.5rem;
           border-bottom-right-radius: 0.5rem;
-          min-height: 300px;
+          min-height: 200px;
+          display: flex;
+          flex-direction: column;
       }
+
       .ql-editor {
-          min-height: 300px;
+          flex: 1;
+          min-height: 200px;
       }
+
       .dark .ql-container {
           background-color: #0f172a;
           border-color: #334155 !important;
