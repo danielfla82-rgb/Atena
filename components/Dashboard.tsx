@@ -8,7 +8,7 @@ import { Weight, WEIGHT_SCORE, Trend, RELEVANCE_SCORE, NotebookStatus } from '..
 import { DEFAULT_ALGO_CONFIG, calculateUrgencyScore, getAccuracyColorClass } from '../utils/algorithm';
 import { 
   Target, Settings, TrendingUp, TrendingDown, Minus,
-  ChevronDown, Database, Terminal, Flame, Loader2, Settings2, HelpCircle, ChevronUp, Book, ChevronLeft, ChevronRight, X, FileText, Key, BrainCircuit, Sparkles
+  ChevronDown, Database, Terminal, Flame, Loader2, Settings2, HelpCircle, ChevronUp, Book, ChevronLeft, ChevronRight, X, FileText, Key, BrainCircuit, Sparkles, Calendar
 } from 'lucide-react';
 import { abbreviateDiscipline } from '../utils/abbreviation';
 
@@ -158,10 +158,10 @@ const barChartOptions = {
 };
 
 const ALGO_TOOLTIPS: Record<string, { title: string, desc: string }> = {
-    learning: { title: "Aprendizado (Crítico)", desc: "Fase de aquisição ou reconstrução. O sistema entende que você ainda não aprendeu. Intervalo curto para evitar perda." },
-    reviewing: { title: "Revisão (Atenção)", desc: "Fase de fixação. Você entende o assunto, mas comete erros ou tem lacunas. Intervalo médio-curto." },
-    mastering: { title: "Domínio (Quase na Meta)", desc: "Fase de polimento. O conteúdo está sólido, quase excelente. Intervalo médio." },
-    maintaining: { title: "Manutenção (Meta Atingida)", desc: "Você dominou o tópico. O objetivo é apenas combater a Curva do Esquecimento. Intervalo longo." }
+    learning: { title: "Aprendizado (Crítico)", desc: "Fase de aquisição ou reconstrução (< 70% de acertos). O sistema entende que você ainda não aprendeu. Intervalo curto para evitar perda." },
+    reviewing: { title: "Revisão (Atenção)", desc: "Fase de fixação (70% a 85% de acertos). Você entende o assunto, mas comete erros ou tem lacunas. Intervalo médio-curto." },
+    mastering: { title: "Domínio (Quase na Meta)", desc: "Fase de polimento (85% a 95% de acertos). O conteúdo está sólido, quase excelente. Intervalo médio." },
+    maintaining: { title: "Manutenção (Meta Atingida)", desc: "Você dominou o tópico (> 95% de acertos). O objetivo é apenas combater a Curva do Esquecimento. Intervalo longo." }
 };
 
 const ORDERED_ALGO_KEYS = ['learning', 'reviewing', 'mastering', 'maintaining'];
@@ -464,6 +464,19 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
               if (localDate) activitySet.add(localDate);
           }
       });
+      
+      if (activeCycle?.schedule) {
+          Object.values(activeCycle.schedule).forEach(slots => {
+              if (Array.isArray(slots)) {
+                  slots.forEach(slot => {
+                      if (slot.completed && slot.completedAt) {
+                          const localDate = getLocalDateString(slot.completedAt);
+                          if (localDate) activitySet.add(localDate);
+                      }
+                  });
+              }
+          });
+      }
 
       const now = new Date();
       now.setMonth(now.getMonth() + viewedMonthOffset);
@@ -861,8 +874,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
             <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900"><h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2"><Settings size={20} className="text-green-500"/> Configurações do Ciclo</h2><button onClick={() => !isSaving && setIsConfigOpen(false)} disabled={isSaving} className="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"><X size={24} /></button></div>
             <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-8">
               <div className="space-y-4"><h3 className="text-sm font-bold text-green-600 dark:text-green-500 uppercase tracking-widest border-b border-green-500/20 pb-2 flex items-center gap-2"><FileText size={16} /> Configuração do Edital</h3><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Cargo Alvo</label><input type="text" value={localConfig.targetRole} onChange={(e) => setLocalConfig({...localConfig, targetRole: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" /></div><div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Banca Examinadora</label><input type="text" value={localConfig.banca || ''} onChange={(e) => setLocalConfig({...localConfig, banca: e.target.value})} placeholder="Ex: FGV, Cebraspe" className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" /></div></div><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Data da Prova</label><div className="relative"><Calendar className="absolute left-3 top-3 text-slate-500" size={16} /><input type="date" value={localConfig.examDate || ''} onChange={(e) => setLocalConfig({...localConfig, examDate: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg py-3 pl-10 text-slate-900 dark:text-white outline-none focus:border-green-500 cursor-pointer" /></div></div><div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Link do Edital</label><input type="url" value={localConfig.editalLink || ''} onChange={(e) => setLocalConfig({...localConfig, editalLink: e.target.value})} placeholder="https://..." className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" /></div></div><div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Conteúdo Programático</label><textarea value={localConfig.editalText || ''} onChange={(e) => setLocalConfig({...localConfig, editalText: e.target.value})} className="w-full h-32 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-xs text-slate-600 dark:text-slate-300 font-mono outline-none focus:border-green-500 resize-none custom-scrollbar" /></div></div>
-              <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800"><h3 className="text-sm font-bold text-green-600 dark:text-green-500 uppercase tracking-widest border-b border-green-500/20 pb-2 flex items-center gap-2"><Key size={16} /> Integração IA</h3><div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-4 rounded-xl"><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase">Google Gemini API Key</label><input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="AIzaSy..." className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500 font-mono text-sm" /></div></div>
-              <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800"><h3 className="text-sm font-bold text-green-600 dark:text-green-500 uppercase tracking-widest border-b border-green-500/20 pb-2 flex items-center gap-2"><BrainCircuit size={16} /> Ajuste do Algoritmo</h3><div className="grid grid-cols-2 md:grid-cols-4 gap-4">{ORDERED_ALGO_KEYS.map((key) => (<div key={key} className="group relative"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-help flex items-center gap-1">{ALGO_TOOLTIPS[key]?.title || key} <HelpCircle size={10}/></label><input type="number" value={currentIntervals[key as keyof typeof currentIntervals]} onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-white text-center font-bold outline-none focus:border-green-500" /></div>))}</div></div>
+              <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-800"><h3 className="text-sm font-bold text-green-600 dark:text-green-500 uppercase tracking-widest border-b border-green-500/20 pb-2 flex items-center gap-2"><BrainCircuit size={16} /> Ajuste do Algoritmo</h3><div className="grid grid-cols-2 md:grid-cols-4 gap-4">{ORDERED_ALGO_KEYS.map((key) => (<div key={key} className="group relative"><label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 cursor-help flex items-center gap-1">{ALGO_TOOLTIPS[key]?.title || key} <HelpCircle size={10}/></label><div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-slate-800 text-white text-xs rounded shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none text-center">{ALGO_TOOLTIPS[key]?.desc}<div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-800"></div></div><input type="number" value={currentIntervals[key as keyof typeof currentIntervals]} onChange={(e) => handleUpdateAlgoInterval(key, parseFloat(e.target.value))} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg p-2 text-slate-900 dark:text-white text-center font-bold outline-none focus:border-green-500" /></div>))}</div></div>
             </div>
             <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-end gap-3"><button onClick={() => !isSaving && setIsConfigOpen(false)} disabled={isSaving} className="px-4 py-2 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">Cancelar</button><button onClick={handleSaveConfig} disabled={isSaving} className="px-6 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl shadow-lg flex items-center gap-2 disabled:opacity-50">{isSaving ? <Loader2 size={18} className="animate-spin" /> : <Settings2 size={18} />}Salvar Alterações</button></div>
           </div>

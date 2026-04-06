@@ -1138,11 +1138,11 @@ export const Library: React.FC = () => {
                       <AnimatePresence>
                           {showPlanning && (
                               <motion.div
-                                  initial={{ height: 0, opacity: 0 }}
-                                  animate={{ height: 'auto', opacity: 1 }}
-                                  exit={{ height: 0, opacity: 0 }}
+                                  initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                                  animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+                                  exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
                                   transition={{ duration: 0.3 }}
-                                  className="overflow-hidden space-y-4 pt-2"
+                                  className="space-y-4 pt-2"
                               >
                                   <div>
                                       <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Planejamento (Semana)</label>
@@ -1269,11 +1269,10 @@ export const Library: React.FC = () => {
                   <AnimatePresence>
                       {showDisciplineWeights && (
                           <motion.div
-                              initial={{ height: 0, opacity: 0 }}
-                              animate={{ height: 'auto', opacity: 1 }}
-                              exit={{ height: 0, opacity: 0 }}
+                              initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                              animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+                              exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
                               transition={{ duration: 0.3 }}
-                              className="overflow-hidden"
                           >
                               <div className="space-y-4 pt-4">
                                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -1282,7 +1281,7 @@ export const Library: React.FC = () => {
                                               Peso <HelpCircle size={12} className="text-slate-600"/>
                                           </label>
                                           <select value={formData.weight} onChange={(e) => handleChange('weight', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-green-500 text-sm">{Object.values(Weight).map(w => <option key={w} value={w}>{w}</option>)}</select>
-                                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                          <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 p-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                                               <strong className="block text-green-400">{SCORE_TOOLTIPS.weight.title}</strong>
                                               <span className="text-slate-500 dark:text-slate-400">{SCORE_TOOLTIPS.weight.desc}</span>
                                           </div>
@@ -1293,7 +1292,7 @@ export const Library: React.FC = () => {
                                               Relevância <HelpCircle size={12} className="text-slate-600"/>
                                           </label>
                                           <select value={formData.relevance} onChange={(e) => handleChange('relevance', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-green-500 text-sm">{Object.values(Relevance).map(r => <option key={r} value={r}>{r}</option>)}</select>
-                                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                          <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 p-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                                               <strong className="block text-green-400">{SCORE_TOOLTIPS.relevance.title}</strong>
                                               <span className="text-slate-500 dark:text-slate-400">{SCORE_TOOLTIPS.relevance.desc}</span>
                                           </div>
@@ -1304,7 +1303,7 @@ export const Library: React.FC = () => {
                                               Tendência <HelpCircle size={12} className="text-slate-600"/>
                                           </label>
                                           <select value={formData.trend} onChange={(e) => handleChange('trend', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-green-500 text-sm">{Object.values(Trend).map(t => <option key={t} value={t}>{t}</option>)}</select>
-                                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                          <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 p-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg shadow-xl text-xs z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                                               <strong className="block text-green-400">{SCORE_TOOLTIPS.trend.title}</strong>
                                               <span className="text-slate-500 dark:text-slate-400">{SCORE_TOOLTIPS.trend.desc}</span>
                                           </div>
@@ -1365,10 +1364,10 @@ export const Library: React.FC = () => {
                   <AnimatePresence>
                     {showFineTuning && (
                       <motion.div 
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          className="overflow-hidden space-y-4"
+                          initial={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                          animate={{ height: 'auto', opacity: 1, transitionEnd: { overflow: 'visible' } }}
+                          exit={{ height: 0, opacity: 0, overflow: 'hidden' }}
+                          className="space-y-4"
                       >
                           <div className="flex items-center justify-end gap-1 mb-2">
                               {[ { factor: 1, label: 'Normal' }, { factor: 2, label: 'Turbo 2x' }, { factor: 3, label: 'Turbo 3x' }, { factor: 4, label: 'Max 4x' } ].map(mode => (
