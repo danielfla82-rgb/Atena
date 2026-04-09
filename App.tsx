@@ -20,6 +20,7 @@ import {
   Pyramid, ListChecks, Shield, StickyNote, LogOut, ChevronDown, CalendarCheck, Book, Target
 } from 'lucide-react';
 import { Logo } from './components/Logo';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 const AppContent: React.FC = () => {
   // Estado principal de navegação
@@ -253,6 +254,7 @@ const App: React.FC = () => {
     <StoreProvider>
       <ThemeProvider>
         <AppContent />
+        <SpeedInsights />
       </ThemeProvider>
     </StoreProvider>
   );
