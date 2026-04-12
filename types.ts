@@ -73,13 +73,16 @@ export interface Notebook {
   /** Cadernos de erros adicionais (Novo V10.7) */
   extraErrorNotebooks?: { link: string; comment: string }[];
   /** Subtópicos adicionais e seus links (Novo V6.2) */
-  extraSubtopics?: { subtitle: string; tecLink: string }[];
+  extraSubtopics?: { subtitle: string; tecLink: string; accuracy?: number }[];
   /** Link externo para texto de lei ou legislação */
   lawLink?: string;
+  lawLinkComment?: string;
   /** Link externo para anotações (Obsidian/Notion) - NOVO */
   obsidianLink?: string;
+  obsidianLinkComment?: string;
   /** Link Gemini Contexto 1 (Novo V6.1) */
   geminiLink1?: string;
+  geminiLink1Comment?: string;
   /** Link Gemini Contexto 2 (Novo V6.1) */
   geminiLink2?: string;
   /** Acurácia atual em % (0-100) */

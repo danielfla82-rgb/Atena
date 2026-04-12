@@ -41,8 +41,11 @@ const mapNotebookFromDB = (db: any): Notebook => {
         errorNotebookComment: db.error_notebook_comment || db.errorNotebookComment || '',
         favoriteQuestionsLink: db.favorite_questions_link || db.favoriteQuestionsLink || '',
         lawLink: db.law_link || db.lawLink || '',
+        lawLinkComment: db.law_link_comment || db.lawLinkComment || '',
         obsidianLink: db.obsidian_link || db.obsidianLink || '',
+        obsidianLinkComment: db.obsidian_link_comment || db.obsidianLinkComment || '',
         geminiLink1: db.gemini_link_1 || db.geminiLink1 || '',
+        geminiLink1Comment: db.gemini_link_1_comment || db.geminiLink1Comment || '',
         geminiLink2: db.gemini_link_2 || db.geminiLink2 || '',
         extraSubtopics: db.extra_subtopics || db.extraSubtopics || [],
         extraErrorNotebooks: db.extra_error_notebooks || db.extraErrorNotebooks || [],
@@ -79,8 +82,11 @@ const mapNotebookToDB = (nb: Partial<Notebook>) => {
         error_notebook_comment: nb.errorNotebookComment || null,
         favorite_questions_link: nb.favoriteQuestionsLink || null,
         law_link: nb.lawLink || null,
+        law_link_comment: nb.lawLinkComment || null,
         obsidian_link: nb.obsidianLink || null,
+        obsidian_link_comment: nb.obsidianLinkComment || null,
         gemini_link_1: nb.geminiLink1 || null,
+        gemini_link_1_comment: nb.geminiLink1Comment || null,
         gemini_link_2: nb.geminiLink2 || null,
         extra_subtopics: nb.extraSubtopics || null,
         extra_error_notebooks: nb.extraErrorNotebooks || null,
@@ -381,7 +387,7 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 // V10 Optimized Columns + FIX: Images removed to prevent network bloat (Lazy fetching)
 const OPTIMIZED_COLUMNS = `
   id, user_id, edital, discipline, name, subtitle, 
-  tec_link, error_notebook_link, error_notebook_comment, favorite_questions_link, law_link, obsidian_link, gemini_link_1, gemini_link_2,
+  tec_link, error_notebook_link, error_notebook_comment, favorite_questions_link, law_link, law_link_comment, obsidian_link, obsidian_link_comment, gemini_link_1, gemini_link_1_comment, gemini_link_2,
   extra_subtopics, extra_error_notebooks,
   accuracy, target_accuracy, weight, relevance, trend, custom_score, status, 
   week_id, is_week_completed, last_practice, next_review, accuracy_history, notes

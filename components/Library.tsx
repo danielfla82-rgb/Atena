@@ -76,9 +76,9 @@ export const Library: React.FC = () => {
     discipline: '', name: '', subtitle: '', 
     tecLink: '', errorNotebookLink: '', errorNotebookComment: '', favoriteQuestionsLink: '',
     extraErrorNotebooks: [] as { link: string; comment: string }[],
-    extraSubtopics: [] as { subtitle: string; tecLink: string }[],
-    lawLink: '', obsidianLink: '', 
-    geminiLink1: '', geminiLink2: '',
+    extraSubtopics: [] as { subtitle: string; tecLink: string; accuracy?: number }[],
+    lawLink: '', lawLinkComment: '', obsidianLink: '', obsidianLinkComment: '', 
+    geminiLink1: '', geminiLink1Comment: '', geminiLink2: '',
     accuracy: 0, targetAccuracy: 90,
     weight: Weight.MEDIO, relevance: Relevance.MEDIA, trend: Trend.ESTAVEL,
     customScore: '' as string | number, 
@@ -210,8 +210,11 @@ export const Library: React.FC = () => {
           extraErrorNotebooks: notebook.extraErrorNotebooks || [],
           extraSubtopics: notebook.extraSubtopics || [],
           lawLink: notebook.lawLink || '',
+          lawLinkComment: notebook.lawLinkComment || '',
           obsidianLink: notebook.obsidianLink || '',
+          obsidianLinkComment: notebook.obsidianLinkComment || '',
           geminiLink1: notebook.geminiLink1 || '',
+          geminiLink1Comment: notebook.geminiLink1Comment || '',
           geminiLink2: notebook.geminiLink2 || '',
 
           accuracy: notebook.accuracy, 
@@ -938,11 +941,11 @@ export const Library: React.FC = () => {
                   </div>
 
                   <div className="space-y-3 pt-4 border-t border-slate-200 dark:border-slate-700">
-                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Maiores Cobranças Adicionais</label>
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Subtópicos</label>
                     {(() => {
                         const rows = formData.extraSubtopics || [];
 
-                        const handleRowChange = (index: number, field: 'subtitle' | 'tecLink', value: string) => {
+                        const handleRowChange = (index: number, field: 'subtitle' | 'tecLink' | 'accuracy', value: string | number) => {
                             const newRows = rows.map((row, i) => i === index ? { ...row, [field]: value } : row);
                             handleChange('extraSubtopics', newRows);
                         };
@@ -962,10 +965,10 @@ export const Library: React.FC = () => {
                                         <input 
                                             value={row.subtitle} 
                                             onChange={e => handleRowChange(i, 'subtitle', e.target.value)} 
-                                            className="flex-1 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" 
-                                            placeholder="Maiores Cobranças Adicionais" 
+                                            className="flex-[2] bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" 
+                                            placeholder="Subtópico" 
                                         />
-                                        <div className="relative flex-1">
+                                        <div className="relative flex-[2]">
                                             <LinkIcon className="absolute left-3 top-3 text-slate-500" size={16} />
                                             <input 
                                                 type="url" 
@@ -974,6 +977,18 @@ export const Library: React.FC = () => {
                                                 className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" 
                                                 placeholder="Link Caderno TEC..." 
                                             />
+                                        </div>
+                                        <div className="relative w-24">
+                                            <input 
+                                                type="number" 
+                                                min="0"
+                                                max="100"
+                                                value={row.accuracy || ''} 
+                                                onChange={e => handleRowChange(i, 'accuracy', Number(e.target.value))} 
+                                                className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg py-2.5 px-3 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" 
+                                                placeholder="Acertos" 
+                                            />
+                                            <span className="absolute right-3 top-2.5 text-xs text-slate-500">%</span>
                                         </div>
                                         <button 
                                             type="button" 
@@ -990,7 +1005,7 @@ export const Library: React.FC = () => {
                                     onClick={addRow} 
                                     className="flex items-center gap-2 text-xs font-bold text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 transition-colors mt-2"
                                 >
-                                    <Plus size={14} /> Adicionar Maiores Cobranças Adicionais
+                                    <Plus size={14} /> Adicionar Subtópico
                                 </button>
                             </div>
                         );
@@ -1098,15 +1113,17 @@ export const Library: React.FC = () => {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
+                    <div className="space-y-2">
                         <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Link Externo 1</label>
                         <div className="relative"><Book className="absolute left-3 top-3 text-slate-500" size={16} /><input type="url" value={formData.lawLink} onChange={e => handleChange('lawLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" placeholder="Planalto..." /></div>
+                        <input type="text" value={formData.lawLinkComment || ''} onChange={e => handleChange('lawLinkComment', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" placeholder="Anotação..." />
                     </div>
-                    <div>
+                    <div className="space-y-2">
                         <label className="block text-[10px] font-bold text-purple-400 mb-1 uppercase tracking-wider">Link Externo 2</label>
                         <div className="relative"><FileCode className="absolute left-3 top-3 text-purple-500" size={16} /><input type="url" value={formData.obsidianLink} onChange={e => handleChange('obsidianLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-purple-500/20 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500 placeholder-purple-900/50" placeholder="Link anotações..." /></div>
+                        <input type="text" value={formData.obsidianLinkComment || ''} onChange={e => handleChange('obsidianLinkComment', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500" placeholder="Anotação..." />
                     </div>
-                    <div>
+                    <div className="space-y-2">
                         <label className="block text-[10px] font-bold text-cyan-400 mb-1 uppercase tracking-wider">Link Externo 3</label>
                         <div className="relative">
                             <Brain className="absolute left-3 top-3 text-cyan-500" size={16} />
@@ -1118,6 +1135,7 @@ export const Library: React.FC = () => {
                                 placeholder="Link Gemini..." 
                             />
                         </div>
+                        <input type="text" value={formData.geminiLink1Comment || ''} onChange={e => handleChange('geminiLink1Comment', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-cyan-500" placeholder="Anotação..." />
                     </div>
                   </div>
 
@@ -1247,24 +1265,17 @@ export const Library: React.FC = () => {
                 </div>
 
                 <div className="space-y-4 pt-2">
-                  <div className="border-b border-green-500/20 pb-2 flex items-center justify-between">
+                  <button 
+                      type="button"
+                      onClick={() => setShowDisciplineWeights(!showDisciplineWeights)}
+                      className="w-full flex items-center justify-between border-b border-green-500/20 pb-2 hover:bg-green-500/5 transition-colors group"
+                  >
                       <h4 className="text-sm font-bold text-green-500 uppercase tracking-widest flex items-center gap-2">
                           <div className="w-4 h-4 rounded bg-green-500/20 flex items-center justify-center text-[8px] text-green-500">3</div>
                           3. DADOS GERAIS & PESOS
                       </h4>
-                      <button 
-                          type="button"
-                          onClick={() => setShowDisciplineWeights(!showDisciplineWeights)}
-                          className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
-                      >
-                          <motion.div
-                              animate={{ rotate: showDisciplineWeights ? 180 : 0 }}
-                              transition={{ duration: 0.3 }}
-                          >
-                              <ChevronDown size={20} className="text-green-500" />
-                          </motion.div>
-                      </button>
-                  </div>
+                      <ChevronDown size={18} className={`text-green-500 transition-transform duration-300 ${showDisciplineWeights ? 'rotate-180' : ''}`} />
+                  </button>
                   
                   <AnimatePresence>
                       {showDisciplineWeights && (
