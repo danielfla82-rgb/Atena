@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactQuill from 'react-quill-new';
+import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { useStore } from '../store';
 import { supabase } from './supabase';
 import { Notebook, Weight, Relevance, Trend, NotebookStatus, ScheduleItem } from '../types';
@@ -590,12 +591,16 @@ export const Library: React.FC = () => {
              <button onClick={() => setLightboxIndex(null)} className="absolute top-4 right-4 text-slate-900 dark:text-white hover:text-green-500 z-50"><X size={32} /></button>
              {formData.images.length > 1 && (
                  <>
-                    <button onClick={() => navigateLightbox('prev')} className="absolute left-4 p-2 bg-slate-100 dark:bg-slate-800/50 rounded-full hover:bg-green-600 text-white"><ChevronLeft size={32}/></button>
-                    <button onClick={() => navigateLightbox('next')} className="absolute right-4 p-2 bg-slate-100 dark:bg-slate-800/50 rounded-full hover:bg-green-600 text-white"><ChevronRight size={32}/></button>
+                    <button onClick={() => navigateLightbox('prev')} className="absolute left-4 p-2 bg-slate-100 dark:bg-slate-800/50 rounded-full hover:bg-green-600 text-white z-50"><ChevronLeft size={32}/></button>
+                    <button onClick={() => navigateLightbox('next')} className="absolute right-4 p-2 bg-slate-100 dark:bg-slate-800/50 rounded-full hover:bg-green-600 text-white z-50"><ChevronRight size={32}/></button>
                  </>
              )}
-             <img src={formData.images[lightboxIndex]} className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" />
-             <div className="absolute bottom-4 bg-black/50 px-4 py-1 rounded-full text-slate-900 dark:text-white text-sm">{lightboxIndex + 1} / {formData.images.length}</div>
+             <TransformWrapper initialScale={1} minScale={0.5} maxScale={5} centerOnInit={true}>
+                 <TransformComponent wrapperClass="!w-full !h-full" contentClass="!w-full !h-full flex items-center justify-center">
+                     <img src={formData.images[lightboxIndex]} className="max-w-full max-h-full object-contain rounded-lg shadow-2xl cursor-grab active:cursor-grabbing" alt="Mapa Mental" />
+                 </TransformComponent>
+             </TransformWrapper>
+             <div className="absolute bottom-4 bg-black/50 px-4 py-1 rounded-full text-slate-900 dark:text-white text-sm z-50">{lightboxIndex + 1} / {formData.images.length}</div>
           </div>
       )}
 
@@ -913,7 +918,7 @@ export const Library: React.FC = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Pesos da Disciplina</label>
+                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">DISCIPLINA</label>
                         <select 
                             required 
                             value={formData.discipline} 
@@ -929,11 +934,11 @@ export const Library: React.FC = () => {
                             )}
                         </select>
                     </div>
-                    <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Nome do Tópico</label><input required value={formData.name} onChange={e => handleChange('name', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" /></div>
+                    <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">CADERNO DE QUESTÕES</label><input required value={formData.name} onChange={e => handleChange('name', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" /></div>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Maiores Cobranças</label><input value={formData.subtitle} onChange={e => handleChange('subtitle', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" placeholder="MAIORES COBRANÇAS..." /></div>
+                    <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">MAIORES COBRANÇAS EM PROVA</label><input value={formData.subtitle} onChange={e => handleChange('subtitle', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" placeholder="MAIORES COBRANÇAS EM PROVA..." /></div>
                     <div>
                         <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Link Caderno TEC</label>
                         <div className="relative"><LinkIcon className="absolute left-3 top-3 text-slate-500" size={16} /><input type="url" value={formData.tecLink} onChange={e => handleChange('tecLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" placeholder="https://tecconcursos..." /></div>
@@ -945,7 +950,7 @@ export const Library: React.FC = () => {
                     {(() => {
                         const rows = formData.extraSubtopics || [];
 
-                        const handleRowChange = (index: number, field: 'subtitle' | 'tecLink' | 'accuracy', value: string | number) => {
+                        const handleRowChange = (index: number, field: 'subtitle' | 'tecLink' | 'accuracy' | 'themeWeight' | 'externalLink' | 'comments', value: string | number) => {
                             const newRows = rows.map((row, i) => i === index ? { ...row, [field]: value } : row);
                             handleChange('extraSubtopics', newRows);
                         };
@@ -965,10 +970,16 @@ export const Library: React.FC = () => {
                                         <input 
                                             value={row.subtitle} 
                                             onChange={e => handleRowChange(i, 'subtitle', e.target.value)} 
-                                            className="flex-[2] bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" 
+                                            className="flex-1 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" 
                                             placeholder="Subtópico" 
                                         />
-                                        <div className="relative flex-[2]">
+                                        <input 
+                                            value={row.themeWeight || ''} 
+                                            onChange={e => handleRowChange(i, 'themeWeight', e.target.value)} 
+                                            className="w-24 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" 
+                                            placeholder="Peso" 
+                                        />
+                                        <div className="relative flex-1">
                                             <LinkIcon className="absolute left-3 top-3 text-slate-500" size={16} />
                                             <input 
                                                 type="url" 
@@ -978,6 +989,22 @@ export const Library: React.FC = () => {
                                                 placeholder="Link Caderno TEC..." 
                                             />
                                         </div>
+                                        <div className="relative flex-1">
+                                            <LinkIcon className="absolute left-3 top-3 text-slate-500" size={16} />
+                                            <input 
+                                                type="url" 
+                                                value={row.externalLink || ''} 
+                                                onChange={e => handleRowChange(i, 'externalLink', e.target.value)} 
+                                                className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" 
+                                                placeholder="Link Externo..." 
+                                            />
+                                        </div>
+                                        <input 
+                                            value={row.comments || ''} 
+                                            onChange={e => handleRowChange(i, 'comments', e.target.value)} 
+                                            className="flex-1 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" 
+                                            placeholder="Comentários..." 
+                                        />
                                         <div className="relative w-24">
                                             <input 
                                                 type="number" 
@@ -1115,12 +1142,12 @@ export const Library: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
                         <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Link Externo 1</label>
-                        <div className="relative"><Book className="absolute left-3 top-3 text-slate-500" size={16} /><input type="url" value={formData.lawLink} onChange={e => handleChange('lawLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" placeholder="Planalto..." /></div>
+                        <div className="relative"><Book className="absolute left-3 top-3 text-slate-500" size={16} /><input type="url" value={formData.lawLink} onChange={e => handleChange('lawLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" placeholder="" /></div>
                         <input type="text" value={formData.lawLinkComment || ''} onChange={e => handleChange('lawLinkComment', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" placeholder="Anotação..." />
                     </div>
                     <div className="space-y-2">
                         <label className="block text-[10px] font-bold text-purple-400 mb-1 uppercase tracking-wider">Link Externo 2</label>
-                        <div className="relative"><FileCode className="absolute left-3 top-3 text-purple-500" size={16} /><input type="url" value={formData.obsidianLink} onChange={e => handleChange('obsidianLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-purple-500/20 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500 placeholder-purple-900/50" placeholder="Link anotações..." /></div>
+                        <div className="relative"><FileCode className="absolute left-3 top-3 text-purple-500" size={16} /><input type="url" value={formData.obsidianLink} onChange={e => handleChange('obsidianLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-purple-500/20 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500 placeholder-purple-900/50" placeholder="" /></div>
                         <input type="text" value={formData.obsidianLinkComment || ''} onChange={e => handleChange('obsidianLinkComment', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500" placeholder="Anotação..." />
                     </div>
                     <div className="space-y-2">
@@ -1132,7 +1159,7 @@ export const Library: React.FC = () => {
                                 value={formData.geminiLink1} 
                                 onChange={e => handleChange('geminiLink1', e.target.value)} 
                                 className="w-full bg-slate-100 dark:bg-slate-800 border border-cyan-500/20 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-cyan-500 placeholder-cyan-900/50" 
-                                placeholder="Link Gemini..." 
+                                placeholder="" 
                             />
                         </div>
                         <input type="text" value={formData.geminiLink1Comment || ''} onChange={e => handleChange('geminiLink1Comment', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-cyan-500" placeholder="Anotação..." />

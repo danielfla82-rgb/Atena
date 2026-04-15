@@ -73,7 +73,7 @@ export interface Notebook {
   /** Cadernos de erros adicionais (Novo V10.7) */
   extraErrorNotebooks?: { link: string; comment: string }[];
   /** Subtópicos adicionais e seus links (Novo V6.2) */
-  extraSubtopics?: { subtitle: string; tecLink: string; accuracy?: number }[];
+  extraSubtopics?: { subtitle: string; tecLink: string; accuracy?: number; themeWeight?: string; externalLink?: string; comments?: string }[];
   /** Link externo para texto de lei ou legislação */
   lawLink?: string;
   lawLinkComment?: string;
