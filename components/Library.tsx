@@ -934,14 +934,14 @@ export const Library: React.FC = () => {
                             )}
                         </select>
                     </div>
-                    <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">CADERNO DE QUESTÕES</label><input required value={formData.name} onChange={e => handleChange('name', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" /></div>
+                    <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">TÓPICO</label><input required value={formData.name} onChange={e => handleChange('name', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" /></div>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">MAIORES COBRANÇAS EM PROVA</label><input value={formData.subtitle} onChange={e => handleChange('subtitle', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" placeholder="MAIORES COBRANÇAS EM PROVA..." /></div>
                     <div>
-                        <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Link Caderno TEC</label>
-                        <div className="relative"><LinkIcon className="absolute left-3 top-3 text-slate-500" size={16} /><input type="url" value={formData.tecLink} onChange={e => handleChange('tecLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" placeholder="https://tecconcursos..." /></div>
+                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Link Caderno TEC</label>
+                        <div className="relative"><LinkIcon className="absolute left-3 top-3.5 text-slate-500" size={16} /><input type="url" value={formData.tecLink} onChange={e => handleChange('tecLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg py-3 pl-9 text-slate-900 dark:text-white outline-none focus:border-green-500" placeholder="https://tecconcursos..." /></div>
                     </div>
                   </div>
 
@@ -950,7 +950,7 @@ export const Library: React.FC = () => {
                     {(() => {
                         const rows = formData.extraSubtopics || [];
 
-                        const handleRowChange = (index: number, field: 'subtitle' | 'tecLink' | 'accuracy' | 'themeWeight' | 'externalLink' | 'comments', value: string | number) => {
+                        const handleRowChange = (index: number, field: 'subtitle' | 'tecLink' | 'accuracy' | 'themeWeight' | 'externalLink' | 'comments' | 'errorNotebookLink', value: string | number) => {
                             const newRows = rows.map((row, i) => i === index ? { ...row, [field]: value } : row);
                             handleChange('extraSubtopics', newRows);
                         };
@@ -964,22 +964,23 @@ export const Library: React.FC = () => {
                         };
 
                         return (
-                            <div className="space-y-2">
+                            <div className="space-y-2 overflow-x-auto pb-2">
+                                <div className="min-w-[1000px] space-y-2">
                                 {rows.map((row, i) => (
                                     <div key={i} className="flex items-center gap-2">
                                         <input 
                                             value={row.subtitle} 
                                             onChange={e => handleRowChange(i, 'subtitle', e.target.value)} 
-                                            className="flex-1 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" 
+                                            className="flex-1 min-w-[150px] bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" 
                                             placeholder="Subtópico" 
                                         />
                                         <input 
                                             value={row.themeWeight || ''} 
                                             onChange={e => handleRowChange(i, 'themeWeight', e.target.value)} 
-                                            className="w-24 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" 
+                                            className="w-20 shrink-0 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" 
                                             placeholder="Peso" 
                                         />
-                                        <div className="relative flex-1">
+                                        <div className="relative flex-1 min-w-[150px]">
                                             <LinkIcon className="absolute left-3 top-3 text-slate-500" size={16} />
                                             <input 
                                                 type="url" 
@@ -989,7 +990,17 @@ export const Library: React.FC = () => {
                                                 placeholder="Link Caderno TEC..." 
                                             />
                                         </div>
-                                        <div className="relative flex-1">
+                                        <div className="relative flex-1 min-w-[150px]">
+                                            <LinkIcon className="absolute left-3 top-3 text-slate-500" size={16} />
+                                            <input 
+                                                type="url" 
+                                                value={row.errorNotebookLink || ''} 
+                                                onChange={e => handleRowChange(i, 'errorNotebookLink', e.target.value)} 
+                                                className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-red-500" 
+                                                placeholder="Caderno de Erros..." 
+                                            />
+                                        </div>
+                                        <div className="relative flex-1 min-w-[150px]">
                                             <LinkIcon className="absolute left-3 top-3 text-slate-500" size={16} />
                                             <input 
                                                 type="url" 
@@ -1002,10 +1013,10 @@ export const Library: React.FC = () => {
                                         <input 
                                             value={row.comments || ''} 
                                             onChange={e => handleRowChange(i, 'comments', e.target.value)} 
-                                            className="flex-1 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" 
+                                            className="flex-1 min-w-[150px] bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" 
                                             placeholder="Comentários..." 
                                         />
-                                        <div className="relative w-24">
+                                        <div className="relative w-28 shrink-0">
                                             <input 
                                                 type="number" 
                                                 min="0"
@@ -1020,13 +1031,14 @@ export const Library: React.FC = () => {
                                         <button 
                                             type="button" 
                                             onClick={() => removeRow(i)} 
-                                            className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                                            className="p-2 text-slate-400 hover:text-red-500 transition-colors shrink-0"
                                             title="Remover linha"
                                         >
-                                            <Trash2 size={18} />
+                                            <Trash2 size={16} />
                                         </button>
                                     </div>
                                 ))}
+                                </div>
                                 <button 
                                     type="button" 
                                     onClick={addRow} 

@@ -192,7 +192,7 @@ const AppContent: React.FC = () => {
                       className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('framework') ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border-green-500' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/50'}`}
                     >
                       <Pyramid size={18} className={isActive('framework') ? 'text-green-500 dark:text-green-400' : ''}/>
-                      <span className="text-sm font-medium">Framework</span>
+                      <span className="text-sm font-medium">Framework Atena da Aprovação</span>
                   </button>
                   
                   <button 
@@ -237,7 +237,7 @@ const AppContent: React.FC = () => {
           view === 'verticalized' ? <VerticalizedEdital onNavigate={(v) => setView(v as any)} /> :
           view === 'review-list' ? <ReviewList onNavigate={(v) => setView(v as any)} /> :
           view === 'library' ? <Library /> :
-          view === 'disciplines' ? <DisciplineManager /> :
+          view === 'disciplines' ? <DisciplineManager onNavigate={(v) => setView(v as any)} /> :
           view === 'simulados' ? <Simulados /> :
           view === 'notes' ? <Notes /> :
           view === 'framework' ? <Framework /> :
