@@ -849,6 +849,76 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           <div className="h-full"><WeeklyProgress /></div>
       </div>
 
+      <DashboardSection title="Planejamento de Revisões" subtitle="Mapa de Calor de Carga Futura" icon={<Calendar size={20} />} defaultOpen={true}>
+          <div className="bg-white dark:bg-slate-900 rounded-xl p-5 border border-slate-200 dark:border-slate-800 shadow-sm">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                  <div>
+                      <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">Distribuição de Carga Futura</h4>
+                      <p className="text-[10px] text-slate-500 mt-1">Visualize os dias com maior acúmulo de revisões agendadas pelo algoritmo.</p>
+                  </div>
+                  <div className="flex items-center gap-3 overflow-x-auto pb-1 w-full md:w-auto">
+                      <div className="flex items-center gap-1.5 whitespace-nowrap"><div className="w-3 h-3 rounded bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700"></div> <span className="text-[9px] font-bold text-slate-400">Livre</span></div>
+                      <div className="flex items-center gap-1.5 whitespace-nowrap"><div className="w-3 h-3 rounded bg-green-100 dark:bg-green-900/30"></div> <span className="text-[9px] font-bold text-slate-400">1-2</span></div>
+                      <div className="flex items-center gap-1.5 whitespace-nowrap"><div className="w-3 h-3 rounded bg-green-300 dark:bg-green-700/50"></div> <span className="text-[9px] font-bold text-slate-400">3-5</span></div>
+                      <div className="flex items-center gap-1.5 whitespace-nowrap"><div className="w-3 h-3 rounded bg-green-500"></div> <span className="text-[9px] font-bold text-slate-400">Max</span></div>
+                  </div>
+              </div>
+
+              {(() => {
+                  const futureReviews: Record<string, { count: number, names: string[] }> = {};
+                  notebooks.forEach(nb => {
+                      if (nb.nextReview) {
+                          const date = new Date(nb.nextReview).toISOString().split('T')[0];
+                          if (!futureReviews[date]) futureReviews[date] = { count: 0, names: [] };
+                          futureReviews[date].count++;
+                          if (futureReviews[date].names.length < 3) futureReviews[date].names.push(nb.name);
+                      }
+                  });
+
+                  const todayDate = new Date();
+                  todayDate.setHours(0,0,0,0);
+                  
+                  const planningDays = [];
+                  for (let i = 0; i < 35; i++) {
+                      const d = new Date(todayDate);
+                      d.setDate(todayDate.getDate() + i);
+                      const dateStr = d.toISOString().split('T')[0];
+                      const data = futureReviews[dateStr] || { count: 0, names: [] };
+                      
+                      let heatClass = "bg-slate-50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800/50 text-slate-400";
+                      if (data.count > 0 && data.count <= 2) heatClass = "bg-green-100 dark:bg-green-900/20 border-green-500/20 text-green-700 dark:text-green-300";
+                      else if (data.count > 2 && data.count <= 5) heatClass = "bg-green-300 dark:bg-green-700/40 border-green-500/30 text-green-900 dark:text-green-100";
+                      else if (data.count > 5) heatClass = "bg-green-500 border-green-600 text-white shadow-sm";
+
+                      planningDays.push(
+                          <div key={i} className={`h-12 w-full min-w-[40px] rounded-lg border flex flex-col items-center justify-center relative transition-all group overflow-hidden ${heatClass}`} title={`${d.toLocaleDateString()}: ${data.count} revisões`}>
+                              <span className="text-[10px] font-black opacity-40 absolute top-1 left-1 leading-none">{d.getDate()}</span>
+                              {data.count > 0 && <span className="text-sm font-black mt-1 leading-none">{data.count}</span>}
+                              
+                              {data.count > 0 && (
+                                  <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity p-1.5 flex flex-col justify-center gap-0.5 z-10 pointer-events-none">
+                                      {data.names.map((name, idx) => (
+                                          <span key={idx} className="text-[7px] font-bold text-white truncate max-w-full leading-tight">• {name}</span>
+                                      ))}
+                                      {data.count > 3 && <span className="text-[6px] text-green-400 font-bold">+{data.count - 3} mais...</span>}
+                                  </div>
+                              )}
+                          </div>
+                      );
+                  }
+
+                  return (
+                      <div className="grid grid-cols-5 sm:grid-cols-7 lg:grid-cols-7 gap-2">
+                          {['Hoje', 'Amanhã', '', '', '', '', ''].map((label, idx) => (
+                              <div key={idx} className="text-[8px] font-black uppercase text-slate-400 text-center mb-1 truncate">{label}</div>
+                          ))}
+                          {planningDays}
+                      </div>
+                  );
+              })()}
+          </div>
+      </DashboardSection>
+
       <div className="grid grid-cols-1 gap-6">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 flex flex-col h-full min-h-[340px] shadow-2xl relative overflow-hidden">
              <div className={`absolute top-0 right-0 m-6 px-3 py-2 rounded-lg border backdrop-blur-md z-10 flex items-center gap-3 transition-all duration-500 ${evolutionData.trend.status === 'up' ? 'bg-green-100 dark:bg-green-900/40 border-green-500/30 text-green-700 dark:text-green-100' : evolutionData.trend.status === 'down' ? 'bg-red-100 dark:bg-red-900/40 border-red-500/30 text-red-700 dark:text-red-100' : 'bg-slate-100 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'}`}>

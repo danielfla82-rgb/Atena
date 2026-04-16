@@ -7,6 +7,7 @@ import { useStore } from '../store';
 import { supabase } from './supabase';
 import { Notebook, Weight, Relevance, Trend, NotebookStatus, ScheduleItem } from '../types';
 import { calculateNextReview, DEFAULT_ALGO_CONFIG, calculateUrgencyScore, getAccuracyColorClass, getStatusColor } from '../utils/algorithm';
+import { HeatmapCalendar } from './HeatmapCalendar';
 import { 
     Search, Plus, Trash2, Edit2, Square, ChevronRight, ChevronDown, 
     BookOpen, Layers, CheckCircle2, LayoutGrid, Clock, AlertTriangle, Star, 
@@ -1260,21 +1261,15 @@ export const Library: React.FC = () => {
                                                      <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 dark:text-slate-400">
                                                          <span className="uppercase tracking-widest text-slate-500 flex items-center gap-1"><BrainCircuit size={16}/> Algoritmo Atena:</span>
                                                          <div className="flex items-center gap-2">
-                                                            <div className="text-green-400 bg-green-900/20 px-2 py-1 rounded border border-green-500/20 flex items-center gap-1 cursor-pointer hover:bg-green-900/40 transition-colors relative overflow-hidden">
-                                                                <Calendar size={16} className="pointer-events-none" /> 
-                                                                <span className="font-bold text-xs pointer-events-none">{computedNextReviewData.date.toLocaleDateString()}</span>
-                                                                <input 
-                                                                    type="date" 
-                                                                    value={computedNextReviewData.date.toISOString().split('T')[0]}
-                                                                    onChange={(e) => {
-                                                                        if (e.target.value) {
-                                                                            const newDate = new Date(e.target.value + 'T12:00:00.000Z');
-                                                                            handleChange('nextReview', newDate.toISOString());
-                                                                        }
-                                                                    }}
-                                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-                                                                />
-                                                            </div>
+                                                            <HeatmapCalendar 
+                                                                value={computedNextReviewData.date}
+                                                                notebooks={notebooks}
+                                                                onChange={(newDate) => {
+                                                                    const dateStr = newDate.toISOString().split('T')[0];
+                                                                    const dateWithTime = new Date(dateStr + 'T12:00:00.000Z');
+                                                                    handleChange('nextReview', dateWithTime.toISOString());
+                                                                }}
+                                                            />
                                                             <span className="text-slate-500 text-[9px] font-normal">{computedNextReviewData.label}</span>
                                                          </div>
                                                      </div>
