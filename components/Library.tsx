@@ -904,17 +904,32 @@ export const Library: React.FC = () => {
                       </div>
                   </div>
 
-                  {/* NOVO CAMPO: EDITAL */}
+                  {/* BLOCO ESTRATÉGICO: EDITAL E CAMPO LIVRE */}
                   <div className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 p-4 rounded-xl mb-2">
-                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-wider flex items-center gap-2">
-                        <FileText size={16} className="text-green-500" /> Edital / Prova Alvo
-                    </label>
-                    <input 
-                        value={formData.edital} 
-                        onChange={e => handleChange('edital', e.target.value)} 
-                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500 transition-colors font-medium" 
-                        placeholder="Ex: Receita Federal 2025, Auditor Fiscal SEFAZ-SP..."
-                    />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="md:col-span-1">
+                            <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-[0.15em] flex items-center gap-2">
+                                <FileText size={14} className="text-green-500" /> Edital Alvo
+                            </label>
+                            <input 
+                                value={formData.edital} 
+                                onChange={e => handleChange('edital', e.target.value)} 
+                                className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500 transition-colors font-bold text-center" 
+                                placeholder="Ex: RFB 2025"
+                            />
+                        </div>
+                        <div className="md:col-span-2">
+                            <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-[0.15em] flex items-center gap-2">
+                                <Sparkles size={14} className="text-yellow-500" /> Campo Livre / Observações
+                            </label>
+                            <input 
+                                value={formData.subtitle} 
+                                onChange={e => handleChange('subtitle', e.target.value)} 
+                                className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-yellow-500 transition-colors" 
+                                placeholder="Use este espaço para observações rápidas, lembretes ou tags..."
+                            />
+                        </div>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -938,11 +953,19 @@ export const Library: React.FC = () => {
                     <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">TÓPICO</label><input required value={formData.name} onChange={e => handleChange('name', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" /></div>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">MAIORES COBRANÇAS EM PROVA</label><input value={formData.subtitle} onChange={e => handleChange('subtitle', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" placeholder="MAIORES COBRANÇAS EM PROVA..." /></div>
+                  <div className="grid grid-cols-1 gap-4">
                     <div>
-                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Link Caderno TEC</label>
-                        <div className="relative"><LinkIcon className="absolute left-3 top-3.5 text-slate-500" size={16} /><input type="url" value={formData.tecLink} onChange={e => handleChange('tecLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg py-3 pl-9 text-slate-900 dark:text-white outline-none focus:border-green-500" placeholder="https://tecconcursos..." /></div>
+                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Link Caderno TEC (Ferramenta de Questões)</label>
+                        <div className="relative">
+                            <LinkIcon className="absolute left-3 top-3 text-slate-500" size={16} />
+                            <input 
+                                type="url" 
+                                value={formData.tecLink} 
+                                onChange={e => handleChange('tecLink', e.target.value)} 
+                                className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" 
+                                placeholder="https://tecconcursos..." 
+                            />
+                        </div>
                     </div>
                   </div>
 
