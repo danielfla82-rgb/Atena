@@ -1004,6 +1004,18 @@ export const Library: React.FC = () => {
                                             className="w-20 shrink-0 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" 
                                             placeholder="Peso" 
                                         />
+                                        <div className="relative w-28 shrink-0">
+                                            <input 
+                                                type="number" 
+                                                min="0"
+                                                max="100"
+                                                value={row.accuracy || ''} 
+                                                onChange={e => handleRowChange(i, 'accuracy', Number(e.target.value))} 
+                                                className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg py-2.5 px-3 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" 
+                                                placeholder="Acertos" 
+                                            />
+                                            <span className="absolute right-3 top-2.5 text-xs text-slate-500">%</span>
+                                        </div>
                                         <div className="relative flex-1 min-w-[150px]">
                                             <LinkIcon className="absolute left-3 top-3 text-slate-500" size={16} />
                                             <input 
@@ -1040,18 +1052,6 @@ export const Library: React.FC = () => {
                                             className="flex-1 min-w-[150px] bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" 
                                             placeholder="Comentários..." 
                                         />
-                                        <div className="relative w-28 shrink-0">
-                                            <input 
-                                                type="number" 
-                                                min="0"
-                                                max="100"
-                                                value={row.accuracy || ''} 
-                                                onChange={e => handleRowChange(i, 'accuracy', Number(e.target.value))} 
-                                                className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg py-2.5 px-3 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" 
-                                                placeholder="Acertos" 
-                                            />
-                                            <span className="absolute right-3 top-2.5 text-xs text-slate-500">%</span>
-                                        </div>
                                         <button 
                                             type="button" 
                                             onClick={() => removeRow(i)} 
