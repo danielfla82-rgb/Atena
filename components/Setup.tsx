@@ -1301,14 +1301,13 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                                     if (!nb) return null;
                                     
                                     const isNotebookDuplicated = algorithmicRevs.some(algoNb => algoNb.id === nb.id);
-                                    const isDisciplineDuplicated = !isNotebookDuplicated && algorithmicRevs.some(algoNb => algoNb.discipline === nb.discipline);
                                     
                                     return (
                                         <div key={slot.instanceId || `fallback-${originalIndex}`} className="relative group/warning">
-                                            {(isNotebookDuplicated || isDisciplineDuplicated) && (
-                                                <div className="flex items-center gap-1 mb-1 px-1 text-[9px] font-bold text-amber-500 uppercase tracking-widest bg-amber-500/10 rounded border border-amber-500/20 py-0.5" title="Item possivelmente em duplicidade.">
+                                            {isNotebookDuplicated && (
+                                                <div className="flex items-center gap-1 mb-1 px-1 text-[9px] font-bold text-amber-500 uppercase tracking-widest bg-amber-500/10 rounded border border-amber-500/20 py-0.5" title="Tópico possivelmente em duplicidade.">
                                                     <AlertTriangle size={10} /> 
-                                                    {isNotebookDuplicated ? 'Tópico já na Revisão Auto' : 'Disciplina já na Revisão Auto'}
+                                                    Tópico já na Revisão Auto
                                                 </div>
                                             )}
                                             <DraggableCard instanceId={slot.instanceId} notebook={nb} isCompleted={slot.completed} onDragStart={onDragStart} onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)} onEdit={handleEditClick} onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} onRemove={(instId) => handleRemoveFromWeek(instId, week.id)} isCompact origin="week" disabled={week.isPast} index={originalIndex} currentWeekIndex={currentWeekIndex} scheduledWeekId={week.id} />

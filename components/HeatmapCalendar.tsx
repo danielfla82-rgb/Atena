@@ -37,6 +37,7 @@ export const HeatmapCalendar: React.FC<HeatmapCalendarProps> = ({ value, onChang
             const weekIndex = parseInt(weekIndexStr, 10);
             if (!isNaN(weekIndex) && weekIndex >= 1) {
                 slots.forEach((slot, idx) => {
+                    if (!slot.notebookId) return; // ONLY count ALOCATED notebooks
                     if (slot.plannedDate) {
                         const dateObj = new Date(slot.plannedDate);
                         if (!isNaN(dateObj.getTime())) {
