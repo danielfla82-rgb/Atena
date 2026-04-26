@@ -830,12 +830,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (!nb.isGlobal) return notebookId; // Already private, do nothing
 
       // It IS global. We must fork it.
-      const { id, isGlobal, ...dataToCopy } = nb;
+      const { 
+          id, isGlobal, 
+          nextReview, accuracyHistory, lastPractice, isWeekCompleted,
+          ...dataToCopy 
+      } = nb;
       
       // Create new private copy
       const newId = await addNotebook({
           ...dataToCopy,
-          // Reset status if needed, or keep it. Let's keep it 'Not Started' usually, but here we clone exactly.
+          accuracy: 0,
+          status: NotebookStatus.NOT_STARTED,
           isGlobal: false // Explicitly private
       });
 

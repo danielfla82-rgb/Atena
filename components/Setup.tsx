@@ -54,7 +54,7 @@ const DraggableCard = React.memo(({
     isCompleted?: boolean;
     index?: number;
     startDate?: string;
-    scheduledWeekId?: string | null;
+    scheduledWeekId?: string | string[] | null;
     currentWeekIndex?: number;
 }) => {
     const statusColor = getStatusColor(notebook.accuracy, notebook.targetAccuracy, notebook.status);
@@ -63,11 +63,12 @@ const DraggableCard = React.memo(({
     
     // --- LÓGICA DE ALOCAÇÃO (VISUAL FEEDBACK) ---
     // Prioriza a informação do Ciclo Ativo (Schedule). Ignoramos weekId legado para evitar confusões com ciclos antigos.
-    const effectiveWeekId = scheduledWeekId;
-    const allocatedWeek = isLibrary && effectiveWeekId ? effectiveWeekId.replace('week-', '') : null;
+    const effectiveWeekIds = Array.isArray(scheduledWeekId) ? scheduledWeekId : (scheduledWeekId ? [scheduledWeekId] : []);
+    const allocatedWeeks = isLibrary ? effectiveWeekIds.map(id => id.replace('week-', '')) : null;
     
     // Check if allocation is in the past
-    const isAllocatedPast = allocatedWeek && currentWeekIndex && parseInt(allocatedWeek) < currentWeekIndex;
+    // If it's allocated to multiple weeks, evaluate if ANY are in the past
+    const isAllocatedPast = allocatedWeeks && currentWeekIndex && allocatedWeeks.some(weekNum => parseInt(weekNum) < currentWeekIndex);
 
     // --- LÓGICA DE CORES POR DESEMPENHO ---
     const target = Number(notebook.targetAccuracy) || 90;
@@ -132,7 +133,7 @@ const DraggableCard = React.memo(({
                 ${disabled ? 'opacity-50 pointer-events-none' : ''}
                 ${isCompact ? 'text-xs' : 'text-sm'}
                 ${isCompleted && isWeek ? 'bg-white dark:bg-slate-900/50 border-slate-200 dark:border-slate-800 opacity-70 hover:opacity-100' : ''}
-                ${isLibrary && allocatedWeek ? 'border-l-2 border-l-indigo-500' : ''}
+                ${isLibrary && allocatedWeeks && allocatedWeeks.length > 0 ? 'border-l-2 border-l-indigo-500' : ''}
             `}
         >
             {isLibrary && (
@@ -166,15 +167,22 @@ const DraggableCard = React.memo(({
                             {notebook.discipline}
                         </h4>
                         
-                        {isLibrary && allocatedWeek ? (
-                            <span className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide shadow-sm
-                                ${isAllocatedPast 
-                                    ? 'bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400' 
-                                    : 'bg-indigo-100 dark:bg-indigo-500/10 border border-indigo-300 dark:border-indigo-500/20 text-indigo-700 dark:text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.1)]'}
-                            `}>
-                                {!isAllocatedPast && <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 dark:bg-indigo-400 animate-pulse"></span>}
-                                Sem {allocatedWeek}
-                            </span>
+                        {allocatedWeeks && allocatedWeeks.length > 0 ? (
+                            <div className="flex gap-1 flex-wrap">
+                                {allocatedWeeks.map(weekNum => {
+                                    const isPast = currentWeekIndex && parseInt(weekNum) < currentWeekIndex;
+                                    return (
+                                        <span key={weekNum} className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide shadow-sm
+                                            ${isPast 
+                                                ? 'bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400' 
+                                                : 'bg-indigo-100 dark:bg-indigo-500/10 border border-indigo-300 dark:border-indigo-500/20 text-indigo-700 dark:text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.1)]'}
+                                        `}>
+                                            {!isPast && <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 dark:bg-indigo-400 animate-pulse"></span>}
+                                            Sem {weekNum}
+                                        </span>
+                                    );
+                                })}
+                            </div>
                         ) : null}
                     </div>
                     <p className={`truncate mb-1 leading-tight font-medium ${isWeek ? (isCompleted ? 'text-slate-500' : 'text-slate-500 dark:text-slate-400') : 'text-slate-500 dark:text-slate-400'}`} title={notebook.name}>{notebook.name}</p>
@@ -193,14 +201,14 @@ const DraggableCard = React.memo(({
                      {nextReviewWeek && (
                          <span 
                             className={`flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded border transition-colors
-                                ${allocatedWeek && !isAllocatedPast
+                                ${allocatedWeeks && allocatedWeeks.includes(nextReviewWeek.toString()) && !isAllocatedPast
                                     ? 'text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/20 border-green-300 dark:border-green-500/30 opacity-90' 
                                     : 'text-slate-500 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-700'
                                 }
                             `} 
-                            title={allocatedWeek ? "Revisão já planejada" : `Próxima revisão recomendada para Semana ${nextReviewWeek}`}
+                            title={allocatedWeeks && allocatedWeeks.includes(nextReviewWeek.toString()) ? "Revisão já planejada nesta semana" : `Próxima revisão recomendada para Semana ${nextReviewWeek}`}
                          >
-                             {allocatedWeek ? <CheckCircle2 size={8} /> : <Calendar size={8} />} Sem {nextReviewWeek}
+                             {allocatedWeeks && allocatedWeeks.includes(nextReviewWeek.toString()) ? <CheckCircle2 size={8} /> : <Calendar size={8} />} Sem {nextReviewWeek}
                          </span>
                      )}
                      <div className="flex gap-1 mt-1">
@@ -623,12 +631,16 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
 
   // --- MAPPING LOGIC FOR SCHEDULED WEEKS ---
   const notebookScheduleMap = useMemo(() => {
-      const map = new Map<string, string>();
+      const map = new Map<string, string[]>();
       if (activeCycle?.schedule) {
           Object.entries(activeCycle.schedule).forEach(([weekId, slots]) => {
               if (Array.isArray(slots)) {
                   slots.forEach(slot => {
-                      if (slot.notebookId) map.set(slot.notebookId, weekId);
+                      if (slot.notebookId) {
+                          const existing = map.get(slot.notebookId) || [];
+                          if (!existing.includes(weekId)) existing.push(weekId);
+                          map.set(slot.notebookId, existing);
+                      }
                   });
               }
           });
@@ -664,7 +676,11 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
     })).sort((a, b) => b.totalScore - a.totalScore);
   }, [notebooks]);
 
-  const totalAllocatedBlocks = useMemo(() => notebookScheduleMap.size, [notebookScheduleMap]);
+  const totalAllocatedBlocks = useMemo(() => {
+     let count = 0;
+     notebookScheduleMap.forEach(weeks => count += weeks.length);
+     return count;
+  }, [notebookScheduleMap]);
 
   const libraryNotebooks = useMemo(() => {
     const today = new Date().toISOString().split('T')[0];
@@ -721,7 +737,12 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
 
   const getWeekDateRange = (weekIndex: number, startDateStr?: string) => {
     if (!startDateStr) return { label: '', isPast: false, fullDate: '' };
-    const start = new Date(startDateStr);
+    const dateParts = startDateStr.split('-');
+    const year = parseInt(dateParts[0], 10);
+    const month = parseInt(dateParts[1], 10) - 1;
+    const day = parseInt(dateParts[2], 10);
+    
+    const start = new Date(year, month, day);
     start.setDate(start.getDate() + (weekIndex * 7));
     const end = new Date(start);
     end.setDate(end.getDate() + 6);
@@ -1279,9 +1300,22 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                                             <span className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5"><BrainCircuit size={12} /> Revisões Automáticas ({algorithmicRevs.length})</span>
                                             {isAlgoListExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                                         </button>
-                                        {isAlgoListExpanded && algorithmicRevs.map(nb => (
-                                            <DraggableCard key={`algo-${nb.id}`} notebook={nb} onDragStart={onDragStart} onEdit={handleEditClick} isCompact origin="library" disabled={week.isPast} scheduledWeekId={week.id} />
-                                        ))}
+                                        {isAlgoListExpanded && algorithmicRevs.map(nb => {
+                                            const isManuallyScheduled = pendingItems.some(p => p.slot.notebookId === nb.id) || completedItems.some(c => c.slot.notebookId === nb.id);
+                                            const isDisciplineManuallyScheduled = !isManuallyScheduled && (pendingItems.some(p => notebooks.find(n => n.id === p.slot.notebookId)?.discipline === nb.discipline) || completedItems.some(c => notebooks.find(n => n.id === c.slot.notebookId)?.discipline === nb.discipline));
+                                            
+                                            return (
+                                                <div key={`algo-${nb.id}`} className="relative group/warning">
+                                                    {(isManuallyScheduled || isDisciplineManuallyScheduled) && (
+                                                        <div className="flex items-center gap-1 mb-1 px-1 text-[9px] font-bold text-amber-500 uppercase tracking-widest bg-amber-500/10 rounded border border-amber-500/20 py-0.5" title="Item em duplicidade na semana.">
+                                                            <AlertTriangle size={10} /> 
+                                                            {isManuallyScheduled ? 'Tópico já na Alocação Manual' : 'Disciplina já na Alocação Manual'}
+                                                        </div>
+                                                    )}
+                                                    <DraggableCard notebook={nb} onDragStart={onDragStart} onEdit={handleEditClick} isCompact origin="library" disabled={week.isPast} scheduledWeekId={week.id} />
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 )}
 
@@ -1317,7 +1351,21 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                                     if (!slot || !slot.notebookId) return null; 
                                     const nb = notebooks.find(n => n.id === slot.notebookId);
                                     if (!nb) return null;
-                                    return (<DraggableCard key={slot.instanceId || `fallback-${originalIndex}`} instanceId={slot.instanceId} notebook={nb} isCompleted={slot.completed} onDragStart={onDragStart} onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)} onEdit={handleEditClick} onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} onRemove={(instId) => handleRemoveFromWeek(instId, week.id)} isCompact origin="week" disabled={week.isPast} index={originalIndex} currentWeekIndex={currentWeekIndex} scheduledWeekId={week.id} />);
+                                    
+                                    const isNotebookDuplicated = algorithmicRevs.some(algoNb => algoNb.id === nb.id);
+                                    const isDisciplineDuplicated = !isNotebookDuplicated && algorithmicRevs.some(algoNb => algoNb.discipline === nb.discipline);
+                                    
+                                    return (
+                                        <div key={slot.instanceId || `fallback-${originalIndex}`} className="relative group/warning">
+                                            {(isNotebookDuplicated || isDisciplineDuplicated) && (
+                                                <div className="flex items-center gap-1 mb-1 px-1 text-[9px] font-bold text-amber-500 uppercase tracking-widest bg-amber-500/10 rounded border border-amber-500/20 py-0.5" title="Item em duplicidade na semana.">
+                                                    <AlertTriangle size={10} /> 
+                                                    {isNotebookDuplicated ? 'Tópico já na Revisão Auto' : 'Disciplina já na Revisão Auto'}
+                                                </div>
+                                            )}
+                                            <DraggableCard instanceId={slot.instanceId} notebook={nb} isCompleted={slot.completed} onDragStart={onDragStart} onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)} onEdit={handleEditClick} onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} onRemove={(instId) => handleRemoveFromWeek(instId, week.id)} isCompact origin="week" disabled={week.isPast} index={originalIndex} currentWeekIndex={currentWeekIndex} scheduledWeekId={week.id} />
+                                        </div>
+                                    );
                                 })}
                                 {weekSlots.length === 0 && !week.isPast && <div className="h-full flex flex-col items-center justify-center text-slate-700 text-xs italic opacity-50 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl m-2 bg-slate-50 dark:bg-slate-950/50 min-h-[100px]">Arraste matérias aqui</div>}
                             </div>
