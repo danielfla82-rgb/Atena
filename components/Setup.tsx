@@ -57,7 +57,7 @@ const DraggableCard = React.memo(({
     startDate?: string;
     scheduledWeekId?: string | string[] | null;
     currentWeekIndex?: number;
-    isAutoScheduled?: boolean;
+    isAutoScheduled?: boolean | 'both';
 }) => {
     const statusColor = getStatusColor(notebook.accuracy, notebook.targetAccuracy, notebook.status);
     const isLibrary = origin === 'library';
@@ -170,7 +170,7 @@ const DraggableCard = React.memo(({
                         </h4>
 
                         {/* INDICATORS: Auto vs Manual */}
-                        {isAutoScheduled === true && (
+                        {(isAutoScheduled === true || isAutoScheduled === 'both') && (
                             <span 
                                 className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide shadow-sm bg-emerald-100 dark:bg-emerald-500/10 border border-emerald-300 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-300"
                                 title="Alocado automaticamente pelo algoritmo de revisão"
@@ -178,7 +178,7 @@ const DraggableCard = React.memo(({
                                 <BrainCircuit size={10} /> Auto
                             </span>
                         )}
-                        {isAutoScheduled === false && isWeek && (
+                        {(isAutoScheduled === false || isAutoScheduled === 'both') && isWeek && (
                             <span 
                                 className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide shadow-sm bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300"
                                 title="Alocado manualmente por você"
@@ -1293,11 +1293,8 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                             ...weekSlots.map(s => notebooks.find(n => n.id === s.notebookId)?.discipline)
                         ].filter(Boolean) as string[])).sort();
 
-                        const revisionsInPending = pendingItems.filter(p => (notebooks.find(n => n.id === p.slot.notebookId)?.accuracy || 0) > 0).length;
-                        const revisionsInCompleted = completedItems.filter(p => (notebooks.find(n => n.id === p.slot.notebookId)?.accuracy || 0) > 0).length;
-                        const totalAlgo = rawFilterAlgo.length;
-                        const completedRevs = revisionsInCompleted;
-                        const totalRevs = completedRevs + revisionsInPending + totalAlgo;
+                        const autoRevsTotal = algorithmicRevs.length;
+                        const autoRevsCompleted = algorithmicRevs.filter(nb => completedItems.some(c => c.slot.notebookId === nb.id)).length;
 
                         return (
                             <div key={week.id} className={`w-80 flex-shrink-0 flex flex-col rounded-2xl border transition-all duration-300 relative h-full max-h-full ${week.isPast ? 'bg-white dark:bg-slate-900/30 border-slate-200 dark:border-slate-800/50 opacity-100' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-2xl hover:border-slate-300 dark:border-slate-700'}`} onDragOver={week.isPast ? undefined : onDragOver} onDrop={(e) => onDrop(e, week.id, week.isPast)}>
@@ -1342,9 +1339,9 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                                     <div className="flex flex-col gap-2 mb-3 sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur z-20 pb-2 border-b border-slate-100 dark:border-slate-800 -mt-1 pt-1">
                                         <div className="flex justify-between items-center w-full">
                                             <div className="text-[10px] uppercase font-bold text-slate-500">Filtros:</div>
-                                            {totalRevs > 0 && (
-                                                <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 px-1.5 py-0.5 rounded flex items-center gap-1" title="Progresso das Revisões (Manuais + Auto)">
-                                                    <RefreshCw size={10} /> Revisões: {completedRevs}/{totalRevs}
+                                            {autoRevsTotal > 0 && (
+                                                <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 px-1.5 py-0.5 rounded flex items-center gap-1" title="Progresso das Revisões Recomendadas (Auto)">
+                                                    <RefreshCw size={10} /> Revisões Auto: {autoRevsCompleted}/{autoRevsTotal}
                                                 </div>
                                             )}
                                         </div>
@@ -1382,7 +1379,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                                     
                                     return (
                                         <div key={slot.instanceId || `fallback-${originalIndex}`} className="relative">
-                                            <DraggableCard instanceId={slot.instanceId} notebook={nb} isCompleted={slot.completed && !isFutureWeek} onDragStart={onDragStart} onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)} onEdit={handleEditClick} onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} onRemove={(instId) => handleRemoveFromWeek(instId, week.id)} isCompact origin="week" disabled={week.isPast} index={originalIndex} currentWeekIndex={currentWeekIndex} scheduledWeekId={week.id} startDate={config.startDate} isAutoScheduled={false} />
+                                            <DraggableCard instanceId={slot.instanceId} notebook={nb} isCompleted={slot.completed && !isFutureWeek} onDragStart={onDragStart} onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)} onEdit={handleEditClick} onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} onRemove={(instId) => handleRemoveFromWeek(instId, week.id)} isCompact origin="week" disabled={week.isPast} index={originalIndex} currentWeekIndex={currentWeekIndex} scheduledWeekId={week.id} startDate={config.startDate} isAutoScheduled={algorithmicRevs.some(a => a.id === nb.id) ? 'both' : false} />
                                         </div>
                                     );
                                 })}
@@ -1394,7 +1391,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                                     
                                     return (
                                         <div key={slot.instanceId || `fallback-${originalIndex}`} className="relative">
-                                            <DraggableCard instanceId={slot.instanceId} notebook={nb} isCompleted={slot.completed && !isFutureWeek} onDragStart={onDragStart} onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)} onEdit={handleEditClick} onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} onRemove={(instId) => handleRemoveFromWeek(instId, week.id)} isCompact origin="week" disabled={week.isPast} index={originalIndex} currentWeekIndex={currentWeekIndex} scheduledWeekId={week.id} startDate={config.startDate} isAutoScheduled={false} />
+                                            <DraggableCard instanceId={slot.instanceId} notebook={nb} isCompleted={slot.completed && !isFutureWeek} onDragStart={onDragStart} onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)} onEdit={handleEditClick} onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} onRemove={(instId) => handleRemoveFromWeek(instId, week.id)} isCompact origin="week" disabled={week.isPast} index={originalIndex} currentWeekIndex={currentWeekIndex} scheduledWeekId={week.id} startDate={config.startDate} isAutoScheduled={algorithmicRevs.some(a => a.id === nb.id) ? 'both' : false} />
                                         </div>
                                     );
                                 })}
