@@ -329,7 +329,7 @@ export const Library: React.FC = () => {
                   return false;
               case 'critical': return nb.accuracy < ((Number(nb.targetAccuracy) || 90) * 0.75) && nb.accuracy > 0;
               case 'new': return nb.accuracy === 0;
-              case 'no_review': return !nb.nextReview;
+              case 'no_review': return !nb.nextReview && !isScheduledInActiveCycle(nb.id);
               case 'neglected': {
                   // Uma disciplina é negligenciada se NENHUM de seus cadernos está no ciclo ativo
                   const disciplineNotebooks = notebooks.filter(n => n.discipline === nb.discipline);

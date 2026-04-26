@@ -813,39 +813,7 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 rounded-xl p-5 border border-slate-200 dark:border-slate-800 shadow-lg flex flex-col justify-between">
-              <div className="flex justify-between items-start mb-4">
-                  <div className="flex items-center gap-3">
-                      <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded-lg text-slate-500">
-                          <StreakIcon streak={metrics.currentStreak} />
-                      </div>
-                      <div>
-                          <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">Histórico de Foco</h3>
-                          <p className="text-[10px] text-slate-500">{metrics.currentStreak} dias consecutivos</p>
-                      </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => setViewedMonthOffset(prev => prev - 1)}
-                        className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors text-slate-400"
-                      >
-                          <ChevronLeft size={14} />
-                      </button>
-                      <span className="text-[10px] uppercase font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border border-slate-200 dark:border-slate-700 tracking-wider">
-                          {metrics.monthName}
-                      </span>
-                      <button 
-                        onClick={() => setViewedMonthOffset(prev => prev + 1)}
-                        disabled={viewedMonthOffset >= 0}
-                        className={`p-1 rounded transition-colors ${viewedMonthOffset >= 0 ? 'text-slate-200 dark:text-slate-800 cursor-not-allowed' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400'}`}
-                      >
-                          <ChevronRight size={14} />
-                      </button>
-                  </div>
-              </div>
-              <div className="flex flex-col items-center w-full"><div className="grid grid-cols-7 gap-1.5 mb-2 w-fit">{['D','S','T','Q','Q','S','S'].map((d, i) => (<div key={i} className="text-[9px] font-bold text-slate-500 dark:text-slate-400 dark:text-slate-600 w-9 text-center">{d}</div>))}</div><div className="grid grid-cols-7 gap-1.5 w-fit">{metrics.calendarGrid.map((day, idx) => (<div key={idx} className={`h-9 w-9 rounded-lg flex items-center justify-center transition-all relative group text-[10px] font-bold ${!day.day ? 'bg-transparent' : day.active ? 'bg-green-500 text-slate-900 dark:text-white shadow-md shadow-green-900/20' : day.isFuture ? 'bg-slate-50 dark:bg-slate-900/30 text-slate-600 dark:text-slate-300 dark:text-slate-700 border border-slate-100 dark:border-slate-800/50' : 'bg-slate-100 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 dark:text-slate-600 border border-slate-200 dark:border-slate-800'} ${day.isToday ? 'ring-1 ring-green-400 ring-offset-1 ring-offset-white dark:ring-offset-slate-900' : ''}`} title={day.date}>{day.day}</div>))}</div></div>
-          </div>
+      <div className="mb-4">
           <div className="h-full"><WeeklyProgress /></div>
       </div>
 
@@ -858,9 +826,9 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                   </div>
                   <div className="flex items-center gap-3 overflow-x-auto pb-1 w-full md:w-auto">
                       <div className="flex items-center gap-1.5 whitespace-nowrap"><div className="w-3 h-3 rounded bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700"></div> <span className="text-[9px] font-bold text-slate-400">Livre</span></div>
-                      <div className="flex items-center gap-1.5 whitespace-nowrap"><div className="w-3 h-3 rounded bg-green-100 dark:bg-green-900/30"></div> <span className="text-[9px] font-bold text-slate-400">1-2</span></div>
-                      <div className="flex items-center gap-1.5 whitespace-nowrap"><div className="w-3 h-3 rounded bg-green-300 dark:bg-green-700/50"></div> <span className="text-[9px] font-bold text-slate-400">3-5</span></div>
-                      <div className="flex items-center gap-1.5 whitespace-nowrap"><div className="w-3 h-3 rounded bg-green-500"></div> <span className="text-[9px] font-bold text-slate-400">Max</span></div>
+                      <div className="flex items-center gap-1.5 whitespace-nowrap"><div className="w-3 h-3 rounded bg-emerald-100 dark:bg-emerald-900/40"></div> <span className="text-[9px] font-bold text-slate-400">1-2</span></div>
+                      <div className="flex items-center gap-1.5 whitespace-nowrap"><div className="w-3 h-3 rounded bg-emerald-200 dark:bg-emerald-800/60"></div> <span className="text-[9px] font-bold text-slate-400">3-5</span></div>
+                      <div className="flex items-center gap-1.5 whitespace-nowrap"><div className="w-3 h-3 rounded bg-emerald-500 dark:bg-emerald-600"></div> <span className="text-[9px] font-bold text-slate-400">Max</span></div>
                   </div>
               </div>
 
@@ -945,9 +913,9 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                       const totalLoad = data.count + data.manualCount;
                       
                       let heatClass = "bg-slate-50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800/50 text-slate-400";
-                      if (totalLoad > 0 && totalLoad <= 2) heatClass = "bg-green-100 dark:bg-green-900/20 border-green-500/20 text-green-700 dark:text-green-300";
-                      else if (totalLoad > 2 && totalLoad <= 5) heatClass = "bg-green-300 dark:bg-green-700/40 border-green-500/30 text-green-900 dark:text-green-100";
-                      else if (totalLoad > 5) heatClass = "bg-green-500 border-green-600 text-white shadow-sm";
+                      if (totalLoad > 0 && totalLoad <= 2) heatClass = "bg-emerald-100 dark:bg-emerald-900/40 border-emerald-500/20 text-emerald-800 dark:text-emerald-300";
+                      else if (totalLoad > 2 && totalLoad <= 5) heatClass = "bg-emerald-200 dark:bg-emerald-800/60 border-emerald-500/30 text-emerald-900 dark:text-emerald-100";
+                      else if (totalLoad > 5) heatClass = "bg-emerald-500 dark:bg-emerald-600 border-emerald-600/50 text-white shadow-sm";
 
                       planningDays.push(
                           <div key={i} className={`h-12 w-full min-w-[40px] rounded-lg border flex flex-col items-center justify-center relative transition-all group overflow-hidden ${heatClass}`} title={`${d.toLocaleDateString()}: ${data.count} automáticas, ${data.manualCount} manuais`}>

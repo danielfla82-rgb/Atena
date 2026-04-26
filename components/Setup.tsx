@@ -569,6 +569,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
   const [expandedWeekId, setExpandedWeekId] = useState<string | null>(null);
   const [showPaceSelector, setShowPaceSelector] = useState(false);
   const [expandedCompletedWeeks, setExpandedCompletedWeeks] = useState<Record<string, boolean>>({});
+  const [expandedAlgoWeeks, setExpandedAlgoWeeks] = useState<Record<string, boolean>>({});
   
   // NEW: State for collapsing past weeks
   const [isPastExpanded, setIsPastExpanded] = useState(false);
@@ -814,6 +815,11 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
   const toggleCompletedWeek = (weekId: string, e: React.MouseEvent) => {
       e.stopPropagation();
       setExpandedCompletedWeeks(prev => ({ ...prev, [weekId]: !prev[weekId] }));
+  };
+
+  const toggleAlgoWeek = (weekId: string, e: React.MouseEvent) => {
+      e.stopPropagation();
+      setExpandedAlgoWeeks(prev => ({ ...prev, [weekId]: !prev[weekId] }));
   };
 
   const currentIntervals = localConfig.algorithm?.baseIntervals || DEFAULT_ALGO_CONFIG.baseIntervals;
@@ -1206,6 +1212,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                         const completedItems: { slot: ScheduleItem, originalIndex: number }[] = [];
                         weekSlots.forEach((slot, index) => { if (slot.completed) completedItems.push({ slot, originalIndex: index }); else pendingItems.push({ slot, originalIndex: index }); });
                         const isCompletedListExpanded = expandedCompletedWeeks[week.id];
+                        const isAlgoListExpanded = expandedAlgoWeeks[week.id];
 
                         // Encontrar revisões algorítmicas para esta semana
                         const algorithmicRevs: Notebook[] = [];
@@ -1271,15 +1278,20 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                                 {/* ALGORITMIC REVIEWS */}
                                 {algorithmicRevs.length > 0 && (
                                     <div className="mb-3 space-y-2">
-                                        <div className="flex items-center gap-2 mb-1 px-1">
-                                            <div className="h-px flex-1 bg-emerald-500/20"></div>
-                                            <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Revisões Automáticas</span>
-                                            <div className="h-px flex-1 bg-emerald-500/20"></div>
-                                        </div>
-                                        {algorithmicRevs.map(nb => (
+                                        <button onClick={(e) => toggleAlgoWeek(week.id, e)} className="w-full flex items-center justify-between px-2 py-1.5 bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800/30 rounded-lg text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 transition-all group">
+                                            <span className="text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5"><BrainCircuit size={12} /> Revisões Automáticas ({algorithmicRevs.length})</span>
+                                            {isAlgoListExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                        </button>
+                                        {isAlgoListExpanded && algorithmicRevs.map(nb => (
                                             <DraggableCard key={`algo-${nb.id}`} notebook={nb} onDragStart={onDragStart} onEdit={handleEditClick} isCompact origin="library" disabled={week.isPast} scheduledWeekId={week.id} />
                                         ))}
-                                        <div className="h-px w-full bg-slate-200 dark:bg-slate-800 my-2"></div>
+                                    </div>
+                                )}
+
+                                {pendingItems.length > 0 && (
+                                    <div className="flex items-center gap-2 mb-2 px-1 opacity-70">
+                                        <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Alocação Manual</span>
+                                        <div className="h-px flex-1 bg-slate-200 dark:bg-slate-800"></div>
                                     </div>
                                 )}
 
