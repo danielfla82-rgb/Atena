@@ -695,130 +695,141 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
           </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className={`bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-xl p-5 shadow-lg border border-slate-200 dark:border-slate-800 flex flex-col justify-between transition-all duration-300 relative overflow-hidden ${expandedMetric === 'performance' ? 'h-80' : 'h-32'}`}>
-              <div className="flex justify-between items-start"><span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Desempenho Global</span><button onClick={() => setExpandedMetric(expandedMetric === 'performance' ? null : 'performance')} className="text-slate-500 dark:text-slate-400 hover:text-green-600">{expandedMetric === 'performance' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}</button></div>
-              <div className="flex justify-between items-end"><div className="flex flex-col gap-0.5"><span className="text-xs font-bold text-green-600">{metrics.avgAccuracy}% Acertos</span><span className="text-xs font-bold text-red-500">{metrics.avgAccuracy > 0 ? 100 - metrics.avgAccuracy : 0}% Erros</span></div><span className="text-4xl font-black text-slate-900 dark:text-white">{metrics.avgAccuracy}%</span></div>
-              {expandedMetric === 'performance' && (
-                  <div className="mt-6 flex-1 w-full relative animate-in fade-in slide-in-from-top-4 group">
-                      {metrics.disciplineStats.length > 8 && (
-                          <>
-                              <button 
-                                  onClick={() => scrollChart(performanceScrollRef, 'left')}
-                                  className="absolute left-0 top-1/2 -translate-y-1/2 z-20 p-1.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-full shadow-lg text-slate-600 dark:text-slate-300 hover:bg-green-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 -ml-2"
-                              >
-                                  <ChevronLeft size={18} />
-                              </button>
-                              <button 
-                                  onClick={() => scrollChart(performanceScrollRef, 'right')}
-                                  className="absolute right-0 top-1/2 -translate-y-1/2 z-20 p-1.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-full shadow-lg text-slate-600 dark:text-slate-300 hover:bg-green-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 -mr-2"
-                              >
-                                  <ChevronRight size={18} />
-                              </button>
-                          </>
-                      )}
-                      <div ref={performanceScrollRef} className="w-full h-full overflow-x-auto custom-scrollbar scroll-smooth">
-                          <div style={{ minWidth: metrics.disciplineStats.length > 8 ? `${metrics.disciplineStats.length * 80}px` : '100%', height: '100%' }}>
-                              <Bar 
-                                data={{ 
-                                  labels: metrics.disciplineStats.map(d => abbreviateDiscipline(d.name)), 
-                                  datasets: [{ 
-                                    label: 'Acurácia (%)', 
-                                    data: metrics.disciplineStats.map(d => d.accuracy), 
-                                    backgroundColor: metrics.disciplineStats.map(d => d.accuracy < (d.target * 0.75) ? '#ef4444' : d.accuracy >= d.target ? '#22c55e' : '#f59e0b'), 
-                                    borderRadius: 4,
-                                    fullNames: metrics.disciplineStats.map(d => d.name) // Custom property for tooltip
-                                  }] 
-                                }} 
-                                options={{ 
-                                  ...barChartOptions, 
-                                  plugins: { 
-                                    ...barChartOptions.plugins, 
-                                    textOnBars: true,
-                                    tooltip: {
-                                      ...barChartOptions.plugins.tooltip,
-                                      callbacks: {
-                                        ...barChartOptions.plugins.tooltip.callbacks,
-                                        title: (tooltipItems: any) => {
-                                          const dataset = tooltipItems[0].dataset;
-                                          const index = tooltipItems[0].dataIndex;
-                                          return dataset.fullNames ? dataset.fullNames[index] : tooltipItems[0].label;
-                                        }
-                                      }
-                                    }
-                                  }, 
-                                  onHover: (event, chartElement) => { if (event.native && event.native.target) { (event.native.target as HTMLElement).style.cursor = chartElement[0] ? 'pointer' : 'default'; } }, 
-                                  onClick: (event, elements) => { if (elements.length > 0) { const index = elements[0].index; const disciplineName = metrics.disciplineStats[index].name; setWorstTopicsDiscipline(disciplineName); } } 
-                                }} 
-                                plugins={[textOnBarsPlugin]} 
-                              />
-                          </div>
-                      </div>
-                  </div>
-              )}
-          </div>
-          <div className={`bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-xl p-5 shadow-lg border border-slate-200 dark:border-slate-800 flex flex-col justify-between transition-all duration-300 relative overflow-hidden ${expandedMetric === 'progress' ? 'h-80' : 'h-32'}`}>
-              <div className="flex justify-between items-start"><span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Progresso Edital</span><button onClick={() => setExpandedMetric(expandedMetric === 'progress' ? null : 'progress')} className="text-slate-500 dark:text-slate-400 hover:text-green-600">{expandedMetric === 'progress' ? <ChevronUp size={18} /> : <ChevronDown size={18} />}</button></div>
-              <div className="flex justify-between items-end"><div className="flex flex-col"><span className="text-xs font-semibold text-green-600">{metrics.completedTopics} Concluídos</span><span className="text-xs font-semibold text-orange-500">{metrics.pendingTopics} Pendentes</span></div><span className="text-4xl font-black text-slate-900 dark:text-white">{metrics.progressPercent}%</span></div>
-              {expandedMetric === 'progress' && (
-                  <div className="mt-6 flex-1 w-full relative animate-in fade-in slide-in-from-top-4 group">
-                      {metrics.disciplineStats.length > 8 && (
-                          <>
-                              <button 
-                                  onClick={() => scrollChart(progressScrollRef, 'left')}
-                                  className="absolute left-0 top-1/2 -translate-y-1/2 z-20 p-1.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-full shadow-lg text-slate-600 dark:text-slate-300 hover:bg-green-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 -ml-2"
-                              >
-                                  <ChevronLeft size={18} />
-                              </button>
-                              <button 
-                                  onClick={() => scrollChart(progressScrollRef, 'right')}
-                                  className="absolute right-0 top-1/2 -translate-y-1/2 z-20 p-1.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-full shadow-lg text-slate-600 dark:text-slate-300 hover:bg-green-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 -mr-2"
-                              >
-                                  <ChevronRight size={18} />
-                              </button>
-                          </>
-                      )}
-                      <div ref={progressScrollRef} className="w-full h-full overflow-x-auto custom-scrollbar scroll-smooth">
-                          <div style={{ minWidth: metrics.disciplineStats.length > 8 ? `${metrics.disciplineStats.length * 80}px` : '100%', height: '100%' }}>
-                              <Bar 
-                                data={{ 
-                                  labels: metrics.disciplineStats.map(d => abbreviateDiscipline(d.name)), 
-                                  datasets: [{ 
-                                    label: 'Conclusão (%)', 
-                                    data: metrics.disciplineStats.map(d => d.progress), 
-                                    backgroundColor: '#3b82f6', 
-                                    borderRadius: 4,
-                                    fullNames: metrics.disciplineStats.map(d => d.name) // Custom property for tooltip
-                                  }] 
-                                }} 
-                                options={{
-                                  ...barChartOptions,
-                                  plugins: {
-                                    ...barChartOptions.plugins,
-                                    tooltip: {
-                                      ...barChartOptions.plugins.tooltip,
-                                      callbacks: {
-                                        ...barChartOptions.plugins.tooltip.callbacks,
-                                        title: (tooltipItems: any) => {
-                                          const dataset = tooltipItems[0].dataset;
-                                          const index = tooltipItems[0].dataIndex;
-                                          return dataset.fullNames ? dataset.fullNames[index] : tooltipItems[0].label;
-                                        }
-                                      }
-                                    }
-                                  }
-                                }} 
-                                plugins={[textOnBarsPlugin]} 
-                              />
-                          </div>
-                      </div>
-                  </div>
-              )}
+      {/* Evolução - Top Block */}
+      <div className="grid grid-cols-1 gap-6">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 flex flex-col h-full min-h-[340px] shadow-sm relative overflow-hidden">
+             <div className={`absolute top-0 right-0 m-6 px-3 py-2 rounded-lg border backdrop-blur-md z-10 flex items-center gap-3 transition-all duration-500 ${evolutionData.trend.status === 'up' ? 'bg-green-100 dark:bg-green-900/40 border-green-500/30 text-green-700 dark:text-green-100' : evolutionData.trend.status === 'down' ? 'bg-red-100 dark:bg-red-900/40 border-red-500/30 text-red-700 dark:text-red-100' : 'bg-slate-100 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'}`}>
+                 <div className={`p-1.5 rounded-full ${evolutionData.trend.status === 'up' ? 'bg-green-500 text-slate-900 dark:text-white' : evolutionData.trend.status === 'down' ? 'bg-red-500 text-slate-900 dark:text-white' : 'bg-slate-400 dark:bg-slate-600 text-slate-900 dark:text-white'}`}>{evolutionData.trend.status === 'up' ? <TrendingUp size={14} /> : evolutionData.trend.status === 'down' ? <TrendingDown size={14} /> : <Minus size={14} />}</div>
+                 <div className="flex flex-col"><span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Análise de Tendência</span><span className="text-xs font-medium leading-tight max-w-[180px]">{evolutionData.trend.message}</span></div>
+             </div>
+             <div className="flex justify-between items-end mb-6"><div><h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2"><TrendingUp size={24} className="text-green-500"/>Evolução</h3><p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Média de acurácia semanal</p></div></div>
+             <div className="flex-1 w-full relative"><Line data={evolutionData.chartData} options={chartOptions} /></div>
           </div>
       </div>
 
+      {/* Meta da Semana - Mais discreto */}
       <div className="mb-4">
-          <div className="h-full"><WeeklyProgress /></div>
+          <WeeklyProgress />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-xl p-5 shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col justify-between transition-all duration-300 relative overflow-hidden min-h-[320px]">
+              <div className="flex justify-between items-start"><span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Desempenho Global</span></div>
+              <div className="flex justify-between items-end"><div className="flex flex-col gap-0.5"><span className="text-xs font-bold text-green-600">{metrics.avgAccuracy}% Acertos</span><span className="text-xs font-bold text-red-500">{metrics.avgAccuracy > 0 ? 100 - metrics.avgAccuracy : 0}% Erros</span></div><span className="text-4xl font-black text-slate-900 dark:text-white">{metrics.avgAccuracy}%</span></div>
+              
+              <div className="mt-6 flex-1 w-full relative group">
+                  {metrics.disciplineStats.length > 8 && (
+                      <>
+                          <button 
+                              onClick={() => scrollChart(performanceScrollRef, 'left')}
+                              className="absolute left-0 top-1/2 -translate-y-1/2 z-20 p-1.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-full shadow-lg text-slate-600 dark:text-slate-300 hover:bg-green-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 -ml-2"
+                          >
+                              <ChevronLeft size={18} />
+                          </button>
+                          <button 
+                              onClick={() => scrollChart(performanceScrollRef, 'right')}
+                              className="absolute right-0 top-1/2 -translate-y-1/2 z-20 p-1.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-full shadow-lg text-slate-600 dark:text-slate-300 hover:bg-green-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 -mr-2"
+                          >
+                              <ChevronRight size={18} />
+                          </button>
+                      </>
+                  )}
+                  <div ref={performanceScrollRef} className="w-full h-full overflow-x-auto custom-scrollbar scroll-smooth">
+                      <div style={{ minWidth: metrics.disciplineStats.length > 8 ? `${metrics.disciplineStats.length * 80}px` : '100%', height: '100%' }}>
+                          <Bar 
+                            data={{ 
+                              labels: metrics.disciplineStats.map(d => abbreviateDiscipline(d.name)), 
+                              datasets: [{ 
+                                label: 'Acurácia (%)', 
+                                data: metrics.disciplineStats.map(d => d.accuracy), 
+                                backgroundColor: metrics.disciplineStats.map(d => d.accuracy < (d.target * 0.75) ? '#ef4444' : d.accuracy >= d.target ? '#22c55e' : '#f59e0b'), 
+                                borderRadius: 4,
+                                fullNames: metrics.disciplineStats.map(d => d.name) // Custom property for tooltip
+                              }] 
+                            }} 
+                            options={{ 
+                              ...barChartOptions, 
+                              plugins: { 
+                                ...barChartOptions.plugins, 
+                                textOnBars: true,
+                                tooltip: {
+                                  ...barChartOptions.plugins.tooltip,
+                                  callbacks: {
+                                    ...barChartOptions.plugins.tooltip.callbacks,
+                                    title: (tooltipItems: any) => {
+                                      const dataset = tooltipItems[0].dataset;
+                                      const index = tooltipItems[0].dataIndex;
+                                      return dataset.fullNames ? dataset.fullNames[index] : tooltipItems[0].label;
+                                    }
+                                  }
+                                }
+                              }, 
+                              onHover: (event, chartElement) => { if (event.native && event.native.target) { (event.native.target as HTMLElement).style.cursor = chartElement[0] ? 'pointer' : 'default'; } }, 
+                              onClick: (event, elements) => { if (elements.length > 0) { const index = elements[0].index; const disciplineName = metrics.disciplineStats[index].name; setWorstTopicsDiscipline(disciplineName); } } 
+                            }} 
+                            plugins={[textOnBarsPlugin]} 
+                          />
+                      </div>
+                  </div>
+              </div>
+          </div>
+          <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-xl p-5 shadow-sm border border-slate-200 dark:border-slate-800 flex flex-col justify-between transition-all duration-300 relative overflow-hidden min-h-[320px]">
+              <div className="flex justify-between items-start"><span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Progresso Edital</span></div>
+              <div className="flex justify-between items-end"><div className="flex flex-col"><span className="text-xs font-semibold text-green-600">{metrics.completedTopics} Concluídos</span><span className="text-xs font-semibold text-orange-500">{metrics.pendingTopics} Pendentes</span></div><span className="text-4xl font-black text-slate-900 dark:text-white">{metrics.progressPercent}%</span></div>
+              
+              <div className="mt-6 flex-1 w-full relative group">
+                  {metrics.disciplineStats.length > 8 && (
+                      <>
+                          <button 
+                              onClick={() => scrollChart(progressScrollRef, 'left')}
+                              className="absolute left-0 top-1/2 -translate-y-1/2 z-20 p-1.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-full shadow-lg text-slate-600 dark:text-slate-300 hover:bg-green-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 -ml-2"
+                          >
+                              <ChevronLeft size={18} />
+                          </button>
+                          <button 
+                              onClick={() => scrollChart(progressScrollRef, 'right')}
+                              className="absolute right-0 top-1/2 -translate-y-1/2 z-20 p-1.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-full shadow-lg text-slate-600 dark:text-slate-300 hover:bg-green-500 hover:text-white transition-all opacity-0 group-hover:opacity-100 -mr-2"
+                          >
+                              <ChevronRight size={18} />
+                          </button>
+                      </>
+                  )}
+                  <div ref={progressScrollRef} className="w-full h-full overflow-x-auto custom-scrollbar scroll-smooth">
+                      <div style={{ minWidth: metrics.disciplineStats.length > 8 ? `${metrics.disciplineStats.length * 80}px` : '100%', height: '100%' }}>
+                          <Bar 
+                            data={{ 
+                              labels: metrics.disciplineStats.map(d => abbreviateDiscipline(d.name)), 
+                              datasets: [{ 
+                                label: 'Conclusão (%)', 
+                                data: metrics.disciplineStats.map(d => d.progress), 
+                                backgroundColor: '#3b82f6', 
+                                borderRadius: 4,
+                                fullNames: metrics.disciplineStats.map(d => d.name) // Custom property for tooltip
+                              }] 
+                            }} 
+                            options={{
+                              ...barChartOptions,
+                              plugins: {
+                                ...barChartOptions.plugins,
+                                tooltip: {
+                                  ...barChartOptions.plugins.tooltip,
+                                  callbacks: {
+                                    ...barChartOptions.plugins.tooltip.callbacks,
+                                    title: (tooltipItems: any) => {
+                                      const dataset = tooltipItems[0].dataset;
+                                      const index = tooltipItems[0].dataIndex;
+                                      return dataset.fullNames ? dataset.fullNames[index] : tooltipItems[0].label;
+                                    }
+                                  }
+                                }
+                              }
+                            }} 
+                            plugins={[textOnBarsPlugin]} 
+                          />
+                      </div>
+                  </div>
+              </div>
+          </div>
       </div>
 
       <DashboardSection title="Planejamento de Revisões" subtitle="Mapa de Calor de Carga Futura" icon={<Calendar size={20} />} defaultOpen={true}>
@@ -943,17 +954,6 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
               })()}
           </div>
       </DashboardSection>
-
-      <div className="grid grid-cols-1 gap-6">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 flex flex-col h-full min-h-[340px] shadow-2xl relative overflow-hidden">
-             <div className={`absolute top-0 right-0 m-6 px-3 py-2 rounded-lg border backdrop-blur-md z-10 flex items-center gap-3 transition-all duration-500 ${evolutionData.trend.status === 'up' ? 'bg-green-100 dark:bg-green-900/40 border-green-500/30 text-green-700 dark:text-green-100' : evolutionData.trend.status === 'down' ? 'bg-red-100 dark:bg-red-900/40 border-red-500/30 text-red-700 dark:text-red-100' : 'bg-slate-100 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'}`}>
-                 <div className={`p-1.5 rounded-full ${evolutionData.trend.status === 'up' ? 'bg-green-500 text-slate-900 dark:text-white' : evolutionData.trend.status === 'down' ? 'bg-red-500 text-slate-900 dark:text-white' : 'bg-slate-400 dark:bg-slate-600 text-slate-900 dark:text-white'}`}>{evolutionData.trend.status === 'up' ? <TrendingUp size={14} /> : evolutionData.trend.status === 'down' ? <TrendingDown size={14} /> : <Minus size={14} />}</div>
-                 <div className="flex flex-col"><span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Análise de Tendência</span><span className="text-xs font-medium leading-tight max-w-[180px]">{evolutionData.trend.message}</span></div>
-             </div>
-             <div className="flex justify-between items-end mb-6"><div><h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2"><TrendingUp size={24} className="text-green-500"/>Evolução</h3><p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Média de acurácia semanal</p></div></div>
-             <div className="flex-1 w-full relative"><Line data={evolutionData.chartData} options={chartOptions} /></div>
-          </div>
-      </div>
 
       <DashboardSection title="Radiografia Tática" subtitle="Matriz Estratégica" icon={<Target size={20} />} defaultOpen={false}>
           <div className="w-full"><QuadrantChart data={notebooks.filter(n => n.discipline !== 'Revisão Geral')} onNavigate={onNavigate} /></div>

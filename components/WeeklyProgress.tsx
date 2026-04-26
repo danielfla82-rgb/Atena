@@ -55,69 +55,51 @@ export const WeeklyProgress: React.FC = () => {
     }
 
     return (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 h-full flex flex-col justify-between relative overflow-hidden group">
-            {/* Background Decor */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/5 rounded-full blur-2xl pointer-events-none group-hover:bg-green-500/10 transition-colors"></div>
-
-            {/* Header */}
-            <div className="relative z-10">
-                <div className="flex justify-between items-start">
-                    <div>
-                        <h3 className="text-slate-900 dark:text-white font-bold text-lg flex items-center gap-2 mb-1">
-                            <Clock className="text-green-500" size={20} />
-                            Meta da Semana
-                        </h3>
-                        <p className="text-slate-500 dark:text-slate-400 text-xs font-medium">
-                            Semana {stats.weekIndex} • <span className={stats.daysLeft <= 2 ? "text-amber-400" : "text-slate-500 dark:text-slate-400"}>{stats.daysLeft} dias restantes</span>
-                        </p>
-                    </div>
-                    {stats.percent >= 100 && (
-                        <div className="bg-green-500/20 p-2 rounded-full text-green-400">
-                            <CheckCircle2 size={20} />
-                        </div>
-                    )}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between relative overflow-hidden group gap-4">
+            <div className="flex items-center gap-4 w-full sm:w-auto">
+                <div className="bg-green-500/10 p-3 rounded-lg text-green-500 flex-shrink-0">
+                    <Clock size={24} />
+                </div>
+                <div>
+                    <h3 className="text-slate-900 dark:text-white font-bold text-sm flex items-center gap-2">
+                        Meta da Semana {stats.weekIndex}
+                        {stats.percent >= 100 && (
+                            <CheckCircle2 size={16} className="text-green-500" />
+                        )}
+                    </h3>
+                    <p className="text-slate-500 dark:text-slate-400 text-xs font-medium">
+                        {stats.daysLeft <= 2 ? (
+                            <span className="text-amber-500">{stats.daysLeft} dias restantes</span>
+                        ) : (
+                            <span>{stats.daysLeft} dias restantes</span>
+                        )}
+                        {' '} • {stats.completed} de {stats.total} blocos
+                    </p>
                 </div>
             </div>
 
-            {/* Main Metric */}
-            <div className="flex items-baseline gap-2 my-4 relative z-10">
-                <span className={`text-6xl font-black tracking-tight ${stats.percent >= 100 ? 'text-green-400' : 'text-slate-900 dark:text-white'}`}>
-                    {stats.percent}<span className="text-4xl">%</span>
-                </span>
-            </div>
-
-            {/* Progress Bar */}
-            <div className="w-full bg-slate-50 dark:bg-slate-950 h-3 rounded-full overflow-hidden border border-slate-200 dark:border-slate-800 mb-3 relative z-10">
-                <div 
-                    className={`h-full transition-all duration-1000 ease-out ${stats.percent >= 100 ? 'bg-green-400 shadow-[0_0_10px_rgba(34,197,94,0.5)]' : 'bg-green-600'}`} 
-                    style={{ width: `${Math.min(stats.percent, 100)}%` }}
-                ></div>
-            </div>
-
-            {/* Footer Details */}
-            <div className="flex justify-between items-center text-xs relative z-10 pt-2 border-t border-slate-200 dark:border-slate-800/50">
-                <span className="text-slate-600 dark:text-slate-300 font-bold flex items-center gap-1.5 uppercase tracking-wide">
-                    {stats.completed} <span className="text-slate-600 font-normal">/ {stats.total} Blocos</span>
-                </span>
-                
-                {!stats.hasSchedule ? (
-                    <span className="text-slate-500 italic flex items-center gap-1">
-                        <AlertCircle size={12} /> Vazio
-                    </span>
-                ) : stats.percent >= 100 ? (
-                    <span className="text-green-400 font-bold uppercase tracking-wider flex items-center gap-1">
-                        Objetivo Concluído
-                    </span>
-                ) : (
-                    <div className="flex flex-col items-end">
-                        <span className="text-slate-500 dark:text-slate-400 mb-1">
-                            Faltam <strong>{stats.total - stats.completed}</strong>
+            <div className="flex items-center gap-4 w-full sm:w-1/2 md:w-1/3">
+                <div className="flex-1">
+                    <div className="flex justify-between items-end mb-1">
+                        <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Progresso</span>
+                        <span className={`text-sm font-black ${stats.percent >= 100 ? 'text-green-500' : 'text-slate-900 dark:text-white'}`}>
+                            {stats.percent}%
                         </span>
-                        {stats.dailyPace > 0 && (
-                            <span className="text-[10px] text-white font-bold bg-green-600 px-2 py-0.5 rounded shadow-sm flex items-center gap-1">
-                                {stats.daysLeft === 1 ? "Meta Hoje:" : "Meta Diária:"} {stats.dailyPace}
-                            </span>
-                        )}
+                    </div>
+                    <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                        <div 
+                            className={`h-full transition-all duration-1000 ease-out ${stats.percent >= 100 ? 'bg-green-500' : 'bg-green-600'}`} 
+                            style={{ width: `${Math.min(stats.percent, 100)}%` }}
+                        ></div>
+                    </div>
+                </div>
+                
+                {stats.percent < 100 && stats.dailyPace > 0 && (
+                    <div className="hidden sm:flex flex-col items-end flex-shrink-0">
+                        <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Ritmo Reforçado</span>
+                        <span className="text-xs font-bold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-0.5 rounded mt-0.5 border border-green-200 dark:border-green-800">
+                            {stats.dailyPace} p/ dia
+                        </span>
                     </div>
                 )}
             </div>
