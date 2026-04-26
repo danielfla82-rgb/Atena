@@ -318,6 +318,10 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
   });
   const [expandedMetric, setExpandedMetric] = useState<'performance' | 'progress' | null>(null);
   const [viewedMonthOffset, setViewedMonthOffset] = useState(0);
+  const [selectedPlanningDay, setSelectedPlanningDay] = useState<{
+      date: string;
+      data: { count: number; manualCount: number; names: string[]; manualNames: string[] }
+  } | null>(null);
   const [worstTopicsDiscipline, setWorstTopicsDiscipline] = useState<string | null>(null);
 
   useEffect(() => {
@@ -918,35 +922,12 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                       else if (totalLoad > 5) heatClass = "bg-emerald-500 dark:bg-emerald-600 border-emerald-600/50 text-white shadow-sm";
 
                       planningDays.push(
-                          <div key={i} className={`h-12 w-full min-w-[40px] rounded-lg border flex flex-col items-center justify-center relative transition-all group overflow-hidden ${heatClass}`} title={`${d.toLocaleDateString()}: ${data.count} automáticas, ${data.manualCount} manuais`}>
+                          <div key={i} onClick={() => setSelectedPlanningDay({ date: d.toLocaleDateString(), data })} className={`h-12 w-full min-w-[40px] rounded-lg border flex flex-col items-center justify-center relative transition-all overflow-hidden cursor-pointer hover:ring-2 hover:ring-emerald-500/50 ${heatClass}`}>
                               <span className="text-[10px] font-black opacity-40 absolute top-1 left-1 leading-none">{d.getDate()}</span>
                               <div className="flex flex-col items-center gap-0.5 mt-1">
-                                  {data.count > 0 && <span className="text-xs font-black leading-none text-emerald-600 dark:text-emerald-400" title="Automáticas (Algoritmo)">{data.count}</span>}
-                                  {data.manualCount > 0 && <span className="text-[9px] font-bold leading-none text-sky-600 dark:text-sky-400 bg-sky-100 dark:bg-sky-900/40 px-1 rounded border border-sky-500/20" title="Alocado Manualmente">+{data.manualCount}</span>}
+                                  {data.count > 0 && <span className="text-xs font-black leading-none text-emerald-600 dark:text-emerald-400">{data.count}</span>}
+                                  {data.manualCount > 0 && <span className="text-[9px] font-bold leading-none text-sky-600 dark:text-sky-400 bg-sky-100 dark:bg-sky-900/40 px-1 rounded border border-sky-500/20">+{data.manualCount}</span>}
                               </div>
-                              
-                              {(data.count > 0 || data.manualCount > 0) && (
-                                  <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity p-1.5 flex flex-col gap-0.5 z-10 pointer-events-none custom-scrollbar overflow-y-auto">
-                                      {data.count > 0 && (
-                                          <div className="mb-1">
-                                              <span className="text-[6px] text-emerald-400 font-bold uppercase border-b border-emerald-500/30 pb-0.5 block mb-0.5">Automáticas</span>
-                                              {data.names.map((name, idx) => (
-                                                  <span key={`a-${idx}`} className="text-[7px] font-bold text-white block truncate leading-tight">• {name}</span>
-                                              ))}
-                                              {data.count > 3 && <span className="text-[6px] text-emerald-400 font-bold">+{data.count - 3} mais...</span>}
-                                          </div>
-                                      )}
-                                      {data.manualCount > 0 && (
-                                          <div>
-                                              <span className="text-[6px] text-sky-400 font-bold uppercase border-b border-sky-500/30 pb-0.5 block mb-0.5">Manais (Média p/ Dia)</span>
-                                              {data.manualNames.slice(0, 3).map((name, idx) => (
-                                                  <span key={`m-${idx}`} className="text-[7px] font-bold text-white block truncate leading-tight">• {name}</span>
-                                              ))}
-                                              {data.manualNames.length > 3 && <span className="text-[6px] text-sky-400 font-bold">+{data.manualNames.length - 3} mais...</span>}
-                                          </div>
-                                      )}
-                                  </div>
-                              )}
                           </div>
                       );
                   }
@@ -981,6 +962,62 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
       <DashboardSection title="Radiografia de Disciplinas" subtitle="Matriz de Disciplinas Mães" icon={<Book size={20} />} defaultOpen={false}>
           <div className="w-full"><DisciplineQuadrantChart data={mergedDisciplines} onNavigate={onNavigate} /></div>
       </DashboardSection>
+
+      {selectedPlanningDay && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setSelectedPlanningDay(null)}>
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+                  <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
+                      <div>
+                          <h3 className="text-sm font-black text-slate-800 dark:text-slate-200">Revisões do Dia</h3>
+                          <p className="text-xs text-slate-500 font-medium">{selectedPlanningDay.date}</p>
+                      </div>
+                      <button onClick={() => setSelectedPlanningDay(null)} className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full text-slate-500 transition-colors"><X size={20} /></button>
+                  </div>
+                  <div className="p-4 max-h-[60vh] overflow-y-auto custom-scrollbar flex flex-col gap-4">
+                      {selectedPlanningDay.data.count === 0 && selectedPlanningDay.data.manualCount === 0 && (
+                          <div className="text-center text-slate-500 text-sm py-4">Nenhuma revisão agendada.</div>
+                      )}
+                      
+                      {selectedPlanningDay.data.count > 0 && (
+                          <div>
+                              <div className="flex items-center gap-2 mb-2">
+                                  <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                                  <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Automáticas do Algoritmo ({selectedPlanningDay.data.count})</span>
+                              </div>
+                              <div className="bg-emerald-50/50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-800/30 rounded-lg p-3 flex flex-col gap-1.5">
+                                  {selectedPlanningDay.data.names.map((name, idx) => (
+                                      <div key={`a-${idx}`} className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-start gap-2">
+                                          <span className="text-emerald-500 mt-0.5">•</span>
+                                          <span>{name}</span>
+                                      </div>
+                                  ))}
+                              </div>
+                          </div>
+                      )}
+
+                      {selectedPlanningDay.data.manualCount > 0 && (
+                          <div>
+                              <div className="flex items-center gap-2 mb-2">
+                                  <div className="w-2 h-2 rounded-full bg-sky-500"></div>
+                                  <span className="text-[10px] font-bold uppercase tracking-widest text-sky-600 dark:text-sky-400">Alocação Manual Semanal ({selectedPlanningDay.data.manualCount} p/ dia)</span>
+                              </div>
+                              <div className="bg-sky-50/50 dark:bg-sky-900/10 border border-sky-100 dark:border-sky-800/30 rounded-lg p-3 flex flex-col gap-1.5">
+                                  {selectedPlanningDay.data.manualNames.map((name, idx) => (
+                                      <div key={`m-${idx}`} className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-start gap-2">
+                                          <span className="text-sky-500 mt-0.5">•</span>
+                                          <span>{name}</span>
+                                      </div>
+                                  ))}
+                                  <div className="text-[10px] text-slate-500 italic mt-1 pt-1 border-t border-sky-100 dark:border-sky-800/50">
+                                      As alocações manuais são definidas por semana e seu volume é diluído na média diária estimada.
+                                  </div>
+                              </div>
+                          </div>
+                      )}
+                  </div>
+              </div>
+          </div>
+      )}
 
       {isConfigOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">

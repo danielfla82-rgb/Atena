@@ -1299,7 +1299,21 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                                     if (!slot || !slot.notebookId) return null; 
                                     const nb = notebooks.find(n => n.id === slot.notebookId);
                                     if (!nb) return null;
-                                    return (<DraggableCard key={slot.instanceId || `fallback-${originalIndex}`} instanceId={slot.instanceId} notebook={nb} isCompleted={slot.completed} onDragStart={onDragStart} onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)} onEdit={handleEditClick} onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} onRemove={(instId) => handleRemoveFromWeek(instId, week.id)} isCompact origin="week" disabled={week.isPast} index={originalIndex} currentWeekIndex={currentWeekIndex} scheduledWeekId={week.id} />);
+                                    
+                                    const isNotebookDuplicated = algorithmicRevs.some(algoNb => algoNb.id === nb.id);
+                                    const isDisciplineDuplicated = !isNotebookDuplicated && algorithmicRevs.some(algoNb => algoNb.discipline === nb.discipline);
+                                    
+                                    return (
+                                        <div key={slot.instanceId || `fallback-${originalIndex}`} className="relative group/warning">
+                                            {(isNotebookDuplicated || isDisciplineDuplicated) && (
+                                                <div className="flex items-center gap-1 mb-1 px-1 text-[9px] font-bold text-amber-500 uppercase tracking-widest bg-amber-500/10 rounded border border-amber-500/20 py-0.5" title="Item possivelmente em duplicidade.">
+                                                    <AlertTriangle size={10} /> 
+                                                    {isNotebookDuplicated ? 'Tópico já na Revisão Auto' : 'Disciplina já na Revisão Auto'}
+                                                </div>
+                                            )}
+                                            <DraggableCard instanceId={slot.instanceId} notebook={nb} isCompleted={slot.completed} onDragStart={onDragStart} onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)} onEdit={handleEditClick} onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} onRemove={(instId) => handleRemoveFromWeek(instId, week.id)} isCompact origin="week" disabled={week.isPast} index={originalIndex} currentWeekIndex={currentWeekIndex} scheduledWeekId={week.id} />
+                                        </div>
+                                    );
                                 })}
                                 {completedItems.length > 0 && (<div className="pt-2"><button onClick={(e) => toggleCompletedWeek(week.id, e)} className="w-full flex items-center justify-between px-3 py-2 bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-500 hover:text-slate-900 dark:text-white hover:bg-slate-100 dark:bg-slate-800 hover:border-slate-300 dark:border-slate-700 transition-all group"><span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-2"><CheckCircle2 size={12} className="text-green-500" />{isCompletedListExpanded ? 'Ocultar' : 'Mostrar'} {completedItems.length} Concluídos</span>{isCompletedListExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</button></div>)}
                                 {isCompletedListExpanded && completedItems.map(({ slot, originalIndex }) => {

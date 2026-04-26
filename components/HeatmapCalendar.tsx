@@ -92,9 +92,9 @@ export const HeatmapCalendar: React.FC<HeatmapCalendarProps> = ({ value, onChang
 
     // Determine heat color
     let heatClass = "bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300";
-    if (count > 0 && count <= 2) heatClass = "bg-green-100 dark:bg-green-900/40 hover:bg-green-200 dark:hover:bg-green-800/60 text-green-700 dark:text-green-300";
-    else if (count > 2 && count <= 5) heatClass = "bg-green-300 dark:bg-green-700/60 hover:bg-green-400 dark:hover:bg-green-600/80 text-green-900 dark:text-green-100";
-    else if (count > 5) heatClass = "bg-green-500 dark:bg-green-500 hover:bg-green-600 dark:hover:bg-green-400 text-white";
+    if (count > 0 && count <= 2) heatClass = "bg-emerald-100 dark:bg-emerald-900/40 hover:bg-emerald-200 dark:hover:bg-emerald-800/60 text-emerald-800 dark:text-emerald-300";
+    else if (count > 2 && count <= 5) heatClass = "bg-emerald-200 dark:bg-emerald-800/60 hover:bg-emerald-300 dark:hover:bg-emerald-700/80 text-emerald-900 dark:text-emerald-100";
+    else if (count > 5) heatClass = "bg-emerald-500 dark:bg-emerald-600 hover:bg-emerald-600 dark:hover:bg-emerald-500 text-white";
 
     if (isSelected) {
         heatClass = "bg-blue-500 text-white ring-2 ring-blue-300 dark:ring-blue-500 ring-offset-2 dark:ring-offset-slate-900";
@@ -156,9 +156,9 @@ export const HeatmapCalendar: React.FC<HeatmapCalendarProps> = ({ value, onChang
                 </div>
                 <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-between gap-2 overflow-x-auto text-[10px] text-slate-500 font-medium">
                    <div className="flex items-center gap-1.5 whitespace-nowrap"><div className="w-2.5 h-2.5 rounded bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700"></div> Livre</div>
-                   <div className="flex items-center gap-1.5 whitespace-nowrap"><div className="w-2.5 h-2.5 rounded bg-green-100 dark:bg-green-900/40"></div> 1-2 disc</div>
-                   <div className="flex items-center gap-1.5 whitespace-nowrap"><div className="w-2.5 h-2.5 rounded bg-green-300 dark:bg-green-700/60"></div> 3-5 disc</div>
-                   <div className="flex items-center gap-1.5 whitespace-nowrap"><div className="w-2.5 h-2.5 rounded bg-green-500"></div> +5 disc.</div>
+                   <div className="flex items-center gap-1.5 whitespace-nowrap"><div className="w-2.5 h-2.5 rounded bg-emerald-100 dark:bg-emerald-900/40"></div> 1-2 disc</div>
+                   <div className="flex items-center gap-1.5 whitespace-nowrap"><div className="w-2.5 h-2.5 rounded bg-emerald-200 dark:bg-emerald-800/60"></div> 3-5 disc</div>
+                   <div className="flex items-center gap-1.5 whitespace-nowrap"><div className="w-2.5 h-2.5 rounded bg-emerald-500 dark:bg-emerald-600"></div> +5 disc.</div>
                 </div>
             </div>
         </div>,
