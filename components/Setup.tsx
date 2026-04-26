@@ -1332,11 +1332,11 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                                 </div>
                                 {hasActivity && (<div className="flex justify-between items-center pt-2 border-t border-slate-200 dark:border-slate-800/50 mt-1"><div className="flex items-center gap-3">{summaryStats.success > 0 && <span className="text-[9px] font-bold text-green-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> {summaryStats.success}</span>}{summaryStats.warning > 0 && <span className="text-[9px] font-bold text-amber-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span> {summaryStats.warning}</span>}{summaryStats.critical > 0 && <span className="text-[9px] font-bold text-red-400 flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-red-500"></span> {summaryStats.critical}</span>}</div></div>)}
                             </div>
-                            <div className="p-3 space-y-2 overflow-y-auto flex-1 custom-scrollbar relative bg-white dark:bg-slate-900/50">
+                            <div className="p-3 space-y-2 overflow-y-auto overflow-x-hidden flex-1 custom-scrollbar relative bg-white dark:bg-slate-900/50">
                                 {week.isPast && <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagmonds-light.png')] opacity-10 pointer-events-none z-0"></div>}
                                 
                                 {(!week.isPast && (rawFilterAlgo.length > 0 || weekSlots.length > 0)) && (
-                                    <div className="flex flex-col gap-2 mb-3 sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur z-20 pb-2 border-b border-slate-100 dark:border-slate-800 -mt-1 pt-1">
+                                    <div className="flex flex-col gap-2 mb-3 sticky -top-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur z-20 pb-2 border-b border-slate-100 dark:border-slate-800 -mx-3 px-3 -mt-3 pt-3">
                                         <div className="flex justify-between items-center w-full">
                                             <div className="text-[10px] uppercase font-bold text-slate-500">Filtros:</div>
                                             {autoRevsTotal > 0 && (
