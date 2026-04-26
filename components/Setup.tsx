@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useStore } from '../store';
 import { Notebook, Weight, NotebookStatus, ScheduleItem } from '../types';
-import { Plus, Search, Pencil, BarChart3, Calendar, Lock, ChevronDown, Layout, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, Flag, Inbox, Scale, Download, PanelLeftClose, PanelLeftOpen, Archive, Minus, Meh, Frown, Smile, History, ChevronRight, ChevronLeft, Maximize2, Activity, ChevronUp, Layers, CheckCircle2, Loader2, X, FileText, Key, BrainCircuit, HelpCircle, Target, TrendingUp, Sparkles, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Pencil, BarChart3, Calendar, Lock, ChevronDown, Layout, Check, Timer, Calculator, AlertCircle, ArrowRight, Settings2, GanttChartSquare, Flag, Inbox, Scale, Download, PanelLeftClose, PanelLeftOpen, Archive, Minus, Meh, Frown, Smile, History, ChevronRight, ChevronLeft, Maximize2, Activity, ChevronUp, Layers, CheckCircle2, Loader2, X, FileText, Key, BrainCircuit, HelpCircle, Target, TrendingUp, Sparkles, RefreshCw, AlertTriangle, User } from 'lucide-react';
 import { getStatusColor, getAccuracyColorClass, DEFAULT_ALGO_CONFIG, calculateUrgencyScore } from '../utils/algorithm';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Cell, CartesianGrid, LabelList } from 'recharts';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'; 
@@ -38,7 +38,8 @@ const DraggableCard = React.memo(({
     index,
     startDate,
     scheduledWeekId,
-    currentWeekIndex // NEW PROP
+    currentWeekIndex, // NEW PROP
+    isAutoScheduled
 }: {
     notebook: Notebook;
     instanceId?: string;
@@ -56,6 +57,7 @@ const DraggableCard = React.memo(({
     startDate?: string;
     scheduledWeekId?: string | string[] | null;
     currentWeekIndex?: number;
+    isAutoScheduled?: boolean;
 }) => {
     const statusColor = getStatusColor(notebook.accuracy, notebook.targetAccuracy, notebook.status);
     const isLibrary = origin === 'library';
@@ -166,6 +168,24 @@ const DraggableCard = React.memo(({
                         <h4 className={`font-bold truncate leading-tight max-w-[140px] ${isWeek ? textClass : 'text-slate-900 dark:text-slate-200'}`}>
                             {notebook.discipline}
                         </h4>
+
+                        {/* INDICATORS: Auto vs Manual */}
+                        {isAutoScheduled === true && (
+                            <span 
+                                className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide shadow-sm bg-emerald-100 dark:bg-emerald-500/10 border border-emerald-300 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-300"
+                                title="Alocado automaticamente pelo algoritmo de revisão"
+                            >
+                                <BrainCircuit size={10} /> Auto
+                            </span>
+                        )}
+                        {isAutoScheduled === false && isWeek && (
+                            <span 
+                                className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide shadow-sm bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300"
+                                title="Alocado manualmente por você"
+                            >
+                                <User size={10} /> Manual
+                            </span>
+                        )}
                         
                         {lastPracticeFormatted && (
                             <span 
@@ -1281,7 +1301,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                                 
                                 {/* ALGORITMIC REVIEWS FILTERED */}
                                 {algorithmicRevs.filter(nb => !pendingItems.some(p => p.slot.notebookId === nb.id) && !completedItems.some(c => c.slot.notebookId === nb.id)).map(nb => (
-                                    <DraggableCard key={`algo-${nb.id}`} notebook={nb} onDragStart={onDragStart} onEdit={handleEditClick} isCompact origin="library" disabled={week.isPast} scheduledWeekId={week.id} startDate={config.startDate} />
+                                    <DraggableCard key={`algo-${nb.id}`} notebook={nb} onDragStart={onDragStart} onEdit={handleEditClick} isCompact origin="library" disabled={week.isPast} scheduledWeekId={week.id} startDate={config.startDate} isAutoScheduled={true} />
                                 ))}
 
                                 {pendingItems.map(({ slot, originalIndex }) => {
@@ -1291,7 +1311,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                                     
                                     return (
                                         <div key={slot.instanceId || `fallback-${originalIndex}`} className="relative">
-                                            <DraggableCard instanceId={slot.instanceId} notebook={nb} isCompleted={slot.completed} onDragStart={onDragStart} onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)} onEdit={handleEditClick} onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} onRemove={(instId) => handleRemoveFromWeek(instId, week.id)} isCompact origin="week" disabled={week.isPast} index={originalIndex} currentWeekIndex={currentWeekIndex} scheduledWeekId={week.id} startDate={config.startDate} />
+                                            <DraggableCard instanceId={slot.instanceId} notebook={nb} isCompleted={slot.completed} onDragStart={onDragStart} onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)} onEdit={handleEditClick} onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} onRemove={(instId) => handleRemoveFromWeek(instId, week.id)} isCompact origin="week" disabled={week.isPast} index={originalIndex} currentWeekIndex={currentWeekIndex} scheduledWeekId={week.id} startDate={config.startDate} isAutoScheduled={false} />
                                         </div>
                                     );
                                 })}
@@ -1303,7 +1323,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                                     
                                     return (
                                         <div key={slot.instanceId || `fallback-${originalIndex}`} className="relative">
-                                            <DraggableCard instanceId={slot.instanceId} notebook={nb} isCompleted={slot.completed} onDragStart={onDragStart} onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)} onEdit={handleEditClick} onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} onRemove={(instId) => handleRemoveFromWeek(instId, week.id)} isCompact origin="week" disabled={week.isPast} index={originalIndex} currentWeekIndex={currentWeekIndex} scheduledWeekId={week.id} startDate={config.startDate} />
+                                            <DraggableCard instanceId={slot.instanceId} notebook={nb} isCompleted={slot.completed} onDragStart={onDragStart} onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)} onEdit={handleEditClick} onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} onRemove={(instId) => handleRemoveFromWeek(instId, week.id)} isCompact origin="week" disabled={week.isPast} index={originalIndex} currentWeekIndex={currentWeekIndex} scheduledWeekId={week.id} startDate={config.startDate} isAutoScheduled={false} />
                                         </div>
                                     );
                                 })}
