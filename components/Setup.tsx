@@ -584,6 +584,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
   const [showPaceSelector, setShowPaceSelector] = useState(false);
   const [expandedCompletedWeeks, setExpandedCompletedWeeks] = useState<Record<string, boolean>>({});
   const [expandedAlgoWeeks, setExpandedAlgoWeeks] = useState<Record<string, boolean>>({});
+  const [weekFilters, setWeekFilters] = useState<Record<string, { type: 'all'|'auto'|'manual', disc: string }>>({});
   
   // NEW: State for collapsing past weeks
   const [isPastExpanded, setIsPastExpanded] = useState(false);
@@ -1235,9 +1236,10 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                             );
                         }
 
+                        const isFutureWeek = week.index > currentWeekIndex;
                         const pendingItems: { slot: ScheduleItem, originalIndex: number }[] = [];
                         const completedItems: { slot: ScheduleItem, originalIndex: number }[] = [];
-                        weekSlots.forEach((slot, index) => { if (slot.completed) completedItems.push({ slot, originalIndex: index }); else pendingItems.push({ slot, originalIndex: index }); });
+                        weekSlots.forEach((slot, index) => { if (slot.completed && !isFutureWeek) completedItems.push({ slot, originalIndex: index }); else pendingItems.push({ slot, originalIndex: index }); });
                         const isCompletedListExpanded = expandedCompletedWeeks[week.id];
                         const isAlgoListExpanded = expandedAlgoWeeks[week.id];
 
@@ -1259,6 +1261,43 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                                 }
                             });
                         }
+
+                        const rawFilterAlgo = algorithmicRevs.filter(nb => !pendingItems.some(p => p.slot.notebookId === nb.id) && !completedItems.some(c => c.slot.notebookId === nb.id));
+                        
+                        const wFilter = weekFilters[week.id] || { type: 'all', disc: 'all' };
+                        
+                        const filteredAlgo = rawFilterAlgo.filter(nb => {
+                            if (wFilter.type === 'manual') return false;
+                            if (wFilter.disc !== 'all' && nb.discipline !== wFilter.disc) return false;
+                            return true;
+                        });
+
+                        const filteredPending = pendingItems.filter(p => {
+                            if (wFilter.type === 'auto') return false;
+                            const nb = notebooks.find(n => n.id === p.slot.notebookId);
+                            if (!nb) return false;
+                            if (wFilter.disc !== 'all' && nb.discipline !== wFilter.disc) return false;
+                            return true;
+                        });
+
+                        const filteredCompleted = completedItems.filter(c => {
+                            if (wFilter.type === 'auto') return false;
+                            const nb = notebooks.find(n => n.id === c.slot.notebookId);
+                            if (!nb) return false;
+                            if (wFilter.disc !== 'all' && nb.discipline !== wFilter.disc) return false;
+                            return true;
+                        });
+
+                        const allWeekDiscs = Array.from(new Set([
+                            ...rawFilterAlgo.map(n => n.discipline),
+                            ...weekSlots.map(s => notebooks.find(n => n.id === s.notebookId)?.discipline)
+                        ].filter(Boolean) as string[])).sort();
+
+                        const revisionsInPending = pendingItems.filter(p => (notebooks.find(n => n.id === p.slot.notebookId)?.accuracy || 0) > 0).length;
+                        const revisionsInCompleted = completedItems.filter(p => (notebooks.find(n => n.id === p.slot.notebookId)?.accuracy || 0) > 0).length;
+                        const totalAlgo = rawFilterAlgo.length;
+                        const completedRevs = revisionsInCompleted;
+                        const totalRevs = completedRevs + revisionsInPending + totalAlgo;
 
                         return (
                             <div key={week.id} className={`w-80 flex-shrink-0 flex flex-col rounded-2xl border transition-all duration-300 relative h-full max-h-full ${week.isPast ? 'bg-white dark:bg-slate-900/30 border-slate-200 dark:border-slate-800/50 opacity-100' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-2xl hover:border-slate-300 dark:border-slate-700'}`} onDragOver={week.isPast ? undefined : onDragOver} onDrop={(e) => onDrop(e, week.id, week.isPast)}>
@@ -1299,31 +1338,63 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                             <div className="p-3 space-y-2 overflow-y-auto flex-1 custom-scrollbar relative bg-white dark:bg-slate-900/50">
                                 {week.isPast && <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagmonds-light.png')] opacity-10 pointer-events-none z-0"></div>}
                                 
+                                {(!week.isPast && (rawFilterAlgo.length > 0 || weekSlots.length > 0)) && (
+                                    <div className="flex flex-col gap-2 mb-3 sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur z-20 pb-2 border-b border-slate-100 dark:border-slate-800 -mt-1 pt-1">
+                                        <div className="flex justify-between items-center w-full">
+                                            <div className="text-[10px] uppercase font-bold text-slate-500">Filtros:</div>
+                                            {totalRevs > 0 && (
+                                                <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 px-1.5 py-0.5 rounded flex items-center gap-1" title="Progresso das Revisões (Manuais + Auto)">
+                                                    <RefreshCw size={10} /> Revisões: {completedRevs}/{totalRevs}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-1.5 w-full">
+                                            <select 
+                                                value={wFilter.type} 
+                                                onChange={(e) => setWeekFilters({...weekFilters, [week.id]: {...wFilter, type: e.target.value as 'all'|'auto'|'manual'}})}
+                                                className="flex-1 min-w-0 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-1.5 py-1 text-[10px] text-slate-600 dark:text-slate-300 outline-none focus:border-green-500 appearance-none font-medium"
+                                            >
+                                                <option value="all">Misto (Auto + M)</option>
+                                                <option value="auto">Auto Somente</option>
+                                                <option value="manual">Manual Somente</option>
+                                            </select>
+                                            <select 
+                                                value={wFilter.disc} 
+                                                onChange={(e) => setWeekFilters({...weekFilters, [week.id]: {...wFilter, disc: e.target.value}})}
+                                                className="flex-1 min-w-0 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded px-1.5 py-1 text-[10px] text-slate-600 dark:text-slate-300 outline-none focus:border-green-500 appearance-none font-medium"
+                                            >
+                                                <option value="all">Todas Disc.</option>
+                                                {allWeekDiscs.map(d => <option key={d} value={d} className="truncate">{d}</option>)}
+                                            </select>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* ALGORITMIC REVIEWS FILTERED */}
-                                {algorithmicRevs.filter(nb => !pendingItems.some(p => p.slot.notebookId === nb.id) && !completedItems.some(c => c.slot.notebookId === nb.id)).map(nb => (
+                                {filteredAlgo.map(nb => (
                                     <DraggableCard key={`algo-${nb.id}`} notebook={nb} onDragStart={onDragStart} onEdit={handleEditClick} isCompact origin="library" disabled={week.isPast} scheduledWeekId={week.id} startDate={config.startDate} isAutoScheduled={true} />
                                 ))}
 
-                                {pendingItems.map(({ slot, originalIndex }) => {
+                                {filteredPending.map(({ slot, originalIndex }) => {
                                     if (!slot || !slot.notebookId) return null; 
                                     const nb = notebooks.find(n => n.id === slot.notebookId);
                                     if (!nb) return null;
                                     
                                     return (
                                         <div key={slot.instanceId || `fallback-${originalIndex}`} className="relative">
-                                            <DraggableCard instanceId={slot.instanceId} notebook={nb} isCompleted={slot.completed} onDragStart={onDragStart} onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)} onEdit={handleEditClick} onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} onRemove={(instId) => handleRemoveFromWeek(instId, week.id)} isCompact origin="week" disabled={week.isPast} index={originalIndex} currentWeekIndex={currentWeekIndex} scheduledWeekId={week.id} startDate={config.startDate} isAutoScheduled={false} />
+                                            <DraggableCard instanceId={slot.instanceId} notebook={nb} isCompleted={slot.completed && !isFutureWeek} onDragStart={onDragStart} onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)} onEdit={handleEditClick} onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} onRemove={(instId) => handleRemoveFromWeek(instId, week.id)} isCompact origin="week" disabled={week.isPast} index={originalIndex} currentWeekIndex={currentWeekIndex} scheduledWeekId={week.id} startDate={config.startDate} isAutoScheduled={false} />
                                         </div>
                                     );
                                 })}
-                                {completedItems.length > 0 && (<div className="pt-2"><button onClick={(e) => toggleCompletedWeek(week.id, e)} className="w-full flex items-center justify-between px-3 py-2 bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-500 hover:text-slate-900 dark:text-white hover:bg-slate-100 dark:bg-slate-800 hover:border-slate-300 dark:border-slate-700 transition-all group"><span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-2"><CheckCircle2 size={12} className="text-green-500" />{isCompletedListExpanded ? 'Ocultar' : 'Mostrar'} {completedItems.length} Concluídos</span>{isCompletedListExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</button></div>)}
-                                {isCompletedListExpanded && completedItems.map(({ slot, originalIndex }) => {
+                                {filteredCompleted.length > 0 && (<div className="pt-2"><button onClick={(e) => toggleCompletedWeek(week.id, e)} className="w-full flex items-center justify-between px-3 py-2 bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-500 hover:text-slate-900 dark:text-white hover:bg-slate-100 dark:bg-slate-800 hover:border-slate-300 dark:border-slate-700 transition-all group"><span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-2"><CheckCircle2 size={12} className="text-green-500" />{isCompletedListExpanded ? 'Ocultar' : 'Mostrar'} {filteredCompleted.length} Concluídos</span>{isCompletedListExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}</button></div>)}
+                                {isCompletedListExpanded && filteredCompleted.map(({ slot, originalIndex }) => {
                                     if (!slot || !slot.notebookId) return null; 
                                     const nb = notebooks.find(n => n.id === slot.notebookId);
                                     if (!nb) return null;
                                     
                                     return (
                                         <div key={slot.instanceId || `fallback-${originalIndex}`} className="relative">
-                                            <DraggableCard instanceId={slot.instanceId} notebook={nb} isCompleted={slot.completed} onDragStart={onDragStart} onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)} onEdit={handleEditClick} onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} onRemove={(instId) => handleRemoveFromWeek(instId, week.id)} isCompact origin="week" disabled={week.isPast} index={originalIndex} currentWeekIndex={currentWeekIndex} scheduledWeekId={week.id} startDate={config.startDate} isAutoScheduled={false} />
+                                            <DraggableCard instanceId={slot.instanceId} notebook={nb} isCompleted={slot.completed && !isFutureWeek} onDragStart={onDragStart} onDropOnCard={(e, idx) => handleDropOnCard(e, week.id, idx)} onEdit={handleEditClick} onToggleComplete={(instId, val) => toggleSlotCompletion(instId, week.id)} onRemove={(instId) => handleRemoveFromWeek(instId, week.id)} isCompact origin="week" disabled={week.isPast} index={originalIndex} currentWeekIndex={currentWeekIndex} scheduledWeekId={week.id} startDate={config.startDate} isAutoScheduled={false} />
                                         </div>
                                     );
                                 })}
