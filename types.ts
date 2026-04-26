@@ -198,6 +198,7 @@ export interface ScheduleItem {
     notebookId: string; // Referência ao caderno original
     completed: boolean; // Status deste bloco específico
     completedAt?: string; // Data exata da conclusão (ISO) para contagem diária correta
+    plannedDate?: string; // NOVO: Data específica planejada pelo usuário no Setup
 }
 
 /** 

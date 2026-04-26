@@ -730,12 +730,12 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
     endDateComparison.setHours(23,59,59,999);
     const isPast = endDateComparison < today;
     const fmt = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-    return { label: `${fmt(start)} - ${fmt(end)}`, fullDate: `${start.toLocaleDateString('pt-BR')} até ${end.toLocaleDateString('pt-BR')}`, isPast };
+    return { label: `${fmt(start)} - ${fmt(end)}`, fullDate: `${start.toLocaleDateString('pt-BR')} até ${end.toLocaleDateString('pt-BR')}`, isPast, startDate: start.toISOString() };
   };
 
   const weeks = Array.from({ length: weeksCount }, (_, i) => {
-    const { label, isPast, fullDate } = getWeekDateRange(i, config.startDate);
-    return { id: `week-${i + 1}`, index: i + 1, label, isPast, fullDate };
+    const { label, isPast, fullDate, startDate } = getWeekDateRange(i, config.startDate);
+    return { id: `week-${i + 1}`, index: i + 1, label, isPast, fullDate, startDate };
   });
 
   const currentWeekIndex = useMemo(() => {
@@ -1207,6 +1207,28 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                         weekSlots.forEach((slot, index) => { if (slot.completed) completedItems.push({ slot, originalIndex: index }); else pendingItems.push({ slot, originalIndex: index }); });
                         const isCompletedListExpanded = expandedCompletedWeeks[week.id];
 
+                        // Encontrar revisões algorítmicas para esta semana
+                        const algorithmicRevs: Notebook[] = [];
+                        if (week.startDate) {
+                            const weekStart = new Date(week.startDate);
+                            weekStart.setHours(0,0,0,0);
+                            const weekEnd = new Date(week.startDate);
+                            weekEnd.setDate(weekStart.getDate() + 6);
+                            weekEnd.setHours(23,59,59,999);
+                            
+                            notebooks.forEach(nb => {
+                                if (nb.nextReview) {
+                                    const revDate = new Date(nb.nextReview);
+                                    if (revDate >= weekStart && revDate <= weekEnd) {
+                                        const isManual = pendingItems.some(i => i.slot.notebookId === nb.id) || completedItems.some(i => i.slot.notebookId === nb.id);
+                                        if (!isManual) {
+                                            algorithmicRevs.push(nb);
+                                        }
+                                    }
+                                }
+                            });
+                        }
+
                         return (
                             <div key={week.id} className={`w-80 flex-shrink-0 flex flex-col rounded-2xl border transition-all duration-300 relative h-full max-h-full ${week.isPast ? 'bg-white dark:bg-slate-900/30 border-slate-200 dark:border-slate-800/50 opacity-100' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-2xl hover:border-slate-300 dark:border-slate-700'}`} onDragOver={week.isPast ? undefined : onDragOver} onDrop={(e) => onDrop(e, week.id, week.isPast)}>
                             <div className="absolute -top-6 left-1/2 -translate-x-1/2 flex items-center gap-2 z-20 whitespace-nowrap">
@@ -1245,6 +1267,22 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                             </div>
                             <div className="p-3 space-y-2 overflow-y-auto flex-1 custom-scrollbar relative bg-white dark:bg-slate-900/50">
                                 {week.isPast && <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/diagmonds-light.png')] opacity-10 pointer-events-none z-0"></div>}
+                                
+                                {/* ALGORITMIC REVIEWS */}
+                                {algorithmicRevs.length > 0 && (
+                                    <div className="mb-3 space-y-2">
+                                        <div className="flex items-center gap-2 mb-1 px-1">
+                                            <div className="h-px flex-1 bg-emerald-500/20"></div>
+                                            <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-600 dark:text-emerald-400">Revisões Automáticas</span>
+                                            <div className="h-px flex-1 bg-emerald-500/20"></div>
+                                        </div>
+                                        {algorithmicRevs.map(nb => (
+                                            <DraggableCard key={`algo-${nb.id}`} notebook={nb} onDragStart={onDragStart} onEdit={handleEditClick} isCompact origin="library" disabled={week.isPast} scheduledWeekId={week.id} />
+                                        ))}
+                                        <div className="h-px w-full bg-slate-200 dark:bg-slate-800 my-2"></div>
+                                    </div>
+                                )}
+
                                 {pendingItems.map(({ slot, originalIndex }) => {
                                     if (!slot || !slot.notebookId) return null; 
                                     const nb = notebooks.find(n => n.id === slot.notebookId);

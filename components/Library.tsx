@@ -1250,19 +1250,9 @@ export const Library: React.FC = () => {
                                                     </span>
                                                 )}
                                              </div>
-                                             <div className="flex gap-2">
-                                                 <div className="flex-1 flex gap-2">
-                                                    <div className="flex-1">
-                                                        <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Acurácia (%)</label>
-                                                        <input type="number" min="0" max="100" value={formData.accuracy} onChange={e => handleChange('accuracy', e.target.value)} className="w-full bg-white dark:bg-slate-900 border border-slate-600 rounded-lg p-3 text-slate-900 dark:text-white font-mono text-center font-bold text-xl focus:border-green-500 outline-none" placeholder="0" />
-                                                    </div>
-                                                    <div className="w-24">
-                                                        <label className="block text-[9px] font-bold text-slate-500 uppercase mb-1">Meta (%)</label>
-                                                        <input type="number" min="0" max="100" value={formData.targetAccuracy} onChange={e => handleChange('targetAccuracy', e.target.value)} className="w-full bg-white dark:bg-slate-900 border border-slate-600 rounded-lg p-3 text-slate-900 dark:text-white font-mono text-center font-bold text-xl focus:border-green-500 outline-none" placeholder="90" />
-                                                    </div>
-                                                 </div>
+                                             <div className="flex gap-2 w-full justify-end">
                                                  <div className="flex items-end">
-                                                    <button type="button" onClick={handleConcludeReview} disabled={isSaving} className="h-[52px] px-6 bg-green-600 hover:bg-green-500 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg shadow-green-900/30 border border-green-500/50">
+                                                    <button type="button" onClick={handleConcludeReview} disabled={isSaving} className="w-full h-10 px-6 bg-green-600 hover:bg-green-500 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-900/30 border border-green-500/50">
                                                         {isSaving ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />} 
                                                         Concluir
                                                     </button>
@@ -1287,6 +1277,7 @@ export const Library: React.FC = () => {
                                                             <HeatmapCalendar 
                                                                 value={computedNextReviewData.date}
                                                                 notebooks={notebooks}
+                                                                activeCycle={cycles.find(c => c.id === activeCycleId)}
                                                                 onChange={(newDate) => {
                                                                     const dateStr = newDate.toISOString().split('T')[0];
                                                                     const dateWithTime = new Date(dateStr + 'T12:00:00.000Z');
@@ -1343,7 +1334,7 @@ export const Library: React.FC = () => {
                               transition={{ duration: 0.3 }}
                           >
                               <div className="space-y-4 pt-4">
-                                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                                       <div className="group relative">
                                           <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase flex items-center gap-1 cursor-help">
                                               Peso <HelpCircle size={12} className="text-slate-600"/>
@@ -1353,6 +1344,20 @@ export const Library: React.FC = () => {
                                               <strong className="block text-green-400">{SCORE_TOOLTIPS.weight.title}</strong>
                                               <span className="text-slate-500 dark:text-slate-400">{SCORE_TOOLTIPS.weight.desc}</span>
                                           </div>
+                                      </div>
+
+                                      <div className="group relative">
+                                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase flex items-center gap-1">
+                                              Acertos (%)
+                                          </label>
+                                          <input type="number" min="0" max="100" value={formData.accuracy} onChange={e => handleChange('accuracy', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-green-500 text-sm" placeholder="0" />
+                                      </div>
+
+                                      <div className="group relative">
+                                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase flex items-center gap-1">
+                                              Meta (%)
+                                          </label>
+                                          <input type="number" min="0" max="100" value={formData.targetAccuracy} onChange={e => handleChange('targetAccuracy', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-green-500 text-sm" placeholder="90" />
                                       </div>
 
                                       <div className="group relative">

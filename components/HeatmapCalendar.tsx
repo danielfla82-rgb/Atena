@@ -1,15 +1,16 @@
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
-import { Notebook } from '../types';
+import { Notebook, Cycle } from '../types';
 
 interface HeatmapCalendarProps {
   value: Date;
   onChange: (date: Date) => void;
   notebooks: Notebook[];
+  activeCycle?: Cycle;
 }
 
-export const HeatmapCalendar: React.FC<HeatmapCalendarProps> = ({ value, onChange, notebooks }) => {
+export const HeatmapCalendar: React.FC<HeatmapCalendarProps> = ({ value, onChange, notebooks, activeCycle }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date(value.getFullYear(), value.getMonth(), 1));
   const [isOpen, setIsOpen] = useState(false);
 
@@ -25,8 +26,38 @@ export const HeatmapCalendar: React.FC<HeatmapCalendarProps> = ({ value, onChang
         }
       }
     });
+
+    if (activeCycle?.schedule && activeCycle.config.startDate) {
+        const cycleStart = new Date(activeCycle.config.startDate);
+        // Reset cycleStart to midnight local time to avoid timezone shifts
+        cycleStart.setHours(0,0,0,0);
+        
+        Object.entries(activeCycle.schedule).forEach(([weekId, slots]) => {
+            const weekIndexStr = weekId.replace('week-', '');
+            const weekIndex = parseInt(weekIndexStr, 10);
+            if (!isNaN(weekIndex) && weekIndex >= 1) {
+                slots.forEach((slot, idx) => {
+                    if (slot.plannedDate) {
+                        const dateObj = new Date(slot.plannedDate);
+                        if (!isNaN(dateObj.getTime())) {
+                            const dateStr = dateObj.toISOString().split('T')[0];
+                            counts[dateStr] = (counts[dateStr] || 0) + 1;
+                        }
+                    } else {
+                        const dateInWeek = new Date(cycleStart);
+                        dateInWeek.setDate(dateInWeek.getDate() + ((weekIndex - 1) * 7) + (idx % 7));
+                        // Since we deal with ISO strings for exact date tracking, adjust timezone issue
+                        const adjustedDate = new Date(dateInWeek.getTime() - (dateInWeek.getTimezoneOffset() * 60000));
+                        const dateStr = adjustedDate.toISOString().split('T')[0];
+                        counts[dateStr] = (counts[dateStr] || 0) + 1;
+                    }
+                });
+            }
+        });
+    }
+
     return counts;
-  }, [notebooks]);
+  }, [notebooks, activeCycle]);
 
   // Calendar logic
   const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();

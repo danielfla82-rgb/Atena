@@ -865,42 +865,118 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
               </div>
 
               {(() => {
-                  const futureReviews: Record<string, { count: number, names: string[] }> = {};
+                  const futureReviews: Record<string, { count: number, manualCount: number, names: string[], manualNames: string[] }> = {};
+                  
+                  // Automáticas (Revisões baseadas no Algoritmo)
                   notebooks.forEach(nb => {
                       if (nb.nextReview) {
                           const date = new Date(nb.nextReview).toISOString().split('T')[0];
-                          if (!futureReviews[date]) futureReviews[date] = { count: 0, names: [] };
+                          if (!futureReviews[date]) futureReviews[date] = { count: 0, manualCount: 0, names: [], manualNames: [] };
                           futureReviews[date].count++;
                           if (futureReviews[date].names.length < 3) futureReviews[date].names.push(nb.name);
                       }
                   });
 
+                  // Manuais (Baseado na alocação da semana)
+                  const start = config.startDate ? new Date(config.startDate) : new Date();
+                  start.setHours(0,0,0,0);
+                  const activeCyclePlan = activeCycleId ? cycles.find(c => c.id === activeCycleId) : null;
+                  
                   const todayDate = new Date();
                   todayDate.setHours(0,0,0,0);
                   
+                  // Pré-calcular a carga manual distribuída por semana
+                  const manualWeeklyLoad: Record<string, number> = {};
+                  const manualWeeklyNames: Record<string, string[]> = {};
+                  
+                  if (activeCyclePlan?.schedule) {
+                      Object.entries(activeCyclePlan.schedule).forEach(([weekId, slots]) => {
+                          if (!Array.isArray(slots) || slots.length === 0) return;
+                          
+                          const weekIndex = parseInt(weekId.replace('week-', ''));
+                          if (isNaN(weekIndex)) return;
+                          
+                          const weekStart = new Date(start);
+                          weekStart.setDate(weekStart.getDate() + ((weekIndex - 1) * 7));
+                          const weekEnd = new Date(weekStart);
+                          weekEnd.setDate(weekEnd.getDate() + 6);
+                          
+                          let remainingDays = 0;
+                          const countStart = todayDate > weekStart ? todayDate : weekStart;
+                          if (countStart <= weekEnd) {
+                              remainingDays = Math.ceil((weekEnd.getTime() - countStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                          }
+                          
+                          // Filtra apenas pendentes
+                          const pendingSlots = slots.filter(s => !s.completed);
+                          
+                          if (remainingDays > 0 && pendingSlots.length > 0) {
+                              // Distribuir itens pendentes
+                              const itemsPerDay = Math.ceil(pendingSlots.length / remainingDays);
+                              manualWeeklyLoad[weekId] = itemsPerDay;
+                              manualWeeklyNames[weekId] = pendingSlots.map(s => {
+                                  const nb = notebooks.find(n => n.id === s.notebookId);
+                                  return nb ? nb.name : 'Desconhecida';
+                              });
+                          }
+                      });
+                  }
+
                   const planningDays = [];
                   for (let i = 0; i < 35; i++) {
                       const d = new Date(todayDate);
                       d.setDate(todayDate.getDate() + i);
                       const dateStr = d.toISOString().split('T')[0];
-                      const data = futureReviews[dateStr] || { count: 0, names: [] };
+                      const data = futureReviews[dateStr] || { count: 0, manualCount: 0, names: [], manualNames: [] };
+                      
+                      // Identificar a qual semana este dia pertence para pegar o manual
+                      const diffTime = d.getTime() - start.getTime();
+                      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                      const weekIndex = diffDays < 0 ? 1 : Math.floor(diffDays / 7) + 1;
+                      const weekId = `week-${weekIndex}`;
+                      
+                      // Definir a carga manual para este dia
+                      data.manualCount = manualWeeklyLoad[weekId] || 0;
+                      if (data.manualCount > 0) {
+                          data.manualNames = manualWeeklyNames[weekId] || [];
+                      }
+                      
+                      // Ajustar classes de cor combinando Reviōes(count) e Manual(manualCount)
+                      const totalLoad = data.count + data.manualCount;
                       
                       let heatClass = "bg-slate-50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800/50 text-slate-400";
-                      if (data.count > 0 && data.count <= 2) heatClass = "bg-green-100 dark:bg-green-900/20 border-green-500/20 text-green-700 dark:text-green-300";
-                      else if (data.count > 2 && data.count <= 5) heatClass = "bg-green-300 dark:bg-green-700/40 border-green-500/30 text-green-900 dark:text-green-100";
-                      else if (data.count > 5) heatClass = "bg-green-500 border-green-600 text-white shadow-sm";
+                      if (totalLoad > 0 && totalLoad <= 2) heatClass = "bg-green-100 dark:bg-green-900/20 border-green-500/20 text-green-700 dark:text-green-300";
+                      else if (totalLoad > 2 && totalLoad <= 5) heatClass = "bg-green-300 dark:bg-green-700/40 border-green-500/30 text-green-900 dark:text-green-100";
+                      else if (totalLoad > 5) heatClass = "bg-green-500 border-green-600 text-white shadow-sm";
 
                       planningDays.push(
-                          <div key={i} className={`h-12 w-full min-w-[40px] rounded-lg border flex flex-col items-center justify-center relative transition-all group overflow-hidden ${heatClass}`} title={`${d.toLocaleDateString()}: ${data.count} revisões`}>
+                          <div key={i} className={`h-12 w-full min-w-[40px] rounded-lg border flex flex-col items-center justify-center relative transition-all group overflow-hidden ${heatClass}`} title={`${d.toLocaleDateString()}: ${data.count} automáticas, ${data.manualCount} manuais`}>
                               <span className="text-[10px] font-black opacity-40 absolute top-1 left-1 leading-none">{d.getDate()}</span>
-                              {data.count > 0 && <span className="text-sm font-black mt-1 leading-none">{data.count}</span>}
+                              <div className="flex flex-col items-center gap-0.5 mt-1">
+                                  {data.count > 0 && <span className="text-xs font-black leading-none text-emerald-600 dark:text-emerald-400" title="Automáticas (Algoritmo)">{data.count}</span>}
+                                  {data.manualCount > 0 && <span className="text-[9px] font-bold leading-none text-sky-600 dark:text-sky-400 bg-sky-100 dark:bg-sky-900/40 px-1 rounded border border-sky-500/20" title="Alocado Manualmente">+{data.manualCount}</span>}
+                              </div>
                               
-                              {data.count > 0 && (
-                                  <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity p-1.5 flex flex-col justify-center gap-0.5 z-10 pointer-events-none">
-                                      {data.names.map((name, idx) => (
-                                          <span key={idx} className="text-[7px] font-bold text-white truncate max-w-full leading-tight">• {name}</span>
-                                      ))}
-                                      {data.count > 3 && <span className="text-[6px] text-green-400 font-bold">+{data.count - 3} mais...</span>}
+                              {(data.count > 0 || data.manualCount > 0) && (
+                                  <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity p-1.5 flex flex-col gap-0.5 z-10 pointer-events-none custom-scrollbar overflow-y-auto">
+                                      {data.count > 0 && (
+                                          <div className="mb-1">
+                                              <span className="text-[6px] text-emerald-400 font-bold uppercase border-b border-emerald-500/30 pb-0.5 block mb-0.5">Automáticas</span>
+                                              {data.names.map((name, idx) => (
+                                                  <span key={`a-${idx}`} className="text-[7px] font-bold text-white block truncate leading-tight">• {name}</span>
+                                              ))}
+                                              {data.count > 3 && <span className="text-[6px] text-emerald-400 font-bold">+{data.count - 3} mais...</span>}
+                                          </div>
+                                      )}
+                                      {data.manualCount > 0 && (
+                                          <div>
+                                              <span className="text-[6px] text-sky-400 font-bold uppercase border-b border-sky-500/30 pb-0.5 block mb-0.5">Manais (Média p/ Dia)</span>
+                                              {data.manualNames.slice(0, 3).map((name, idx) => (
+                                                  <span key={`m-${idx}`} className="text-[7px] font-bold text-white block truncate leading-tight">• {name}</span>
+                                              ))}
+                                              {data.manualNames.length > 3 && <span className="text-[6px] text-sky-400 font-bold">+{data.manualNames.length - 3} mais...</span>}
+                                          </div>
+                                      )}
                                   </div>
                               )}
                           </div>
