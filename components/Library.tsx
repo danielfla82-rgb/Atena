@@ -1251,6 +1251,18 @@ export const Library: React.FC = () => {
                                                 )}
                                              </div>
                                              <div className="flex gap-2 w-full justify-end">
+                                                 <div className="relative flex-1">
+                                                     <input 
+                                                         type="number" 
+                                                         value={formData.accuracy !== undefined ? formData.accuracy : ''} 
+                                                         onChange={(e) => handleChange('accuracy', e.target.value === '' ? undefined : parseInt(e.target.value))} 
+                                                         className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700/50 rounded-lg p-2.5 pr-8 text-green-500 dark:text-green-400 font-bold outline-none focus:border-green-500 text-sm shadow-sm h-10"
+                                                         placeholder="Ex: 85"
+                                                         min="0"
+                                                         max="100"
+                                                     />
+                                                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">%</span>
+                                                 </div>
                                                  <div className="flex items-end">
                                                     <button type="button" onClick={handleConcludeReview} disabled={isSaving} className="w-full h-10 px-6 bg-green-600 hover:bg-green-500 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-900/30 border border-green-500/50">
                                                         {isSaving ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />} 
