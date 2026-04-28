@@ -1241,34 +1241,48 @@ export const Library: React.FC = () => {
 
                                   <div className="bg-slate-100 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-300 dark:border-slate-700 flex flex-col items-stretch gap-4 shadow-inner">
                                       <div className="flex flex-col md:flex-row gap-4 items-end">
-                                          <div className="flex-1 w-full">
-                                             <div className="flex justify-between mb-1">
-                                                <label className="block text-[10px] font-bold text-green-400 uppercase">Acurácia na Revisão de Hoje (%)</label>
-                                                {formData.accuracyHistory && formData.accuracyHistory.length > 0 && (
-                                                    <span className="text-[9px] text-slate-500 font-mono flex items-center gap-1">
-                                                        <History size={12}/> Histórico
-                                                    </span>
-                                                )}
-                                             </div>
-                                             <div className="flex gap-2 w-full justify-end">
-                                                 <div className="relative flex-1">
-                                                     <input 
-                                                         type="number" 
-                                                         value={formData.accuracy !== undefined ? formData.accuracy : ''} 
-                                                         onChange={(e) => handleChange('accuracy', e.target.value === '' ? undefined : parseInt(e.target.value))} 
-                                                         className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700/50 rounded-lg p-2.5 pr-8 text-green-500 dark:text-green-400 font-bold outline-none focus:border-green-500 text-sm shadow-sm h-10"
-                                                         placeholder="Ex: 85"
-                                                         min="0"
-                                                         max="100"
-                                                     />
-                                                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">%</span>
-                                                 </div>
-                                                 <div className="flex items-end">
-                                                    <button type="button" onClick={handleConcludeReview} disabled={isSaving} className="w-full h-10 px-6 bg-green-600 hover:bg-green-500 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-900/30 border border-green-500/50">
-                                                        {isSaving ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />} 
-                                                        Concluir
-                                                    </button>
-                                                 </div>
+                                          <div className="flex-1 w-full flex flex-col gap-4">
+                                             <div className="flex flex-col md:flex-row gap-4">
+                                                <div className="flex-1">
+                                                     <div className="flex justify-between mb-1">
+                                                        <label className="block text-[10px] font-bold text-green-400 uppercase">Acurácia na Revisão de Hoje (%)</label>
+                                                        {formData.accuracyHistory && formData.accuracyHistory.length > 0 && (
+                                                            <span className="text-[9px] text-slate-500 font-mono flex items-center gap-1">
+                                                                <History size={12}/> Histórico
+                                                            </span>
+                                                        )}
+                                                     </div>
+                                                     <div className="flex gap-2 w-full justify-end">
+                                                         <div className="relative flex-1">
+                                                             <input 
+                                                                 type="number" 
+                                                                 value={formData.accuracy !== undefined ? formData.accuracy : ''} 
+                                                                 onChange={(e) => handleChange('accuracy', e.target.value === '' ? undefined : parseInt(e.target.value))} 
+                                                                 className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700/50 rounded-lg p-2.5 pr-8 text-green-500 dark:text-green-400 font-bold outline-none focus:border-green-500 text-sm shadow-sm h-10"
+                                                                 placeholder="Ex: 85"
+                                                                 min="0"
+                                                                 max="100"
+                                                             />
+                                                             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">%</span>
+                                                         </div>
+                                                         <div className="flex items-end">
+                                                            <button type="button" onClick={handleConcludeReview} disabled={isSaving} className="w-full h-10 px-6 bg-green-600 hover:bg-green-500 text-white rounded-lg font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-lg shadow-green-900/30 border border-green-500/50">
+                                                                {isSaving ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />} 
+                                                                Concluir
+                                                            </button>
+                                                         </div>
+                                                     </div>
+                                                </div>
+                                                
+                                                <div className="group relative w-full md:w-1/3">
+                                                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase flex items-center gap-1">
+                                                        Meta de Acertos (%)
+                                                    </label>
+                                                    <div className="relative">
+                                                        <input type="number" min="0" max="100" value={formData.targetAccuracy} onChange={e => handleChange('targetAccuracy', e.target.value)} className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700/50 rounded-lg p-2.5 pr-8 text-slate-900 dark:text-white outline-none focus:border-green-500 text-sm shadow-sm h-10" placeholder="90" />
+                                                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">%</span>
+                                                    </div>
+                                                </div>
                                              </div>
                                              
                                              {computedNextReviewData?.isNotStarted ? (
@@ -1346,7 +1360,7 @@ export const Library: React.FC = () => {
                               transition={{ duration: 0.3 }}
                           >
                               <div className="space-y-4 pt-4">
-                                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                       <div className="group relative">
                                           <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase flex items-center gap-1 cursor-help">
                                               Peso <HelpCircle size={12} className="text-slate-600"/>
@@ -1356,20 +1370,6 @@ export const Library: React.FC = () => {
                                               <strong className="block text-green-400">{SCORE_TOOLTIPS.weight.title}</strong>
                                               <span className="text-slate-500 dark:text-slate-400">{SCORE_TOOLTIPS.weight.desc}</span>
                                           </div>
-                                      </div>
-
-                                      <div className="group relative">
-                                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase flex items-center gap-1">
-                                              Acertos (%)
-                                          </label>
-                                          <input type="number" min="0" max="100" value={formData.accuracy} onChange={e => handleChange('accuracy', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-green-500 text-sm" placeholder="0" />
-                                      </div>
-
-                                      <div className="group relative">
-                                          <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase flex items-center gap-1">
-                                              Meta (%)
-                                          </label>
-                                          <input type="number" min="0" max="100" value={formData.targetAccuracy} onChange={e => handleChange('targetAccuracy', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-green-500 text-sm" placeholder="90" />
                                       </div>
 
                                       <div className="group relative">
