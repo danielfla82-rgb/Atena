@@ -178,14 +178,6 @@ const DraggableCard = React.memo(({
                                 <BrainCircuit size={10} /> Auto
                             </span>
                         )}
-                        {(isAutoScheduled === false || isAutoScheduled === 'both') && isWeek && (
-                            <span 
-                                className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide shadow-sm bg-slate-200 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300"
-                                title="Alocado manualmente por você"
-                            >
-                                <User size={10} /> Manual
-                            </span>
-                        )}
                         
                         {lastPracticeFormatted && (
                             <span 
