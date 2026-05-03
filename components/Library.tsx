@@ -424,6 +424,29 @@ export const Library: React.FC = () => {
   };
   
   const removeImage = (index: number) => { setFormData(prev => ({ ...prev, images: prev.images.filter((_, i) => i !== index) })); };
+
+  const handleImageDragStart = (e: React.DragEvent, index: number) => {
+      e.dataTransfer.setData('text/plain', index.toString());
+  };
+
+  const handleImageDrop = (e: React.DragEvent, dropIndex: number) => {
+      e.preventDefault();
+      const dragIndexStr = e.dataTransfer.getData('text/plain');
+      if (!dragIndexStr) return;
+      
+      const dragIndex = parseInt(dragIndexStr, 10);
+      if (dragIndex === dropIndex || isNaN(dragIndex)) return;
+
+      const newImages = [...formData.images];
+      const [draggedImage] = newImages.splice(dragIndex, 1);
+      newImages.splice(dropIndex, 0, draggedImage);
+
+      setFormData(prev => ({ ...prev, images: newImages }));
+  };
+
+  const handleImageDragOver = (e: React.DragEvent) => {
+      e.preventDefault();
+  };
   
   const base64ToBlob = async (base64: string): Promise<Blob> => {
       const res = await fetch(base64);
@@ -1492,8 +1515,15 @@ export const Library: React.FC = () => {
                         <div className="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 min-h-[200px] flex flex-col">
                             <div className="grid grid-cols-3 gap-2 mb-3">
                                 {formData.images.map((img, idx) => (
-                                    <div key={idx} className="relative group aspect-square bg-white dark:bg-slate-900 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 hover:border-green-500 transition-colors cursor-pointer">
-                                        <img src={img} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" onClick={() => setLightboxIndex(idx)} />
+                                    <div 
+                                        key={idx} 
+                                        draggable
+                                        onDragStart={(e) => handleImageDragStart(e, idx)}
+                                        onDrop={(e) => handleImageDrop(e, idx)}
+                                        onDragOver={handleImageDragOver}
+                                        className="relative group aspect-square bg-white dark:bg-slate-900 rounded-lg overflow-hidden border border-slate-300 dark:border-slate-700 hover:border-green-500 transition-colors cursor-pointer"
+                                    >
+                                        <img src={img} draggable={false} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" onClick={() => setLightboxIndex(idx)} />
                                         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 pointer-events-none"><ZoomIn size={18} className="text-slate-900 dark:text-white" /></div>
                                         <button type="button" onClick={(e) => { e.stopPropagation(); removeImage(idx); }} className="absolute top-1 right-1 bg-red-600 hover:bg-red-500 text-slate-900 dark:text-white rounded p-1 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-auto"><Trash2 size={14} /></button>
                                     </div>
