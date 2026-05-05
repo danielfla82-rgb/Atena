@@ -1248,20 +1248,6 @@ export const Library: React.FC = () => {
                                   transition={{ duration: 0.3 }}
                                   className="space-y-4 pt-2"
                               >
-                                  <div>
-                                      <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase">Planejamento (Semana)</label>
-                                      <select 
-                                          value={formData.scheduledWeek || ''} 
-                                          onChange={(e) => handleChange('scheduledWeek', e.target.value)} 
-                                          className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-slate-900 dark:text-white outline-none focus:border-green-500 text-sm"
-                                      >
-                                          <option value="">Não Agendado</option>
-                                          {weeksList.map(w => (
-                                              <option key={w.id} value={w.id}>{w.label}</option>
-                                          ))}
-                                      </select>
-                                  </div>
-
                                   <div className="bg-slate-100 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-300 dark:border-slate-700 flex flex-col items-stretch gap-4 shadow-inner">
                                       <div className="flex flex-col md:flex-row gap-4 items-end">
                                           <div className="flex-1 w-full flex flex-col gap-4">
