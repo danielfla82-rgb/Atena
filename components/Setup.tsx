@@ -1256,7 +1256,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
 
                         const rawFilterAlgo = algorithmicRevs.filter(nb => !pendingItems.some(p => p.slot.notebookId === nb.id) && !completedItems.some(c => c.slot.notebookId === nb.id));
                         
-                        const wFilter = weekFilters[week.id] || { type: 'all', disc: 'all' };
+                        const wFilter = weekFilters[week.id] || { type: 'manual', disc: 'all' };
                         
                         const filteredAlgo = rawFilterAlgo.filter(nb => {
                             if (wFilter.type === 'manual') return false;
