@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS public.mock_exams (
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     board TEXT NOT NULL,
+    notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -15,7 +16,8 @@ CREATE TABLE IF NOT EXISTS public.mock_exam_results (
     discipline TEXT NOT NULL,
     accuracy NUMERIC NOT NULL,
     date TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    tec_link TEXT
+    tec_link TEXT,
+    tec_average NUMERIC
 );
 
 -- Políticas de Segurança (RLS)

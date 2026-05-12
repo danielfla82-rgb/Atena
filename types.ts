@@ -262,6 +262,7 @@ export interface MockExam {
   name: string; // Concurso
   board: string; // Banca
   createdAt: string;
+  notes?: string; // Anotações do certame
 }
 
 /** Resultado de uma disciplina em um Simulado */
@@ -272,6 +273,7 @@ export interface MockExamResult {
   accuracy: number;
   date: string; // Data do simulado
   tecLink?: string; // Link do TEC
+  tecAverage?: number; // Média de acertos dos usuários do TEC
 }
 
 /** Entidade de Anotação Rápida (Post-it) */

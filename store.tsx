@@ -547,7 +547,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (notesResponse.data) setNotes(notesResponse.data.map(mapNoteFromDB));
           if (disciplinesResponse.data) setDisciplines(disciplinesResponse.data);
           if (mockExamsResponse.data) setMockExams(mockExamsResponse.data.map((d: any) => ({ ...d, createdAt: d.created_at })));
-          if (mockExamResultsResponse.data) setMockExamResults(mockExamResultsResponse.data.map((d: any) => ({ ...d, examId: d.exam_id, tecLink: d.tec_link })));
+          if (mockExamResultsResponse.data) setMockExamResults(mockExamResultsResponse.data.map((d: any) => ({ ...d, examId: d.exam_id, tecLink: d.tec_link, tecAverage: d.tec_average })));
           
           if (frameworkResponse.data) {
               setFramework(mapFrameworkFromDB(frameworkResponse.data));
@@ -1415,6 +1415,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               const payload: any = {};
               if (data.name !== undefined) payload.name = data.name;
               if (data.board !== undefined) payload.board = data.board;
+              if (data.notes !== undefined) payload.notes = data.notes;
               const { error } = await supabase.from('mock_exams').update(payload).eq('id', id);
               if (error) throw error;
           } catch (e) {
@@ -1445,7 +1446,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           discipline: result.discipline || '',
           accuracy: result.accuracy || 0,
           date: result.date || new Date().toISOString(),
-          tecLink: result.tecLink || ''
+          tecLink: result.tecLink || '',
+          tecAverage: result.tecAverage
       };
       setMockExamResults(prev => [...prev, newResult]);
       if (!isGuest && user) {
@@ -1457,7 +1459,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   discipline: newResult.discipline,
                   accuracy: newResult.accuracy,
                   date: newResult.date,
-                  tec_link: newResult.tecLink
+                  tec_link: newResult.tecLink,
+                  tec_average: newResult.tecAverage
               });
               if (error) throw error;
           } catch (e) {
@@ -1476,6 +1479,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               const payload: any = {};
               if (data.accuracy !== undefined) payload.accuracy = data.accuracy;
               if (data.tecLink !== undefined) payload.tec_link = data.tecLink;
+              if (data.tecAverage !== undefined) payload.tec_average = data.tecAverage;
               if (data.date !== undefined) payload.date = data.date;
               const { error } = await supabase.from('mock_exam_results').update(payload).eq('id', id);
               if (error) throw error;
