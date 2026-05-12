@@ -910,19 +910,19 @@ export const Dashboard: React.FC<Props> = ({ onNavigate }) => {
                       const d = new Date(todayDate);
                       d.setDate(todayDate.getDate() + i);
                       const dateStr = d.toISOString().split('T')[0];
-                      const data = futureReviews[dateStr] || { count: 0, manualCount: 0, names: [], manualNames: [] };
                       
                       // Identificar a qual semana este dia pertence para pegar o manual
                       const diffTime = d.getTime() - start.getTime();
                       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
                       const weekIndex = diffDays < 0 ? 1 : Math.floor(diffDays / 7) + 1;
                       const weekId = `week-${weekIndex}`;
-                      
-                      // Definir a carga manual para este dia
-                      data.manualCount = manualWeeklyLoad[weekId] || 0;
-                      if (data.manualCount > 0) {
-                          data.manualNames = manualWeeklyNames[weekId] || [];
-                      }
+
+                      const baseData = futureReviews[dateStr] || { count: 0, names: [] };
+                      const data = {
+                          ...baseData,
+                          manualCount: manualWeeklyLoad[weekId] || 0,
+                          manualNames: (manualWeeklyLoad[weekId] || 0) > 0 ? (manualWeeklyNames[weekId] || []) : []
+                      };
                       
                       // Ajustar classes de cor combinando Reviōes(count) e Manual(manualCount)
                       const totalLoad = data.count + data.manualCount;

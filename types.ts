@@ -286,6 +286,13 @@ export interface Note {
   updatedAt: string;
 }
 
+/** Entidade de Sessão de Estudo */
+export interface StudySessionRecord {
+  id: string;
+  duration: number; // in milliseconds
+  date: string; // ISO format
+}
+
 // --- CONSTANTES DE SCORE ---
 
 export const WEIGHT_SCORE: Record<Weight, number> = {

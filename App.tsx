@@ -15,15 +15,16 @@ import { About } from './components/About';
 import { StudySession } from './components/StudySession';
 import { ReviewList } from './components/ReviewList';
 import { Simulados } from './components/Simulados';
+import { Cronometro } from './components/Cronometro';
 import { 
   LayoutDashboard, Layers, Menu, X, Library as LibraryIcon, 
-  Pyramid, ListChecks, Shield, StickyNote, LogOut, ChevronDown, CalendarCheck, Book, Target
+  Pyramid, ListChecks, Shield, StickyNote, LogOut, ChevronDown, CalendarCheck, Book, Target, Timer
 } from 'lucide-react';
 import { Logo } from './components/Logo';
 
 const AppContent: React.FC = () => {
   // Estado principal de navegação
-  const [view, setView] = useState<'login' | 'selection' | 'dashboard' | 'setup' | 'library' | 'framework' | 'verticalized' | 'notes' | 'about' | 'review-list' | 'disciplines' | 'simulados'>('login');
+  const [view, setView] = useState<'login' | 'selection' | 'dashboard' | 'setup' | 'library' | 'framework' | 'verticalized' | 'notes' | 'about' | 'review-list' | 'disciplines' | 'simulados' | 'cronometro'>('login');
   
   // Estados de UI
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -35,7 +36,7 @@ const AppContent: React.FC = () => {
 
   // Efeito: Abre o menu automaticamente se estiver navegando em um de seus sub-itens
   React.useEffect(() => {
-    const strategyViews = ['dashboard', 'setup', 'verticalized', 'library', 'disciplines', 'notes', 'review-list', 'simulados'];
+    const strategyViews = ['dashboard', 'setup', 'verticalized', 'library', 'disciplines', 'notes', 'review-list', 'simulados', 'cronometro'];
     if (strategyViews.includes(view)) setStrategyMenuOpen(true);
   }, [view]);
 
@@ -178,6 +179,14 @@ const AppContent: React.FC = () => {
                     <StickyNote size={18} />
                     <span className="text-sm">Anotações</span>
                   </button>
+
+                  <button 
+                    onClick={() => { setView('cronometro'); setSidebarOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('cronometro') ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border-green-500' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white font-medium'}`}
+                  >
+                    <Timer size={18} />
+                    <span className="text-sm">Cronômetro</span>
+                  </button>
               </div>
           </div>
 
@@ -239,6 +248,7 @@ const AppContent: React.FC = () => {
           view === 'library' ? <Library /> :
           view === 'disciplines' ? <DisciplineManager onNavigate={(v) => setView(v as any)} /> :
           view === 'simulados' ? <Simulados /> :
+          view === 'cronometro' ? <Cronometro /> :
           view === 'notes' ? <Notes /> :
           view === 'framework' ? <Framework /> :
           <About />

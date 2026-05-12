@@ -5,7 +5,7 @@ import { get, set } from 'idb-keyval';
 import { 
   Notebook, Cycle, AthensConfig, SavedReport, ProtocolItem, 
   FrameworkData, Note, NotebookStatus, ScheduleItem,
-  Weight, Relevance, Trend, Discipline, MockExam, MockExamResult,
+  Weight, Relevance, Trend, Discipline, MockExam, MockExamResult, StudySessionRecord,
   WEIGHT_SCORE, RELEVANCE_SCORE
 } from './types';
 
@@ -326,6 +326,7 @@ interface StoreContextType {
   notes: Note[];
   mockExams: MockExam[];
   mockExamResults: MockExamResult[];
+  studySessions: StudySessionRecord[];
   
   activeSession: Notebook | null;
   pendingCreateData: Partial<Notebook> | null;
@@ -374,6 +375,9 @@ interface StoreContextType {
   editMockExamResult: (id: string, data: Partial<MockExamResult>) => Promise<void>;
   deleteMockExamResult: (id: string) => Promise<void>;
 
+  addStudySession: (duration: number) => Promise<string>;
+  deleteStudySession: (id: string) => Promise<void>;
+
   enterGuestMode: () => void;
   exportDatabase: () => void;
   startSession: (notebook: Notebook) => void;
@@ -410,6 +414,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [notes, setNotes] = useState<Note[]>([]);
   const [mockExams, setMockExams] = useState<MockExam[]>([]);
   const [mockExamResults, setMockExamResults] = useState<MockExamResult[]>([]);
+  const [studySessions, setStudySessions] = useState<StudySessionRecord[]>([]);
 
   const cyclesRef = React.useRef<Cycle[]>([]);
   const notebooksRef = React.useRef<Notebook[]>([]);
@@ -515,7 +520,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               supabase.from('frameworks').select('*').eq('user_id', userToUse.id).maybeSingle(),
               supabase.from('disciplines').select('*').eq('user_id', userToUse.id),
               supabase.from('mock_exams').select('*').eq('user_id', userToUse.id),
-              supabase.from('mock_exam_results').select('*').eq('user_id', userToUse.id)
+              supabase.from('mock_exam_results').select('*').eq('user_id', userToUse.id),
+              supabase.from('study_sessions').select('*').eq('user_id', userToUse.id)
           ]);
 
           let validNotebookIds = new Set<string>();
@@ -548,6 +554,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (disciplinesResponse.data) setDisciplines(disciplinesResponse.data);
           if (mockExamsResponse.data) setMockExams(mockExamsResponse.data.map((d: any) => ({ ...d, createdAt: d.created_at })));
           if (mockExamResultsResponse.data) setMockExamResults(mockExamResultsResponse.data.map((d: any) => ({ ...d, examId: d.exam_id, tecLink: d.tec_link, tecAverage: d.tec_average })));
+          if (responses[8].data) setStudySessions(responses[8].data.map((d: any) => ({ ...d, duration: Number(d.duration) })));
           
           if (frameworkResponse.data) {
               setFramework(mapFrameworkFromDB(frameworkResponse.data));
@@ -1504,6 +1511,44 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
   };
 
+  const addStudySession = async (duration: number) => {
+      const newSession: StudySessionRecord = {
+          id: generateId(),
+          duration,
+          date: new Date().toISOString()
+      };
+      setStudySessions(prev => [...prev, newSession]);
+      if (!isGuest && user) {
+          try {
+              const { error } = await supabase.from('study_sessions').insert({
+                  id: newSession.id,
+                  user_id: user.id,
+                  duration: newSession.duration,
+                  date: newSession.date
+              });
+              if (error) throw error;
+          } catch (e) {
+              console.error("Failed to add study session:", e);
+              setStudySessions(prev => prev.filter(x => x.id !== newSession.id));
+          }
+      }
+      return newSession.id;
+  };
+
+  const deleteStudySession = async (id: string) => {
+      const previous = [...studySessions];
+      setStudySessions(prev => prev.filter(x => x.id !== id));
+      if (!isGuest && user) {
+          try {
+              const { error } = await supabase.from('study_sessions').delete().eq('id', id);
+              if (error) throw error;
+          } catch (e) {
+              console.error("Failed to delete study session:", e);
+              setStudySessions(previous);
+          }
+      }
+  };
+
   const exportDatabase = () => {
       const data = { notebooks, cycles, reports, protocol, framework, notes, activeCycleId };
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1542,6 +1587,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       addNote, updateNote, deleteNote,
       addMockExam, editMockExam, deleteMockExam,
       addMockExamResult, editMockExamResult, deleteMockExamResult,
+      studySessions, addStudySession, deleteStudySession,
       enterGuestMode, exportDatabase, startSession, endSession, setPendingCreateData, setFocusedNotebookId
   };
 
