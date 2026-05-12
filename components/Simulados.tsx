@@ -1,7 +1,29 @@
-import React, { useState } from 'react';
-import { Plus, Trash2, Link as LinkIcon, Calendar, CheckCircle, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Trash2, Link as LinkIcon, Calendar, CheckCircle, ExternalLink, AlertTriangle } from 'lucide-react';
 import { useStore, useMergedDisciplines } from '../store';
 import { MockExam, MockExamResult } from '../types';
+
+const NotesTextarea: React.FC<{ initialNotes: string, onSave: (val: string) => void }> = ({ initialNotes, onSave }) => {
+  const [value, setValue] = useState(initialNotes);
+  
+  useEffect(() => {
+    setValue(initialNotes);
+  }, [initialNotes]);
+
+  return (
+    <textarea
+      placeholder="Anotações sobre este certame..."
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={() => {
+        if (value !== initialNotes) {
+          onSave(value);
+        }
+      }}
+      className="w-full h-full min-h-[60px] p-2 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded resize-none focus:outline-none focus:border-orange-500 text-slate-700 dark:text-slate-300 custom-scrollbar"
+    />
+  );
+};
 
 export const Simulados: React.FC = () => {
   const { mockExams, mockExamResults, addMockExam, deleteMockExam, addMockExamResult, editMockExamResult, addDiscipline } = useStore();
@@ -144,11 +166,9 @@ export const Simulados: React.FC = () => {
                       </div>
                       
                       <div className="mt-2 flex-grow">
-                        <textarea
-                          placeholder="Anotações sobre este certame..."
-                          value={exam.notes || ''}
-                          onChange={(e) => editMockExam(exam.id, { notes: e.target.value })}
-                          className="w-full h-full min-h-[60px] p-2 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded resize-none focus:outline-none focus:border-orange-500 text-slate-700 dark:text-slate-300 custom-scrollbar"
+                        <NotesTextarea
+                          initialNotes={exam.notes || ''}
+                          onSave={(val) => editMockExam(exam.id, { notes: val })}
                         />
                       </div>
                     </div>
@@ -186,9 +206,17 @@ export const Simulados: React.FC = () => {
                               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 text-sm font-medium">%</span>
                             </div>
                             {result?.accuracy !== undefined && result.accuracy > 0 && (
-                              <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400 flex items-center justify-center flex-shrink-0" title="Resultado salvo">
-                                <CheckCircle size={16} />
-                              </div>
+                              <>
+                                {(result.tecAverage && result.accuracy < result.tecAverage) ? (
+                                  <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 flex items-center justify-center flex-shrink-0" title="Atenção !! Abaixo da média">
+                                    <AlertTriangle size={16} />
+                                  </div>
+                                ) : (
+                                  <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400 flex items-center justify-center flex-shrink-0" title="Resultado salvo">
+                                    <CheckCircle size={16} />
+                                  </div>
+                                )}
+                              </>
                             )}
                           </div>
                           
