@@ -18,13 +18,16 @@ import { Simulados } from './components/Simulados';
 import { Cronometro } from './components/Cronometro';
 import { 
   LayoutDashboard, Layers, Menu, X, Library as LibraryIcon, 
-  Pyramid, ListChecks, Shield, StickyNote, LogOut, ChevronDown, CalendarCheck, Book, Target, Timer
+  Pyramid, ListChecks, Shield, StickyNote, LogOut, ChevronDown, CalendarCheck, Book, Target, Timer, CheckCircle2
 } from 'lucide-react';
 import { Logo } from './components/Logo';
 
+import { QuestionPlayer } from './components/Questions/QuestionPlayer';
+import { QuestionManager } from './components/Questions/QuestionManager';
+
 const AppContent: React.FC = () => {
   // Estado principal de navegação
-  const [view, setView] = useState<'login' | 'selection' | 'dashboard' | 'setup' | 'library' | 'framework' | 'verticalized' | 'notes' | 'about' | 'review-list' | 'disciplines' | 'simulados' | 'cronometro'>('login');
+  const [view, setView] = useState<'login' | 'selection' | 'dashboard' | 'setup' | 'library' | 'framework' | 'verticalized' | 'notes' | 'about' | 'review-list' | 'disciplines' | 'simulados' | 'cronometro' | 'questoes' | 'gerenciar-questoes'>('login');
   
   // Estados de UI
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -36,7 +39,7 @@ const AppContent: React.FC = () => {
 
   // Efeito: Abre o menu automaticamente se estiver navegando em um de seus sub-itens
   React.useEffect(() => {
-    const strategyViews = ['dashboard', 'setup', 'verticalized', 'library', 'disciplines', 'notes', 'review-list', 'simulados', 'cronometro'];
+    const strategyViews = ['dashboard', 'setup', 'verticalized', 'library', 'disciplines', 'notes', 'review-list', 'simulados', 'cronometro', 'questoes', 'gerenciar-questoes'];
     if (strategyViews.includes(view)) setStrategyMenuOpen(true);
   }, [view]);
 
@@ -173,6 +176,14 @@ const AppContent: React.FC = () => {
                   </button>
 
                   <button 
+                    onClick={() => { setView('questoes'); setSidebarOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('questoes') || isActive('gerenciar-questoes') ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border-green-500' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white font-medium'}`}
+                  >
+                    <CheckCircle2 size={18} />
+                    <span className="text-sm">Resolver Questões</span>
+                  </button>
+
+                  <button 
                     onClick={() => { setView('notes'); setSidebarOpen(false); }}
                     className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all ml-1 border-l-2 ${isActive('notes') ? 'bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white border-green-500' : 'border-transparent text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white font-medium'}`}
                   >
@@ -248,6 +259,38 @@ const AppContent: React.FC = () => {
           view === 'library' ? <Library /> :
           view === 'disciplines' ? <DisciplineManager onNavigate={(v) => setView(v as any)} /> :
           view === 'simulados' ? <Simulados /> :
+          view === 'questoes' ? (
+            <div className="h-full flex flex-col">
+              <div className="p-4 bg-white/50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                <h1 className="font-bold flex items-center gap-2"><Target className="text-blue-500" /> Bateria de Questões</h1>
+                <button 
+                  onClick={() => setView('gerenciar-questoes')}
+                  className="text-xs font-bold bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                >
+                  Gerenciar Cadernos
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                <QuestionPlayer />
+              </div>
+            </div>
+          ) :
+          view === 'gerenciar-questoes' ? (
+            <div className="h-full flex flex-col">
+              <div className="p-4 bg-white/50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                <h1 className="font-bold flex items-center gap-2"><Layers className="text-blue-500" /> Gerenciar Cadernos</h1>
+                <button 
+                  onClick={() => setView('questoes')}
+                  className="text-xs font-bold bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Ir para Resolução
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                <QuestionManager />
+              </div>
+            </div>
+          ) :
           view === 'cronometro' ? <Cronometro /> :
           view === 'notes' ? <Notes /> :
           view === 'framework' ? <Framework /> :

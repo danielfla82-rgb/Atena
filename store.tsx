@@ -328,6 +328,10 @@ interface StoreContextType {
   mockExamResults: MockExamResult[];
   studySessions: StudySessionRecord[];
   
+  questionSets: QuestionSet[];
+  questions: QuestionItem[];
+  questionResults: QuestionResult[];
+
   activeSession: Notebook | null;
   pendingCreateData: Partial<Notebook> | null;
   focusedNotebookId: string | null;
@@ -375,6 +379,13 @@ interface StoreContextType {
   editMockExamResult: (id: string, data: Partial<MockExamResult>) => Promise<void>;
   deleteMockExamResult: (id: string) => Promise<void>;
 
+  addQuestionSet: (set: Partial<QuestionSet>) => Promise<string>;
+  editQuestionSet: (id: string, data: Partial<QuestionSet>) => Promise<void>;
+  deleteQuestionSet: (id: string) => Promise<void>;
+  addQuestions: (questions: Partial<QuestionItem>[]) => Promise<void>;
+  deleteQuestion: (id: string) => Promise<void>;
+  addQuestionResult: (result: Omit<QuestionResult, 'id' | 'date'>) => Promise<void>;
+
   addStudySession: (duration: number) => Promise<string>;
   deleteStudySession: (id: string) => Promise<void>;
 
@@ -415,6 +426,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [mockExams, setMockExams] = useState<MockExam[]>([]);
   const [mockExamResults, setMockExamResults] = useState<MockExamResult[]>([]);
   const [studySessions, setStudySessions] = useState<StudySessionRecord[]>([]);
+
+  const [questionSets, setQuestionSets] = useState<QuestionSet[]>([]);
+  const [questions, setQuestions] = useState<QuestionItem[]>([]);
+  const [questionResults, setQuestionResults] = useState<QuestionResult[]>([]);
 
   const cyclesRef = React.useRef<Cycle[]>([]);
   const notebooksRef = React.useRef<Notebook[]>([]);
@@ -521,7 +536,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               supabase.from('disciplines').select('*').eq('user_id', userToUse.id),
               supabase.from('mock_exams').select('*').eq('user_id', userToUse.id),
               supabase.from('mock_exam_results').select('*').eq('user_id', userToUse.id),
-              supabase.from('study_sessions').select('*').eq('user_id', userToUse.id)
+              supabase.from('study_sessions').select('*').eq('user_id', userToUse.id),
+              supabase.from('question_sets').select('*').eq('user_id', userToUse.id),
+              supabase.from('questions').select('*').eq('user_id', userToUse.id),
+              supabase.from('question_results').select('*').eq('user_id', userToUse.id)
           ]);
 
           let validNotebookIds = new Set<string>();
@@ -556,6 +574,10 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (mockExamResultsResponse.data) setMockExamResults(mockExamResultsResponse.data.map((d: any) => ({ ...d, examId: d.exam_id, tecLink: d.tec_link, tecAverage: d.tec_average })));
           if (responses[8].data) setStudySessions(responses[8].data.map((d: any) => ({ ...d, duration: Number(d.duration) })));
           
+          if (responses[9]?.data) setQuestionSets(responses[9].data.map((d: any) => ({ ...d, createdAt: d.created_at })));
+          if (responses[10]?.data) setQuestions(responses[10].data.map((d: any) => ({ ...d, setId: d.set_id, correctAnswer: d.correct_answer, createdAt: d.created_at })));
+          if (responses[11]?.data) setQuestionResults(responses[11].data.map((d: any) => ({ ...d, questionId: d.question_id, setId: d.set_id, userAnswer: d.user_answer, isCorrect: d.is_correct })));
+
           if (frameworkResponse.data) {
               setFramework(mapFrameworkFromDB(frameworkResponse.data));
           } else {
@@ -1549,6 +1571,147 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
   };
 
+  const addQuestionSet = async (setData: Partial<QuestionSet>) => {
+      const newSet: QuestionSet = {
+          id: generateId(),
+          name: setData.name || 'Novo Caderno',
+          discipline: setData.discipline || '',
+          subject: setData.subject || '',
+          createdAt: new Date().toISOString()
+      };
+      setQuestionSets(prev => [...prev, newSet]);
+      if (!isGuest && user) {
+          try {
+              const { error } = await supabase.from('question_sets').insert({
+                  id: newSet.id,
+                  user_id: user.id,
+                  name: newSet.name,
+                  discipline: newSet.discipline,
+                  subject: newSet.subject,
+                  created_at: newSet.createdAt
+              });
+              if (error) throw error;
+          } catch (e) {
+              console.error("Failed to add question set:", e);
+              setQuestionSets(prev => prev.filter(x => x.id !== newSet.id));
+          }
+      }
+      return newSet.id;
+  };
+
+  const editQuestionSet = async (id: string, data: Partial<QuestionSet>) => {
+      const previous = [...questionSets];
+      setQuestionSets(prev => prev.map(x => x.id === id ? { ...x, ...data } : x));
+      if (!isGuest && user) {
+          try {
+              const payload: any = {};
+              if (data.name !== undefined) payload.name = data.name;
+              if (data.discipline !== undefined) payload.discipline = data.discipline;
+              if (data.subject !== undefined) payload.subject = data.subject;
+              const { error } = await supabase.from('question_sets').update(payload).eq('id', id);
+              if (error) throw error;
+          } catch (e) {
+              console.error("Failed to edit question set:", e);
+              setQuestionSets(previous);
+          }
+      }
+  };
+
+  const deleteQuestionSet = async (id: string) => {
+      const previous = [...questionSets];
+      setQuestionSets(prev => prev.filter(x => x.id !== id));
+      if (!isGuest && user) {
+          try {
+              const { error } = await supabase.from('question_sets').delete().eq('id', id);
+              if (error) throw error;
+          } catch (e) {
+              console.error("Failed to delete question set:", e);
+              setQuestionSets(previous);
+          }
+      }
+  };
+
+  const addQuestions = async (newQuestions: Partial<QuestionItem>[]) => {
+      const items: QuestionItem[] = newQuestions.map(q => ({
+          id: generateId(),
+          setId: q.setId || '',
+          text: q.text || '',
+          correctAnswer: q.correctAnswer || 'C',
+          explanation: q.explanation || '',
+          code: q.code || '',
+          discipline: q.discipline || '',
+          subject: q.subject || '',
+          createdAt: new Date().toISOString()
+      }));
+
+      setQuestions(prev => [...prev, ...items]);
+
+      if (!isGuest && user) {
+          try {
+              const payload = items.map(q => ({
+                  id: q.id,
+                  user_id: user.id,
+                  set_id: q.setId,
+                  text: q.text,
+                  correct_answer: q.correctAnswer,
+                  explanation: q.explanation,
+                  code: q.code,
+                  discipline: q.discipline,
+                  subject: q.subject,
+                  created_at: q.createdAt
+              }));
+              const { error } = await supabase.from('questions').insert(payload);
+              if (error) throw error;
+          } catch (e) {
+              console.error("Failed to add questions:", e);
+              setQuestions(prev => prev.filter(x => !items.find(i => i.id === x.id)));
+          }
+      }
+  };
+
+  const deleteQuestion = async (id: string) => {
+      const previous = [...questions];
+      setQuestions(prev => prev.filter(x => x.id !== id));
+      if (!isGuest && user) {
+          try {
+              const { error } = await supabase.from('questions').delete().eq('id', id);
+              if (error) throw error;
+          } catch (e) {
+              console.error("Failed to delete question:", e);
+              setQuestions(previous);
+          }
+      }
+  };
+
+  const addQuestionResult = async (result: Omit<QuestionResult, 'id' | 'date'>) => {
+      const newResult: QuestionResult = {
+          id: generateId(),
+          questionId: result.questionId,
+          setId: result.setId,
+          userAnswer: result.userAnswer,
+          isCorrect: result.isCorrect,
+          date: new Date().toISOString()
+      };
+      setQuestionResults(prev => [...prev, newResult]);
+      if (!isGuest && user) {
+          try {
+              const { error } = await supabase.from('question_results').insert({
+                  id: newResult.id,
+                  user_id: user.id,
+                  question_id: newResult.questionId,
+                  set_id: newResult.setId,
+                  user_answer: newResult.userAnswer,
+                  is_correct: newResult.isCorrect,
+                  date: newResult.date
+              });
+              if (error) throw error;
+          } catch (e) {
+              console.error("Failed to add question result:", e);
+              setQuestionResults(prev => prev.filter(x => x.id !== newResult.id));
+          }
+      }
+  };
+
   const exportDatabase = () => {
       const data = { notebooks, cycles, reports, protocol, framework, notes, activeCycleId };
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1588,6 +1751,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       addMockExam, editMockExam, deleteMockExam,
       addMockExamResult, editMockExamResult, deleteMockExamResult,
       studySessions, addStudySession, deleteStudySession,
+      questionSets, questions, questionResults,
+      addQuestionSet, editQuestionSet, deleteQuestionSet, addQuestions, deleteQuestion, addQuestionResult,
       enterGuestMode, exportDatabase, startSession, endSession, setPendingCreateData, setFocusedNotebookId
   };
 

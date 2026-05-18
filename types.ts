@@ -293,6 +293,41 @@ export interface StudySessionRecord {
   date: string; // ISO format
 }
 
+/** 
+ * NOVO V11: Módulo de Resolução de Questões (Estilo TEC)
+ */
+
+export type QuestionAnswer = 'C' | 'E';
+
+export interface QuestionItem {
+  id: string;
+  setId: string;
+  text: string;
+  correctAnswer: QuestionAnswer;
+  explanation?: string;
+  code?: string; // Identificador da questão (ex: #3350048)
+  discipline?: string;
+  subject?: string;
+  createdAt: string;
+}
+
+export interface QuestionSet {
+  id: string;
+  name: string;
+  discipline: string;
+  subject: string;
+  createdAt: string;
+}
+
+export interface QuestionResult {
+  id: string;
+  questionId: string;
+  setId: string;
+  userAnswer: QuestionAnswer;
+  isCorrect: boolean;
+  date: string;
+}
+
 // --- CONSTANTES DE SCORE ---
 
 export const WEIGHT_SCORE: Record<Weight, number> = {
