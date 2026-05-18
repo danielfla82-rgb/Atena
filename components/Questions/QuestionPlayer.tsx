@@ -4,12 +4,12 @@ import { QuestionAnswer } from '../../types';
 import { 
   CheckCircle2, XCircle, ChevronLeft, ChevronRight, 
   RotateCcw, MessageSquare, History, Trophy, Eye, 
-  Keyboard, Play, Settings
+  Keyboard, Play, Settings, Upload
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export function QuestionPlayer() {
-  const { questions, questionResults, addQuestionResult, questionSets } = useStore();
+  const { questions, questionResults, addQuestionResult, questionSets, resetQuestionResults } = useStore();
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userAnswer, setUserAnswer] = useState<QuestionAnswer | null>(null);
@@ -53,7 +53,58 @@ export function QuestionPlayer() {
     });
     
     setIsAnswered(true);
+    setShowExplanation(true);
   }, [isAnswered, userAnswer, currentQuestion, addQuestionResult]);
+
+  const handleExportIncorrect = useCallback(() => {
+    if (!selectedSetId) return;
+    
+    // Pegar resultados incorretos deste caderno
+    const incorrectResults = setResults.filter(r => !r.isCorrect);
+    if (incorrectResults.length === 0) {
+      alert("Nenhum erro encontrado para exportar.");
+      return;
+    }
+
+    const incorrectQuestions = setQuestions.filter(q => 
+      incorrectResults.some(r => r.questionId === q.id)
+    );
+
+    let content = `ERROS DO CADERNO: ${selectedSet?.name}\n`;
+    content += `Data da Exportação: ${new Date().toLocaleDateString('pt-BR')}\n`;
+    content += `Total de Erros: ${incorrectQuestions.length}\n`;
+    content += `==========================================\n\n`;
+
+    incorrectQuestions.forEach((q, idx) => {
+      content += `QUESTÃO #${idx + 1} (${q.code || 'Sem ID'})\n`;
+      content += `${q.text}\n`;
+      content += `------------------------------------------\n`;
+      content += `GABARITO: ${q.correctAnswer === 'C' ? 'CERTO' : 'ERRADO'}\n`;
+      if (q.explanation) {
+        content += `EXPLICAÇÃO: ${q.explanation}\n`;
+      }
+      content += `\n\n`;
+    });
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `erros_${selectedSet?.name.replace(/\s+/g, '_').toLowerCase()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [selectedSetId, setResults, setQuestions, selectedSet]);
+
+  const handleReset = useCallback(async () => {
+    if (!selectedSetId) return;
+    if (confirm("Tem certeza que deseja resetar todo o progresso deste caderno? Esta ação não pode ser desfeita.")) {
+      await resetQuestionResults(selectedSetId);
+      setCurrentIndex(0);
+      setUserAnswer(null);
+      setIsAnswered(false);
+      setShowExplanation(false);
+    }
+  }, [selectedSetId, resetQuestionResults]);
 
   const handleNext = useCallback(() => {
     if (currentIndex < setQuestions.length - 1) {
@@ -176,6 +227,23 @@ export function QuestionPlayer() {
         </div>
 
         <div className="flex items-center gap-4">
+          <div className="flex gap-2 mr-2 border-r border-slate-700 pr-4">
+            <button 
+              onClick={handleExportIncorrect}
+              title="Exportar questões que você errou em TXT"
+              className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-red-400 rounded-xl transition-all border border-slate-700"
+            >
+              <Upload size={18} />
+            </button>
+            <button 
+              onClick={handleReset}
+              title="Resetar progresso do caderno"
+              className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-orange-400 rounded-xl transition-all border border-slate-700"
+            >
+              <RotateCcw size={18} />
+            </button>
+          </div>
+
           <div className="text-right hidden sm:block">
             <div className="text-lg font-bold text-white">{stats.pct}%</div>
             <div className="text-[10px] text-slate-500 font-bold uppercase">Acurácia Total</div>

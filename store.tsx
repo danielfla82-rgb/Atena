@@ -385,6 +385,7 @@ interface StoreContextType {
   addQuestions: (questions: Partial<QuestionItem>[]) => Promise<void>;
   deleteQuestion: (id: string) => Promise<void>;
   addQuestionResult: (result: Omit<QuestionResult, 'id' | 'date'>) => Promise<void>;
+  resetQuestionResults: (setId: string) => Promise<void>;
 
   addStudySession: (duration: number) => Promise<string>;
   deleteStudySession: (id: string) => Promise<void>;
@@ -1712,6 +1713,20 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       }
   };
 
+  const resetQuestionResults = async (setId: string) => {
+      const previous = [...questionResults];
+      setQuestionResults(prev => prev.filter(x => x.setId !== setId));
+      if (!isGuest && user) {
+          try {
+              const { error } = await supabase.from('question_results').delete().eq('set_id', setId).eq('user_id', user.id);
+              if (error) throw error;
+          } catch (e) {
+              console.error("Failed to reset question results:", e);
+              setQuestionResults(previous);
+          }
+      }
+  };
+
   const exportDatabase = () => {
       const data = { notebooks, cycles, reports, protocol, framework, notes, activeCycleId };
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1752,7 +1767,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       addMockExamResult, editMockExamResult, deleteMockExamResult,
       studySessions, addStudySession, deleteStudySession,
       questionSets, questions, questionResults,
-      addQuestionSet, editQuestionSet, deleteQuestionSet, addQuestions, deleteQuestion, addQuestionResult,
+      addQuestionSet, editQuestionSet, deleteQuestionSet, addQuestions, deleteQuestion, addQuestionResult, resetQuestionResults,
       enterGuestMode, exportDatabase, startSession, endSession, setPendingCreateData, setFocusedNotebookId
   };
 
