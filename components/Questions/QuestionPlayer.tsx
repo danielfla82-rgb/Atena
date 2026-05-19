@@ -4,7 +4,7 @@ import { QuestionAnswer } from '../../types';
 import { 
   CheckCircle2, XCircle, ChevronLeft, ChevronRight, 
   RotateCcw, MessageSquare, History, Trophy, Eye, 
-  Keyboard, Play, Settings, Upload, Trash2
+  Keyboard, Play, Settings, Upload, Trash2, Shuffle, Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -140,6 +140,49 @@ export function QuestionPlayer() {
     }
   }, [currentIndex, setQuestions.length]);
 
+  const handleRandomQuestion = useCallback(() => {
+    if (setQuestions.length > 1) {
+      let randomIndex = currentIndex;
+      while (randomIndex === currentIndex) {
+        randomIndex = Math.floor(Math.random() * setQuestions.length);
+      }
+      setCurrentIndex(randomIndex);
+    }
+  }, [currentIndex, setQuestions.length]);
+
+  const handleExportAll = useCallback(() => {
+    if (!selectedSetId) return;
+    
+    if (setQuestions.length === 0) {
+      alert("Nenhuma questão encontrada para exportar.");
+      return;
+    }
+
+    let content = `CADERNO: ${selectedSet?.name}\n`;
+    content += `Data da Exportação: ${new Date().toLocaleDateString('pt-BR')}\n`;
+    content += `Total de Questões: ${setQuestions.length}\n`;
+    content += `==========================================\n\n`;
+
+    setQuestions.forEach((q, idx) => {
+      content += `QUESTÃO #${idx + 1} (${q.code || 'Sem ID'})\n`;
+      content += `${q.text}\n`;
+      content += `------------------------------------------\n`;
+      content += `GABARITO: ${q.correctAnswer === 'C' ? 'CERTO' : 'ERRADO'}\n`;
+      if (q.explanation) {
+        content += `EXPLICAÇÃO: ${q.explanation}\n`;
+      }
+      content += `\n\n`;
+    });
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `caderno_${selectedSet?.name.replace(/\\s+/g, '_').toLowerCase()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [setQuestions, selectedSetId, selectedSet]);
+
   const handlePrevious = useCallback(() => {
     if (currentIndex > 0) {
       setCurrentIndex(prev => prev - 1);
@@ -152,13 +195,13 @@ export function QuestionPlayer() {
       if (e.key === '1') handleSelectAnswer('C');
       if (e.key === '2') handleSelectAnswer('E');
       if (e.key === 'Enter') handleConfirm();
-      if (e.key === 'l' || e.key === 'L') handleNext();
+      if (e.key === 'l' || e.key === 'L') handleRandomQuestion();
       if (e.key === 'p' || e.key === 'P') setShowExplanation(prev => !prev);
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleSelectAnswer, handleConfirm, handleNext]);
+  }, [handleSelectAnswer, handleConfirm, handleRandomQuestion]);
 
   if (!selectedSetId) {
     return (
@@ -254,6 +297,13 @@ export function QuestionPlayer() {
 
         <div className="flex items-center gap-4">
           <div className="flex gap-2 mr-2 border-r border-slate-700 pr-4">
+            <button 
+              onClick={handleExportAll}
+              title="Exportar Todas as Questões em TXT"
+              className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-blue-400 rounded-xl transition-all border border-slate-700"
+            >
+              <Download size={18} />
+            </button>
             <button 
               onClick={handleExportIncorrect}
               title="Exportar questões que você errou em TXT"
@@ -357,10 +407,27 @@ export function QuestionPlayer() {
                   onClick={handlePrevious}
                   disabled={currentIndex === 0}
                   className="p-3 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-slate-300 rounded-xl transition-colors border border-slate-700"
+                  title="Questão Anterior"
                 >
                   <ChevronLeft size={24} />
                 </button>
-                <div className="flex bg-slate-800 p-1 rounded-xl border border-slate-700">
+                <button 
+                  onClick={handleNext}
+                  disabled={currentIndex === setQuestions.length - 1}
+                  className="p-3 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-slate-300 rounded-xl transition-colors border border-slate-700"
+                  title="Próxima Questão"
+                >
+                  <ChevronRight size={24} />
+                </button>
+                <button 
+                  onClick={handleRandomQuestion}
+                  disabled={setQuestions.length <= 1}
+                  className="p-3 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-slate-300 rounded-xl transition-colors border border-slate-700"
+                  title="Questão Aleatória (L)"
+                >
+                  <Shuffle size={20} />
+                </button>
+                <div className="flex bg-slate-800 p-1 rounded-xl border border-slate-700 ml-2">
                   <button 
                     onClick={() => setShowExplanation(!showExplanation)}
                     className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${showExplanation ? 'bg-slate-700 text-blue-400 shadow-inner' : 'text-slate-500 hover:text-slate-300'}`}
