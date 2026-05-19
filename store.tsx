@@ -497,7 +497,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               frameworkResponse,
               disciplinesResponse,
               mockExamsResponse,
-              mockExamResultsResponse
+              mockExamResultsResponse,
+              studySessionsResponse,
+              questionSetsResponse,
+              questionsResponse,
+              questionResultsResponse
           ] = await Promise.all([
               // 1. Notebooks (User + Global)
               (async () => {
@@ -573,11 +577,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (disciplinesResponse.data) setDisciplines(disciplinesResponse.data);
           if (mockExamsResponse.data) setMockExams(mockExamsResponse.data.map((d: any) => ({ ...d, createdAt: d.created_at })));
           if (mockExamResultsResponse.data) setMockExamResults(mockExamResultsResponse.data.map((d: any) => ({ ...d, examId: d.exam_id, tecLink: d.tec_link, tecAverage: d.tec_average })));
-          if (responses[8].data) setStudySessions(responses[8].data.map((d: any) => ({ ...d, duration: Number(d.duration) })));
+          if (studySessionsResponse.data) setStudySessions(studySessionsResponse.data.map((d: any) => ({ ...d, duration: Number(d.duration) })));
           
-          if (responses[9]?.data) setQuestionSets(responses[9].data.map((d: any) => ({ ...d, createdAt: d.created_at })));
-          if (responses[10]?.data) setQuestions(responses[10].data.map((d: any) => ({ ...d, setId: d.set_id, correctAnswer: d.correct_answer, createdAt: d.created_at })));
-          if (responses[11]?.data) setQuestionResults(responses[11].data.map((d: any) => ({ ...d, questionId: d.question_id, setId: d.set_id, userAnswer: d.user_answer, isCorrect: d.is_correct })));
+          if (questionSetsResponse?.data) setQuestionSets(questionSetsResponse.data.map((d: any) => ({ ...d, createdAt: d.created_at })));
+          if (questionsResponse?.data) setQuestions(questionsResponse.data.map((d: any) => ({ ...d, setId: d.set_id, correctAnswer: d.correct_answer, createdAt: d.created_at })));
+          if (questionResultsResponse?.data) setQuestionResults(questionResultsResponse.data.map((d: any) => ({ ...d, questionId: d.question_id, setId: d.set_id, userAnswer: d.user_answer, isCorrect: d.is_correct })));
 
           if (frameworkResponse.data) {
               setFramework(mapFrameworkFromDB(frameworkResponse.data));
