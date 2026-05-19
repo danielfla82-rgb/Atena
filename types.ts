@@ -316,6 +316,8 @@ export interface QuestionSet {
   name: string;
   discipline: string;
   subject: string;
+  obs1?: string;
+  obs2?: string;
   createdAt: string;
 }
 

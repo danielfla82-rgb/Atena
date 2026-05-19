@@ -15,6 +15,7 @@ export function QuestionPlayer() {
   const [userAnswer, setUserAnswer] = useState<QuestionAnswer | null>(null);
   const [isAnswered, setIsAnswered] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const selectedSet = questionSets.find(s => s.id === selectedSetId);
   const setQuestions = useMemo(() => questions.filter(q => q.setId === selectedSetId), [questions, selectedSetId]);
@@ -217,6 +218,14 @@ export function QuestionPlayer() {
   }, [handleSelectAnswer, handleConfirm, handleRandomQuestion, handleNext, handlePrevious]);
 
   if (!selectedSetId) {
+    const filteredSets = questionSets.filter(s => 
+      s.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      s.discipline?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      s.subject?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.obs1?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.obs2?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
     return (
       <div id="question-player-setup" className="p-8 max-w-4xl mx-auto space-y-8">
         <div className="text-center space-y-4">
@@ -224,15 +233,30 @@ export function QuestionPlayer() {
           <p className="text-slate-400">Selecione um caderno para iniciar sua bateria de questões.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {questionSets.map(set => {
-            const setQs = questions.filter(q => q.setId === set.id);
-            const results = questionResults.filter(r => r.setId === set.id);
-            const accuracy = results.length > 0 
-              ? Math.round((results.filter(r => r.isCorrect).length / results.length) * 100)
-              : 0;
+        <div className="max-w-md mx-auto">
+          <input
+            type="text"
+            placeholder="Filtrar por nome, disciplina, etc..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-slate-900/50 border border-slate-800 rounded-xl px-4 py-3 text-white placeholder:text-slate-500 focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
 
-            return (
+        {filteredSets.length === 0 ? (
+          <div className="p-12 text-center text-slate-500 bg-slate-900/30 rounded-3xl border border-slate-800">
+            <p>{questionSets.length === 0 ? 'Nenhum caderno criado.' : 'Nenhum resultado encontrado.'}</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {filteredSets.map(set => {
+              const setQs = questions.filter(q => q.setId === set.id);
+              const results = questionResults.filter(r => r.setId === set.id);
+              const accuracy = results.length > 0 
+                ? Math.round((results.filter(r => r.isCorrect).length / results.length) * 100)
+                : 0;
+
+              return (
               <button
                 key={set.id}
                 onClick={() => {
@@ -265,13 +289,8 @@ export function QuestionPlayer() {
             );
           })}
         </div>
-
-        {questionSets.length === 0 && (
-          <div className="text-center py-20 bg-slate-900/50 rounded-3xl border-2 border-dashed border-slate-800">
-            <Settings className="mx-auto text-slate-700 animate-spin-pulse" size={48} />
-            <p className="mt-4 text-slate-500">Nenhum caderno disponível. Crie um no Gerenciador.</p>
-          </div>
         )}
+
       </div>
     );
   }

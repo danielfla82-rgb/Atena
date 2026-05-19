@@ -1,15 +1,21 @@
 import React, { useState } from 'react';
 import { useStore } from '../../store';
 import { QuestionItem } from '../../types';
-import { Plus, Trash2, FileText, Upload, ChevronRight, Book } from 'lucide-react';
+import { Plus, Trash2, FileText, Upload, ChevronRight, Book, Pencil } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export function QuestionManager() {
-  const { questionSets, addQuestionSet, deleteQuestionSet, questions, addQuestions, deleteQuestion } = useStore();
+  const { questionSets, addQuestionSet, editQuestionSet, deleteQuestionSet, questions, addQuestions, deleteQuestion } = useStore();
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
   const [isAddingSet, setIsAddingSet] = useState(false);
   const [newSetName, setNewSetName] = useState('');
   const [newSetDiscipline, setNewSetDiscipline] = useState('');
+  const [newSetObs1, setNewSetObs1] = useState('');
+  const [newSetObs2, setNewSetObs2] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  const [isEditingSet, setIsEditingSet] = useState(false);
+  const [editSetData, setEditSetData] = useState({ name: '', discipline: '', obs1: '', obs2: '' });
   
   const [isAddingQuestion, setIsAddingQuestion] = useState(false);
   const [isBatchImport, setIsBatchImport] = useState(false);
@@ -30,12 +36,23 @@ export function QuestionManager() {
     if (!newSetName) return;
     const id = await addQuestionSet({
       name: newSetName,
-      discipline: newSetDiscipline
+      discipline: newSetDiscipline,
+      obs1: newSetObs1,
+      obs2: newSetObs2
     });
     setNewSetName('');
     setNewSetDiscipline('');
+    setNewSetObs1('');
+    setNewSetObs2('');
     setIsAddingSet(false);
     setSelectedSetId(id);
+  };
+
+  const handleSaveEditSet = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSetId || !editSetData.name) return;
+    await editQuestionSet(selectedSetId, editSetData);
+    setIsEditingSet(false);
   };
 
   const handleAddManualQuestion = async (e: React.FormEvent) => {
@@ -99,6 +116,14 @@ export function QuestionManager() {
     reader.readAsText(file);
   };
 
+  const filteredSets = questionSets.filter(s => 
+    s.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    s.discipline?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    s.subject?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    s.obs1?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    s.obs2?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <div id="question-manager" className="p-6 max-w-6xl mx-auto space-y-6">
       <div className="flex justify-between items-center bg-slate-900/50 p-6 rounded-2xl border border-slate-800 backdrop-blur-sm">
@@ -122,18 +147,25 @@ export function QuestionManager() {
         {/* Sidebar: Sets List */}
         <div className="lg:col-span-4 space-y-4">
           <div className="bg-slate-900/50 rounded-2xl border border-slate-800 overflow-hidden">
-            <div className="p-4 border-b border-slate-800 bg-slate-900/80">
+            <div className="p-4 border-b border-slate-800 bg-slate-900/80 space-y-4">
               <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Meus Cadernos</h3>
+              <input
+                type="text"
+                placeholder="Filtrar por nome, disciplina, etc..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-slate-800 border-none rounded-xl px-4 py-2 text-sm text-white placeholder:text-slate-500 focus:ring-2 focus:ring-blue-500"
+              />
             </div>
             
             <div className="divide-y divide-slate-800/50 max-h-[600px] overflow-y-auto">
-              {questionSets.length === 0 ? (
+              {filteredSets.length === 0 ? (
                 <div className="p-8 text-center text-slate-500">
                   <FileText className="mx-auto mb-2 opacity-20" size={40} />
-                  <p>Nenhum caderno criado.</p>
+                  <p>{questionSets.length === 0 ? 'Nenhum caderno criado.' : 'Nenhum resultado encontrado.'}</p>
                 </div>
               ) : (
-                questionSets.map(set => (
+                filteredSets.map(set => (
                   <button
                     key={set.id}
                     onClick={() => setSelectedSetId(set.id)}
@@ -160,9 +192,36 @@ export function QuestionManager() {
                   <div>
                     <div className="text-blue-400 text-xs font-bold uppercase tracking-widest mb-1">{selectedSet.discipline}</div>
                     <h3 className="text-2xl font-bold text-white">{selectedSet.name}</h3>
-                    <p className="text-slate-500 text-sm">{setQuestions.length} questões cadastradas</p>
+                    <p className="text-slate-400 text-sm">{setQuestions.length} questões cadastradas</p>
+                    
+                    {(selectedSet.obs1 || selectedSet.obs2) && (
+                      <div className="mt-4 flex flex-col gap-2">
+                        {selectedSet.obs1 && (
+                          <p className="text-sm text-slate-300 bg-slate-800/50 p-3 rounded-xl border border-slate-700/50">
+                            <span className="font-semibold block mb-1 text-xs uppercase text-slate-500">Informação 1</span>
+                            {selectedSet.obs1}
+                          </p>
+                        )}
+                        {selectedSet.obs2 && (
+                          <p className="text-sm text-slate-300 bg-slate-800/50 p-3 rounded-xl border border-slate-700/50">
+                            <span className="font-semibold block mb-1 text-xs uppercase text-slate-500">Informação 2</span>
+                            {selectedSet.obs2}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-start shrink-0">
+                    <button 
+                      onClick={() => {
+                        setEditSetData({ name: selectedSet.name, discipline: selectedSet.discipline || '', obs1: selectedSet.obs1 || '', obs2: selectedSet.obs2 || '' });
+                        setIsEditingSet(true);
+                      }}
+                      className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg transition-colors border border-slate-700"
+                      title="Editar Caderno"
+                    >
+                      <Pencil size={18} />
+                    </button>
                     <button 
                       onClick={() => setIsBatchImport(true)}
                       className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors border border-slate-700"
@@ -266,6 +325,24 @@ export function QuestionManager() {
                     className="w-full bg-slate-800 border-none rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-1.5 tracking-wider uppercase">Informação 1</label>
+                  <input
+                    value={newSetObs1}
+                    onChange={(e) => setNewSetObs1(e.target.value)}
+                    placeholder="Informação opcional"
+                    className="w-full bg-slate-800 border-none rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-1.5 tracking-wider uppercase">Informação 2</label>
+                  <input
+                    value={newSetObs2}
+                    onChange={(e) => setNewSetObs2(e.target.value)}
+                    placeholder="Informação opcional"
+                    className="w-full bg-slate-800 border-none rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
               </div>
               <div className="flex gap-4 pt-2">
                 <button 
@@ -280,6 +357,73 @@ export function QuestionManager() {
                   className="flex-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors font-bold shadow-lg shadow-blue-900/20"
                 >
                   Criar
+                </button>
+              </div>
+            </motion.form>
+          </div>
+        )}
+
+        {isEditingSet && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.form 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              onSubmit={handleSaveEditSet}
+              className="bg-slate-900 border border-slate-800 p-8 rounded-3xl w-full max-w-md shadow-2xl space-y-6"
+            >
+              <h3 className="text-xl font-bold text-white">Editar Caderno</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-1.5 tracking-wider uppercase">Nome do Caderno</label>
+                  <input
+                    autoFocus
+                    required
+                    value={editSetData.name}
+                    onChange={(e) => setEditSetData({...editSetData, name: e.target.value})}
+                    className="w-full bg-slate-800 border-none rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-1.5 tracking-wider uppercase">Disciplina</label>
+                  <input
+                    value={editSetData.discipline}
+                    onChange={(e) => setEditSetData({...editSetData, discipline: e.target.value})}
+                    className="w-full bg-slate-800 border-none rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-1.5 tracking-wider uppercase">Informação 1</label>
+                  <input
+                    value={editSetData.obs1}
+                    onChange={(e) => setEditSetData({...editSetData, obs1: e.target.value})}
+                    placeholder="Informação opcional"
+                    className="w-full bg-slate-800 border-none rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-400 mb-1.5 tracking-wider uppercase">Informação 2</label>
+                  <input
+                    value={editSetData.obs2}
+                    onChange={(e) => setEditSetData({...editSetData, obs2: e.target.value})}
+                    placeholder="Informação opcional"
+                    className="w-full bg-slate-800 border-none rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-4 pt-2">
+                <button 
+                  type="button"
+                  onClick={() => setIsEditingSet(false)}
+                  className="flex-1 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit"
+                  className="flex-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors font-bold shadow-lg shadow-blue-900/20"
+                >
+                  Salvar
                 </button>
               </div>
             </motion.form>

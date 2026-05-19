@@ -1587,6 +1587,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           name: setData.name || 'Novo Caderno',
           discipline: setData.discipline || '',
           subject: setData.subject || '',
+          obs1: setData.obs1 || '',
+          obs2: setData.obs2 || '',
           createdAt: new Date().toISOString()
       };
       setQuestionSets(prev => [...prev, newSet]);
@@ -1598,6 +1600,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   name: newSet.name,
                   discipline: newSet.discipline,
                   subject: newSet.subject,
+                  obs1: newSet.obs1,
+                  obs2: newSet.obs2,
                   created_at: newSet.createdAt
               });
               if (error) throw error;
@@ -1619,6 +1623,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               if (data.name !== undefined) payload.name = data.name;
               if (data.discipline !== undefined) payload.discipline = data.discipline;
               if (data.subject !== undefined) payload.subject = data.subject;
+              if (data.obs1 !== undefined) payload.obs1 = data.obs1;
+              if (data.obs2 !== undefined) payload.obs2 = data.obs2;
               const { error } = await supabase.from('question_sets').update(payload).eq('id', id);
               if (error) throw error;
           } catch (e) {

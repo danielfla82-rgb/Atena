@@ -36,6 +36,42 @@ export const Simulados: React.FC = () => {
   const [newDisciplineName, setNewDisciplineName] = useState('');
   const [isAddingDiscipline, setIsAddingDiscipline] = useState(false);
 
+  const topScrollRef = React.useRef<HTMLDivElement>(null);
+  const bottomScrollRef = React.useRef<HTMLDivElement>(null);
+  const [scrollWidth, setScrollWidth] = useState(0);
+
+  React.useEffect(() => {
+    const updateWidth = () => {
+      if (bottomScrollRef.current) {
+         setScrollWidth(bottomScrollRef.current.scrollWidth);
+      }
+    };
+    
+    updateWidth();
+    const t = setTimeout(updateWidth, 100);
+    window.addEventListener('resize', updateWidth);
+    return () => {
+       clearTimeout(t);
+       window.removeEventListener('resize', updateWidth);
+    };
+  }, [mockExams, disciplines]);
+
+  const handleTopScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (bottomScrollRef.current && topScrollRef.current) {
+      if (Math.abs(bottomScrollRef.current.scrollLeft - topScrollRef.current.scrollLeft) > 1) {
+         bottomScrollRef.current.scrollLeft = topScrollRef.current.scrollLeft;
+      }
+    }
+  };
+
+  const handleBottomScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    if (topScrollRef.current && bottomScrollRef.current) {
+      if (Math.abs(topScrollRef.current.scrollLeft - bottomScrollRef.current.scrollLeft) > 1) {
+         topScrollRef.current.scrollLeft = bottomScrollRef.current.scrollLeft;
+      }
+    }
+  };
+
   const handleAddExam = async () => {
     if (!newExamName.trim()) return;
     await addMockExam({ name: newExamName, board: newExamBoard });
@@ -120,8 +156,19 @@ export const Simulados: React.FC = () => {
         )}
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col">
+        <div 
+          className="overflow-x-auto overflow-y-hidden custom-scrollbar"
+          ref={topScrollRef}
+          onScroll={handleTopScroll}
+        >
+          <div style={{ width: scrollWidth > 0 ? scrollWidth : '100%', height: '1px' }}></div>
+        </div>
+        <div 
+          className="overflow-x-auto custom-scrollbar"
+          ref={bottomScrollRef}
+          onScroll={handleBottomScroll}
+        >
           <table className="w-full text-left border-collapse">
             <thead>
               <tr>
