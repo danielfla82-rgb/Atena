@@ -63,9 +63,9 @@ export function QuestionManager() {
 
     const blocks = batchText.split(/---|\n\n\n/).filter(b => b.trim());
     const parsedQuestions: Partial<QuestionItem>[] = blocks.map(block => {
-      const qMatch = block.match(/Q:\s*(.*)/i);
+      const qMatch = block.match(/Q:\s*([\s\S]*?)(?=\n[AEC]:|$)/i);
       const aMatch = block.match(/A:\s*(C|E)/i);
-      const eMatch = block.match(/E:\s*(.*)/i);
+      const eMatch = block.match(/E:\s*([\s\S]*?)(?=\n[AQC]:|$)/i);
       const cMatch = block.match(/C:\s*(#?\w+)/i);
 
       if (!qMatch) return null;

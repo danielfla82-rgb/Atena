@@ -577,6 +577,11 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (disciplinesResponse.data) setDisciplines(disciplinesResponse.data);
           if (mockExamsResponse.data) setMockExams(mockExamsResponse.data.map((d: any) => ({ ...d, createdAt: d.created_at })));
           if (mockExamResultsResponse.data) setMockExamResults(mockExamResultsResponse.data.map((d: any) => ({ ...d, examId: d.exam_id, tecLink: d.tec_link, tecAverage: d.tec_average })));
+          if (studySessionsResponse.error) console.error("SS Error:", studySessionsResponse.error);
+          if (questionSetsResponse?.error) console.error("QS Error:", questionSetsResponse.error);
+          if (questionsResponse?.error) console.error("Q Error:", questionsResponse.error);
+          if (questionResultsResponse?.error) console.error("QR Error:", questionResultsResponse.error);
+
           if (studySessionsResponse.data) setStudySessions(studySessionsResponse.data.map((d: any) => ({ ...d, duration: Number(d.duration) })));
           
           if (questionSetsResponse?.data) setQuestionSets(questionSetsResponse.data.map((d: any) => ({ ...d, createdAt: d.created_at })));
@@ -1596,8 +1601,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   created_at: newSet.createdAt
               });
               if (error) throw error;
-          } catch (e) {
+          } catch (e: any) {
               console.error("Failed to add question set:", e);
+              alert("Erro ao salvar caderno na nuvem: " + (e.message || JSON.stringify(e)));
               setQuestionSets(prev => prev.filter(x => x.id !== newSet.id));
           }
       }
@@ -1667,8 +1673,9 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               }));
               const { error } = await supabase.from('questions').insert(payload);
               if (error) throw error;
-          } catch (e) {
+          } catch (e: any) {
               console.error("Failed to add questions:", e);
+              alert("Erro ao salvar questões na nuvem: " + (e.message || JSON.stringify(e)));
               setQuestions(prev => prev.filter(x => !items.find(i => i.id === x.id)));
           }
       }
