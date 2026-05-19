@@ -142,13 +142,21 @@ export function QuestionPlayer() {
 
   const handleRandomQuestion = useCallback(() => {
     if (setQuestions.length > 1) {
-      let randomIndex = currentIndex;
-      while (randomIndex === currentIndex) {
-        randomIndex = Math.floor(Math.random() * setQuestions.length);
+      const unansweredIndices = setQuestions
+        .map((q, idx) => !setResults.some(r => r.questionId === q.id) ? idx : -1)
+        .filter(idx => idx !== -1);
+
+      let nextIndex = currentIndex;
+      if (unansweredIndices.length > 0) {
+        nextIndex = unansweredIndices[Math.floor(Math.random() * unansweredIndices.length)];
+      } else {
+        while (nextIndex === currentIndex) {
+          nextIndex = Math.floor(Math.random() * setQuestions.length);
+        }
       }
-      setCurrentIndex(randomIndex);
+      setCurrentIndex(nextIndex);
     }
-  }, [currentIndex, setQuestions.length]);
+  }, [currentIndex, setQuestions, setResults]);
 
   const handleExportAll = useCallback(() => {
     if (!selectedSetId) return;
@@ -192,16 +200,21 @@ export function QuestionPlayer() {
   // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is typing in an input/textarea
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      
       if (e.key === '1') handleSelectAnswer('C');
       if (e.key === '2') handleSelectAnswer('E');
       if (e.key === 'Enter') handleConfirm();
       if (e.key === 'l' || e.key === 'L') handleRandomQuestion();
       if (e.key === 'p' || e.key === 'P') setShowExplanation(prev => !prev);
+      if (e.key === 'ArrowRight') handleNext();
+      if (e.key === 'ArrowLeft') handlePrevious();
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleSelectAnswer, handleConfirm, handleRandomQuestion]);
+  }, [handleSelectAnswer, handleConfirm, handleRandomQuestion, handleNext, handlePrevious]);
 
   if (!selectedSetId) {
     return (
@@ -469,7 +482,7 @@ export function QuestionPlayer() {
                  ) : (
                    <div className="text-xs text-slate-600 flex items-center gap-2 animate-pulse">
                      <Keyboard size={14} />
-                     Atalhos: 1 (Certo), 2 (Errado), Enter (Marcar)
+                     Atalhos: 1 (C), 2 (E), Enter (Resp), L (Aleat), Setas (Navega)
                    </div>
                  )}
                </AnimatePresence>
