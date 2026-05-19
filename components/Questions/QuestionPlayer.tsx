@@ -4,12 +4,12 @@ import { QuestionAnswer } from '../../types';
 import { 
   CheckCircle2, XCircle, ChevronLeft, ChevronRight, 
   RotateCcw, MessageSquare, History, Trophy, Eye, 
-  Keyboard, Play, Settings, Upload
+  Keyboard, Play, Settings, Upload, Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export function QuestionPlayer() {
-  const { questions, questionResults, addQuestionResult, questionSets, resetQuestionResults } = useStore();
+  const { questions, questionResults, addQuestionResult, questionSets, resetQuestionResults, deleteQuestion } = useStore();
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userAnswer, setUserAnswer] = useState<QuestionAnswer | null>(null);
@@ -35,6 +35,21 @@ export function QuestionPlayer() {
       pct: Math.round((correct / setResults.length) * 100)
     };
   }, [setResults]);
+
+  useEffect(() => {
+    if (currentQuestion) {
+      const existingResult = setResults.find(r => r.questionId === currentQuestion.id);
+      if (existingResult) {
+        setUserAnswer(existingResult.userAnswer as QuestionAnswer);
+        setIsAnswered(true);
+        setShowExplanation(true);
+      } else {
+        setUserAnswer(null);
+        setIsAnswered(false);
+        setShowExplanation(false);
+      }
+    }
+  }, [currentQuestion, setResults]);
 
   const handleSelectAnswer = useCallback((ans: QuestionAnswer) => {
     if (isAnswered) return;
@@ -106,21 +121,28 @@ export function QuestionPlayer() {
     }
   }, [selectedSetId, resetQuestionResults]);
 
-  const handleNext = useCallback(() => {
-    if (currentIndex < setQuestions.length - 1) {
-      setCurrentIndex(prev => prev + 1);
+  const handleDeleteQuestion = useCallback(async () => {
+    if (!currentQuestion) return;
+    if (confirm("Tem certeza que deseja excluir esta questão?")) {
+      await deleteQuestion(currentQuestion.id);
+      if (currentIndex > 0 && currentIndex >= setQuestions.length - 1) {
+         setCurrentIndex(prev => prev - 1);
+      }
       setUserAnswer(null);
       setIsAnswered(false);
       setShowExplanation(false);
+    }
+  }, [currentQuestion, deleteQuestion, currentIndex, setQuestions.length]);
+
+  const handleNext = useCallback(() => {
+    if (currentIndex < setQuestions.length - 1) {
+      setCurrentIndex(prev => prev + 1);
     }
   }, [currentIndex, setQuestions.length]);
 
   const handlePrevious = useCallback(() => {
     if (currentIndex > 0) {
       setCurrentIndex(prev => prev - 1);
-      setUserAnswer(null);
-      setIsAnswered(false);
-      setShowExplanation(false);
     }
   }, [currentIndex]);
 
@@ -157,7 +179,11 @@ export function QuestionPlayer() {
             return (
               <button
                 key={set.id}
-                onClick={() => setSelectedSetId(set.id)}
+                onClick={() => {
+                  const firstUnansweredIndex = setQs.findIndex(q => !results.some(r => r.questionId === q.id));
+                  setCurrentIndex(firstUnansweredIndex !== -1 ? firstUnansweredIndex : (setQs.length > 0 ? setQs.length - 1 : 0));
+                  setSelectedSetId(set.id);
+                }}
                 className="group relative bg-slate-900 border border-slate-800 p-6 rounded-2xl hover:border-blue-500/50 hover:bg-slate-800/80 transition-all text-left"
               >
                 <div className="flex justify-between items-start mb-4">
@@ -270,6 +296,9 @@ export function QuestionPlayer() {
             </button>
             <button className="p-2 text-slate-500 hover:text-yellow-400 transition-colors" title="Favoritar">
               <Trophy size={18} />
+            </button>
+            <button onClick={handleDeleteQuestion} className="p-2 text-slate-500 hover:text-red-400 transition-colors" title="Excluir Questão">
+              <Trash2 size={18} />
             </button>
           </div>
         </div>

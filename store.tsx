@@ -1704,9 +1704,15 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           isCorrect: result.isCorrect,
           date: new Date().toISOString()
       };
-      setQuestionResults(prev => [...prev, newResult]);
+      
+      const previous = [...questionResults];
+      setQuestionResults(prev => [...prev.filter(r => r.questionId !== result.questionId), newResult]);
+      
       if (!isGuest && user) {
           try {
+              // Delete old results for this question first
+              await supabase.from('question_results').delete().eq('question_id', result.questionId).eq('user_id', user.id);
+              
               const { error } = await supabase.from('question_results').insert({
                   id: newResult.id,
                   user_id: user.id,
@@ -1719,7 +1725,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               if (error) throw error;
           } catch (e) {
               console.error("Failed to add question result:", e);
-              setQuestionResults(prev => prev.filter(x => x.id !== newResult.id));
+              setQuestionResults(previous);
           }
       }
   };
