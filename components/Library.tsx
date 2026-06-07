@@ -1175,7 +1175,7 @@ export const Library: React.FC<{ isBankMode?: boolean }> = ({ isBankMode = false
                                 {/* Primary TEC Notebook */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                     <div className="relative">
-                                        <LinkIcon className="absolute left-3 top-3 text-slate-500" size={16} />
+                                        <LinkIcon className={`absolute left-3 top-3 text-slate-500 ${formData.tecLink ? 'cursor-pointer hover:scale-110 hover:text-green-500 z-10 transition-all' : ''}`} size={16} onClick={() => formData.tecLink && window.open(formData.tecLink, '_blank')} />
                                         <input 
                                             type="url" 
                                             value={formData.tecLink || ''} 
@@ -1200,7 +1200,7 @@ export const Library: React.FC<{ isBankMode?: boolean }> = ({ isBankMode = false
                                     <div key={i} className="flex items-start gap-2">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 flex-1">
                                             <div className="relative">
-                                                <LinkIcon className="absolute left-3 top-3 text-slate-500" size={16} />
+                                                <LinkIcon className={`absolute left-3 top-3 text-slate-500 ${row.link ? 'cursor-pointer hover:scale-110 hover:text-green-500 z-10 transition-all' : ''}`} size={16} onClick={() => row.link && window.open(row.link, '_blank')} />
                                                 <input 
                                                     type="url" 
                                                     value={row.link} 
@@ -1297,7 +1297,7 @@ export const Library: React.FC<{ isBankMode?: boolean }> = ({ isBankMode = false
                                             <span className="absolute right-3 top-2.5 text-xs text-slate-500">%</span>
                                         </div>
                                         <div className="relative flex-1 min-w-[150px]">
-                                            <LinkIcon className="absolute left-3 top-3 text-slate-500" size={16} />
+                                            <LinkIcon className={`absolute left-3 top-3 text-slate-500 ${row.tecLink ? 'cursor-pointer hover:scale-110 hover:text-green-500 z-10 transition-all' : ''}`} size={16} onClick={() => row.tecLink && window.open(row.tecLink, '_blank')} />
                                             <input 
                                                 type="url" 
                                                 value={row.tecLink} 
@@ -1307,7 +1307,7 @@ export const Library: React.FC<{ isBankMode?: boolean }> = ({ isBankMode = false
                                             />
                                         </div>
                                         <div className="relative flex-1 min-w-[150px]">
-                                            <LinkIcon className="absolute left-3 top-3 text-slate-500" size={16} />
+                                            <LinkIcon className={`absolute left-3 top-3 text-slate-500 ${row.errorNotebookLink ? 'cursor-pointer hover:scale-110 hover:text-red-500 z-10 transition-all' : ''}`} size={16} onClick={() => row.errorNotebookLink && window.open(row.errorNotebookLink, '_blank')} />
                                             <input 
                                                 type="url" 
                                                 value={row.errorNotebookLink || ''} 
@@ -1317,7 +1317,7 @@ export const Library: React.FC<{ isBankMode?: boolean }> = ({ isBankMode = false
                                             />
                                         </div>
                                         <div className="relative flex-1 min-w-[150px]">
-                                            <LinkIcon className="absolute left-3 top-3 text-slate-500" size={16} />
+                                            <LinkIcon className={`absolute left-3 top-3 text-slate-500 ${row.externalLink ? 'cursor-pointer hover:scale-110 hover:text-green-500 z-10 transition-all' : ''}`} size={16} onClick={() => row.externalLink && window.open(row.externalLink, '_blank')} />
                                             <input 
                                                 type="url" 
                                                 value={row.externalLink || ''} 
@@ -1386,7 +1386,7 @@ export const Library: React.FC<{ isBankMode?: boolean }> = ({ isBankMode = false
                                 {/* Primary Error Notebook */}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                     <div className="relative">
-                                        <XCircle className="absolute left-3 top-3 text-red-500" size={16} />
+                                        <XCircle className={`absolute left-3 top-3 text-red-500 ${formData.errorNotebookLink ? 'cursor-pointer hover:scale-110 hover:brightness-125 z-10 transition-all' : 'opacity-70'}`} size={16} onClick={() => formData.errorNotebookLink && window.open(formData.errorNotebookLink, '_blank')} />
                                         <input 
                                             type="url" 
                                             value={formData.errorNotebookLink} 
@@ -1411,7 +1411,7 @@ export const Library: React.FC<{ isBankMode?: boolean }> = ({ isBankMode = false
                                     <div key={i} className="flex items-start gap-2">
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2 flex-1">
                                             <div className="relative">
-                                                <XCircle className="absolute left-3 top-3 text-red-500" size={16} />
+                                                <XCircle className={`absolute left-3 top-3 text-red-500 ${row.link ? 'cursor-pointer hover:scale-110 hover:brightness-125 z-10 transition-all' : 'opacity-70'}`} size={16} onClick={() => row.link && window.open(row.link, '_blank')} />
                                                 <input 
                                                     type="url" 
                                                     value={row.link} 
@@ -1463,7 +1463,7 @@ export const Library: React.FC<{ isBankMode?: boolean }> = ({ isBankMode = false
                                 </button>
                             )}
                         </div>
-                        <div className="relative"><Star className="absolute left-3 top-3 text-yellow-500" size={16} /><input type="url" value={formData.favoriteQuestionsLink} onChange={e => handleChange('favoriteQuestionsLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-yellow-500/20 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-yellow-500 placeholder-yellow-900/50" placeholder="Link Favoritas..." /></div>
+                        <div className="relative"><Star className={`absolute left-3 top-3 text-yellow-500 ${formData.favoriteQuestionsLink ? 'cursor-pointer hover:scale-110 hover:brightness-125 z-10 transition-all' : 'opacity-70'}`} size={16} onClick={() => formData.favoriteQuestionsLink && window.open(formData.favoriteQuestionsLink, '_blank')} /><input type="url" value={formData.favoriteQuestionsLink} onChange={e => handleChange('favoriteQuestionsLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-yellow-500/20 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-yellow-500 placeholder-yellow-900/50" placeholder="Link Favoritas..." /></div>
                     </div>
                   </div>
 
@@ -1478,18 +1478,18 @@ export const Library: React.FC<{ isBankMode?: boolean }> = ({ isBankMode = false
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
                         <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Link Externo 1</label>
-                        <div className="relative"><Book className="absolute left-3 top-3 text-slate-500" size={16} /><input type="url" value={formData.lawLink} onChange={e => handleChange('lawLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" placeholder="" /></div>
+                        <div className="relative"><Book className={`absolute left-3 top-3 text-slate-500 ${formData.lawLink ? 'cursor-pointer hover:scale-110 hover:text-green-500 z-10 transition-all' : ''}`} size={16} onClick={() => formData.lawLink && window.open(formData.lawLink, '_blank')} /><input type="url" value={formData.lawLink} onChange={e => handleChange('lawLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" placeholder="" /></div>
                         <input type="text" value={formData.lawLinkComment || ''} onChange={e => handleChange('lawLinkComment', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" placeholder="Anotação..." />
                     </div>
                     <div className="space-y-2">
                         <label className="block text-[10px] font-bold text-purple-400 mb-1 uppercase tracking-wider">Link Externo 2</label>
-                        <div className="relative"><FileCode className="absolute left-3 top-3 text-purple-500" size={16} /><input type="url" value={formData.obsidianLink} onChange={e => handleChange('obsidianLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-purple-500/20 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500 placeholder-purple-900/50" placeholder="" /></div>
+                        <div className="relative"><FileCode className={`absolute left-3 top-3 text-purple-500 ${formData.obsidianLink ? 'cursor-pointer hover:scale-110 hover:brightness-125 z-10 transition-all' : 'opacity-70'}`} size={16} onClick={() => formData.obsidianLink && window.open(formData.obsidianLink, '_blank')} /><input type="url" value={formData.obsidianLink} onChange={e => handleChange('obsidianLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-purple-500/20 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500 placeholder-purple-900/50" placeholder="" /></div>
                         <input type="text" value={formData.obsidianLinkComment || ''} onChange={e => handleChange('obsidianLinkComment', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-purple-500" placeholder="Anotação..." />
                     </div>
                     <div className="space-y-2">
                         <label className="block text-[10px] font-bold text-cyan-400 mb-1 uppercase tracking-wider">Link Externo 3</label>
                         <div className="relative">
-                            <Brain className="absolute left-3 top-3 text-cyan-500" size={16} />
+                            <Brain className={`absolute left-3 top-3 text-cyan-500 ${formData.geminiLink1 ? 'cursor-pointer hover:scale-110 hover:brightness-125 z-10 transition-all' : 'opacity-70'}`} size={16} onClick={() => formData.geminiLink1 && window.open(formData.geminiLink1, '_blank')} />
                             <input 
                                 type="url" 
                                 value={formData.geminiLink1} 

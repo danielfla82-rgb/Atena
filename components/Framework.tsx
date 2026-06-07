@@ -12,7 +12,7 @@ export const Framework: React.FC = () => {
     { 
         key: 'habit',
         label: 'RESULTADO',
-        width: 'w-1/3 md:w-1/4',
+        width: 'w-2/3 md:w-1/2',
         color: 'bg-gradient-to-r from-amber-300 to-amber-500 shadow-[0_0_30px_rgba(251,191,36,0.3)]', 
         textColor: 'text-amber-950',
         icon: <Trophy size={18} className="text-amber-950" />,
@@ -21,7 +21,7 @@ export const Framework: React.FC = () => {
     { 
         key: 'action', 
         label: 'AÇÃO', 
-        width: 'w-2/5 md:w-1/3', 
+        width: 'w-3/4 md:w-3/5', 
         color: 'bg-gradient-to-r from-orange-400 to-orange-600 shadow-[0_0_20px_rgba(249,115,22,0.2)]', 
         textColor: 'text-white',
         icon: <Zap size={18} className="text-orange-50" />,
@@ -30,7 +30,7 @@ export const Framework: React.FC = () => {
     { 
         key: 'motivation', 
         label: 'MOTIVAÇÃO', 
-        width: 'w-3/5 md:w-1/2', 
+        width: 'w-4/5 md:w-2/3', 
         color: 'bg-gradient-to-r from-orange-600 to-orange-800 shadow-lg', 
         textColor: 'text-white',
         icon: <Target size={18} className="text-orange-100" />,
@@ -39,7 +39,7 @@ export const Framework: React.FC = () => {
     { 
         key: 'dream', 
         label: 'SONHO', 
-        width: 'w-4/5 md:w-2/3', 
+        width: 'w-11/12 md:w-4/5', 
         color: 'bg-gradient-to-r from-slate-700 to-slate-900 shadow-lg', 
         textColor: 'text-white',
         icon: <Heart size={18} className="text-slate-300" />,
@@ -48,7 +48,7 @@ export const Framework: React.FC = () => {
     { 
         key: 'values', 
         label: 'VALORES', 
-        width: 'w-full md:w-5/6', 
+        width: 'w-full md:w-11/12', 
         color: 'bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 shadow-sm', 
         textColor: 'text-slate-900 dark:text-white',
         icon: <Anchor size={18} className="text-slate-500 dark:text-slate-400" />,
