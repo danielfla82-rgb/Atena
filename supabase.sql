@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS notebooks (
     name TEXT NOT NULL,
     subtitle TEXT,
     tec_link TEXT,
+    tec_link_comment TEXT,
     error_notebook_link TEXT,
     error_notebook_comment TEXT,
     favorite_questions_link TEXT,
@@ -44,6 +45,7 @@ CREATE TABLE IF NOT EXISTS notebooks (
     notes TEXT DEFAULT '',
     images JSONB DEFAULT '[]'::jsonb,
     extra_subtopics JSONB DEFAULT '[]'::jsonb,
+    extra_tec_notebooks JSONB DEFAULT '[]'::jsonb,
     extra_error_notebooks JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -119,6 +121,7 @@ ALTER TABLE frameworks ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can manage their own disciplines" ON disciplines FOR ALL USING (auth.uid() = user_id);
 -- Notebooks
 CREATE POLICY "Users can manage their own notebooks" ON notebooks FOR ALL USING (auth.uid() = user_id);
+CREATE POLICY "Users can view public notebooks" ON notebooks FOR SELECT USING (user_id IS NULL OR auth.uid() = user_id);
 -- Cycles
 CREATE POLICY "Users can manage their own cycles" ON cycles FOR ALL USING (auth.uid() = user_id);
 -- Notes

@@ -41,16 +41,24 @@ export function QuestionPlayer() {
     if (currentQuestion) {
       const existingResult = setResults.find(r => r.questionId === currentQuestion.id);
       if (existingResult) {
-        setUserAnswer(existingResult.userAnswer as QuestionAnswer);
-        setIsAnswered(true);
-        setShowExplanation(true);
+        if (!isAnswered || userAnswer !== existingResult.userAnswer) {
+          setTimeout(() => {
+            setUserAnswer(existingResult.userAnswer as QuestionAnswer);
+            setIsAnswered(true);
+            setShowExplanation(true);
+          }, 0);
+        }
       } else {
-        setUserAnswer(null);
-        setIsAnswered(false);
-        setShowExplanation(false);
+        if (isAnswered || userAnswer !== null) {
+          setTimeout(() => {
+            setUserAnswer(null);
+            setIsAnswered(false);
+            setShowExplanation(false);
+          }, 0);
+        }
       }
     }
-  }, [currentQuestion, setResults]);
+  }, [currentQuestion, setResults, isAnswered, userAnswer]);
 
   const handleSelectAnswer = useCallback((ans: QuestionAnswer) => {
     if (isAnswered) return;

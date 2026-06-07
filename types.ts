@@ -1,9 +1,8 @@
-
 /**
  * DOCUMENTAÇÃO TÉCNICA - PROJETO ATENA V10.0.0
  * ===========================================
  * Data Model e Tipagem do Sistema.
- * 
+ *
  * PRINCIPAIS ENTIDADES:
  * 1. Notebook (Caderno): A unidade atômica de estudo.
  * 2. Cycle (Ciclo): Contêiner de planejamento.
@@ -12,31 +11,31 @@
 
 /** Níveis de Peso no Edital (Eixo Y da Matriz Estratégica) */
 export enum Weight {
-  BAIXO = 'Baixo',
-  MEDIO = 'Médio',
-  ALTO = 'Alto',
+  BAIXO = "Baixo",
+  MEDIO = "Médio",
+  ALTO = "Alto",
 }
 
 /** Níveis de Relevância/Dificuldade Pessoal (Eixo X da Matriz Estratégica) */
 export enum Relevance {
-  BAIXA = 'Baixa',
-  MEDIA = 'Média',
-  ALTA = 'Alta',
+  BAIXA = "Baixa",
+  MEDIA = "Média",
+  ALTA = "Alta",
 }
 
 /** Tendência de cobrança pela banca examinadora (Ajuste fino do algoritmo) */
 export enum Trend {
-  BAIXA = 'Baixa',
-  ESTAVEL = 'Estável',
-  ALTA = 'Alta',
+  BAIXA = "Baixa",
+  ESTAVEL = "Estável",
+  ALTA = "Alta",
 }
 
 /** Status do ciclo de vida de um caderno de estudos */
 export enum NotebookStatus {
-  NOT_STARTED = 'Não Iniciado',
-  THEORY_DONE = 'Teoria Lida',
-  REVIEWING = 'Em Revisão',
-  MASTERED = 'Dominado'
+  NOT_STARTED = "Não Iniciado",
+  THEORY_DONE = "Teoria Lida",
+  REVIEWING = "Em Revisão",
+  MASTERED = "Dominado",
 }
 
 export interface Discipline {
@@ -64,16 +63,28 @@ export interface Notebook {
   subtitle: string;
   /** Link externo para caderno de questões (Tec/QConcursos) */
   tecLink?: string;
+  /** Comentário para o Caderno TEC Principal */
+  tecLinkComment?: string;
   /** Link para Caderno de Erros (Novo V6.1) */
   errorNotebookLink?: string;
   /** Comentário para o Caderno de Erros Principal (Novo V10.7) */
   errorNotebookComment?: string;
   /** Link para Questões Favoritas (Novo V6.1) */
   favoriteQuestionsLink?: string;
+  /** Cadernos de exercícios adicionais */
+  extraTecNotebooks?: { link: string; comment: string }[];
   /** Cadernos de erros adicionais (Novo V10.7) */
   extraErrorNotebooks?: { link: string; comment: string }[];
   /** Subtópicos adicionais e seus links (Novo V6.2) */
-  extraSubtopics?: { subtitle: string; tecLink: string; accuracy?: number; themeWeight?: string; externalLink?: string; comments?: string; errorNotebookLink?: string }[];
+  extraSubtopics?: {
+    subtitle: string;
+    tecLink: string;
+    accuracy?: number;
+    themeWeight?: string;
+    externalLink?: string;
+    comments?: string;
+    errorNotebookLink?: string;
+  }[];
   /** Peso numérico do subtópico principal (Novo) */
   themeWeight?: string;
   /** Link externo para texto de lei ou legislação */
@@ -113,7 +124,7 @@ export interface Notebook {
   image?: string;
   /** Lista de imagens em Base64 para rascunhos e resumos */
   images?: string[];
-  /** 
+  /**
    * ID da semana no planejamento.
    * Em V4.2+, usado principalmente para indicar se está ALOCADO em algum lugar.
    * O posicionamento real fica no Cycle.schedule.
@@ -121,8 +132,8 @@ export interface Notebook {
   weekId?: string | null;
   /** Marcador legado */
   isWeekCompleted?: boolean;
-  /** 
-   * V10.3: Indica se é um caderno do catálogo global (read-only até interagir) 
+  /**
+   * V10.3: Indica se é um caderno do catálogo global (read-only até interagir)
    */
   isGlobal?: boolean;
 }
@@ -133,7 +144,7 @@ export interface ProtocolItem {
   name: string;
   dosage: string;
   time: string; // "HH:MM"
-  type: 'Suplemento' | 'Medicamento' | 'Refeição' | 'Hábito';
+  type: "Suplemento" | "Medicamento" | "Refeição" | "Hábito";
   checked: boolean; // Reset diário
 }
 
@@ -154,7 +165,7 @@ export interface AlgorithmConfig {
 /** Estrutura do Edital Verticalizado (Parsed by IA) */
 export interface EditalTopic {
   name: string;
-  probability: 'Alta' | 'Média' | 'Baixa';
+  probability: "Alta" | "Média" | "Baixa";
   checked: boolean;
 }
 
@@ -167,7 +178,7 @@ export interface EditalDiscipline {
 export interface AthensConfig {
   targetRole: string;
   weeksUntilExam: number;
-  studyPace: 'Iniciante' | 'Básico' | 'Intermediário' | 'Avançado';
+  studyPace: "Iniciante" | "Básico" | "Intermediário" | "Avançado";
   /** Map of weekId -> pace override. E.g. { 'week-1': 'Avançado' } */
   weeklyPace?: Record<string, string>;
   startDate?: string; // YYYY-MM-DD
@@ -183,25 +194,25 @@ export interface AthensConfig {
   algorithm?: AlgorithmConfig;
   // Estado persistente da Calculadora de Ciclo
   calculatorState?: {
-      weights: Record<string, number>;
-      selectedDisciplines: string[]; // Lista de nomes das disciplinas selecionadas
-      customDisciplines: string[]; // Lista de disciplinas adicionadas manualmente
+    weights: Record<string, number>;
+    selectedDisciplines: string[]; // Lista de nomes das disciplinas selecionadas
+    customDisciplines: string[]; // Lista de disciplinas adicionadas manualmente
   };
 }
 
-/** 
+/**
  * V4.2: Slot de Agendamento
  * Permite que um mesmo caderno seja agendado múltiplas vezes na semana.
  */
 export interface ScheduleItem {
-    instanceId: string; // ID único deste "bloco" de estudo na semana
-    notebookId: string; // Referência ao caderno original
-    completed: boolean; // Status deste bloco específico
-    completedAt?: string; // Data exata da conclusão (ISO) para contagem diária correta
-    plannedDate?: string; // NOVO: Data específica planejada pelo usuário no Setup
+  instanceId: string; // ID único deste "bloco" de estudo na semana
+  notebookId: string; // Referência ao caderno original
+  completed: boolean; // Status deste bloco específico
+  completedAt?: string; // Data exata da conclusão (ISO) para contagem diária correta
+  plannedDate?: string; // NOVO: Data específica planejada pelo usuário no Setup
 }
 
-/** 
+/**
  * Entidade Ciclo (Projeto) - V4.2 CORE
  */
 export interface Cycle {
@@ -211,9 +222,9 @@ export interface Cycle {
   lastAccess: string;
   config: AthensConfig;
   /** Legacy Map: Mantido para compatibilidade, mas o Schedule tem precedência */
-  planning: Record<string, string | null>; 
+  planning: Record<string, string | null>;
   weeklyCompletion: Record<string, boolean>;
-  /** 
+  /**
    * V4.2+: Mapa de Semana -> Lista de Slots.
    * Ex: { 'week-1': [{instanceId: '...', notebookId: 'n1'}, {instanceId: '...', notebookId: 'n1'}] }
    */
@@ -230,7 +241,7 @@ export interface FrameworkData {
 }
 
 /** Tipos de Relatórios Salvos */
-export type ReportType = 'tactical' | 'edital';
+export type ReportType = "tactical" | "edital";
 
 /** Resultado da Análise de Edital via IA */
 export interface EditalAnalysisResult {
@@ -280,7 +291,7 @@ export interface MockExamResult {
 export interface Note {
   id: string;
   content: string;
-  color: 'yellow' | 'blue' | 'green' | 'pink' | 'purple' | 'slate';
+  color: "yellow" | "blue" | "green" | "pink" | "purple" | "slate";
   isBold?: boolean; // V10.6: Suporte a Negrito
   createdAt: string;
   updatedAt: string;
@@ -293,11 +304,11 @@ export interface StudySessionRecord {
   date: string; // ISO format
 }
 
-/** 
+/**
  * NOVO V11: Módulo de Resolução de Questões (Estilo TEC)
  */
 
-export type QuestionAnswer = 'C' | 'E';
+export type QuestionAnswer = "C" | "E";
 
 export interface QuestionItem {
   id: string;
@@ -349,3 +360,39 @@ export const TREND_SCORE: Record<Trend, number> = {
   [Trend.ESTAVEL]: 2,
   [Trend.ALTA]: 3,
 };
+
+export interface TheoryContent {
+  html?: string;
+  trilhaConhecimento?: {
+    id: string;
+    title: string;
+    level: string;
+    incidence: string;
+    colorCode: string;
+    theory: { subtitle: string; text: string; example: string }[];
+    pegadinhas: string[];
+    flashcards: {
+      banca: string;
+      text: string;
+      options: string[];
+      correctAnswer: string;
+      explanation: string;
+    }[];
+  }[];
+  resumoVespera?: {
+    title: string;
+    badge: string;
+    items: string[];
+  }[];
+}
+
+export interface Theory {
+  id: string;
+  userId: string;
+  discipline: string;
+  topic: string;
+  subtopic?: string;
+  content: TheoryContent;
+  createdAt: string;
+  updatedAt: string;
+}

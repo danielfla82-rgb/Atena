@@ -2,7 +2,8 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { useStore } from '../store';
 import { createAIClient } from '../utils/ai';
 import { Type } from "@google/genai";
-import { CheckSquare, Square, AlertCircle, ArrowUpCircle, CheckCircle2, ListChecks, Search, BrainCircuit, Loader2, Sparkles, ChevronDown, ChevronUp, FileWarning, ExternalLink, Plus, BookOpen, X, FileText, Calendar, Target, TrendingUp, Clock, Info, Medal, Layers, Filter, AlertTriangle, PieChart } from 'lucide-react';
+import { CheckSquare, Square, AlertCircle, ArrowUpCircle, CheckCircle2, ListChecks, Search, BrainCircuit, Loader2, Sparkles, ChevronDown, ChevronUp, FileWarning, ExternalLink, Plus, BookOpen, X, FileText, Calendar, Target, TrendingUp, Clock, Info, Medal, Layers, Filter, AlertTriangle, PieChart, Globe } from 'lucide-react';
+import { supabase } from './supabase';
 import { EditalDiscipline, EditalTopic, Weight, Relevance, Trend, ScheduleItem, Notebook } from '../types';
 import { calculateUrgencyScore } from '../utils/algorithm';
 
@@ -730,6 +731,73 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
                               Isso irá reestruturar todos os tópicos listados abaixo com base no novo texto. 
                               O status de "concluído" (checkbox) dos tópicos pode ser resetado se os nomes mudarem drasticamente.
                           </p>
+                      </div>
+
+                      <div className="flex gap-3 mb-4 flex-col md:flex-row">
+                          <button 
+                              onClick={async () => {
+                                  try {
+                                      const { data, error } = await supabase.from('notebooks').select('*').is('user_id', null).eq('discipline', 'ATENA_EDITAL_TEMPLATE');
+                                      if (error) throw error;
+                                      if (!data || data.length === 0) {
+                                          alert("Nenhum template global publicado na nuvem.");
+                                          return;
+                                      }
+                                      // Render a simple prompt to select one
+                                      const names = data.map((d: any) => d.name);
+                                      const msg = "Selecione o número do edital para importar:\n" + names.map((n: string, i: number) => `${i + 1}. ${n}`).join('\n');
+                                      const result = prompt(msg);
+                                      if (!result) return;
+                                      const index = parseInt(result) - 1;
+                                      if (index >= 0 && index < data.length) {
+                                          const selected = data[index];
+                                          const parsed = JSON.parse(selected.notes);
+                                          updateConfig({ ...config, structuredEdital: parsed.structuredEdital, editalText: parsed.text || '' });
+                                          setShowReprocessModal(false);
+                                          alert(`Template "${selected.name}" importado com sucesso!`);
+                                      }
+                                  } catch (e) {
+                                      alert("Erro ao buscar templates: " + JSON.stringify(e));
+                                  }
+                              }}
+                              className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-100 dark:bg-indigo-900/30 hover:bg-indigo-200 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-lg text-sm font-bold cursor-pointer transition-colors w-full border border-indigo-200 dark:border-indigo-800 shadow-sm"
+                          >
+                              <Globe size={16} /> Importar da Nuvem
+                          </button>
+                      
+                          <label className="flex items-center justify-center gap-2 px-4 py-2 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-900 dark:text-white rounded-lg text-sm font-bold cursor-pointer transition-colors w-full border border-slate-300 dark:border-slate-700 shadow-sm">
+                              <ExternalLink size={16} className="text-slate-500 dark:text-slate-400" /> Importar Arquivo
+                              <input 
+                                  type="file" 
+                                  accept=".json"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                      const file = e.target.files?.[0];
+                                      if (!file) return;
+                                      const reader = new FileReader();
+                                      reader.onload = (event) => {
+                                          try {
+                                              const json = JSON.parse(event.target?.result as string);
+                                              if (json && json.type === 'atena_edital_export' && json.data.structuredEdital) {
+                                                  const { structuredEdital, editalText } = json.data;
+                                                  updateConfig({ ...config, structuredEdital, editalText: editalText || '' });
+                                                  setShowReprocessModal(false);
+                                                  alert("Edital carregado com sucesso!");
+                                              } else {
+                                                  alert("Arquivo inválido. Certifique-se de usar um arquivo gerado pelo Admin.");
+                                              }
+                                          } catch(err) { alert("Erro ao ler JSON"); }
+                                      };
+                                      reader.readAsText(file);
+                                  }}
+                              />
+                          </label>
+                      </div>
+
+                      <div className="flex items-center justify-center gap-4 mb-4">
+                          <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1"></div>
+                          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">OU USE A IA</span>
+                          <div className="h-px bg-slate-200 dark:bg-slate-800 flex-1"></div>
                       </div>
 
                       <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-2 uppercase flex items-center gap-2">

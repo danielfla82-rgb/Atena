@@ -57,12 +57,8 @@ export const Login: React.FC<Props> = ({ onLoginSuccess }) => {
             <Logo size="4xl" />
         </div>
 
-        <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white mb-4 tracking-tight uppercase drop-shadow-2xl transition-colors">
-          ATENA <span className="bg-gradient-to-r from-green-600 to-cyan-600 dark:from-green-400 dark:to-cyan-400 bg-clip-text text-transparent">CONCURSOS</span>
-        </h1>
-        
         <p className="text-slate-500 dark:text-slate-400 mb-8 text-lg font-light tracking-wide transition-colors">
-          Plataforma de planejamento para concurseiros
+          Plataforma de planejamento para concursos
         </p>
 
         <div className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border border-slate-200 dark:border-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-sm transition-colors">

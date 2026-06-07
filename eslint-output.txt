@@ -1,0 +1,222 @@
+
+/app/applet/App.tsx
+   1:27   warning  'useEffect' is defined but never used  @typescript-eslint/no-unused-vars
+  15:10   warning  'Mentor' is defined but never used     @typescript-eslint/no-unused-vars
+  22:115  warning  'Users' is defined but never used      @typescript-eslint/no-unused-vars
+
+/app/applet/ThemeContext.tsx
+  39:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/app/applet/components/Dashboard.tsx
+    7:10   warning  'Weight' is defined but never used                         @typescript-eslint/no-unused-vars
+    7:18   warning  'WEIGHT_SCORE' is defined but never used                   @typescript-eslint/no-unused-vars
+   11:75   warning  'ChevronUp' is defined but never used                      @typescript-eslint/no-unused-vars
+   11:132  warning  'Key' is defined but never used                            @typescript-eslint/no-unused-vars
+   28:10   warning  'Radar' is defined but never used                          @typescript-eslint/no-unused-vars
+  144:27   warning  'index' is assigned a value but never used                 @typescript-eslint/no-unused-vars
+  145:27   warning  'dataset' is assigned a value but never used               @typescript-eslint/no-unused-vars
+  169:7    warning  'StreakIcon' is assigned a value but never used            @typescript-eslint/no-unused-vars
+  291:44   warning  'setFocusedNotebookId' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  291:89   warning  'startSession' is assigned a value but never used          @typescript-eslint/no-unused-vars
+  308:22   warning  'setQuoteIndex' is assigned a value but never used         @typescript-eslint/no-unused-vars
+  319:10   warning  'expandedMetric' is assigned a value but never used        @typescript-eslint/no-unused-vars
+  319:26   warning  'setExpandedMetric' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  320:29   warning  'setViewedMonthOffset' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  388:9    warning  'nietzscheItem' is assigned a value but never used         @typescript-eslint/no-unused-vars
+
+/app/applet/components/Diagnostics.tsx
+   7:83  warning  'CheckSquare' is defined but never used             @typescript-eslint/no-unused-vars
+  22:10  warning  'isApiDisabled' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/app/applet/components/Documentation.tsx
+  2:71  warning  'GitCommit' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/applet/components/Framework.tsx
+  4:47  warning  'BookOpen' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/applet/components/Library.tsx
+    9:98   warning  'getStatusColor' is defined but never used                                                                                                        @typescript-eslint/no-unused-vars
+   12:27   warning  'Edit2' is defined but never used                                                                                                                 @typescript-eslint/no-unused-vars
+   12:34   warning  'Square' is defined but never used                                                                                                                @typescript-eslint/no-unused-vars
+   15:61   warning  'Calendar' is defined but never used                                                                                                              @typescript-eslint/no-unused-vars
+   15:92   warning  'Info' is defined but never used                                                                                                                  @typescript-eslint/no-unused-vars
+   15:98   warning  'Scale' is defined but never used                                                                                                                 @typescript-eslint/no-unused-vars
+   15:115  warning  'Flag' is defined but never used                                                                                                                  @typescript-eslint/no-unused-vars
+   15:121  warning  'List' is defined but never used                                                                                                                  @typescript-eslint/no-unused-vars
+   16:10   warning  'Gauge' is defined but never used                                                                                                                 @typescript-eslint/no-unused-vars
+   16:58   warning  'Filter' is defined but never used                                                                                                                @typescript-eslint/no-unused-vars
+  120:9    warning  'weeksList' is assigned a value but never used                                                                                                    @typescript-eslint/no-unused-vars
+  204:72   warning  'wId' is defined but never used                                                                                                                   @typescript-eslint/no-unused-vars
+  257:6    warning  React Hook useEffect has missing dependencies: 'initialFormState' and 'setPendingCreateData'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  270:6    warning  React Hook useEffect has a missing dependency: 'setFocusedNotebookId'. Either include it or remove the dependency array                           react-hooks/exhaustive-deps
+
+/app/applet/components/LiquidityGauge.tsx
+  3:35  warning  'HelpCircle' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/applet/components/Logo.tsx
+  4:18  warning  'BookOpen' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/applet/components/MigrationTool.tsx
+   3:10  warning  'Database' is defined but never used             @typescript-eslint/no-unused-vars
+   3:31  warning  'ArrowRight' is defined but never used           @typescript-eslint/no-unused-vars
+   3:72  warning  'Loader2' is defined but never used              @typescript-eslint/no-unused-vars
+   9:10  warning  'errors' is assigned a value but never used      @typescript-eslint/no-unused-vars
+  92:41  warning  'uploadData' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/app/applet/components/News.tsx
+    4:68  warning  'Radio' is defined but never used                                                                             @typescript-eslint/no-unused-vars
+    4:75  warning  'ShieldAlert' is defined but never used                                                                       @typescript-eslint/no-unused-vars
+    4:88  warning  'CheckCircle2' is defined but never used                                                                      @typescript-eslint/no-unused-vars
+  136:20  warning  'fallbackError' is defined but never used                                                                     @typescript-eslint/no-unused-vars
+  149:6   warning  React Hook useEffect has a missing dependency: 'fetchNews'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/app/applet/components/Notes.tsx
+  4:63   warning  'List' is defined but never used          @typescript-eslint/no-unused-vars
+  4:83   warning  'CheckCircle2' is defined but never used  @typescript-eslint/no-unused-vars
+  4:97   warning  'Maximize2' is defined but never used     @typescript-eslint/no-unused-vars
+  4:108  warning  'Minimize2' is defined but never used     @typescript-eslint/no-unused-vars
+
+/app/applet/components/ProjectSelection.tsx
+  2:63  warning  'Calendar' is defined but never used  @typescript-eslint/no-unused-vars
+  2:99  warning  'Loader2' is defined but never used   @typescript-eslint/no-unused-vars
+
+/app/applet/components/Protocol.tsx
+  5:10  warning  'ProtocolItem' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/applet/components/QuadrantChart.tsx
+  5:10  warning  'getStatusColor' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/applet/components/Questions/QuestionPlayer.tsx
+   7:19  warning  'Settings' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         @typescript-eslint/no-unused-vars
+  44:9   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/app/applet/components/Questions/QuestionPlayer.tsx:44:9
+  42 |       const existingResult = setResults.find(r => r.questionId === currentQuestion.id);
+  43 |       if (existingResult) {
+> 44 |         setUserAnswer(existingResult.userAnswer as QuestionAnswer);
+     |         ^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  45 |         setIsAnswered(true);
+  46 |         setShowExplanation(true);
+  47 |       } else {  react-hooks/set-state-in-effect
+
+/app/applet/components/ReviewList.tsx
+  5:10  warning  'DEFAULT_ALGO_CONFIG' is defined but never used  @typescript-eslint/no-unused-vars
+  8:91  warning  'History' is defined but never used              @typescript-eslint/no-unused-vars
+
+/app/applet/components/Setup.tsx
+     5:242  warning  'Frown' is defined but never used                              @typescript-eslint/no-unused-vars
+     5:249  warning  'Smile' is defined but never used                              @typescript-eslint/no-unused-vars
+     5:292  warning  'Maximize2' is defined but never used                          @typescript-eslint/no-unused-vars
+     5:324  warning  'Layers' is defined but never used                             @typescript-eslint/no-unused-vars
+     5:346  warning  'Loader2' is defined but never used                            @typescript-eslint/no-unused-vars
+     5:355  warning  'X' is defined but never used                                  @typescript-eslint/no-unused-vars
+     5:358  warning  'FileText' is defined but never used                           @typescript-eslint/no-unused-vars
+     5:368  warning  'Key' is defined but never used                                @typescript-eslint/no-unused-vars
+     5:387  warning  'HelpCircle' is defined but never used                         @typescript-eslint/no-unused-vars
+     5:407  warning  'TrendingUp' is defined but never used                         @typescript-eslint/no-unused-vars
+     5:440  warning  'AlertTriangle' is defined but never used                      @typescript-eslint/no-unused-vars
+     5:455  warning  'User' is defined but never used                               @typescript-eslint/no-unused-vars
+     7:69   warning  'Cell' is defined but never used                               @typescript-eslint/no-unused-vars
+     8:10   warning  'DragDropContext' is defined but never used                    @typescript-eslint/no-unused-vars
+     8:27   warning  'Droppable' is defined but never used                          @typescript-eslint/no-unused-vars
+     8:38   warning  'Draggable' is defined but never used                          @typescript-eslint/no-unused-vars
+     8:49   warning  'DropResult' is defined but never used                         @typescript-eslint/no-unused-vars
+    17:7    warning  'ALGO_TOOLTIPS' is assigned a value but never used             @typescript-eslint/no-unused-vars
+    36:5    warning  'allocationCount' is defined but never used                    @typescript-eslint/no-unused-vars
+    41:5    warning  'currentWeekIndex' is defined but never used                   @typescript-eslint/no-unused-vars
+    78:11   warning  'accuracy' is assigned a value but never used                  @typescript-eslint/no-unused-vars
+    79:11   warning  'criticalThreshold' is assigned a value but never used         @typescript-eslint/no-unused-vars
+    80:11   warning  'isMastered' is assigned a value but never used                @typescript-eslint/no-unused-vars
+   442:67   warning  'isUnder' is assigned a value but never used                   @typescript-eslint/no-unused-vars
+   570:21   warning  'setShowStats' is assigned a value but never used              @typescript-eslint/no-unused-vars
+   588:10   warning  'isSaving' is assigned a value but never used                  @typescript-eslint/no-unused-vars
+   597:9    warning  'handleSaveConfig' is assigned a value but never used          @typescript-eslint/no-unused-vars
+   618:9    warning  'handleUpdateAlgoInterval' is assigned a value but never used  @typescript-eslint/no-unused-vars
+   840:9    warning  'toggleAlgoWeek' is assigned a value but never used            @typescript-eslint/no-unused-vars
+   845:9    warning  'currentIntervals' is assigned a value but never used          @typescript-eslint/no-unused-vars
+  1236:31   warning  'isAlgoListExpanded' is assigned a value but never used        @typescript-eslint/no-unused-vars
+  1374:288  warning  'val' is defined but never used                                @typescript-eslint/no-unused-vars
+  1386:288  warning  'val' is defined but never used                                @typescript-eslint/no-unused-vars
+
+/app/applet/components/Simulados.tsx
+   4:10  warning  'MockExam' is defined but never used        @typescript-eslint/no-unused-vars
+   4:20  warning  'MockExamResult' is defined but never used  @typescript-eslint/no-unused-vars
+  59:28  warning  'e' is defined but never used               @typescript-eslint/no-unused-vars
+  67:31  warning  'e' is defined but never used               @typescript-eslint/no-unused-vars
+
+/app/applet/components/StudyFeed.tsx
+    5:79   warning  'CheckCircle2' is defined but never used                                                                              @typescript-eslint/no-unused-vars
+    5:93   warning  'XCircle' is defined but never used                                                                                   @typescript-eslint/no-unused-vars
+    5:114  warning  'Play' is defined but never used                                                                                      @typescript-eslint/no-unused-vars
+    5:120  warning  'FileSearch' is defined but never used                                                                                @typescript-eslint/no-unused-vars
+    5:167  warning  'StopCircle' is defined but never used                                                                                @typescript-eslint/no-unused-vars
+    5:179  warning  'Zap' is defined but never used                                                                                       @typescript-eslint/no-unused-vars
+    5:184  warning  'HardDrive' is defined but never used                                                                                 @typescript-eslint/no-unused-vars
+    5:195  warning  'Cpu' is defined but never used                                                                                       @typescript-eslint/no-unused-vars
+    5:200  warning  'Wifi' is defined but never used                                                                                      @typescript-eslint/no-unused-vars
+    5:206  warning  'Filter' is defined but never used                                                                                    @typescript-eslint/no-unused-vars
+    5:214  warning  'Book' is defined but never used                                                                                      @typescript-eslint/no-unused-vars
+    5:231  warning  'History' is defined but never used                                                                                   @typescript-eslint/no-unused-vars
+    6:10   warning  'Weight' is defined but never used                                                                                    @typescript-eslint/no-unused-vars
+    7:10   warning  'get' is defined but never used                                                                                       @typescript-eslint/no-unused-vars
+    7:15   warning  'set' is defined but never used                                                                                       @typescript-eslint/no-unused-vars
+  181:18   warning  'e' is defined but never used                                                                                         @typescript-eslint/no-unused-vars
+  373:8    warning  React Hook useEffect has a missing dependency: 'generateFeedPosts'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+/app/applet/components/Tips.tsx
+  4:44  warning  'Zap' is defined but never used        @typescript-eslint/no-unused-vars
+  4:70  warning  'Trophy' is defined but never used     @typescript-eslint/no-unused-vars
+  4:93  warning  'RefreshCw' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/applet/components/VerticalizedEdital.tsx
+    4:10   warning  'Type' is defined but never used                                                                                                @typescript-eslint/no-unused-vars
+    5:93   warning  'BrainCircuit' is defined but never used                                                                                        @typescript-eslint/no-unused-vars
+    5:150  warning  'FileWarning' is defined but never used                                                                                         @typescript-eslint/no-unused-vars
+    5:216  warning  'Target' is defined but never used                                                                                              @typescript-eslint/no-unused-vars
+    5:243  warning  'Info' is defined but never used                                                                                                @typescript-eslint/no-unused-vars
+    5:256  warning  'Layers' is defined but never used                                                                                              @typescript-eslint/no-unused-vars
+    5:264  warning  'Filter' is defined but never used                                                                                              @typescript-eslint/no-unused-vars
+    6:28   warning  'EditalTopic' is defined but never used                                                                                         @typescript-eslint/no-unused-vars
+    6:41   warning  'Weight' is defined but never used                                                                                              @typescript-eslint/no-unused-vars
+    6:49   warning  'Relevance' is defined but never used                                                                                           @typescript-eslint/no-unused-vars
+    6:60   warning  'Trend' is defined but never used                                                                                               @typescript-eslint/no-unused-vars
+  123:6    warning  React Hook useEffect has missing dependencies: 'config' and 'updateConfig'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+
+/app/applet/components/WeeklyProgress.tsx
+  3:10  warning  'Calendar' is defined but never used     @typescript-eslint/no-unused-vars
+  3:34  warning  'TrendingUp' is defined but never used   @typescript-eslint/no-unused-vars
+  3:46  warning  'AlertCircle' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/applet/index.tsx
+  25:12  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/applet/store.tsx
+     2:65  warning  'useCallback' is defined but never used                                                                                         @typescript-eslint/no-unused-vars
+   172:42  warning  'validNotebookIds' is defined but never used                                                                                    @typescript-eslint/no-unused-vars
+   420:21  warning  'setIsSyncing' is assigned a value but never used                                                                               @typescript-eslint/no-unused-vars
+   740:6   warning  React Hook useEffect has a missing dependency: 'fetchCloudData'. Either include it or remove the dependency array               react-hooks/exhaustive-deps
+   902:11  warning  'id' is assigned a value but never used                                                                                         @typescript-eslint/no-unused-vars
+   902:15  warning  'isGlobal' is assigned a value but never used                                                                                   @typescript-eslint/no-unused-vars
+   903:11  warning  'nextReview' is assigned a value but never used                                                                                 @typescript-eslint/no-unused-vars
+   903:23  warning  'accuracyHistory' is assigned a value but never used                                                                            @typescript-eslint/no-unused-vars
+   903:40  warning  'lastPractice' is assigned a value but never used                                                                               @typescript-eslint/no-unused-vars
+   903:54  warning  'isWeekCompleted' is assigned a value but never used                                                                            @typescript-eslint/no-unused-vars
+  1003:13  warning  'nb' is assigned a value but never used                                                                                         @typescript-eslint/no-unused-vars
+  1833:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+  1841:14  warning  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/app/applet/utils/ai.ts
+  24:12  warning  'e' is defined but never used       @typescript-eslint/no-unused-vars
+  70:23  warning  'params' is defined but never used  @typescript-eslint/no-unused-vars
+
+/app/applet/utils/algorithm.ts
+  211:11  warning  'tests' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+✖ 150 problems (1 error, 149 warnings)
+

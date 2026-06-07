@@ -26,9 +26,9 @@ const DEFAULT_FRAMEWORK: FrameworkData = {
 
 // --- SECURITY & INTEGRITY: PURE DATA MAPPERS ---
 
-const mapNotebookFromDB = (db: any): Notebook => {
+const mapNotebookFromDB = (db: any, currentUserId?: string): Notebook => {
     // CORREÇÃO: Não forçar limpeza de dados na leitura.
-    const isGlobal = db.user_id === null;
+    const isGlobal = currentUserId ? db.user_id !== currentUserId : db.user_id === null;
 
     return {
         id: db.id,
@@ -37,6 +37,7 @@ const mapNotebookFromDB = (db: any): Notebook => {
         name: db.name,
         subtitle: db.subtitle || '',
         tecLink: db.tec_link || db.tecLink || '',
+        tecLinkComment: db.tec_link_comment || db.tecLinkComment || '',
         errorNotebookLink: db.error_notebook_link || db.errorNotebookLink || '',
         errorNotebookComment: db.error_notebook_comment || db.errorNotebookComment || '',
         favoriteQuestionsLink: db.favorite_questions_link || db.favoriteQuestionsLink || '',
@@ -48,6 +49,7 @@ const mapNotebookFromDB = (db: any): Notebook => {
         geminiLink1Comment: db.gemini_link_1_comment || db.geminiLink1Comment || '',
         geminiLink2: db.gemini_link_2 || db.geminiLink2 || '',
         extraSubtopics: db.extra_subtopics || db.extraSubtopics || [],
+        extraTecNotebooks: db.extra_tec_notebooks || db.extraTecNotebooks || [],
         extraErrorNotebooks: db.extra_error_notebooks || db.extraErrorNotebooks || [],
         targetAccuracy: Number(db.target_accuracy || db.targetAccuracy || 90),
         accuracy: Number(db.accuracy || 0),
@@ -78,6 +80,7 @@ const mapNotebookToDB = (nb: Partial<Notebook>) => {
         name: nb.name,
         subtitle: nb.subtitle || null,
         tec_link: nb.tecLink || null,
+        tec_link_comment: nb.tecLinkComment || null,
         error_notebook_link: nb.errorNotebookLink || null,
         error_notebook_comment: nb.errorNotebookComment || null,
         favorite_questions_link: nb.favoriteQuestionsLink || null,
@@ -89,6 +92,7 @@ const mapNotebookToDB = (nb: Partial<Notebook>) => {
         gemini_link_1_comment: nb.geminiLink1Comment || null,
         gemini_link_2: nb.geminiLink2 || null,
         extra_subtopics: nb.extraSubtopics || null,
+        extra_tec_notebooks: nb.extraTecNotebooks || null,
         extra_error_notebooks: nb.extraErrorNotebooks || null,
         target_accuracy: nb.targetAccuracy,
         accuracy: nb.accuracy,
@@ -318,6 +322,7 @@ interface StoreContextType {
   notebooks: Notebook[];
   disciplines: Discipline[];
   cycles: Cycle[];
+  theories: Theory[];
   activeCycleId: string | null;
   config: AthensConfig;
   reports: SavedReport[];
@@ -390,6 +395,10 @@ interface StoreContextType {
   addStudySession: (duration: number) => Promise<string>;
   deleteStudySession: (id: string) => Promise<void>;
 
+  addTheory: (theory: Partial<Theory>) => Promise<string>;
+  editTheory: (id: string, data: Partial<Theory>) => Promise<void>;
+  deleteTheory: (id: string) => Promise<void>;
+
   enterGuestMode: () => void;
   exportDatabase: () => void;
   startSession: (notebook: Notebook) => void;
@@ -403,8 +412,8 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 // V10 Optimized Columns + FIX: Images removed to prevent network bloat (Lazy fetching)
 const OPTIMIZED_COLUMNS = `
   id, user_id, edital, discipline, name, subtitle, 
-  tec_link, error_notebook_link, error_notebook_comment, favorite_questions_link, law_link, law_link_comment, obsidian_link, obsidian_link_comment, gemini_link_1, gemini_link_1_comment, gemini_link_2,
-  extra_subtopics, extra_error_notebooks,
+  tec_link, tec_link_comment, error_notebook_link, error_notebook_comment, favorite_questions_link, law_link, law_link_comment, obsidian_link, obsidian_link_comment, gemini_link_1, gemini_link_1_comment, gemini_link_2,
+  extra_subtopics, extra_tec_notebooks, extra_error_notebooks,
   accuracy, target_accuracy, weight, relevance, trend, custom_score, status, 
   week_id, is_week_completed, last_practice, next_review, accuracy_history, notes
 `;
@@ -424,6 +433,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [protocol, setProtocol] = useState<ProtocolItem[]>([]);
   const [framework, setFramework] = useState<FrameworkData>(DEFAULT_FRAMEWORK);
   const [notes, setNotes] = useState<Note[]>([]);
+  const [theories, setTheories] = useState<Theory[]>([]);
   const [mockExams, setMockExams] = useState<MockExam[]>([]);
   const [mockExamResults, setMockExamResults] = useState<MockExamResult[]>([]);
   const [studySessions, setStudySessions] = useState<StudySessionRecord[]>([]);
@@ -455,19 +465,44 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   // --- MERGE LOGIC: USER > GLOBAL ---
-  const mergeGlobalAndUserNotebooks = (allRows: any[], userId: string) => {
-      const mapped = allRows.map(mapNotebookFromDB);
+  const mergeGlobalAndUserNotebooks = (allRows: any[], userObj: any) => {
+      const mapped = allRows.map(row => mapNotebookFromDB(row, userObj.id));
       
       const userNotebooks = mapped.filter(n => !n.isGlobal);
-      const globalNotebooks = mapped.filter(n => n.isGlobal);
+      const allGlobalNotebooks = mapped.filter(n => n.isGlobal);
 
       // Create a set of keys (Discipline + Name) that the user already owns
       const userKeys = new Set(userNotebooks.map(n => 
           `${n.discipline.trim().toLowerCase()}|${n.name.trim().toLowerCase()}`
       ));
 
+      // De-duplicate global notebooks (in case multiple users created the same topic)
+      const uniqueGlobalsMap = new Map<string, Notebook>();
+      for (const g of allGlobalNotebooks) {
+          const key = `${g.discipline.trim().toLowerCase()}|${g.name.trim().toLowerCase()}`;
+          if (!uniqueGlobalsMap.has(key)) {
+              // Create a clean template
+              uniqueGlobalsMap.set(key, { 
+                  ...g, 
+                  accuracy: 0, 
+                  status: NotebookStatus.NOT_STARTED, 
+                  lastPractice: null, 
+                  accuracyHistory: [],
+                  notes: '',
+                  images: [],
+                  image: undefined,
+                  nextReview: null
+              });
+          }
+      }
+      const uniqueGlobals = Array.from(uniqueGlobalsMap.values());
+
       // Only show global notebooks that the user DOES NOT have yet
-      const visibleGlobals = globalNotebooks.filter(g => 
+      // BUT if the user is an Admin, they NEED to see the globals in the "Banco de Assuntos (Admin)" screen!
+      const email = userObj.email || '';
+      const isAdmin = email === 'danielfla82@gmail.com' || email === 'dcsrj@hotmail.com';
+      
+      const visibleGlobals = isAdmin ? uniqueGlobals : uniqueGlobals.filter(g => 
           !userKeys.has(`${g.discipline.trim().toLowerCase()}|${g.name.trim().toLowerCase()}`)
       );
 
@@ -501,7 +536,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               studySessionsResponse,
               questionSetsResponse,
               questionsResponse,
-              questionResultsResponse
+              questionResultsResponse,
+              theoriesResponse
           ] = await Promise.all([
               // 1. Notebooks (User + Global)
               (async () => {
@@ -542,16 +578,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               supabase.from('mock_exams').select('*').eq('user_id', userToUse.id),
               supabase.from('mock_exam_results').select('*').eq('user_id', userToUse.id),
               supabase.from('study_sessions').select('*').eq('user_id', userToUse.id),
-              supabase.from('question_sets').select('*').eq('user_id', userToUse.id),
-              supabase.from('questions').select('*').eq('user_id', userToUse.id),
-              supabase.from('question_results').select('*').eq('user_id', userToUse.id)
+              supabase.from('question_sets').select('*').or(`user_id.eq.${userToUse.id},user_id.is.null`),
+              supabase.from('questions').select('*').or(`user_id.eq.${userToUse.id},user_id.is.null`),
+              supabase.from('question_results').select('*').eq('user_id', userToUse.id),
+              supabase.from('theories').select('*').or(`user_id.eq.${userToUse.id},user_id.is.null`),
           ]);
 
           let validNotebookIds = new Set<string>();
 
           // Process Notebooks with Merge Logic
           if (notebooksResponse.data) {
-              const merged = mergeGlobalAndUserNotebooks(notebooksResponse.data, userToUse.id);
+              const merged = mergeGlobalAndUserNotebooks(notebooksResponse.data, userToUse);
               setNotebooks(merged);
               // Global IDs are valid for validNotebookIds so they appear in cycle schedule
               validNotebookIds = new Set(merged.map((n: Notebook) => n.id));
@@ -587,6 +624,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           if (questionSetsResponse?.data) setQuestionSets(questionSetsResponse.data.map((d: any) => ({ ...d, createdAt: d.created_at })));
           if (questionsResponse?.data) setQuestions(questionsResponse.data.map((d: any) => ({ ...d, setId: d.set_id, correctAnswer: d.correct_answer, createdAt: d.created_at })));
           if (questionResultsResponse?.data) setQuestionResults(questionResultsResponse.data.map((d: any) => ({ ...d, questionId: d.question_id, setId: d.set_id, userAnswer: d.user_answer, isCorrect: d.is_correct })));
+
+          if (theoriesResponse?.data) setTheories(theoriesResponse.data.map((d: any) => ({ ...d, userId: d.user_id, createdAt: d.created_at, updatedAt: d.updated_at })));
 
           if (frameworkResponse.data) {
               setFramework(mapFrameworkFromDB(frameworkResponse.data));
@@ -796,7 +835,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const addNotebook = async (notebook: Partial<Notebook>) => {
+      const email = user?.email || '';
+      const isAdmin = email === 'danielfla82@gmail.com' || email === 'dcsrj@hotmail.com';
+      
       const newId = generateId();
+      const createAsGlobalOnly = isAdmin && notebook.isGlobal === true;
+
       const newNb: Notebook = {
           id: newId, 
           edital: notebook.edital || '',
@@ -806,7 +850,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           accuracy: notebook.accuracy || 0, targetAccuracy: notebook.targetAccuracy || 90, weight: notebook.weight || Weight.MEDIO,
           relevance: notebook.relevance || Relevance.MEDIA, trend: notebook.trend || Trend.ESTAVEL, status: NotebookStatus.NOT_STARTED,
           images: notebook.images || [], notes: notebook.notes || '', ...notebook,
-          isGlobal: false // Default false for the USER'S copy
+          isGlobal: createAsGlobalOnly ? true : false
       };
       
       const previousNotebooks = [...notebooks];
@@ -814,43 +858,48 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       
       if (!isGuest && user) {
           try {
-              // 1. Save PRIVATE copy
-              const payload = { 
-                  ...mapNotebookToDB(newNb), 
-                  user_id: user.id 
-              };
-              
-              const { error } = await supabase.from('notebooks').insert(payload);
-              if (error) { throw error; }
-
-              // 2. If 'isGlobal' was requested, create a SEPARATE public copy
-              if (notebook.isGlobal) {
+              if (createAsGlobalOnly) {
+                  // ONLY create the public version, keep admin's private planner clean
                   const publicPayload = {
                       ...mapNotebookToDB(newNb),
-                      id: generateId(), // NEW ID for the public version
-                      user_id: null, // PUBLIC
-                      
-                      // SANITIZATION (Content & Progress)
-                      notes: '', 
-                      images: [], 
-                      accuracy: 0,
-                      status: NotebookStatus.NOT_STARTED,
-                      accuracy_history: [],
-                      week_id: null,
-                      
-                      // SANITIZATION (Links) - CRITICAL UPDATE
-                      tec_link: null,
-                      error_notebook_link: null,
-                      favorite_questions_link: null,
-                      law_link: null,
-                      obsidian_link: null,
-                      gemini_link_1: null,
-                      gemini_link_2: null
+                      id: newId,
+                      user_id: null,
+                      notes: '', images: [], accuracy: 0, status: NotebookStatus.NOT_STARTED,
+                      accuracy_history: [], week_id: null,
+                      tec_link: null, tec_link_comment: null, extra_tec_notebooks: [],
+                      error_notebook_link: null, error_notebook_comment: null, extra_error_notebooks: [],
+                      favorite_questions_link: null, law_link: null, obsidian_link: null,
+                      gemini_link_1: null, gemini_link_2: null
                   };
-                  const { error: publicError } = await supabase.from('notebooks').insert(publicPayload);
-                  if (publicError) throw publicError;
-              }
+                  const { error } = await supabase.from('notebooks').insert(publicPayload);
+                  if (error) throw error;
+              } else {
+                  // Standard behavior: create PRIVATE copy
+                  const payload = { 
+                      ...mapNotebookToDB(newNb), 
+                      user_id: user.id 
+                  };
+                  
+                  const { error } = await supabase.from('notebooks').insert(payload);
+                  if (error) { throw error; }
 
+                  // If standard user requested 'isGlobal', or admin does it through other means, also create public
+                  if (notebook.isGlobal) {
+                      const publicPayload = {
+                          ...mapNotebookToDB(newNb),
+                          id: generateId(),
+                          user_id: null,
+                          notes: '', images: [], accuracy: 0, status: NotebookStatus.NOT_STARTED,
+                          accuracy_history: [], week_id: null,
+                          tec_link: null, tec_link_comment: null, extra_tec_notebooks: [],
+                          error_notebook_link: null, error_notebook_comment: null, extra_error_notebooks: [],
+                          favorite_questions_link: null, law_link: null, obsidian_link: null,
+                          gemini_link_1: null, gemini_link_2: null
+                      };
+                      const { error: publicError } = await supabase.from('notebooks').insert(publicPayload);
+                      if (publicError) throw publicError;
+                  }
+              }
           } catch (e: any) { 
               setNotebooks(previousNotebooks); 
               const msg = e.message || JSON.stringify(e);
@@ -896,14 +945,33 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       
       if (!currentNb) return; // Should not happen
 
-      if (currentNb.isGlobal && data.isGlobal === undefined) {
-          targetId = await ensureNotebookIsPrivate(id);
+      const email = user?.email || '';
+      const isAdmin = email === 'danielfla82@gmail.com' || email === 'dcsrj@hotmail.com';
+
+      // 1. Determine Target (Fork or Edit Direct)
+      // IF Notebook is Global, AND we are NOT Admin (or we are admin explicitly un-globalizing it), we MUST FORK.
+      // Wait, if it's Global, standard users NEVER edit it directly. They always fork.
+      let isUpdatingGlobalTemplate = false;
+
+      if (currentNb.isGlobal) {
+          if (isAdmin && data.isGlobal === true) {
+              // Admin updating a template directly
+              isUpdatingGlobalTemplate = true;
+          } else {
+              // Standard user interaction (e.g. practicing, adding notes) with a global template
+              // OR Admin explicitly marking isGlobal: false (rare but possible). 
+              targetId = await ensureNotebookIsPrivate(id);
+          }
+      } else {
+          // If the admin is taking a PRIVATE notebook and marking it isGlobal: true, we need to PUBLISH it.
+          // That logic was handled below. Let's keep it.
       }
 
       // Prepare Data for Local Update (optimistic)
       const dataToUpdate = { ...data };
-      if (data.isGlobal === true) {
-          // If trying to publish, we keep the LOCAL version as private
+      
+      if (!isUpdatingGlobalTemplate && data.isGlobal === true) {
+          // If a user (admin) is trying to publish their private notebook, we keep the LOCAL version as private
           dataToUpdate.isGlobal = false; 
       }
 
@@ -912,53 +980,57 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       
       if (!isGuest && user) {
           try {
-              // 4. Create Merged Object for DB Payload - CORREÇÃO CRÍTICA PARA PERSISTÊNCIA
-              // O mapNotebookToDB converte undefined para NULL. Devemos passar o objeto MERGED (Completo)
-              // para garantir que dados não editados não sejam sobrescritos por NULL.
-              // FIX: Use the latest currentNb from ref again just in case
+              // 4. Create Merged Object for DB Payload
               const latestNb = notebooksRef.current.find(n => n.id === targetId) || currentNb;
               const mergedForDB = { ...latestNb, ...dataToUpdate };
 
-              // 1. Update the PRIVATE version
-              const payload = mapNotebookToDB(mergedForDB);
-              delete (payload as any).id;
-              // @ts-expect-error - user_id is not in the type definition
-              payload.user_id = user.id; // Ensure it stays/becomes private
+              const payload: any = mapNotebookToDB(mergedForDB);
+              delete payload.id;
 
-              const { error } = await supabase.from('notebooks').update(payload).eq('id', targetId);
-              if (error) throw error;
+              if (isUpdatingGlobalTemplate) {
+                  // Direct edit to the global template by admin
+                  payload.user_id = null;
+                  const { error } = await supabase.from('notebooks').update(payload).eq('id', targetId);
+                  if (error) throw error;
+              } else {
+                  // Standard Private Update
+                  payload.user_id = user.id; 
+                  const { error } = await supabase.from('notebooks').update(payload).eq('id', targetId);
+                  if (error) throw error;
 
-              // 2. If Publish Requested (isGlobal = true), create/update PUBLIC copy
-              if (data.isGlobal === true) {
-                  const combinedData = { ...currentNb, ...data };
-                  
-                  // Basic logic: Insert a new public record based on this one
-                  const publicPayload = {
-                      ...mapNotebookToDB(combinedData), // Use combined data
-                      id: generateId(),
-                      user_id: null,
+                  // If Publish Requested (isGlobal = true on a private notebook)
+                  if (data.isGlobal === true && isAdmin) {
+                      const combinedData = { ...currentNb, ...data };
                       
-                      // SANITIZATION (Content & Progress)
-                      notes: '', 
-                      images: [], 
-                      accuracy: 0,
-                      status: NotebookStatus.NOT_STARTED,
-                      accuracy_history: [],
-                      week_id: null,
+                      const publicPayload = {
+                          ...mapNotebookToDB(combinedData),
+                          id: generateId(),
+                          user_id: null,
+                          
+                          // SANITIZATION
+                          notes: '', 
+                          images: [], 
+                          accuracy: 0,
+                          status: NotebookStatus.NOT_STARTED,
+                          accuracy_history: [],
+                          week_id: null,
 
-                      // SANITIZATION (Links) - CRITICAL UPDATE
-                      tec_link: null,
-                      error_notebook_link: null,
-                      favorite_questions_link: null,
-                      law_link: null,
-                      obsidian_link: null,
-                      gemini_link_1: null,
-                      gemini_link_2: null
-                  };
-                  const { error: publicError } = await supabase.from('notebooks').insert(publicPayload);
-                  if (publicError) throw publicError;
+                          tec_link: null,
+                          tec_link_comment: null,
+                          extra_tec_notebooks: [],
+                          error_notebook_link: null,
+                          error_notebook_comment: null,
+                          extra_error_notebooks: [],
+                          favorite_questions_link: null,
+                          law_link: null,
+                          obsidian_link: null,
+                          gemini_link_1: null,
+                          gemini_link_2: null
+                      };
+                      const { error: publicError } = await supabase.from('notebooks').insert(publicPayload);
+                      if (publicError) throw publicError;
+                  }
               }
-
           } catch (e: any) { 
               console.error(e);
               throw new Error(e.message);
@@ -1313,6 +1385,54 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               console.error("Failed to delete protocol item:", e);
               setProtocol(previousProtocol); 
           } 
+      }
+  };
+
+  const addTheory = async (theory: Partial<Theory>) => {
+      const newTheory = { ...theory, id: generateId(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } as Theory;
+      if (!isGuest && user) newTheory.userId = user.id;
+      setTheories(prev => [...prev, newTheory]);
+      if (!isGuest && user) {
+          try {
+              const { error } = await supabase.from('theories').insert({
+                  id: newTheory.id,
+                  user_id: user.id,
+                  discipline: newTheory.discipline,
+                  topic: newTheory.topic,
+                  subtopic: newTheory.subtopic,
+                  content: newTheory.content,
+                  created_at: newTheory.createdAt,
+                  updated_at: newTheory.updatedAt
+              });
+              if (error) throw error;
+          } catch(e) { console.error("Error adding theory", e); }
+      }
+      return newTheory.id;
+  };
+
+  const editTheory = async (id: string, data: Partial<Theory>) => {
+      const updatedAt = new Date().toISOString();
+      setTheories(prev => prev.map(t => t.id === id ? { ...t, ...data, updatedAt } : t));
+      if (!isGuest && user) {
+          try {
+              const updateData: any = { updated_at: updatedAt };
+              if (data.discipline !== undefined) updateData.discipline = data.discipline;
+              if (data.topic !== undefined) updateData.topic = data.topic;
+              if (data.subtopic !== undefined) updateData.subtopic = data.subtopic;
+              if (data.content !== undefined) updateData.content = data.content;
+              const { error } = await supabase.from('theories').update(updateData).eq('id', id);
+              if (error) throw error;
+          } catch(e) { console.error("Error editing theory", e); }
+      }
+  };
+
+  const deleteTheory = async (id: string) => {
+      setTheories(prev => prev.filter(t => t.id !== id));
+      if (!isGuest && user) {
+          try {
+              const { error } = await supabase.from('theories').delete().eq('id', id);
+              if (error) throw error;
+          } catch(e) { console.error("Error deleting theory", e); }
       }
   };
 
@@ -1789,6 +1909,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       addMockExam, editMockExam, deleteMockExam,
       addMockExamResult, editMockExamResult, deleteMockExamResult,
       studySessions, addStudySession, deleteStudySession,
+      theories, addTheory, editTheory, deleteTheory,
       questionSets, questions, questionResults,
       addQuestionSet, editQuestionSet, deleteQuestionSet, addQuestions, deleteQuestion, addQuestionResult, resetQuestionResults,
       enterGuestMode, exportDatabase, startSession, endSession, setPendingCreateData, setFocusedNotebookId

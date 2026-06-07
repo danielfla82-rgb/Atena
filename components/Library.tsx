@@ -13,7 +13,7 @@ import {
     BookOpen, Layers, CheckCircle2, LayoutGrid, Clock, AlertTriangle, Star, 
     History, Sparkles, X, Save, Maximize2, Thermometer,
     Pencil, Link as LinkIcon, XCircle, ZoomIn, ChevronLeft, Calendar, Loader2, TrendingUp, Info, Scale, FileCode, Flag, List, Book, Brain, BrainCircuit, AlertCircle, PlayCircle,
-    Zap, Gauge, HelpCircle, Globe, Lock, Copy, FileText, Filter, Download, CalendarX
+    Zap, Gauge, HelpCircle, Globe, Lock, Copy, FileText, Filter, Download, CalendarX, Send
 } from 'lucide-react';
 
 // ORDEM LÓGICA CORRETA PARA EXIBIÇÃO
@@ -36,7 +36,7 @@ const quillFormats = [
   'link', 'image', 'video', 'color', 'background'
 ];
 
-export const Library: React.FC = () => {
+export const Library: React.FC<{ isBankMode?: boolean }> = ({ isBankMode = false }) => {
   const { 
     notebooks, 
     cycles,
@@ -53,6 +53,7 @@ export const Library: React.FC = () => {
     startSession,
     fetchNotebookImages,
     isGuest,
+    user,
     updateNotebookSchedule
   } = useStore();
 
@@ -60,6 +61,10 @@ export const Library: React.FC = () => {
   const [activeFilter, setActiveFilter] = useState<string>('all');
   const [editalFilter, setEditalFilter] = useState<string>(''); // NOVO ESTADO
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSyncingBulk, setIsSyncingBulk] = useState(false);
+  const [syncResult, setSyncResult] = useState<string | null>(null);
+
+  const isAdmin = user?.email === 'danielfla82@gmail.com' || user?.email === 'dcsrj@hotmail.com';
   const [showFineTuning, setShowFineTuning] = useState(false);
   const [showDisciplineWeights, setShowDisciplineWeights] = useState(false);
   const [showPlanning, setShowPlanning] = useState(false);
@@ -69,6 +74,9 @@ export const Library: React.FC = () => {
   const [notebookToDelete, setNotebookToDelete] = useState<{id: string, name: string} | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [targetStudentEmail, setTargetStudentEmail] = useState('');
+  const [isSyncingField, setIsSyncingField] = useState<string | null>(null);
+  const [syncMessage, setSyncMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [viewMode, setViewMode] = useState<'discipline' | 'status'>('discipline');
   
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
@@ -88,7 +96,7 @@ export const Library: React.FC = () => {
     lastPractice: null as string | null,
     notes: '', images: [] as string[], accuracyHistory: [] as { date: string, accuracy: number }[],
     nextReview: '' as string | undefined | null,
-    isGlobal: false,
+    isGlobal: isBankMode,
     scheduledWeek: ''
   };
 
@@ -181,7 +189,7 @@ export const Library: React.FC = () => {
       setEditingId(notebook.id);
       let currentImages = notebook.images || [];
       
-      if (currentImages.length === 0 && !isGuest) {
+      if (currentImages.length === 0 && !isGuest && !notebook.isGlobal) {
           currentImages = await fetchNotebookImages(notebook.id);
       }
 
@@ -298,7 +306,15 @@ export const Library: React.FC = () => {
   }, [formData.accuracy, formData.relevance, formData.trend, formData.nextReview, config.algorithm, isModalOpen, config.startDate, formData.status, formData.targetAccuracy]);
 
   const stats = useMemo(() => {
-      const validNotebooks = notebooks.filter(n => n.discipline !== 'Revisão Geral');
+      let validNotebooks = notebooks.filter(n => n.discipline !== 'Revisão Geral');
+      if (isBankMode) {
+          validNotebooks = validNotebooks.filter(nb => nb.isGlobal);
+      } else {
+          // Em modo Planejamento, para estatísticas, é melhor não contar cadernos não-iniciados (os globais intocados)
+          // ou contar apenas os que não são globais puros. A decisão: vamos filtrar fora os globais aqui
+          // para a média não ficar jogada no chão (0%).
+          validNotebooks = validNotebooks.filter(nb => !nb.isGlobal || nb.status !== NotebookStatus.NOT_STARTED);
+      }
       const total = validNotebooks.length;
       const disciplines = new Set(validNotebooks.map(n => n.discipline)).size;
       const mastered = validNotebooks.filter(n => (Number(n.accuracy) || 0) >= (Number(n.targetAccuracy) || 90)).length;
@@ -310,6 +326,7 @@ export const Library: React.FC = () => {
       const filtered = notebooks.filter(nb => {
           if (nb.discipline === 'Revisão Geral') return false; 
           
+          if (isBankMode && !nb.isGlobal) return false;
           // FILTRO EDITAL
           if (editalFilter && nb.edital !== editalFilter) return false;
 
@@ -473,6 +490,76 @@ export const Library: React.FC = () => {
       }
   };
 
+  const handleSyncField = async (field: 'general_info' | 'tec_links' | 'error_links' | 'subtopics' | 'summary_and_images' | 'weights' | 'favorite_questions' | 'external_links' | 'observations') => {
+      if (!user) return;
+      setIsSyncingField(field);
+      setSyncMessage(null);
+      
+      let payload: any = {};
+      if (field === 'general_info') {
+          payload = { edital: formData.edital, subtitle: formData.subtitle };
+      } else if (field === 'tec_links') {
+          payload = {
+              tec_link: formData.tecLink,
+              tec_link_comment: formData.tecLinkComment,
+              extra_tec_notebooks: formData.extraTecNotebooks || []
+          };
+      } else if (field === 'error_links') {
+          payload = {
+              error_notebook_link: formData.errorNotebookLink,
+              error_notebook_comment: formData.errorNotebookComment,
+              extra_error_notebooks: formData.extraErrorNotebooks || []
+          };
+      } else if (field === 'subtopics') {
+          payload = {
+              extra_subtopics: formData.extraSubtopics || []
+          };
+      } else if (field === 'summary_and_images') {
+          payload = { notes: formData.notes, images: formData.images };
+      } else if (field === 'weights') {
+          payload = {
+              weight: formData.weight,
+              relevance: formData.relevance,
+              trend: formData.trend,
+              custom_score: formData.customScore
+          };
+      } else if (field === 'favorite_questions') {
+          payload = { favorite_questions_link: formData.favoriteQuestionsLink };
+      } else if (field === 'external_links') {
+          payload = {
+              law_link: formData.lawLink, law_link_comment: formData.lawLinkComment,
+              obsidian_link: formData.obsidianLink, obsidian_link_comment: formData.obsidianLinkComment,
+              gemini_link1: formData.geminiLink1, gemini_link1_comment: formData.geminiLink1Comment,
+              gemini_link2: formData.geminiLink2
+          };
+      } else if (field === 'observations') {
+          payload = { subtitle: formData.subtitle };
+      }
+
+      try {
+          const { data, error } = await supabase.rpc('admin_push_notebook_field_v2', {
+              p_admin_email: user.email,
+              p_discipline: formData.discipline,
+              p_name: formData.name,
+              p_field: field,
+              p_json_value: payload,
+              p_target_email: targetStudentEmail.trim() || null
+          });
+
+          if (error) throw error;
+          if (data?.success) {
+              setSyncMessage({ text: `Sincronizado! ${data.updated} registro(s) alterados.`, type: 'success' });
+              setTimeout(() => setSyncMessage(null), 4000);
+          } else {
+              setSyncMessage({ text: `Erro: ${data?.error}`, type: 'error' });
+          }
+      } catch (e: any) {
+          setSyncMessage({ text: `Erro: ${e.message}`, type: 'error' });
+      } finally {
+          setIsSyncingField(null);
+      }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
@@ -514,6 +601,10 @@ export const Library: React.FC = () => {
             customScore: formData.customScore ? Number(formData.customScore) : null,
             nextReview: nextDateStr
         };
+
+        if (!isAdmin) {
+            payload.isGlobal = false;
+        }
         
         let targetNbId = editingId;
         if (editingId) {
@@ -589,12 +680,13 @@ export const Library: React.FC = () => {
   };
 
   const handleExportNotebooks = () => {
+      const exportList = isBankMode ? notebooks.filter(n => n.isGlobal) : notebooks;
       const backupData = {
           type: 'atena_notebooks_export',
           version: '10.0.0',
           date: new Date().toISOString(),
-          count: notebooks.length,
-          data: notebooks
+          count: exportList.length,
+          data: exportList
       };
 
       const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
@@ -653,10 +745,11 @@ export const Library: React.FC = () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end border-b border-slate-200 dark:border-slate-800 pb-6 gap-4 flex-shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
-            <LayoutGrid className="text-green-500" /> Banco de Disciplinas
+            <LayoutGrid className={isBankMode ? "text-indigo-500" : "text-green-500"} /> 
+            {isBankMode ? "Banco de Assuntos (Templates Globais)" : "Banco de Assuntos"}
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm">
-            Gerencie seus cadernos e acompanhe o progresso por tópico.
+            {isBankMode ? "Gerencie os templates de cadernos limpos disponíveis globalmente." : "Gerencie seus cadernos e acompanhe o progresso por tópico."}
           </p>
         </div>
         <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto items-center">
@@ -689,6 +782,46 @@ export const Library: React.FC = () => {
                  <button onClick={() => setViewMode('status')} className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${viewMode === 'status' ? 'bg-green-600 text-white shadow' : 'text-slate-500 dark:text-slate-400 hover:text-white'}`}>Por Status</button>
              </div>
              
+             {isAdmin && (
+                 <div className="flex flex-col items-center gap-1 relative">
+                     <button 
+                        onClick={async () => {
+                            if(isSyncingBulk) return;
+                            setIsSyncingBulk(true);
+                            setSyncResult(null);
+                            try {
+                                const { data: globals } = await supabase.from('notebooks').select('discipline, name').is('user_id', null);
+                                const userNotebooks = notebooks.filter(n => !n.isGlobal);
+                                let count = 0;
+                                for (const nb of userNotebooks) {
+                                    const exists = globals?.find(g => g.name === nb.name && g.discipline === nb.discipline);
+                                    if (!exists) {
+                                        const payload = {
+                                            edital: nb.edital, discipline: nb.discipline, name: nb.name, subtitle: nb.subtitle,
+                                            accuracy: 0, target_accuracy: nb.targetAccuracy, weight: nb.weight,
+                                            relevance: nb.relevance, trend: nb.trend, status: typeof nb.status === 'string' ? nb.status : NotebookStatus.NOT_STARTED,
+                                            user_id: null
+                                        };
+                                        await supabase.from('notebooks').insert(payload);
+                                        count++;
+                                    }
+                                }
+                                setSyncResult(`${count} tópicos!`);
+                            } catch(e) { console.error(e); setSyncResult("Erro"); }
+                            setIsSyncingBulk(false);
+                            setTimeout(() => setSyncResult(null), 3000);
+                        }}
+                        disabled={isSyncingBulk}
+                        className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold text-sm transition-colors shadow-sm disabled:opacity-50"
+                        title="Publicar todos os tópicos"
+                     >
+                        {isSyncingBulk ? <Loader2 size={18} className="animate-spin" /> : <Globe size={18} />} 
+                        <span className="hidden md:inline">{isSyncingBulk ? "Sincronizando..." : "Sync Templates"}</span>
+                     </button>
+                     {syncResult && <span className="absolute -bottom-6 text-xs font-bold text-indigo-400 whitespace-nowrap">{syncResult}</span>}
+                 </div>
+             )}
+
              <button 
                 onClick={handleExportNotebooks}
                 className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:text-white rounded-lg font-bold text-sm transition-colors border border-slate-300 dark:border-slate-700 shadow-sm"
@@ -870,7 +1003,28 @@ export const Library: React.FC = () => {
 
             <form onSubmit={handleSave} className="overflow-y-auto p-6 space-y-6 custom-scrollbar">
               
-              {formData.isGlobal && (
+              {isAdmin && (
+                  <div className="bg-indigo-900/20 border border-indigo-500/20 p-4 rounded-xl space-y-3">
+                      <h4 className="text-sm font-bold text-indigo-300">Mentoria (Sincronização Específica)</h4>
+                      <div className="flex flex-col gap-2">
+                          <label className="text-xs text-indigo-300/70">E-mail do aluno alvo (vazio para ATUALIZAR TODOS que têm este caderno)</label>
+                          <input 
+                              type="email" 
+                              placeholder="ex: aluno@email.com" 
+                              value={targetStudentEmail} 
+                              onChange={e => setTargetStudentEmail(e.target.value)} 
+                              className="w-full bg-slate-100 dark:bg-slate-900 border border-indigo-500/30 rounded-lg py-2 px-3 text-xs text-slate-900 dark:text-white outline-none focus:border-indigo-500"
+                          />
+                          {syncMessage && (
+                              <div className={`text-xs font-bold ${syncMessage.type === 'error' ? 'text-red-400' : 'text-green-400'}`}>
+                                  {syncMessage.text}
+                              </div>
+                          )}
+                      </div>
+                  </div>
+              )}
+
+              {formData.isGlobal && isAdmin && (
                   <div className="bg-indigo-900/20 border border-indigo-500/20 p-4 rounded-xl flex items-start gap-3">
                       <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400"><Copy size={20} /></div>
                       <div>
@@ -892,22 +1046,30 @@ export const Library: React.FC = () => {
                       
                       {/* GLOBAL TOGGLE & EXPORT */}
                       <div className="flex items-center gap-2">
-                          <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
-                                  {formData.isGlobal ? <Globe size={16}/> : <Lock size={16}/>} 
-                                  Visibilidade:
-                              </span>
-                              <button 
-                                  type="button"
-                                  onClick={() => setFormData(prev => ({...prev, isGlobal: !prev.isGlobal}))}
-                                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${formData.isGlobal ? 'bg-indigo-600' : 'bg-slate-700'}`}
-                              >
-                                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${formData.isGlobal ? 'translate-x-4.5' : 'translate-x-1'}`} />
+                          {isAdmin && (
+                              <button type="button" onClick={() => handleSyncField('general_info')} disabled={isSyncingField === 'general_info'} className="flex items-center gap-1 px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[10px] font-bold uppercase tracking-wider transition-colors disabled:opacity-50">
+                                  {isSyncingField === 'general_info' ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />} 
+                                  Sync Info
                               </button>
-                              <span className={`text-xs font-bold ${formData.isGlobal ? 'text-indigo-400' : 'text-slate-500 dark:text-slate-400'}`}>
-                                  {formData.isGlobal ? 'Publicar Cópia' : 'Privado'}
-                              </span>
-                          </div>
+                          )}
+                          {isAdmin && (
+                              <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800">
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                                      {formData.isGlobal ? <Globe size={16}/> : <Lock size={16}/>} 
+                                      Visibilidade:
+                                  </span>
+                                  <button 
+                                      type="button"
+                                      onClick={() => setFormData(prev => ({...prev, isGlobal: !prev.isGlobal}))}
+                                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${formData.isGlobal ? 'bg-indigo-600' : 'bg-slate-700'}`}
+                                  >
+                                      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${formData.isGlobal ? 'translate-x-4.5' : 'translate-x-1'}`} />
+                                  </button>
+                                  <span className={`text-xs font-bold ${formData.isGlobal ? 'text-indigo-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                                      {formData.isGlobal ? 'Publicar Cópia' : 'Privado'}
+                                  </span>
+                              </div>
+                          )}
                           <button 
                               type="button"
                               onClick={() => {
@@ -942,9 +1104,16 @@ export const Library: React.FC = () => {
                             />
                         </div>
                         <div className="md:col-span-2">
-                            <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 mb-2 uppercase tracking-[0.15em] flex items-center gap-2">
+                        <div className="flex justify-between items-center mb-2">
+                            <label className="block text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-[0.15em] flex items-center gap-2">
                                 <Sparkles size={14} className="text-yellow-500" /> Campo Livre / Observações
                             </label>
+                            {isAdmin && (
+                                <button type="button" onClick={() => handleSyncField('observations')} disabled={isSyncingField === 'observations'} className="flex items-center gap-1 px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[10px] font-bold uppercase transition-colors disabled:opacity-50">
+                                    {isSyncingField === 'observations' ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />} Sync Obs
+                                </button>
+                            )}
+                        </div>
                             <input 
                                 value={formData.subtitle} 
                                 onChange={e => handleChange('subtitle', e.target.value)} 
@@ -976,24 +1145,112 @@ export const Library: React.FC = () => {
                     <div><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">TÓPICO</label><input required value={formData.name} onChange={e => handleChange('name', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-slate-900 dark:text-white outline-none focus:border-green-500" /></div>
                   </div>
                   
-                  <div className="grid grid-cols-1 gap-4">
-                    <div>
-                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Link Caderno TEC (Ferramenta de Questões)</label>
-                        <div className="relative">
-                            <LinkIcon className="absolute left-3 top-3 text-slate-500" size={16} />
-                            <input 
-                                type="url" 
-                                value={formData.tecLink} 
-                                onChange={e => handleChange('tecLink', e.target.value)} 
-                                className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" 
-                                placeholder="https://tecconcursos..." 
-                            />
-                        </div>
+                  <div className="space-y-3 pt-4 border-t border-slate-200 dark:border-slate-700">
+                    <div className="flex justify-between items-center mb-1 pointer-events-none">
+                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Link Caderno TEC (Ferramenta de Questões)</label>
+                        {isAdmin && (
+                            <button type="button" onClick={() => handleSyncField('tec_links')} disabled={isSyncingField === 'tec_links'} className="pointer-events-auto flex items-center gap-1 px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[10px] font-bold uppercase transition-colors disabled:opacity-50">
+                                {isSyncingField === 'tec_links' ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />} Sync TEC
+                            </button>
+                        )}
                     </div>
+                    {(() => {
+                        const rows = formData.extraTecNotebooks || [];
+
+                        const handleRowChange = (index: number, field: 'link' | 'comment', value: string) => {
+                            const newRows = rows.map((row, i) => i === index ? { ...row, [field]: value } : row);
+                            handleChange('extraTecNotebooks', newRows);
+                        };
+
+                        const addRow = () => {
+                            handleChange('extraTecNotebooks', [...rows, { link: '', comment: '' }]);
+                        };
+
+                        const removeRow = (index: number) => {
+                            handleChange('extraTecNotebooks', rows.filter((_, i) => i !== index));
+                        };
+
+                        return (
+                            <div className="space-y-3">
+                                {/* Primary TEC Notebook */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                    <div className="relative">
+                                        <LinkIcon className="absolute left-3 top-3 text-slate-500" size={16} />
+                                        <input 
+                                            type="url" 
+                                            value={formData.tecLink || ''} 
+                                            onChange={e => handleChange('tecLink', e.target.value)} 
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" 
+                                            placeholder="https://tecconcursos..." 
+                                        />
+                                    </div>
+                                    <div className="relative">
+                                        <input 
+                                            type="text"
+                                            value={formData.tecLinkComment || ''} 
+                                            onChange={e => handleChange('tecLinkComment', e.target.value)} 
+                                            className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" 
+                                            placeholder="Comentário sobre este caderno..." 
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Extra TEC Notebooks */}
+                                {rows.map((row, i) => (
+                                    <div key={i} className="flex items-start gap-2">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 flex-1">
+                                            <div className="relative">
+                                                <LinkIcon className="absolute left-3 top-3 text-slate-500" size={16} />
+                                                <input 
+                                                    type="url" 
+                                                    value={row.link} 
+                                                    onChange={e => handleRowChange(i, 'link', e.target.value)} 
+                                                    className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" 
+                                                    placeholder="Link Caderno Adicional..." 
+                                                />
+                                            </div>
+                                            <div className="relative">
+                                                <input 
+                                                    type="text"
+                                                    value={row.comment} 
+                                                    onChange={e => handleRowChange(i, 'comment', e.target.value)} 
+                                                    className="w-full bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg p-2.5 text-xs text-slate-900 dark:text-white outline-none focus:border-green-500" 
+                                                    placeholder="Comentário..." 
+                                                />
+                                            </div>
+                                        </div>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => removeRow(i)} 
+                                            className="p-2.5 text-slate-400 hover:text-red-500 transition-colors bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-300 dark:border-slate-700"
+                                            title="Remover"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                ))}
+
+                                <button 
+                                    type="button" 
+                                    onClick={addRow} 
+                                    className="flex items-center gap-2 text-[10px] font-bold text-slate-500 hover:text-green-500 transition-colors uppercase tracking-widest"
+                                >
+                                    <Plus size={14} /> Incluir mais caderno TEC
+                                </button>
+                            </div>
+                        );
+                    })()}
                   </div>
 
                   <div className="space-y-3 pt-4 border-t border-slate-200 dark:border-slate-700">
-                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Subtópicos</label>
+                    <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Subtópicos</label>
+                        {isAdmin && (
+                            <button type="button" onClick={() => handleSyncField('subtopics')} disabled={isSyncingField === 'subtopics'} className="flex items-center gap-1 px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[10px] font-bold uppercase transition-colors disabled:opacity-50">
+                                {isSyncingField === 'subtopics' ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />} Sync Subtópicos
+                            </button>
+                        )}
+                    </div>
                     {(() => {
                         const rows = formData.extraSubtopics || [];
 
@@ -1101,6 +1358,11 @@ export const Library: React.FC = () => {
                   <div className="space-y-3 pt-4 border-t border-slate-200 dark:border-slate-700">
                     <div className="flex items-center justify-between">
                         <label className="block text-xs font-bold text-red-400 uppercase tracking-wider">Cadernos de Erros</label>
+                        {isAdmin && (
+                            <button type="button" onClick={() => handleSyncField('error_links')} disabled={isSyncingField === 'error_links'} className="flex items-center gap-1 px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[10px] font-bold uppercase transition-colors disabled:opacity-50">
+                                {isSyncingField === 'error_links' ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />} Sync Erros
+                            </button>
+                        )}
                     </div>
                     
                     {(() => {
@@ -1193,11 +1455,26 @@ export const Library: React.FC = () => {
 
                   <div className="grid grid-cols-1 gap-4">
                     <div>
-                        <label className="block text-[10px] font-bold text-yellow-400 mb-1 uppercase tracking-wider">Questões Favoritas</label>
+                        <div className="flex justify-between items-center mb-1">
+                            <label className="block text-[10px] font-bold text-yellow-400 uppercase tracking-wider">Questões Favoritas</label>
+                            {isAdmin && (
+                                <button type="button" onClick={() => handleSyncField('favorite_questions')} disabled={isSyncingField === 'favorite_questions'} className="flex items-center gap-1 px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[10px] font-bold uppercase transition-colors disabled:opacity-50">
+                                    {isSyncingField === 'favorite_questions' ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />} Sync Favs
+                                </button>
+                            )}
+                        </div>
                         <div className="relative"><Star className="absolute left-3 top-3 text-yellow-500" size={16} /><input type="url" value={formData.favoriteQuestionsLink} onChange={e => handleChange('favoriteQuestionsLink', e.target.value)} className="w-full bg-slate-100 dark:bg-slate-800 border border-yellow-500/20 rounded-lg py-2.5 pl-9 text-xs text-slate-900 dark:text-white outline-none focus:border-yellow-500 placeholder-yellow-900/50" placeholder="Link Favoritas..." /></div>
                     </div>
                   </div>
 
+                  <div className="flex justify-between items-end mb-2">
+                      <div className="text-[10px] uppercase font-bold text-slate-400">Links Externos</div>
+                      {isAdmin && (
+                          <button type="button" onClick={() => handleSyncField('external_links')} disabled={isSyncingField === 'external_links'} className="flex items-center gap-1 px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[10px] font-bold uppercase transition-colors disabled:opacity-50">
+                              {isSyncingField === 'external_links' ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />} Sync Links Ext
+                          </button>
+                      )}
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
                         <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Link Externo 1</label>
@@ -1369,6 +1646,13 @@ export const Library: React.FC = () => {
                               transition={{ duration: 0.3 }}
                           >
                               <div className="space-y-4 pt-4">
+                                  <div className="flex justify-end mb-2">
+                                      {isAdmin && (
+                                          <button type="button" onClick={() => handleSyncField('weights')} disabled={isSyncingField === 'weights'} className="flex items-center gap-1 px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[10px] font-bold uppercase transition-colors disabled:opacity-50">
+                                              {isSyncingField === 'weights' ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />} Sync Pesos
+                                          </button>
+                                      )}
+                                  </div>
                                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                       <div className="group relative">
                                           <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase flex items-center gap-1 cursor-help">
@@ -1480,7 +1764,14 @@ export const Library: React.FC = () => {
               </div>
 
               <div className="space-y-4 pt-2">
-                <h4 className="text-sm font-bold text-green-500 uppercase tracking-widest border-b border-green-500/20 pb-2">5. Rascunhos & Anotações</h4>
+                <div className="flex justify-between items-center border-b border-green-500/20 pb-2">
+                    <h4 className="text-sm font-bold text-green-500 uppercase tracking-widest">5. Rascunhos & Anotações</h4>
+                    {isAdmin && (
+                        <button type="button" onClick={() => handleSyncField('summary_and_images')} disabled={isSyncingField === 'summary_and_images'} className="flex items-center gap-1 px-2 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[10px] font-bold uppercase transition-colors disabled:opacity-50">
+                            {isSyncingField === 'summary_and_images' ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />} Sync Resumo
+                        </button>
+                    )}
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wider">Anotações / Resumo</label>
@@ -1527,7 +1818,7 @@ export const Library: React.FC = () => {
                 <button type="button" onClick={() => !isSaving && setIsModalOpen(false)} disabled={isSaving} className="flex-1 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 py-3 rounded-xl hover:bg-slate-700 font-medium transition-colors disabled:opacity-50">Cancelar</button>
                 <button type="button" onClick={handleSave} disabled={isSaving} className="flex-1 bg-green-600 text-white py-3 rounded-xl hover:bg-green-500 font-bold shadow-lg shadow-green-900/20 transition-all flex items-center justify-center gap-2 disabled:bg-green-800 disabled:text-green-400 disabled:cursor-wait">
                     {isSaving ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
-                    {isSaving ? "Salvando..." : (formData.isGlobal ? "Salvar e Publicar Cópia" : "Salvar Alterações")}
+                    {isSaving ? "Salvando..." : (formData.isGlobal ? (isAdmin ? "Salvar e Publicar Cópia" : "Salvar na Minha Biblioteca") : "Salvar Alterações")}
                 </button>
             </div>
           </div>

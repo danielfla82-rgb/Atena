@@ -887,7 +887,7 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
           
           {isSidebarCollapsed && (
               <div className="flex-1 flex flex-col items-center py-6 gap-6">
-                  <div className="vertical-text text-slate-600 font-bold uppercase tracking-widest text-xs whitespace-nowrap" style={{ writingMode: 'vertical-rl' }}>Banco de Disciplinas ({libraryNotebooks.length})</div>
+                  <div className="vertical-text text-slate-600 font-bold uppercase tracking-widest text-xs whitespace-nowrap" style={{ writingMode: 'vertical-rl' }}>Banco de Assuntos ({libraryNotebooks.length})</div>
                   <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500"><Inbox size={14} /></div>
               </div>
           )}

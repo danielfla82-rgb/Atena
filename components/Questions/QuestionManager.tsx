@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useStore } from '../../store';
 import { QuestionItem } from '../../types';
-import { Plus, Trash2, FileText, Upload, ChevronRight, Book, Pencil } from 'lucide-react';
+import { Plus, Trash2, FileText, Upload, ChevronRight, Book, Pencil, Globe, Loader2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { supabase } from '../supabase';
 
 export function QuestionManager() {
-  const { questionSets, addQuestionSet, editQuestionSet, deleteQuestionSet, questions, addQuestions, deleteQuestion } = useStore();
+  const { questionSets, addQuestionSet, editQuestionSet, deleteQuestionSet, questions, addQuestions, deleteQuestion, user } = useStore();
   const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
   const [isAddingSet, setIsAddingSet] = useState(false);
   const [newSetName, setNewSetName] = useState('');
@@ -20,6 +21,15 @@ export function QuestionManager() {
   const [isAddingQuestion, setIsAddingQuestion] = useState(false);
   const [isBatchImport, setIsBatchImport] = useState(false);
   const [batchText, setBatchText] = useState('');
+  const [isSyncingBulk, setIsSyncingBulk] = useState(false);
+  const [syncResult, setSyncResult] = useState<string | null>(null);
+  
+  const [isSpecificSyncModalOpen, setIsSpecificSyncModalOpen] = useState(false);
+  const [targetStudentEmail, setTargetStudentEmail] = useState('');
+  const [targetSyncMessage, setTargetSyncMessage] = useState<{text: string, type: 'error' | 'success'} | null>(null);
+  const [isSyncingSpecific, setIsSyncingSpecific] = useState(false);
+
+  const isAdmin = user?.email === 'danielfla82@gmail.com' || user?.email === 'dcsrj@hotmail.com';
   
   const [manualQuestion, setManualQuestion] = useState({
     text: '',
@@ -134,13 +144,82 @@ export function QuestionManager() {
           </h2>
           <p className="text-slate-400 text-sm mt-1">Gerencie seus cadernos e questões para treino.</p>
         </div>
-        <button 
-          onClick={() => setIsAddingSet(true)}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-blue-900/20"
-        >
-          <Plus size={20} />
-          Novo Caderno
-        </button>
+        <div className="flex items-center gap-3 relative">
+          {isAdmin && (
+             <div className="relative">
+                 <button 
+                    onClick={async () => {
+                        if(isSyncingBulk) return;
+                        setIsSyncingBulk(true);
+                        setSyncResult(null);
+                        try {
+                            const { data: globals } = await supabase.from('question_sets').select('name, discipline').is('user_id', null);
+                            const userSets = questionSets.filter(s => true); // Admin has both, we can sync all his local sets
+                            let count = 0;
+                            
+                            for (const qs of userSets) {
+                                const exists = globals?.find(g => g.name === qs.name && g.discipline === qs.discipline);
+                                if (!exists) {
+                                    const { error: setErr } = await supabase.from('question_sets').insert({
+                                        id: qs.id,
+                                        user_id: null,
+                                        name: qs.name,
+                                        discipline: qs.discipline,
+                                        subject: qs.subject,
+                                        obs1: qs.obs1,
+                                        obs2: qs.obs2,
+                                        created_at: qs.createdAt
+                                    });
+                                    if (setErr) console.error(setErr);
+                                    
+                                    const qsQs = questions.filter(q => q.setId === qs.id);
+                                    if(qsQs.length > 0) {
+                                        const { error: qErr } = await supabase.from('questions').insert(
+                                            qsQs.map(q => ({
+                                                id: q.id,
+                                                set_id: qs.id,
+                                                user_id: null,
+                                                text: q.text,
+                                                correct_answer: q.correctAnswer,
+                                                explanation: q.explanation,
+                                                code: q.code,
+                                                discipline: q.discipline,
+                                                subject: q.subject,
+                                                created_at: q.createdAt
+                                            }))
+                                        );
+                                        if(qErr) console.error(qErr);
+                                    }
+                                    count++;
+                                }
+                            }
+                            setSyncResult(`+${count} cadernos publicados`);
+                        } catch (e) {
+                            console.error(e);
+                            setSyncResult("Erro sync");
+                        } finally {
+                            setIsSyncingBulk(false);
+                            setTimeout(() => setSyncResult(null), 3000);
+                        }
+                    }}
+                    disabled={isSyncingBulk}
+                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold text-sm transition-colors shadow-sm disabled:opacity-50"
+                    title="Publicar todos os meus cadernos para os usuários"
+                 >
+                    {isSyncingBulk ? <Loader2 size={18} className="animate-spin" /> : <Globe size={18} />} 
+                    <span className="hidden md:inline">{isSyncingBulk ? "Sincronizando..." : "Sync Templates"}</span>
+                 </button>
+                 {syncResult && <span className="absolute -bottom-6 text-xs font-bold text-indigo-400 whitespace-nowrap">{syncResult}</span>}
+             </div>
+          )}
+          <button 
+            onClick={() => setIsAddingSet(true)}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl transition-all shadow-lg shadow-blue-900/20"
+          >
+            <Plus size={20} />
+            Novo Caderno
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -222,9 +301,18 @@ export function QuestionManager() {
                     >
                       <Pencil size={18} />
                     </button>
+                    {isAdmin && (
+                      <button 
+                        onClick={() => setIsSpecificSyncModalOpen(true)}
+                        className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors border border-slate-700"
+                        title="Mentoria (Sincronização Específica)"
+                      >
+                        <Upload size={18} />
+                      </button>
+                    )}
                     <button 
                       onClick={() => setIsBatchImport(true)}
-                      className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors border border-slate-700"
+                      className="p-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors border border-blue-500"
                       title="Importar TXT/Lote"
                     >
                       <Upload size={18} />
@@ -565,6 +653,94 @@ export function QuestionManager() {
                 </button>
               </div>
             </motion.form>
+          </div>
+        )}
+
+        {isSpecificSyncModalOpen && selectedSet && (
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-slate-900 border border-slate-800 p-8 rounded-3xl w-full max-w-xl shadow-2xl space-y-6"
+            >
+              <div className="flex justify-between items-center">
+                <h3 className="text-xl font-bold text-white">Mentoria (Sincronização Específica)</h3>
+                <button onClick={() => setIsSpecificSyncModalOpen(false)} className="text-slate-500 hover:text-white transition-colors">
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-sm text-slate-400">E-mail do aluno alvo (vazio para ATUALIZAR TODOS que têm este caderno)</p>
+                <input 
+                  type="email" 
+                  placeholder="ex: aluno@email.com" 
+                  value={targetStudentEmail} 
+                  onChange={e => setTargetStudentEmail(e.target.value)} 
+                  className="w-full bg-slate-800 border-none rounded-xl px-4 py-3 text-white placeholder:text-slate-600 focus:ring-2 focus:ring-blue-500"
+                />
+                {targetSyncMessage && (
+                  <div className={`text-sm font-bold p-3 rounded-lg ${targetSyncMessage.type === 'error' ? 'bg-red-900/20 text-red-400' : 'bg-green-900/20 text-green-400'}`}>
+                    {targetSyncMessage.text}
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-4 flex justify-end gap-3">
+                <button 
+                  onClick={() => setIsSpecificSyncModalOpen(false)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition-colors font-medium"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={async () => {
+                    if (isSyncingSpecific) return;
+                    setIsSyncingSpecific(true);
+                    setTargetSyncMessage(null);
+                    try {
+                      const qs = setQuestions.map(q => ({
+                          text: q.text,
+                          correct_answer: q.correctAnswer,
+                          explanation: q.explanation || '',
+                          code: q.code || '',
+                          discipline: q.discipline || '',
+                          subject: q.subject || ''
+                      }));
+
+                      const { data, error } = await supabase.rpc('admin_sync_question_set', {
+                          p_admin_email: user?.email,
+                          p_set_name: selectedSet.name,
+                          p_discipline: selectedSet.discipline,
+                          p_subject: selectedSet.subject,
+                          p_obs1: selectedSet.obs1 || '',
+                          p_obs2: selectedSet.obs2 || '',
+                          p_questions: qs,
+                          p_target_email: targetStudentEmail.trim() || null
+                      });
+
+                      if (error) throw error;
+                      if (data?.success) {
+                          setTargetSyncMessage({ text: `Sincronizado! Atualizado(s) ${data.updated} aluno(s).`, type: 'success' });
+                          setTimeout(() => { setIsSpecificSyncModalOpen(false); setTargetSyncMessage(null); }, 3000);
+                      } else {
+                          setTargetSyncMessage({ text: `Erro: ${data?.error}`, type: 'error' });
+                      }
+                    } catch (e: any) {
+                      setTargetSyncMessage({ text: `Erro: ${e.message}`, type: 'error' });
+                    } finally {
+                      setIsSyncingSpecific(false);
+                    }
+                  }}
+                  disabled={isSyncingSpecific}
+                  className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-colors font-bold disabled:opacity-50"
+                >
+                  {isSyncingSpecific ? <Loader2 size={18} className="animate-spin" /> : <Globe size={18} />}
+                  {isSyncingSpecific ? 'Sincronizando...' : 'Sincronizar Caderno'}
+                </button>
+              </div>
+            </motion.div>
           </div>
         )}
       </AnimatePresence>
