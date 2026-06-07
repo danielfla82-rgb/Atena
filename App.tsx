@@ -331,7 +331,7 @@ const AppContent: React.FC = () => {
                   }
                 />
                 <span className="text-[13px] tracking-wide">
-                  Framework Atena da Aprovação
+                  Framework Mental de Aprovação
                 </span>
               </button>
 

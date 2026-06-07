@@ -43,7 +43,7 @@ export const Framework: React.FC = () => {
         color: 'bg-gradient-to-r from-slate-700 to-slate-900 shadow-lg', 
         textColor: 'text-white',
         icon: <Heart size={18} className="text-slate-300" />,
-        hint: "A visão clara do futuro. Ex: Auditor Fiscal - Bahia - Salvador. Vroom: Valor x Expectativa."
+        hint: "A visão clara do futuro. Ex: Cargo dos Sonhos - Remuneração - Localização. Visualize a sua vida transformada."
     },
     { 
         key: 'values', 
@@ -77,7 +77,7 @@ export const Framework: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
             <Pyramid className="text-amber-500" /> 
-            Framework de Alta Performance
+            Framework Mental de Aprovação
           </h1>
           <p className="text-slate-500 dark:text-slate-400 mt-1">
             Da Visão à Disciplina Inabalável. Construa sua pirâmide estratégica.
@@ -100,13 +100,13 @@ export const Framework: React.FC = () => {
                     className={`${layer.width} transition-all duration-300 group cursor-pointer relative`}
                   >
                       {/* Pyramid Block */}
-                      <div className={`${layer.color} h-24 md:h-28 flex flex-col items-center justify-center text-center p-4 relative hover:brightness-110 hover:scale-[1.02] transition-all ${layer.key === 'habit' ? 'rounded-t-3xl' : 'rounded-t-sm'} ${layer.key === 'values' ? 'rounded-b-2xl' : 'rounded-b-sm'} backdrop-blur-sm`}>
+                      <div className={`${layer.color} h-auto min-h-[6rem] md:min-h-[7rem] flex flex-col items-center justify-center text-center py-4 relative hover:brightness-110 hover:scale-[1.02] transition-all ${layer.key === 'habit' ? 'rounded-t-3xl pt-6' : 'rounded-t-sm'} ${layer.key === 'values' ? 'rounded-b-2xl' : 'rounded-b-sm'} backdrop-blur-sm`}>
                           
-                          <div className={`flex items-center gap-2 mb-1 opacity-90 font-bold tracking-widest text-[10px] md:text-xs uppercase ${layer.textColor}`}>
+                          <div className={`flex flex-col items-center gap-1 mb-1 opacity-90 font-bold tracking-widest text-[10px] md:text-xs uppercase ${layer.textColor}`}>
                               {layer.icon} {layer.label}
                           </div>
                           
-                          <div className={`font-medium ${layer.textColor} text-sm md:text-base line-clamp-2 md:line-clamp-3 w-full px-2 md:px-4`}>
+                          <div className={`font-medium ${layer.textColor} text-xs md:text-sm w-full px-2 md:px-4 leading-snug break-words`}>
                               {framework[layer.key] || <span className="italic opacity-50">Clique para definir...</span>}
                           </div>
 
