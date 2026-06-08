@@ -20,11 +20,17 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
   
   // Reprocess Modal State
   const [showReprocessModal, setShowReprocessModal] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [localEditalText, setLocalEditalText] = useState('');
 
   const openReprocessModal = () => {
       setLocalEditalText(config.editalText || '');
       setShowReprocessModal(true);
+  };
+
+  const clearEdital = () => {
+      updateConfig({ ...config, structuredEdital: [], editalText: "" });
+      setShowClearConfirm(false);
   };
 
   // --- ROBUST MATCHING LOGIC (V2: STRICTER JACCARD) ---
@@ -92,36 +98,7 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
       return match;
   }, [calculateSimilarity]);
 
-  // --- AUTO CHECK LOGIC (SYNC WITH MASTERY) ---
-  useEffect(() => {
-      if (!config.structuredEdital) return;
-
-      let hasChanges = false;
-      const newEdital = config.structuredEdital.map(discipline => ({
-          ...discipline,
-          topics: discipline.topics.map(topic => {
-              // 1. Find matching notebook
-              const match = findMatchingNotebook(topic.name, discipline.name, notebooks);
-
-              // 2. Check Mastery Condition (Auto-Complete)
-              // Só marca automaticamente se o usuário JÁ atingiu a meta no caderno vinculado.
-              const isMastered = match ? ((Number(match.accuracy) || 0) >= (Number(match.targetAccuracy) || 90) && (Number(match.accuracy) || 0) > 0) : false;
-
-              // Se já está marcado, mantém (respeita marcação manual).
-              // Se não está marcado, mas atingiu a meta, marca.
-              if (!topic.checked && isMastered) {
-                  hasChanges = true;
-                  return { ...topic, checked: true };
-              }
-              
-              return topic;
-          })
-      }));
-
-      if (hasChanges) {
-          updateConfig({ ...config, structuredEdital: newEdital });
-      }
-  }, [notebooks, config.structuredEdital, findMatchingNotebook]);
+// Removed buggy auto-check effect that overrides manual user unchecks
 
   // --- STATS CALCULATION ---
   const stats = useMemo(() => {
@@ -213,21 +190,33 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
               updateConfig({ ...config, editalText: localEditalText });
           }
 
+          const existingTopics = notebooks.map(nb => `${nb.discipline} > ${nb.name}`).join('\n');
           const prompt = `
             Você é um especialista em concursos públicos.
-            Analise o seguinte texto de edital e estruture-o.
+            Analise o seguinte texto de edital e estruture-o de forma verticalizada.
             
-            TEXTO:
+            Compare cuidadosamente o conteúdo programático do edital com os tópicos que já existem no meu banco de dados listados abaixo:
+            --- Banco de Assuntos Atual ---
+            ${existingTopics}
+            -------------------------------
+
+            INSTRUÇÕES IMPORTANTES:
+            1. Ao estruturar as disciplinas e tópicos, você deve realizar uma análise *semântica e contextual* aprofundada dos assuntos.
+            2. NÃO USE APENAS CORRESPONDÊNCIA DE TÍTULOS. Se o assunto pedido no edital for conceitualmente coberto, equivalente ou similar a um tópico que JÁ EXISTE no 'Banco de Assuntos Atual', você é **OBRIGADO** a retornar EXATAMENTE o mesmo nome de disciplina e tópico que estão no Banco. 
+            Exemplo: Se o edital pede "Organização administrativa" ou "Agentes Públicos", e no Banco existe "Atos e Agentes Públicos", use "Atos e Agentes Públicos". 
+            3. Só invente um nome de disciplina/tópico novo se realmente não houver nada no banco de dados que corresponda ou englobe aquele assunto.
+            
+            TEXTO DO EDITAL A SER ANALISADO:
             ${textToProcess.substring(0, 30000)} 
             
-            Para cada tópico, defina o peso (probability) apenas como: "Baixa", "Média" ou "Alta".
+            Para cada tópico estruturado, defina o peso (probability) apenas como: "Baixa", "Média" ou "Alta".
             
-            Retorne APENAS JSON:
-            { "disciplines": [ { "name": "Nome", "topics": [ { "name": "Tópico", "probability": "Alta" | "Média" | "Baixa" } ] } ] }
+            Retorne APENAS JSON válido, como neste formato:
+            { "disciplines": [ { "name": "Nome da Disciplina", "topics": [ { "name": "Nome do Tópico", "probability": "Alta" | "Média" | "Baixa" } ] } ] }
           `;
 
           const response = await ai.models.generateContent({
-              model: 'gemini-3-flash-preview',
+              model: 'gemini-3.1-pro-preview',
               contents: prompt,
               config: { responseMimeType: 'application/json' }
           });
@@ -425,25 +414,14 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
                   <ListChecks size={64} className="text-green-500 mx-auto mb-6" />
                   <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Edital Verticalizado Inteligente</h2>
                   <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">
-                      Ainda não processamos seu edital. A IA irá ler o conteúdo programático, estruturar os tópicos e calcular a probabilidade de cobrança.
+                      Você ainda não definiu os assuntos do seu edital. Acesse a aba de <strong>Banco de Assuntos</strong>, faça a análise do edital com Inteligência Artificial e clique em Exportar para visualizar.
                   </p>
                   
-                  <div className="mb-4 text-left">
-                        <textarea 
-                            value={localEditalText}
-                            onChange={(e) => setLocalEditalText(e.target.value)}
-                            placeholder="Cole o Conteúdo Programático do Edital aqui..."
-                            className="w-full h-40 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl p-4 text-slate-900 dark:text-white text-xs font-mono focus:border-green-500 outline-none resize-none custom-scrollbar"
-                        />
-                  </div>
-
                   <button 
-                      onClick={processEditalWithAI} 
-                      disabled={isProcessing || !localEditalText}
-                      className="w-full py-4 bg-green-600 hover:bg-green-500 disabled:bg-slate-100 dark:bg-slate-800 disabled:text-slate-600 text-white font-bold rounded-xl shadow-lg shadow-green-900/20 flex items-center justify-center gap-2 transition-all"
+                      onClick={() => onNavigate('library')} 
+                      className="w-full py-4 bg-green-600 hover:bg-green-500 text-white font-bold rounded-xl shadow-lg shadow-green-900/20 flex items-center justify-center gap-2 transition-all"
                   >
-                      {isProcessing ? <Loader2 size={20} className="animate-spin" /> : <Sparkles size={20} />}
-                      {isProcessing ? "IA Analisando Edital..." : "Gerar Edital Verticalizado"}
+                      Irá para Banco de Assuntos
                   </button>
               </div>
           </div>
@@ -472,11 +450,30 @@ export const VerticalizedEdital: React.FC<Props> = ({ onNavigate }) => {
                     className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg py-2 pl-9 pr-3 text-sm text-slate-900 dark:text-white focus:border-green-500 outline-none"
                 />
              </div>
-             <button onClick={openReprocessModal} className="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg border border-slate-300 dark:border-slate-700 font-medium text-xs transition-colors shadow-sm">
-                 <Sparkles size={14} className="text-green-500" /> Reprocessar
+             <button onClick={() => setShowClearConfirm(true)} className="flex items-center gap-2 px-3 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 rounded-lg border border-slate-300 dark:border-slate-700 font-medium text-xs transition-colors shadow-sm" title="Limpar Edital">
+                 <X size={14} /> Limpar
              </button>
         </div>
       </div>
+
+      {showClearConfirm && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col p-6 animate-in fade-in zoom-in-95">
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Limpar Edital?</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">
+                    Atenção: Esta ação apagará a estrutura salva do edital atual. O seu progresso de tópicos continuará a existir no Banco de Assuntos. Deseja prosseguir?
+                </p>
+                <div className="flex gap-3 justify-end mt-2">
+                    <button onClick={() => setShowClearConfirm(false)} className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors font-medium text-sm">
+                        Cancelar
+                    </button>
+                    <button onClick={clearEdital} className="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors font-bold text-sm shadow-lg shadow-red-900/20">
+                        Sim, Limpar Tudo
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
 
       {/* FILTER BAR */}
       <div className="flex gap-2 overflow-x-auto pb-1 flex-shrink-0 no-scrollbar">

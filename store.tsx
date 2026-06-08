@@ -1,317 +1,401 @@
-
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { supabase } from './components/supabase';
-import { get, set } from 'idb-keyval';
-import { 
-  Notebook, Cycle, AthensConfig, SavedReport, ProtocolItem, 
-  FrameworkData, Note, NotebookStatus, ScheduleItem,
-  Weight, Relevance, Trend, Discipline, MockExam, MockExamResult, StudySessionRecord,
-  WEIGHT_SCORE, RELEVANCE_SCORE
-} from './types';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
+import { supabase } from "./components/supabase";
+import { get, set } from "idb-keyval";
+import {
+  Notebook,
+  Cycle,
+  AthensConfig,
+  SavedReport,
+  ProtocolItem,
+  FrameworkData,
+  Note,
+  NotebookStatus,
+  ScheduleItem,
+  Weight,
+  Relevance,
+  Trend,
+  Discipline,
+  MockExam,
+  MockExamResult,
+  StudySessionRecord,
+  WEIGHT_SCORE,
+  RELEVANCE_SCORE,
+} from "./types";
 
 // Defaults
 const DEFAULT_CONFIG: AthensConfig = {
-    targetRole: 'Concurso Público',
-    weeksUntilExam: 12,
-    studyPace: 'Intermediário',
-    algorithm: {
-        baseIntervals: { learning: 5, reviewing: 10, mastering: 20, maintaining: 30 },
-        multipliers: { relevanceHigh: 0.9, relevanceExtreme: 0.7, trendHigh: 0.9 }
-    }
+  targetRole: "Concurso Público",
+  weeksUntilExam: 12,
+  studyPace: "Intermediário",
+  algorithm: {
+    baseIntervals: {
+      learning: 5,
+      reviewing: 10,
+      mastering: 20,
+      maintaining: 30,
+    },
+    multipliers: { relevanceHigh: 0.9, relevanceExtreme: 0.7, trendHigh: 0.9 },
+  },
 };
 
 const DEFAULT_FRAMEWORK: FrameworkData = {
-    values: '', dream: '', motivation: '', action: '', habit: ''
+  values: "",
+  dream: "",
+  motivation: "",
+  action: "",
+  habit: "",
 };
 
 // --- SECURITY & INTEGRITY: PURE DATA MAPPERS ---
 
 const mapNotebookFromDB = (db: any, currentUserId?: string): Notebook => {
-    // CORREÇÃO: Não forçar limpeza de dados na leitura.
-    const isGlobal = currentUserId ? db.user_id !== currentUserId : db.user_id === null;
+  // Global if user_id is explicitly null (admin templates)
+  const isGlobal = db.user_id === null;
 
-    return {
-        id: db.id,
-        edital: db.edital || '',
-        discipline: db.discipline,
-        name: db.name,
-        subtitle: db.subtitle || '',
-        tecLink: db.tec_link || db.tecLink || '',
-        tecLinkComment: db.tec_link_comment || db.tecLinkComment || '',
-        errorNotebookLink: db.error_notebook_link || db.errorNotebookLink || '',
-        errorNotebookComment: db.error_notebook_comment || db.errorNotebookComment || '',
-        favoriteQuestionsLink: db.favorite_questions_link || db.favoriteQuestionsLink || '',
-        lawLink: db.law_link || db.lawLink || '',
-        lawLinkComment: db.law_link_comment || db.lawLinkComment || '',
-        obsidianLink: db.obsidian_link || db.obsidianLink || '',
-        obsidianLinkComment: db.obsidian_link_comment || db.obsidianLinkComment || '',
-        geminiLink1: db.gemini_link_1 || db.geminiLink1 || '',
-        geminiLink1Comment: db.gemini_link_1_comment || db.geminiLink1Comment || '',
-        geminiLink2: db.gemini_link_2 || db.geminiLink2 || '',
-        themeWeight: db.theme_weight || db.themeWeight || '',
-        extraSubtopics: db.extra_subtopics || db.extraSubtopics || [],
-        extraTecNotebooks: db.extra_tec_notebooks || db.extraTecNotebooks || [],
-        extraErrorNotebooks: db.extra_error_notebooks || db.extraErrorNotebooks || [],
-        targetAccuracy: Number(db.target_accuracy || db.targetAccuracy || 90),
-        accuracy: Number(db.accuracy || 0),
-        weight: db.weight || Weight.MEDIO,
-        relevance: db.relevance || Relevance.MEDIA,
-        trend: db.trend || Trend.ESTAVEL,
-        customScore: db.custom_score || db.customScore || undefined,
-        status: db.status || NotebookStatus.NOT_STARTED,
-        weekId: db.week_id || db.weekId || null,
-        isWeekCompleted: !!(db.is_week_completed || db.isWeekCompleted),
-        lastPractice: db.last_practice || db.lastPractice || null,
-        nextReview: db.next_review || db.nextReview || null,
-        accuracyHistory: Array.isArray(db.accuracy_history) ? db.accuracy_history : [],
-        notes: db.notes || '',
-        images: Array.isArray(db.images) ? db.images : (db.image ? [db.image] : []),
-        isGlobal: isGlobal
-    };
+  return {
+    id: db.id,
+    userId: db.user_id || undefined,
+    edital: db.edital || "",
+    discipline: db.discipline,
+    name: db.name,
+    subtitle: db.subtitle || "",
+    tecLink: db.tec_link || db.tecLink || "",
+    tecLinkComment: db.tec_link_comment || db.tecLinkComment || "",
+    errorNotebookLink: db.error_notebook_link || db.errorNotebookLink || "",
+    errorNotebookComment:
+      db.error_notebook_comment || db.errorNotebookComment || "",
+    favoriteQuestionsLink:
+      db.favorite_questions_link || db.favoriteQuestionsLink || "",
+    lawLink: db.law_link || db.lawLink || "",
+    lawLinkComment: db.law_link_comment || db.lawLinkComment || "",
+    obsidianLink: db.obsidian_link || db.obsidianLink || "",
+    obsidianLinkComment:
+      db.obsidian_link_comment || db.obsidianLinkComment || "",
+    geminiLink1: db.gemini_link_1 || db.geminiLink1 || "",
+    geminiLink1Comment: db.gemini_link_1_comment || db.geminiLink1Comment || "",
+    geminiLink2: db.gemini_link_2 || db.geminiLink2 || "",
+    themeWeight: db.theme_weight || db.themeWeight || "",
+    extraSubtopics: db.extra_subtopics || db.extraSubtopics || [],
+    extraTecNotebooks: db.extra_tec_notebooks || db.extraTecNotebooks || [],
+    extraErrorNotebooks:
+      db.extra_error_notebooks || db.extraErrorNotebooks || [],
+    targetAccuracy: Number(db.target_accuracy || db.targetAccuracy || 90),
+    accuracy: Number(db.accuracy || 0),
+    weight: db.weight || Weight.MEDIO,
+    relevance: db.relevance || Relevance.MEDIA,
+    trend: db.trend || Trend.ESTAVEL,
+    customScore: db.custom_score || db.customScore || undefined,
+    status: db.status || NotebookStatus.NOT_STARTED,
+    weekId: db.week_id || db.weekId || null,
+    isWeekCompleted: !!(db.is_week_completed || db.isWeekCompleted),
+    lastPractice: db.last_practice || db.lastPractice || null,
+    nextReview: db.next_review || db.nextReview || null,
+    accuracyHistory: Array.isArray(db.accuracy_history)
+      ? db.accuracy_history
+      : [],
+    notes: db.notes || "",
+    images: Array.isArray(db.images) ? db.images : db.image ? [db.image] : [],
+    isGlobal: isGlobal,
+    theoryId: db.theory_id || db.theoryId || undefined,
+  };
 };
 
 const mapNotebookToDB = (nb: Partial<Notebook>) => {
-    // AVISO: Se um campo vier 'undefined' aqui, ele será salvo como NULL no banco
-    // devido aos operadores '|| null'. Por isso é crucial passar o objeto completo (merged)
-    // antes de chamar esta função em updates.
-    return {
-        id: nb.id,
-        edital: nb.edital || null,
-        discipline: nb.discipline,
-        name: nb.name,
-        subtitle: nb.subtitle || null,
-        tec_link: nb.tecLink || null,
-        tec_link_comment: nb.tecLinkComment || null,
-        error_notebook_link: nb.errorNotebookLink || null,
-        error_notebook_comment: nb.errorNotebookComment || null,
-        favorite_questions_link: nb.favoriteQuestionsLink || null,
-        law_link: nb.lawLink || null,
-        law_link_comment: nb.lawLinkComment || null,
-        obsidian_link: nb.obsidianLink || null,
-        obsidian_link_comment: nb.obsidianLinkComment || null,
-        gemini_link_1: nb.geminiLink1 || null,
-        gemini_link_1_comment: nb.geminiLink1Comment || null,
-        gemini_link_2: nb.geminiLink2 || null,
-        theme_weight: nb.themeWeight || null,
-        extra_subtopics: nb.extraSubtopics || null,
-        extra_tec_notebooks: nb.extraTecNotebooks || null,
-        extra_error_notebooks: nb.extraErrorNotebooks || null,
-        target_accuracy: nb.targetAccuracy,
-        accuracy: nb.accuracy,
-        status: nb.status,
-        last_practice: nb.lastPractice || null,
-        next_review: nb.nextReview || null,
-        accuracy_history: Array.isArray(nb.accuracyHistory) ? nb.accuracyHistory : [],
-        week_id: nb.weekId || null,
-        weight: nb.weight,
-        relevance: nb.relevance,
-        trend: nb.trend,
-        custom_score: nb.customScore || null,
-        is_week_completed: nb.isWeekCompleted,
-        notes: nb.notes || '',
-        images: nb.images || []
-    };
+  // AVISO: Se um campo vier 'undefined' aqui, ele será salvo como NULL no banco
+  // devido aos operadores '|| null'. Por isso é crucial passar o objeto completo (merged)
+  // antes de chamar esta função em updates.
+  return {
+    id: nb.id,
+    theory_id: nb.theoryId || null,
+    edital: nb.edital || null,
+    discipline: nb.discipline,
+    name: nb.name,
+    subtitle: nb.subtitle || null,
+    tec_link: nb.tecLink || null,
+    tec_link_comment: nb.tecLinkComment || null,
+    error_notebook_link: nb.errorNotebookLink || null,
+    error_notebook_comment: nb.errorNotebookComment || null,
+    favorite_questions_link: nb.favoriteQuestionsLink || null,
+    law_link: nb.lawLink || null,
+    law_link_comment: nb.lawLinkComment || null,
+    obsidian_link: nb.obsidianLink || null,
+    obsidian_link_comment: nb.obsidianLinkComment || null,
+    gemini_link_1: nb.geminiLink1 || null,
+    gemini_link_1_comment: nb.geminiLink1Comment || null,
+    gemini_link_2: nb.geminiLink2 || null,
+    theme_weight: nb.themeWeight || null,
+    extra_subtopics: nb.extraSubtopics || null,
+    extra_tec_notebooks: nb.extraTecNotebooks || null,
+    extra_error_notebooks: nb.extraErrorNotebooks || null,
+    target_accuracy: nb.targetAccuracy,
+    accuracy: nb.accuracy,
+    status: nb.status,
+    last_practice: nb.lastPractice || null,
+    next_review: nb.nextReview || null,
+    accuracy_history: Array.isArray(nb.accuracyHistory)
+      ? nb.accuracyHistory
+      : [],
+    week_id: nb.weekId || null,
+    weight: nb.weight,
+    relevance: nb.relevance,
+    trend: nb.trend,
+    custom_score: nb.customScore || null,
+    is_week_completed: nb.isWeekCompleted,
+    notes: nb.notes || "",
+    images: nb.images || [],
+  };
 };
 
 const mapCycleFromDB = (db: any): Cycle => ({
-    id: db.id,
-    name: db.name,
-    createdAt: db.created_at || db.createdAt,
-    lastAccess: db.last_access || db.lastAccess,
-    config: db.config || DEFAULT_CONFIG,
-    planning: db.planning || {},
-    weeklyCompletion: db.weekly_completion || {},
-    schedule: db.schedule || {}
+  id: db.id,
+  name: db.name,
+  createdAt: db.created_at || db.createdAt,
+  lastAccess: db.last_access || db.lastAccess,
+  config: db.config || DEFAULT_CONFIG,
+  planning: db.planning || {},
+  weeklyCompletion: db.weekly_completion || {},
+  schedule: db.schedule || {},
 });
 
 const mapCycleToDB = (cycle: Partial<Cycle>) => {
-    return {
-        id: cycle.id,
-        name: cycle.name,
-        created_at: cycle.createdAt,
-        last_access: cycle.lastAccess,
-        config: cycle.config,
-        planning: cycle.planning,
-        weekly_completion: cycle.weeklyCompletion,
-        schedule: cycle.schedule
-    };
+  return {
+    id: cycle.id,
+    name: cycle.name,
+    created_at: cycle.createdAt,
+    last_access: cycle.lastAccess,
+    config: cycle.config,
+    planning: cycle.planning,
+    weekly_completion: cycle.weeklyCompletion,
+    schedule: cycle.schedule,
+  };
 };
 
 const mapNoteFromDB = (db: any): Note => ({
-    id: db.id,
-    content: db.content,
-    color: db.color,
-    isBold: db.is_bold || false,
-    createdAt: db.created_at || db.createdAt,
-    updatedAt: db.updated_at || db.updatedAt,
+  id: db.id,
+  content: db.content,
+  color: db.color,
+  isBold: db.is_bold || false,
+  createdAt: db.created_at || db.createdAt,
+  updatedAt: db.updated_at || db.updatedAt,
 });
 
 const mapNoteToDB = (note: Partial<Note>) => {
-    const payload: any = {
-        id: note.id,
-        content: note.content,
-        color: note.color,
-        created_at: note.createdAt,
-        updated_at: note.updatedAt
-    };
-    // Only add is_bold if explicitly true to avoid breaking older schemas that don't have it,
-    // though if the schema doesn't have it, even true will break. 
-    // Let's just omit it for now to guarantee saving works, or we can handle it in the insert/update.
-    // Actually, let's include it but we will handle the fallback in addNote/updateNote.
-    payload.is_bold = note.isBold;
-    return payload;
+  const payload: any = {
+    id: note.id,
+    content: note.content,
+    color: note.color,
+    created_at: note.createdAt,
+    updated_at: note.updatedAt,
+  };
+  // Only add is_bold if explicitly true to avoid breaking older schemas that don't have it,
+  // though if the schema doesn't have it, even true will break.
+  // Let's just omit it for now to guarantee saving works, or we can handle it in the insert/update.
+  // Actually, let's include it but we will handle the fallback in addNote/updateNote.
+  payload.is_bold = note.isBold;
+  return payload;
 };
 
 const mapFrameworkFromDB = (db: any): FrameworkData => ({
-    values: db.values || '',
-    dream: db.dream || '',
-    motivation: db.motivation || '',
-    action: db.action || '',
-    habit: db.habit || ''
+  values: db.values || "",
+  dream: db.dream || "",
+  motivation: db.motivation || "",
+  action: db.action || "",
+  habit: db.habit || "",
 });
 
 // --- SANITIZERS ---
-const sanitizeCycleData = (cycle: Cycle, validNotebookIds: Set<string>): Cycle => {
-    if (!cycle.schedule) return cycle;
-    
-    const cleanSchedule: Record<string, ScheduleItem[]> = {};
-    let hasChanges = false;
+const sanitizeCycleData = (
+  cycle: Cycle,
+  validNotebookIds: Set<string>,
+): Cycle => {
+  if (!cycle.schedule) return cycle;
 
-    Object.entries(cycle.schedule).forEach(([weekId, slots]) => {
-        if (!Array.isArray(slots)) return;
-        
-        const validSlots = slots.filter(slot => {
-            return slot && slot.notebookId;
-        });
+  const cleanSchedule: Record<string, ScheduleItem[]> = {};
+  let hasChanges = false;
 
-        if (validSlots.length !== slots.length) {
-            hasChanges = true;
-        }
-        cleanSchedule[weekId] = validSlots;
+  Object.entries(cycle.schedule).forEach(([weekId, slots]) => {
+    if (!Array.isArray(slots)) return;
+
+    const validSlots = slots.filter((slot) => {
+      return slot && slot.notebookId;
     });
 
-    return hasChanges ? { ...cycle, schedule: cleanSchedule } : cycle;
+    if (validSlots.length !== slots.length) {
+      hasChanges = true;
+    }
+    cleanSchedule[weekId] = validSlots;
+  });
+
+  return hasChanges ? { ...cycle, schedule: cleanSchedule } : cycle;
 };
 
 // --- GUEST SEED DATA ---
-const GUEST_CYCLE_ID = 'guest-cycle-01';
+const GUEST_CYCLE_ID = "guest-cycle-01";
 const GUEST_SEED_DATA = {
-    notebooks: [
+  notebooks: [
+    {
+      id: "nb-01",
+      discipline: "Direito Constitucional",
+      name: "Direitos Fundamentais",
+      subtitle: "Art. 5º e Remédios",
+      accuracy: 85,
+      targetAccuracy: 90,
+      weight: Weight.ALTO,
+      relevance: Relevance.ALTA,
+      trend: Trend.ALTA,
+      customScore: 92,
+      status: NotebookStatus.REVIEWING,
+      accuracyHistory: [
         {
-            id: 'nb-01',
-            discipline: 'Direito Constitucional',
-            name: 'Direitos Fundamentais',
-            subtitle: 'Art. 5º e Remédios',
-            accuracy: 85,
-            targetAccuracy: 90,
-            weight: Weight.ALTO,
-            relevance: Relevance.ALTA,
-            trend: Trend.ALTA,
-            customScore: 92,
-            status: NotebookStatus.REVIEWING,
-            accuracyHistory: [
-                { date: new Date(Date.now() - 86400000 * 5).toISOString(), accuracy: 65 },
-                { date: new Date(Date.now() - 86400000 * 2).toISOString(), accuracy: 85 }
-            ],
-            nextReview: new Date(Date.now() + 86400000).toISOString(),
-            lastPractice: new Date().toISOString(),
-            weekId: 'week-1'
+          date: new Date(Date.now() - 86400000 * 5).toISOString(),
+          accuracy: 65,
         },
         {
-            id: 'nb-02',
-            discipline: 'Direito Administrativo',
-            name: 'Atos Administrativos',
-            subtitle: 'Elementos e Vícios',
-            accuracy: 45,
-            targetAccuracy: 90,
-            weight: Weight.ALTO,
-            relevance: Relevance.MEDIA,
-            trend: Trend.ESTAVEL,
-            customScore: 65,
-            status: NotebookStatus.THEORY_DONE,
-            accuracyHistory: [
-                { date: new Date(Date.now() - 86400000 * 3).toISOString(), accuracy: 45 }
-            ],
-            nextReview: new Date().toISOString(), // Due today
-            lastPractice: new Date(Date.now() - 86400000 * 3).toISOString(),
-            weekId: 'week-1'
+          date: new Date(Date.now() - 86400000 * 2).toISOString(),
+          accuracy: 85,
         },
-        {
-            id: 'nb-03',
-            discipline: 'Língua Portuguesa',
-            name: 'Crase e Regência',
-            subtitle: 'Casos Proibidos',
-            accuracy: 92,
-            targetAccuracy: 90,
-            weight: Weight.MEDIO,
-            relevance: Relevance.ALTA,
-            trend: Trend.ALTA,
-            status: NotebookStatus.MASTERED,
-            accuracyHistory: [
-                { date: new Date(Date.now() - 86400000 * 10).toISOString(), accuracy: 70 },
-                { date: new Date(Date.now() - 86400000 * 1).toISOString(), accuracy: 92 }
-            ],
-            nextReview: new Date(Date.now() + 86400000 * 10).toISOString(),
-            lastPractice: new Date().toISOString(),
-            weekId: 'week-2'
-        },
-        {
-            id: 'nb-04',
-            discipline: 'Raciocínio Lógico',
-            name: 'Lógica de Argumentação',
-            subtitle: 'Silogismos',
-            accuracy: 0,
-            targetAccuracy: 85,
-            weight: Weight.BAIXO,
-            relevance: Relevance.BAIXA,
-            trend: Trend.ESTAVEL,
-            status: NotebookStatus.NOT_STARTED,
-            weekId: null
-        }
-    ],
-    cycles: [
-        {
-            id: GUEST_CYCLE_ID,
-            name: 'Demonstração: Auditor Fiscal',
-            createdAt: new Date().toISOString(),
-            lastAccess: new Date().toISOString(),
-            config: {
-                ...DEFAULT_CONFIG,
-                targetRole: 'Auditor Fiscal',
-                startDate: new Date().toISOString(),
-                examDate: new Date(Date.now() + 86400000 * 60).toISOString(), // 60 days from now
-                studyPace: 'Avançado'
-            },
-            planning: {},
-            weeklyCompletion: {},
-            schedule: {
-                'week-1': [
-                    { instanceId: 'slot-1', notebookId: 'nb-01', completed: true },
-                    { instanceId: 'slot-2', notebookId: 'nb-02', completed: false }
-                ],
-                'week-2': [
-                    { instanceId: 'slot-3', notebookId: 'nb-03', completed: false }
-                ]
-            }
-        }
-    ],
-    activeCycleId: GUEST_CYCLE_ID,
-    reports: [],
-    protocol: [
-        { id: 'p1', name: 'Cafeína', dosage: '100mg', time: '08:00', type: 'Suplemento', checked: true },
-        { id: 'p2', name: 'Creatina', dosage: '5g', time: '12:00', type: 'Suplemento', checked: false }
-    ],
-    framework: {
-        values: 'Liberdade, Excelência, Impacto',
-        dream: 'Aprovação na Receita Federal',
-        motivation: 'Estabilidade para minha família',
-        action: '4h líquidas diárias',
-        habit: 'Rotina Matinal Inegociável'
+      ],
+      nextReview: new Date(Date.now() + 86400000).toISOString(),
+      lastPractice: new Date().toISOString(),
+      weekId: "week-1",
     },
-    notes: [
-        { id: 'note-1', content: 'Revisar Súmulas Vinculantes do STF no fim de semana.', color: 'yellow', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-        { id: 'note-2', content: 'Meta da semana: Fechar Atos Administrativos.', color: 'green', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
-    ]
+    {
+      id: "nb-02",
+      discipline: "Direito Administrativo",
+      name: "Atos Administrativos",
+      subtitle: "Elementos e Vícios",
+      accuracy: 45,
+      targetAccuracy: 90,
+      weight: Weight.ALTO,
+      relevance: Relevance.MEDIA,
+      trend: Trend.ESTAVEL,
+      customScore: 65,
+      status: NotebookStatus.THEORY_DONE,
+      accuracyHistory: [
+        {
+          date: new Date(Date.now() - 86400000 * 3).toISOString(),
+          accuracy: 45,
+        },
+      ],
+      nextReview: new Date().toISOString(), // Due today
+      lastPractice: new Date(Date.now() - 86400000 * 3).toISOString(),
+      weekId: "week-1",
+    },
+    {
+      id: "nb-03",
+      discipline: "Língua Portuguesa",
+      name: "Crase e Regência",
+      subtitle: "Casos Proibidos",
+      accuracy: 92,
+      targetAccuracy: 90,
+      weight: Weight.MEDIO,
+      relevance: Relevance.ALTA,
+      trend: Trend.ALTA,
+      status: NotebookStatus.MASTERED,
+      accuracyHistory: [
+        {
+          date: new Date(Date.now() - 86400000 * 10).toISOString(),
+          accuracy: 70,
+        },
+        {
+          date: new Date(Date.now() - 86400000 * 1).toISOString(),
+          accuracy: 92,
+        },
+      ],
+      nextReview: new Date(Date.now() + 86400000 * 10).toISOString(),
+      lastPractice: new Date().toISOString(),
+      weekId: "week-2",
+    },
+    {
+      id: "nb-04",
+      discipline: "Raciocínio Lógico",
+      name: "Lógica de Argumentação",
+      subtitle: "Silogismos",
+      accuracy: 0,
+      targetAccuracy: 85,
+      weight: Weight.BAIXO,
+      relevance: Relevance.BAIXA,
+      trend: Trend.ESTAVEL,
+      status: NotebookStatus.NOT_STARTED,
+      weekId: null,
+    },
+  ],
+  cycles: [
+    {
+      id: GUEST_CYCLE_ID,
+      name: "Demonstração: Auditor Fiscal",
+      createdAt: new Date().toISOString(),
+      lastAccess: new Date().toISOString(),
+      config: {
+        ...DEFAULT_CONFIG,
+        targetRole: "Auditor Fiscal",
+        startDate: new Date().toISOString(),
+        examDate: new Date(Date.now() + 86400000 * 60).toISOString(), // 60 days from now
+        studyPace: "Avançado",
+      },
+      planning: {},
+      weeklyCompletion: {},
+      schedule: {
+        "week-1": [
+          { instanceId: "slot-1", notebookId: "nb-01", completed: true },
+          { instanceId: "slot-2", notebookId: "nb-02", completed: false },
+        ],
+        "week-2": [
+          { instanceId: "slot-3", notebookId: "nb-03", completed: false },
+        ],
+      },
+    },
+  ],
+  activeCycleId: GUEST_CYCLE_ID,
+  reports: [],
+  protocol: [
+    {
+      id: "p1",
+      name: "Cafeína",
+      dosage: "100mg",
+      time: "08:00",
+      type: "Suplemento",
+      checked: true,
+    },
+    {
+      id: "p2",
+      name: "Creatina",
+      dosage: "5g",
+      time: "12:00",
+      type: "Suplemento",
+      checked: false,
+    },
+  ],
+  framework: {
+    values: "Liberdade, Excelência, Impacto",
+    dream: "Aprovação na Receita Federal",
+    motivation: "Estabilidade para minha família",
+    action: "4h líquidas diárias",
+    habit: "Rotina Matinal Inegociável",
+  },
+  notes: [
+    {
+      id: "note-1",
+      content: "Revisar Súmulas Vinculantes do STF no fim de semana.",
+      color: "yellow",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: "note-2",
+      content: "Meta da semana: Fechar Atos Administrativos.",
+      color: "green",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+  ],
 };
 
 interface StoreContextType {
@@ -320,7 +404,7 @@ interface StoreContextType {
   loading: boolean;
   isSyncing: boolean;
   dbError: string | null;
-  
+
   notebooks: Notebook[];
   disciplines: Discipline[];
   cycles: Cycle[];
@@ -334,7 +418,7 @@ interface StoreContextType {
   mockExams: MockExam[];
   mockExamResults: MockExamResult[];
   studySessions: StudySessionRecord[];
-  
+
   questionSets: QuestionSet[];
   questions: QuestionItem[];
   questionResults: QuestionResult[];
@@ -352,30 +436,49 @@ interface StoreContextType {
   editNotebook: (id: string, data: Partial<Notebook>) => Promise<void>;
   deleteNotebook: (id: string) => Promise<void>;
   updateNotebookAccuracy: (id: string, accuracy: number) => Promise<void>;
-  fetchNotebookImages: (id: string) => Promise<string[]>; 
-  
+  fetchNotebookImages: (id: string) => Promise<string[]>;
+
   addDiscipline: (discipline: Partial<Discipline>) => Promise<string>;
   editDiscipline: (id: string, data: Partial<Discipline>) => Promise<void>;
   deleteDiscipline: (id: string) => Promise<void>;
-  
+
   moveNotebookToWeek: (notebookId: string, weekId: string) => Promise<void>;
-  updateNotebookSchedule: (notebookId: string, newWeekId: string | null) => Promise<void>;
-  reorderSlotInWeek: (weekId: string, oldIndex: number, newIndex: number) => Promise<void>;
-  moveSlotBetweenWeeks: (instanceId: string, sourceWeekId: string, targetWeekId: string, targetIndex?: number) => Promise<void>;
+  updateNotebookSchedule: (
+    notebookId: string,
+    newWeekId: string | null,
+  ) => Promise<void>;
+  reorderSlotInWeek: (
+    weekId: string,
+    oldIndex: number,
+    newIndex: number,
+  ) => Promise<void>;
+  moveSlotBetweenWeeks: (
+    instanceId: string,
+    sourceWeekId: string,
+    targetWeekId: string,
+    targetIndex?: number,
+  ) => Promise<void>;
   toggleSlotCompletion: (instanceId: string, weekId: string) => Promise<void>;
   removeSlotFromWeek: (instanceId: string, weekId: string) => Promise<void>;
 
-  saveReport: (report: Omit<SavedReport, 'id' | 'date'>) => Promise<void>;
+  saveReport: (report: Omit<SavedReport, "id" | "date">) => Promise<void>;
   deleteReport: (id: string) => Promise<void>;
 
-  addProtocolItem: (item: Omit<ProtocolItem, 'id' | 'checked'>) => Promise<void>;
+  addProtocolItem: (
+    item: Omit<ProtocolItem, "id" | "checked">,
+  ) => Promise<void>;
   toggleProtocolItem: (id: string) => Promise<void>;
   deleteProtocolItem: (id: string) => Promise<void>;
 
   updateFramework: (data: FrameworkData) => Promise<void>;
 
   addNote: () => Promise<void>;
-  updateNote: (id: string, content: string, color?: Note['color'], isBold?: boolean) => Promise<void>;
+  updateNote: (
+    id: string,
+    content: string,
+    color?: Note["color"],
+    isBold?: boolean,
+  ) => Promise<void>;
   deleteNote: (id: string) => Promise<void>;
 
   addMockExam: (exam: Partial<MockExam>) => Promise<string>;
@@ -383,7 +486,10 @@ interface StoreContextType {
   deleteMockExam: (id: string) => Promise<void>;
 
   addMockExamResult: (result: Partial<MockExamResult>) => Promise<string>;
-  editMockExamResult: (id: string, data: Partial<MockExamResult>) => Promise<void>;
+  editMockExamResult: (
+    id: string,
+    data: Partial<MockExamResult>,
+  ) => Promise<void>;
   deleteMockExamResult: (id: string) => Promise<void>;
 
   addQuestionSet: (set: Partial<QuestionSet>) => Promise<string>;
@@ -391,7 +497,9 @@ interface StoreContextType {
   deleteQuestionSet: (id: string) => Promise<void>;
   addQuestions: (questions: Partial<QuestionItem>[]) => Promise<void>;
   deleteQuestion: (id: string) => Promise<void>;
-  addQuestionResult: (result: Omit<QuestionResult, 'id' | 'date'>) => Promise<void>;
+  addQuestionResult: (
+    result: Omit<QuestionResult, "id" | "date">,
+  ) => Promise<void>;
   resetQuestionResults: (setId: string) => Promise<void>;
 
   addStudySession: (duration: number) => Promise<string>;
@@ -420,10 +528,12 @@ const OPTIMIZED_COLUMNS = `
   week_id, is_week_completed, last_practice, next_review, accuracy_history, notes
 `;
 
-export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [user, setUser] = useState<any>(null);
   const [isGuest, setIsGuest] = useState(false);
-  const [loading, setLoading] = useState(true); 
+  const [loading, setLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [dbError, setDbError] = useState<string | null>(null);
 
@@ -456,1474 +566,2025 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [notebooks]);
 
   const [activeSession, setActiveSession] = useState<Notebook | null>(null);
-  const [pendingCreateData, setPendingCreateData] = useState<Partial<Notebook> | null>(null);
-  const [focusedNotebookId, setFocusedNotebookId] = useState<string | null>(null);
+  const [pendingCreateData, setPendingCreateData] =
+    useState<Partial<Notebook> | null>(null);
+  const [focusedNotebookId, setFocusedNotebookId] = useState<string | null>(
+    null,
+  );
 
-  const config = cycles.find(c => c.id === activeCycleId)?.config || DEFAULT_CONFIG;
+  const config =
+    cycles.find((c) => c.id === activeCycleId)?.config || DEFAULT_CONFIG;
 
   const generateId = () => {
-      if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
-      return Math.random().toString(36).substring(2) + Date.now().toString(36);
+    if (typeof crypto !== "undefined" && crypto.randomUUID)
+      return crypto.randomUUID();
+    return Math.random().toString(36).substring(2) + Date.now().toString(36);
   };
 
   // --- MERGE LOGIC: USER > GLOBAL ---
   const mergeGlobalAndUserNotebooks = (allRows: any[], userObj: any) => {
-      const mapped = allRows.map(row => mapNotebookFromDB(row, userObj.id));
-      
-      const userNotebooks = mapped.filter(n => !n.isGlobal);
-      const allGlobalNotebooks = mapped.filter(n => n.isGlobal);
+    const mapped = allRows.map((row) => mapNotebookFromDB(row, userObj.id));
 
-      // Create a set of keys (Discipline + Name) that the user already owns
-      const userKeys = new Set(userNotebooks.map(n => 
-          `${n.discipline.trim().toLowerCase()}|${n.name.trim().toLowerCase()}`
-      ));
+    const userNotebooks = mapped.filter((n) => !n.isGlobal);
+    const allGlobalNotebooks = mapped.filter((n) => n.isGlobal);
 
-      // De-duplicate global notebooks (in case multiple users created the same topic)
-      const uniqueGlobalsMap = new Map<string, Notebook>();
-      for (const g of allGlobalNotebooks) {
-          const key = `${g.discipline.trim().toLowerCase()}|${g.name.trim().toLowerCase()}`;
-          if (!uniqueGlobalsMap.has(key)) {
-              // Create a clean template
-              uniqueGlobalsMap.set(key, { 
-                  ...g, 
-                  accuracy: 0, 
-                  status: NotebookStatus.NOT_STARTED, 
-                  lastPractice: null, 
-                  accuracyHistory: [],
-                  notes: '',
-                  images: [],
-                  image: undefined,
-                  nextReview: null
-              });
-          }
+    // Create a set of keys (Discipline + Name) that the user already owns
+    const userKeys = new Set(
+      userNotebooks.map(
+        (n) =>
+          `${n.discipline.trim().toLowerCase()}|${n.name.trim().toLowerCase()}`,
+      ),
+    );
+
+    // De-duplicate global notebooks (in case multiple users created the same topic)
+    const uniqueGlobalsMap = new Map<string, Notebook>();
+    for (const g of allGlobalNotebooks) {
+      const key = `${g.discipline.trim().toLowerCase()}|${g.name.trim().toLowerCase()}`;
+      if (!uniqueGlobalsMap.has(key)) {
+        // Create a clean template (do not wipe admin's pre-filled notes or images)
+        uniqueGlobalsMap.set(key, {
+          ...g,
+          accuracy: 0,
+          status: NotebookStatus.NOT_STARTED,
+          lastPractice: null,
+          accuracyHistory: [],
+          nextReview: null,
+          isWeekCompleted: false,
+        });
       }
-      const uniqueGlobals = Array.from(uniqueGlobalsMap.values());
+    }
+    const uniqueGlobals = Array.from(uniqueGlobalsMap.values());
 
-      // Only show global notebooks that the user DOES NOT have yet
-      // BUT if the user is an Admin, they NEED to see the globals in the "Banco de Assuntos (Admin)" screen!
-      const email = userObj.email || '';
-      const isAdmin = email === 'danielfla82@gmail.com' || email === 'dcsrj@hotmail.com';
-      
-      const visibleGlobals = isAdmin ? uniqueGlobals : uniqueGlobals.filter(g => 
-          !userKeys.has(`${g.discipline.trim().toLowerCase()}|${g.name.trim().toLowerCase()}`)
-      );
+    // Only show global notebooks that the user DOES NOT have yet
+    // BUT if the user is an Admin, they NEED to see the globals in the "Banco de Assuntos (Admin)" screen!
+    const email = userObj.email || "";
+    const isAdmin =
+      email === "danielfla82@gmail.com" || email === "dcsrj@hotmail.com";
 
-      // Combine: User's stuff + Remaining Global Stuff
-      return [...userNotebooks, ...visibleGlobals];
+    const visibleGlobals = isAdmin ? uniqueGlobals : [];
+
+    // Combine: User's stuff + Remaining Global Stuff
+    return [...userNotebooks, ...visibleGlobals];
   };
 
   const fetchCloudData = async (currentUser?: any) => {
-      setLoading(true);
-      setDbError(null);
-      try {
-          const userToUse = currentUser || (await supabase.auth.getUser()).data.user;
-          
-          if (!userToUse) {
-              setLoading(false);
-              return;
-          }
+    setLoading(true);
+    setDbError(null);
+    try {
+      const userToUse =
+        currentUser || (await supabase.auth.getUser()).data.user;
 
-          // PARALLEL FETCHING
-          // V3 Update: Fetch where user_id = ME OR user_id IS NULL
-          const [
-              notebooksResponse,
-              cyclesResponse,
-              reportsResponse,
-              protocolResponse,
-              notesResponse,
-              frameworkResponse,
-              disciplinesResponse,
-              mockExamsResponse,
-              mockExamResultsResponse,
-              studySessionsResponse,
-              questionSetsResponse,
-              questionsResponse,
-              questionResultsResponse,
-              theoriesResponse
-          ] = await Promise.all([
-              // 1. Notebooks (User + Global)
-              (async () => {
-                  try {
-                      // Attempt optimized fetch
-                      const { data, error } = await supabase
-                          .from('notebooks')
-                          .select(OPTIMIZED_COLUMNS)
-                          .or(`user_id.eq.${userToUse.id},user_id.is.null`);
-                          
-                      if (error) throw error;
-                      return { data, error: null };
-                  } catch (optimizedError) {
-                      console.warn("⚠️ Optimized Fetch Failed.", optimizedError);
-                      const { data, error } = await supabase
-                          .from('notebooks')
-                          .select('*')
-                          .or(`user_id.eq.${userToUse.id},user_id.is.null`);
-                      
-                      if (error) { 
-                          setDbError(JSON.stringify(error));
-                          return { data: [], error };
-                      }
-                      
-                      const cleanedData = data?.map((nb: any) => {
-                          return { ...nb, image: null, images: [] };
-                      });
-                      return { data: cleanedData, error: null };
-                  }
-              })(),
-              // 2. Other tables strictly filtered by user_id
-              supabase.from('cycles').select('*').eq('user_id', userToUse.id),
-              supabase.from('reports').select('*').eq('user_id', userToUse.id),
-              supabase.from('protocol').select('*').eq('user_id', userToUse.id),
-              supabase.from('notes').select('*').eq('user_id', userToUse.id),
-              supabase.from('frameworks').select('*').eq('user_id', userToUse.id).maybeSingle(),
-              supabase.from('disciplines').select('*').eq('user_id', userToUse.id),
-              supabase.from('mock_exams').select('*').eq('user_id', userToUse.id),
-              supabase.from('mock_exam_results').select('*').eq('user_id', userToUse.id),
-              supabase.from('study_sessions').select('*').eq('user_id', userToUse.id),
-              supabase.from('question_sets').select('*').or(`user_id.eq.${userToUse.id},user_id.is.null`),
-              supabase.from('questions').select('*').or(`user_id.eq.${userToUse.id},user_id.is.null`),
-              supabase.from('question_results').select('*').eq('user_id', userToUse.id),
-              supabase.from('theories').select('*').or(`user_id.eq.${userToUse.id},user_id.is.null`),
-          ]);
-
-          let validNotebookIds = new Set<string>();
-
-          // Process Notebooks with Merge Logic
-          if (notebooksResponse.data) {
-              const merged = mergeGlobalAndUserNotebooks(notebooksResponse.data, userToUse);
-              setNotebooks(merged);
-              // Global IDs are valid for validNotebookIds so they appear in cycle schedule
-              validNotebookIds = new Set(merged.map((n: Notebook) => n.id));
-          }
-          
-          // Process Cycles
-          if (cyclesResponse.data && cyclesResponse.data.length > 0) {
-              const mappedCycles = cyclesResponse.data.map(mapCycleFromDB).map((cycle: Cycle) => sanitizeCycleData(cycle, validNotebookIds));
-              setCycles(mappedCycles);
-              if (!activeCycleId) {
-                  const sorted = [...mappedCycles].sort((a, b) => new Date(b.lastAccess).getTime() - new Date(a.lastAccess).getTime());
-                  setActiveCycleId(sorted[0].id);
-              }
-          } else {
-              setCycles([]);
-              if (!activeCycleId) setActiveCycleId(null);
-          }
-
-          // Process Others
-          if (reportsResponse.data) setReports(reportsResponse.data);
-          if (protocolResponse.data) setProtocol(protocolResponse.data);
-          if (notesResponse.data) setNotes(notesResponse.data.map(mapNoteFromDB));
-          if (disciplinesResponse.data) setDisciplines(disciplinesResponse.data);
-          if (mockExamsResponse.data) setMockExams(mockExamsResponse.data.map((d: any) => ({ ...d, createdAt: d.created_at })));
-          if (mockExamResultsResponse.data) setMockExamResults(mockExamResultsResponse.data.map((d: any) => ({ ...d, examId: d.exam_id, tecLink: d.tec_link, tecAverage: d.tec_average })));
-          if (studySessionsResponse.error) console.error("SS Error:", studySessionsResponse.error);
-          if (questionSetsResponse?.error) console.error("QS Error:", questionSetsResponse.error);
-          if (questionsResponse?.error) console.error("Q Error:", questionsResponse.error);
-          if (questionResultsResponse?.error) console.error("QR Error:", questionResultsResponse.error);
-
-          if (studySessionsResponse.data) setStudySessions(studySessionsResponse.data.map((d: any) => ({ ...d, duration: Number(d.duration) })));
-          
-          if (questionSetsResponse?.data) setQuestionSets(questionSetsResponse.data.map((d: any) => ({ ...d, createdAt: d.created_at })));
-          if (questionsResponse?.data) setQuestions(questionsResponse.data.map((d: any) => ({ ...d, setId: d.set_id, correctAnswer: d.correct_answer, createdAt: d.created_at })));
-          if (questionResultsResponse?.data) setQuestionResults(questionResultsResponse.data.map((d: any) => ({ ...d, questionId: d.question_id, setId: d.set_id, userAnswer: d.user_answer, isCorrect: d.is_correct })));
-
-          if (theoriesResponse?.data) setTheories(theoriesResponse.data.map((d: any) => ({ ...d, userId: d.user_id, createdAt: d.created_at, updatedAt: d.updated_at })));
-
-          if (frameworkResponse.data) {
-              setFramework(mapFrameworkFromDB(frameworkResponse.data));
-          } else {
-              setFramework(DEFAULT_FRAMEWORK);
-          }
-
-      } catch (error) {
-          console.error("[System] Erro Crítico ao buscar dados da nuvem:", error);
-      } finally {
-          setLoading(false);
+      if (!userToUse) {
+        setLoading(false);
+        return;
       }
+      
+      const uEmail = userToUse.email || "";
+      const isAdminFetch = uEmail === "danielfla82@gmail.com" || uEmail === "dcsrj@hotmail.com";
+
+      // PARALLEL FETCHING
+      // V3 Update: Fetch where user_id = ME OR user_id IS NULL
+      const [
+        notebooksResponse,
+        cyclesResponse,
+        reportsResponse,
+        protocolResponse,
+        notesResponse,
+        frameworkResponse,
+        disciplinesResponse,
+        mockExamsResponse,
+        mockExamResultsResponse,
+        studySessionsResponse,
+        questionSetsResponse,
+        questionsResponse,
+        questionResultsResponse,
+        theoriesResponse,
+      ] = await Promise.all([
+        // 1. Notebooks (User + Global)
+        (async () => {
+          try {
+            // Attempt optimized fetch
+            let query = supabase.from("notebooks").select(OPTIMIZED_COLUMNS);
+            if (!isAdminFetch) {
+               query = query.or(`user_id.eq.${userToUse.id},user_id.is.null`);
+            }
+            const { data, error } = await query;
+
+            if (error) throw error;
+            return { data, error: null };
+          } catch (optimizedError) {
+            console.warn("⚠️ Optimized Fetch Failed.", optimizedError);
+            let fallbackQuery = supabase.from("notebooks").select("*");
+            if (!isAdminFetch) {
+               fallbackQuery = fallbackQuery.or(`user_id.eq.${userToUse.id},user_id.is.null`);
+            }
+            const { data, error } = await fallbackQuery;
+
+            if (error) {
+              setDbError(JSON.stringify(error));
+              return { data: [], error };
+            }
+
+            const cleanedData = data?.map((nb: any) => {
+              return { ...nb, image: null, images: [] };
+            });
+            return { data: cleanedData, error: null };
+          }
+        })(),
+        // 2. Other tables strictly filtered by user_id
+        supabase.from("cycles").select("*").eq("user_id", userToUse.id),
+        supabase.from("reports").select("*").eq("user_id", userToUse.id),
+        supabase.from("protocol").select("*").eq("user_id", userToUse.id),
+        supabase.from("notes").select("*").eq("user_id", userToUse.id),
+        supabase
+          .from("frameworks")
+          .select("*")
+          .eq("user_id", userToUse.id)
+          .maybeSingle(),
+        isAdminFetch ? supabase.from("disciplines").select("*") : supabase.from("disciplines").select("*").eq("user_id", userToUse.id),
+        supabase.from("mock_exams").select("*").eq("user_id", userToUse.id),
+        supabase
+          .from("mock_exam_results")
+          .select("*")
+          .eq("user_id", userToUse.id),
+        supabase.from("study_sessions").select("*").eq("user_id", userToUse.id),
+        supabase
+          .from("question_sets")
+          .select("*")
+          .or(`user_id.eq.${userToUse.id},user_id.is.null`),
+        supabase
+          .from("questions")
+          .select("*")
+          .or(`user_id.eq.${userToUse.id},user_id.is.null`),
+        supabase
+          .from("question_results")
+          .select("*")
+          .eq("user_id", userToUse.id),
+        isAdminFetch
+          ? supabase.from("theories").select("*")
+          : supabase
+              .from("theories")
+              .select("*")
+              .or(`user_id.eq.${userToUse.id},user_id.is.null`),
+      ]);
+
+      let validNotebookIds = new Set<string>();
+
+      // Process Notebooks with Merge Logic
+      if (notebooksResponse.data) {
+        const merged = mergeGlobalAndUserNotebooks(
+          notebooksResponse.data,
+          userToUse,
+        );
+        setNotebooks(merged);
+        // Global IDs are valid for validNotebookIds so they appear in cycle schedule
+        validNotebookIds = new Set(merged.map((n: Notebook) => n.id));
+      }
+
+      // Process Cycles
+      if (cyclesResponse.data && cyclesResponse.data.length > 0) {
+        const mappedCycles = cyclesResponse.data
+          .map(mapCycleFromDB)
+          .map((cycle: Cycle) => sanitizeCycleData(cycle, validNotebookIds));
+        setCycles(mappedCycles);
+        if (!activeCycleId) {
+          const sorted = [...mappedCycles].sort(
+            (a, b) =>
+              new Date(b.lastAccess).getTime() -
+              new Date(a.lastAccess).getTime(),
+          );
+          setActiveCycleId(sorted[0].id);
+        }
+      } else {
+        setCycles([]);
+        if (!activeCycleId) setActiveCycleId(null);
+      }
+
+      // Process Others
+      if (reportsResponse.data) setReports(reportsResponse.data);
+      if (protocolResponse.data) setProtocol(protocolResponse.data);
+      if (notesResponse.data) setNotes(notesResponse.data.map(mapNoteFromDB));
+      if (disciplinesResponse.data) {
+        if (isAdminFetch) {
+          const uniqMap = new Map();
+          for(const d of disciplinesResponse.data) {
+             const key = d.name.trim().toLowerCase();
+             if (!uniqMap.has(key)) uniqMap.set(key, d);
+          }
+          setDisciplines(Array.from(uniqMap.values()));
+        } else {
+          setDisciplines(disciplinesResponse.data);
+        }
+      }
+      if (mockExamsResponse.data)
+        setMockExams(
+          mockExamsResponse.data.map((d: any) => ({
+            ...d,
+            createdAt: d.created_at,
+          })),
+        );
+      if (mockExamResultsResponse.data)
+        setMockExamResults(
+          mockExamResultsResponse.data.map((d: any) => ({
+            ...d,
+            examId: d.exam_id,
+            tecLink: d.tec_link,
+            tecAverage: d.tec_average,
+          })),
+        );
+      if (studySessionsResponse.error)
+        console.error("SS Error:", studySessionsResponse.error);
+      if (questionSetsResponse?.error)
+        console.error("QS Error:", questionSetsResponse.error);
+      if (questionsResponse?.error)
+        console.error("Q Error:", questionsResponse.error);
+      if (questionResultsResponse?.error)
+        console.error("QR Error:", questionResultsResponse.error);
+
+      if (studySessionsResponse.data)
+        setStudySessions(
+          studySessionsResponse.data.map((d: any) => ({
+            ...d,
+            duration: Number(d.duration),
+          })),
+        );
+
+      if (questionSetsResponse?.data)
+        setQuestionSets(
+          questionSetsResponse.data.map((d: any) => ({
+            ...d,
+            createdAt: d.created_at,
+          })),
+        );
+      if (questionsResponse?.data)
+        setQuestions(
+          questionsResponse.data.map((d: any) => ({
+            ...d,
+            setId: d.set_id,
+            correctAnswer: d.correct_answer,
+            createdAt: d.created_at,
+          })),
+        );
+      if (questionResultsResponse?.data)
+        setQuestionResults(
+          questionResultsResponse.data.map((d: any) => ({
+            ...d,
+            questionId: d.question_id,
+            setId: d.set_id,
+            userAnswer: d.user_answer,
+            isCorrect: d.is_correct,
+          })),
+        );
+
+      if (theoriesResponse?.data)
+        setTheories(
+          theoriesResponse.data.map((d: any) => ({
+            ...d,
+            userId: d.user_id,
+            createdAt: d.created_at,
+            updatedAt: d.updated_at,
+          })),
+        );
+
+      if (frameworkResponse.data) {
+        setFramework(mapFrameworkFromDB(frameworkResponse.data));
+      } else {
+        setFramework(DEFAULT_FRAMEWORK);
+      }
+    } catch (error) {
+      console.error("[System] Erro Crítico ao buscar dados da nuvem:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const base64ToBlob = async (base64: string): Promise<Blob> => {
-      const res = await fetch(base64);
-      return await res.blob();
+    const res = await fetch(base64);
+    return await res.blob();
   };
 
   const fetchNotebookImages = async (id: string): Promise<string[]> => {
-      if (isGuest) {
-          const nb = notebooks.find(n => n.id === id);
-          return nb?.images || [];
-      }
-      const currentNb = notebooks.find(n => n.id === id);
-      if (currentNb && currentNb.images && currentNb.images.length > 0) {
-          return currentNb.images;
-      }
-      
-      const { data, error } = await supabase.from('notebooks').select('images, image').eq('id', id).single();
-      if (error) return [];
-      
-      let images: string[] = [];
-      if (data) {
-          if (data.images && Array.isArray(data.images)) images = data.images;
-          else if (data.image) images = [data.image];
-          
-          // Lazy Migration: Se houver imagens em base64, faz o upload para o Storage em background
-          const hasBase64 = images.some(img => img.startsWith('data:image'));
-          if (hasBase64 && !isGuest) {
-              // Não bloqueia o retorno das imagens para a UI (retorna o base64 imediatamente)
-              // Faz a migração em background
-              (async () => {
-                  try {
-                      const newUrls: string[] = [];
-                      let migrated = false;
-                      
-                      for (let i = 0; i < images.length; i++) {
-                          const imgStr = images[i];
-                          if (imgStr.startsWith('data:image')) {
-                              const blob = await base64ToBlob(imgStr);
-                              const fileExt = imgStr.substring("data:image/".length, imgStr.indexOf(";base64"));
-                              const fileName = `uploads/${id}_${Date.now()}_${i}.${fileExt}`;
-                              
-                              const { error: uploadError } = await supabase.storage
-                                  .from('notebook-images')
-                                  .upload(fileName, blob, { contentType: blob.type, upsert: true });
-                                  
-                              if (!uploadError) {
-                                  const { data: publicUrlData } = supabase.storage.from('notebook-images').getPublicUrl(fileName);
-                                  newUrls.push(publicUrlData.publicUrl);
-                                  migrated = true;
-                              } else {
-                                  newUrls.push(imgStr);
-                              }
-                          } else {
-                              newUrls.push(imgStr);
-                          }
-                      }
-                      
-                      if (migrated) {
-                          await supabase.from('notebooks').update({ images: newUrls, image: null }).eq('id', id);
-                          setNotebooks(prev => prev.map(n => n.id === id ? { ...n, images: newUrls } : n));
-                      }
-                  } catch (e) {
-                      console.error("Background migration failed for notebook", id, e);
-                  }
-              })();
-          }
+    if (isGuest) {
+      const nb = notebooks.find((n) => n.id === id);
+      return nb?.images || [];
+    }
+    const currentNb = notebooks.find((n) => n.id === id);
+    if (currentNb && currentNb.images && currentNb.images.length > 0) {
+      return currentNb.images;
+    }
 
-          if (images.length > 0) setNotebooks(prev => prev.map(n => n.id === id ? { ...n, images: images } : n));
+    const { data, error } = await supabase
+      .from("notebooks")
+      .select("images, image")
+      .eq("id", id)
+      .single();
+    if (error) return [];
+
+    let images: string[] = [];
+    if (data) {
+      if (data.images && Array.isArray(data.images)) images = data.images;
+      else if (data.image) images = [data.image];
+
+      // Lazy Migration: Se houver imagens em base64, faz o upload para o Storage em background
+      const hasBase64 = images.some((img) => img.startsWith("data:image"));
+      if (hasBase64 && !isGuest) {
+        // Não bloqueia o retorno das imagens para a UI (retorna o base64 imediatamente)
+        // Faz a migração em background
+        (async () => {
+          try {
+            const newUrls: string[] = [];
+            let migrated = false;
+
+            for (let i = 0; i < images.length; i++) {
+              const imgStr = images[i];
+              if (imgStr.startsWith("data:image")) {
+                const blob = await base64ToBlob(imgStr);
+                const fileExt = imgStr.substring(
+                  "data:image/".length,
+                  imgStr.indexOf(";base64"),
+                );
+                const fileName = `uploads/${id}_${Date.now()}_${i}.${fileExt}`;
+
+                const { error: uploadError } = await supabase.storage
+                  .from("notebook-images")
+                  .upload(fileName, blob, {
+                    contentType: blob.type,
+                    upsert: true,
+                  });
+
+                if (!uploadError) {
+                  const { data: publicUrlData } = supabase.storage
+                    .from("notebook-images")
+                    .getPublicUrl(fileName);
+                  newUrls.push(publicUrlData.publicUrl);
+                  migrated = true;
+                } else {
+                  newUrls.push(imgStr);
+                }
+              } else {
+                newUrls.push(imgStr);
+              }
+            }
+
+            if (migrated) {
+              await supabase
+                .from("notebooks")
+                .update({ images: newUrls, image: null })
+                .eq("id", id);
+              setNotebooks((prev) =>
+                prev.map((n) => (n.id === id ? { ...n, images: newUrls } : n)),
+              );
+            }
+          } catch (e) {
+            console.error("Background migration failed for notebook", id, e);
+          }
+        })();
       }
-      return images;
+
+      if (images.length > 0)
+        setNotebooks((prev) =>
+          prev.map((n) => (n.id === id ? { ...n, images: images } : n)),
+        );
+    }
+    return images;
   };
 
   useEffect(() => {
     const init = async () => {
-        setLoading(true);
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-            setUser(session.user);
-            setIsGuest(false);
-            await fetchCloudData(session.user);
-        } else {
-            const idbData = await get('athena_guest_db');
-            if (idbData) {
-                setIsGuest(true);
-                restoreState(idbData);
-            }
-            setLoading(false);
+      setLoading(true);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (session?.user) {
+        setUser(session.user);
+        setIsGuest(false);
+        await fetchCloudData(session.user);
+      } else {
+        const idbData = await get("athena_guest_db");
+        if (idbData) {
+          setIsGuest(true);
+          restoreState(idbData);
         }
+        setLoading(false);
+      }
     };
     init();
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
-      if (event === 'SIGNED_OUT') {
-          window.location.reload();
-          return;
+      if (event === "SIGNED_OUT") {
+        window.location.reload();
+        return;
       }
       if (session?.user) {
-          setIsGuest(false);
-          fetchCloudData(session.user);
+        setIsGuest(false);
+        fetchCloudData(session.user);
       } else {
-          setNotebooks([]);
-          setCycles([]);
-          setReports([]);
-          setProtocol([]);
-          setNotes([]);
-          setFramework(DEFAULT_FRAMEWORK);
-          setActiveCycleId(null);
-          setIsGuest(false); 
+        setNotebooks([]);
+        setCycles([]);
+        setReports([]);
+        setProtocol([]);
+        setNotes([]);
+        setFramework(DEFAULT_FRAMEWORK);
+        setActiveCycleId(null);
+        setIsGuest(false);
       }
     });
     return () => subscription.unsubscribe();
   }, []);
 
   const restoreState = (data: any) => {
-      if (!data) return;
-      setNotebooks(data.notebooks || []);
-      setDisciplines(data.disciplines || []);
-      setCycles(data.cycles || []);
-      setActiveCycleId(data.activeCycleId || null);
-      setReports(data.reports || []);
-      setProtocol(data.protocol || []);
-      setFramework(data.framework || DEFAULT_FRAMEWORK);
-      setNotes(data.notes || []);
+    if (!data) return;
+    setNotebooks(data.notebooks || []);
+    setDisciplines(data.disciplines || []);
+    setCycles(data.cycles || []);
+    setActiveCycleId(data.activeCycleId || null);
+    setReports(data.reports || []);
+    setProtocol(data.protocol || []);
+    setFramework(data.framework || DEFAULT_FRAMEWORK);
+    setNotes(data.notes || []);
   };
 
   useEffect(() => {
-      if (isGuest && !loading) {
-          const guestData = { notebooks, disciplines, reports, protocol, framework, cycles, activeCycleId, notes };
-          set('athena_guest_db', guestData).catch(e => console.error(e));
-      }
-  }, [notebooks, disciplines, reports, protocol, framework, cycles, activeCycleId, notes, isGuest, loading]);
+    if (isGuest && !loading) {
+      const guestData = {
+        notebooks,
+        disciplines,
+        reports,
+        protocol,
+        framework,
+        cycles,
+        activeCycleId,
+        notes,
+      };
+      set("athena_guest_db", guestData).catch((e) => console.error(e));
+    }
+  }, [
+    notebooks,
+    disciplines,
+    reports,
+    protocol,
+    framework,
+    cycles,
+    activeCycleId,
+    notes,
+    isGuest,
+    loading,
+  ]);
 
   const enterGuestMode = async () => {
-      setIsGuest(true);
-      setLoading(true);
-      restoreState(GUEST_SEED_DATA);
-      setLoading(false);
-      await set('athena_guest_db', GUEST_SEED_DATA);
+    setIsGuest(true);
+    setLoading(true);
+    restoreState(GUEST_SEED_DATA);
+    setLoading(false);
+    await set("athena_guest_db", GUEST_SEED_DATA);
   };
 
   const createCycle = async (name: string, role: string) => {
-      const newCycle: Cycle = { id: generateId(), name, createdAt: new Date().toISOString(), lastAccess: new Date().toISOString(), config: { ...DEFAULT_CONFIG, targetRole: role }, planning: {}, weeklyCompletion: {}, schedule: {} };
-      const previousCycles = [...cycles];
-      setCycles(prev => [...prev, newCycle]);
-      setActiveCycleId(newCycle.id);
-      if (!isGuest && user) {
-          try {
-              const payload = { ...mapCycleToDB(newCycle), user_id: user.id };
-              const { error } = await supabase.from('cycles').insert(payload);
-              if (error) throw error;
-          } catch (e) { console.error(e); setCycles(previousCycles); alert("Erro ao criar ciclo."); }
+    const newCycle: Cycle = {
+      id: generateId(),
+      name,
+      createdAt: new Date().toISOString(),
+      lastAccess: new Date().toISOString(),
+      config: { ...DEFAULT_CONFIG, targetRole: role },
+      planning: {},
+      weeklyCompletion: {},
+      schedule: {},
+    };
+    const previousCycles = [...cycles];
+    setCycles((prev) => [...prev, newCycle]);
+    setActiveCycleId(newCycle.id);
+    if (!isGuest && user) {
+      try {
+        const payload = { ...mapCycleToDB(newCycle), user_id: user.id };
+        const { error } = await supabase.from("cycles").insert(payload);
+        if (error) throw error;
+      } catch (e) {
+        console.error(e);
+        setCycles(previousCycles);
+        alert("Erro ao criar ciclo.");
       }
+    }
   };
 
   const selectCycle = async (id: string) => {
-      const now = new Date().toISOString();
-      setActiveCycleId(id);
-      setCycles(prev => prev.map(c => c.id === id ? { ...c, lastAccess: now } : c));
-      if (!isGuest && user) {
-          supabase.from('cycles').update({ last_access: now }).eq('id', id).then(({error}) => { if (error) console.error(error); });
-      }
+    const now = new Date().toISOString();
+    setActiveCycleId(id);
+    setCycles((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, lastAccess: now } : c)),
+    );
+    if (!isGuest && user) {
+      supabase
+        .from("cycles")
+        .update({ last_access: now })
+        .eq("id", id)
+        .then(({ error }) => {
+          if (error) console.error(error);
+        });
+    }
   };
 
   const deleteCycle = async (id: string) => {
-      const previousCycles = [...cycles];
-      setCycles(prev => prev.filter(c => c.id !== id));
-      if (activeCycleId === id) setActiveCycleId(null);
-      if (!isGuest && user) {
-          try { 
-              const { error } = await supabase.from('cycles').delete().eq('id', id); 
-              if (error) throw error;
-          } catch (e) { 
-              console.error("Failed to delete cycle:", e); 
-              setCycles(previousCycles); 
-          }
+    const previousCycles = [...cycles];
+    setCycles((prev) => prev.filter((c) => c.id !== id));
+    if (activeCycleId === id) setActiveCycleId(null);
+    if (!isGuest && user) {
+      try {
+        const { error } = await supabase.from("cycles").delete().eq("id", id);
+        if (error) throw error;
+      } catch (e) {
+        console.error("Failed to delete cycle:", e);
+        setCycles(previousCycles);
       }
+    }
   };
 
   const updateConfig = async (newConfig: AthensConfig) => {
-      if (!activeCycleId) return;
-      const previousCycles = [...cycles];
-      setCycles(prev => prev.map(c => c.id === activeCycleId ? { ...c, config: newConfig } : c));
-      if (!isGuest && user) {
-          try { 
-              const { error } = await supabase.from('cycles').update({ config: newConfig }).eq('id', activeCycleId); 
-              if (error) throw error;
-          } catch (e) { 
-              console.error("Error updating config:", e); 
-              setCycles(previousCycles); 
-              throw e; // RE-THROW TO UI
-          }
+    if (!activeCycleId) return;
+    const previousCycles = [...cycles];
+    setCycles((prev) =>
+      prev.map((c) =>
+        c.id === activeCycleId ? { ...c, config: newConfig } : c,
+      ),
+    );
+    if (!isGuest && user) {
+      try {
+        const { error } = await supabase
+          .from("cycles")
+          .update({ config: newConfig })
+          .eq("id", activeCycleId);
+        if (error) throw error;
+      } catch (e) {
+        console.error("Error updating config:", e);
+        setCycles(previousCycles);
+        throw e; // RE-THROW TO UI
       }
+    }
+  };
+
+  const handleSupabaseError = async (
+    action: () => Promise<{ error: any; data?: any }>,
+    payload: any,
+    table: string,
+    operation: "insert" | "update"
+  ) => {
+    let result = await action();
+    if (result.error && result.error.message?.includes("Could not find the")) {
+      console.warn("Schema mismatch detected. Retrying without newly added columns...");
+      const fallbackPayload = { ...payload };
+      const columnsToRemove = [
+        "theory_id",
+        "law_link_comment",
+        "obsidian_link_comment",
+        "gemini_link_1_comment",
+        "theme_weight",
+        "extra_subtopics",
+        "extra_tec_notebooks",
+        "extra_error_notebooks"
+      ];
+      columnsToRemove.forEach((col) => delete fallbackPayload[col]);
+      
+      if (operation === "insert") {
+        result = await supabase.from(table).insert(fallbackPayload);
+      } else {
+        result = await supabase.from(table).update(fallbackPayload).eq("id", payload.id);
+      }
+      
+      // Notify the user gently only once
+      if (!(window as any).schemaWarningShown) {
+        (window as any).schemaWarningShown = true;
+        alert("Aviso: O seu banco de dados Supabase está desatualizado. Algumas funcionalidades novas (como vinculação de Teoria) não serão salvas. Por favor, execute o conteúdo de 'fix_db_schema.sql' no SQL Editor do Supabase.");
+      }
+    }
+    return result;
   };
 
   const addNotebook = async (notebook: Partial<Notebook>) => {
-      const email = user?.email || '';
-      const isAdmin = email === 'danielfla82@gmail.com' || email === 'dcsrj@hotmail.com';
-      
-      const newId = generateId();
-      const createAsGlobalOnly = isAdmin && notebook.isGlobal === true;
+    const email = user?.email || "";
+    const isAdmin =
+      email === "danielfla82@gmail.com" || email === "dcsrj@hotmail.com";
 
-      const newNb: Notebook = {
-          id: newId, 
-          edital: notebook.edital || '',
-          discipline: notebook.discipline || 'Geral', 
-          name: notebook.name || 'Novo Tópico', 
-          subtitle: notebook.subtitle || '',
-          accuracy: notebook.accuracy || 0, targetAccuracy: notebook.targetAccuracy || 90, weight: notebook.weight || Weight.MEDIO,
-          relevance: notebook.relevance || Relevance.MEDIA, trend: notebook.trend || Trend.ESTAVEL, status: NotebookStatus.NOT_STARTED,
-          images: notebook.images || [], notes: notebook.notes || '', ...notebook,
-          isGlobal: createAsGlobalOnly ? true : false
-      };
-      
-      const previousNotebooks = [...notebooks];
-      setNotebooks(prev => [...prev, newNb]);
-      
-      if (!isGuest && user) {
-          try {
-              if (createAsGlobalOnly) {
-                  // ONLY create the public version, keep admin's private planner clean
-                  const publicPayload = {
-                      ...mapNotebookToDB(newNb),
-                      id: newId,
-                      user_id: null,
-                      notes: '', images: [], accuracy: 0, status: NotebookStatus.NOT_STARTED,
-                      accuracy_history: [], week_id: null,
-                      tec_link: null, tec_link_comment: null, extra_tec_notebooks: [],
-                      error_notebook_link: null, error_notebook_comment: null, extra_error_notebooks: [],
-                      favorite_questions_link: null, law_link: null, obsidian_link: null,
-                      gemini_link_1: null, gemini_link_2: null
-                  };
-                  const { error } = await supabase.from('notebooks').insert(publicPayload);
-                  if (error) throw error;
-              } else {
-                  // Standard behavior: create PRIVATE copy
-                  const payload = { 
-                      ...mapNotebookToDB(newNb), 
-                      user_id: user.id 
-                  };
-                  
-                  const { error } = await supabase.from('notebooks').insert(payload);
-                  if (error) { throw error; }
+    const newId = generateId();
+    const createAsGlobalOnly = isAdmin && notebook.isGlobal === true;
 
-                  // If standard user requested 'isGlobal', or admin does it through other means, also create public
-                  if (notebook.isGlobal) {
-                      const publicPayload = {
-                          ...mapNotebookToDB(newNb),
-                          id: generateId(),
-                          user_id: null,
-                          notes: '', images: [], accuracy: 0, status: NotebookStatus.NOT_STARTED,
-                          accuracy_history: [], week_id: null,
-                          tec_link: null, tec_link_comment: null, extra_tec_notebooks: [],
-                          error_notebook_link: null, error_notebook_comment: null, extra_error_notebooks: [],
-                          favorite_questions_link: null, law_link: null, obsidian_link: null,
-                          gemini_link_1: null, gemini_link_2: null
-                      };
-                      const { error: publicError } = await supabase.from('notebooks').insert(publicPayload);
-                      if (publicError) throw publicError;
-                  }
-              }
-          } catch (e: any) { 
-              setNotebooks(previousNotebooks); 
-              const msg = e.message || JSON.stringify(e);
-              throw new Error(msg);
+    const newNb: Notebook = {
+      id: newId,
+      edital: notebook.edital || "",
+      discipline: notebook.discipline || "Geral",
+      name: notebook.name || "Novo Tópico",
+      subtitle: notebook.subtitle || "",
+      accuracy: notebook.accuracy || 0,
+      targetAccuracy: notebook.targetAccuracy || 90,
+      weight: notebook.weight || Weight.MEDIO,
+      relevance: notebook.relevance || Relevance.MEDIA,
+      trend: notebook.trend || Trend.ESTAVEL,
+      status: NotebookStatus.NOT_STARTED,
+      images: notebook.images || [],
+      notes: notebook.notes || "",
+      ...notebook,
+      isGlobal: createAsGlobalOnly ? true : false,
+    };
+
+    const previousNotebooks = [...notebooks];
+    setNotebooks((prev) => [...prev, newNb]);
+
+    if (!isGuest && user) {
+      try {
+        if (createAsGlobalOnly) {
+          // ONLY create the public version, keep admin's private planner clean
+          const publicPayload = {
+            ...mapNotebookToDB(newNb),
+            id: newId,
+            user_id: null,
+            notes: "",
+            images: [],
+            accuracy: 0,
+            status: NotebookStatus.NOT_STARTED,
+            accuracy_history: [],
+            week_id: null,
+            tec_link: null,
+            tec_link_comment: null,
+            extra_tec_notebooks: [],
+            error_notebook_link: null,
+            error_notebook_comment: null,
+            extra_error_notebooks: [],
+            favorite_questions_link: null,
+            law_link: null,
+            obsidian_link: null,
+            gemini_link_1: null,
+            gemini_link_2: null,
+          };
+          const { error } = await handleSupabaseError(
+            () => supabase.from("notebooks").insert(publicPayload),
+            publicPayload,
+            "notebooks",
+            "insert"
+          );
+          if (error) throw error;
+        } else {
+          // Standard behavior: create PRIVATE copy
+          const payload = {
+            ...mapNotebookToDB(newNb),
+            user_id: user.id,
+          };
+
+          const { error } = await handleSupabaseError(
+            () => supabase.from("notebooks").insert(payload),
+            payload,
+            "notebooks",
+            "insert"
+          );
+          if (error) {
+            throw error;
           }
+
+          // If standard user requested 'isGlobal', or admin does it through other means, also create public
+          if (notebook.isGlobal) {
+            const publicPayload = {
+              ...mapNotebookToDB(newNb),
+              id: generateId(),
+              user_id: null,
+              notes: "",
+              images: [],
+              accuracy: 0,
+              status: NotebookStatus.NOT_STARTED,
+              accuracy_history: [],
+              week_id: null,
+              tec_link: null,
+              tec_link_comment: null,
+              extra_tec_notebooks: [],
+              error_notebook_link: null,
+              error_notebook_comment: null,
+              extra_error_notebooks: [],
+              favorite_questions_link: null,
+              law_link: null,
+              obsidian_link: null,
+              gemini_link_1: null,
+              gemini_link_2: null,
+            };
+            const { error: publicError } = await supabase
+              .from("notebooks")
+              .insert(publicPayload);
+            if (publicError) throw publicError;
+          }
+        }
+      } catch (e: any) {
+        setNotebooks(previousNotebooks);
+        const msg = e.message || JSON.stringify(e);
+        throw new Error(msg);
       }
-      return newId;
+    }
+    return newId;
   };
 
   // --- FORKING LOGIC ---
-  const ensureNotebookIsPrivate = async (notebookId: string): Promise<string> => {
-      // Check if this notebook is Global
-      const nb = notebooks.find(n => n.id === notebookId);
-      if (!nb) throw new Error("Notebook not found");
-      
-      if (!nb.isGlobal) return notebookId; // Already private, do nothing
+  const ensureNotebookIsPrivate = async (
+    notebookId: string,
+  ): Promise<string> => {
+    // Check if this notebook is Global
+    const nb = notebooks.find((n) => n.id === notebookId);
+    if (!nb) throw new Error("Notebook not found");
 
-      // It IS global. We must fork it.
-      const { 
-          id, isGlobal, 
-          nextReview, accuracyHistory, lastPractice, isWeekCompleted,
-          ...dataToCopy 
-      } = nb;
-      
-      // Create new private copy
-      const newId = await addNotebook({
-          ...dataToCopy,
-          accuracy: 0,
-          status: NotebookStatus.NOT_STARTED,
-          isGlobal: false // Explicitly private
-      });
+    if (!nb.isGlobal) return notebookId; // Already private, do nothing
 
-      // UI Trick: Remove the global one from view immediately so it looks like it "transformed"
-      setNotebooks(prev => prev.filter(n => n.id !== notebookId)); // Remove global phantom
-      
-      return newId;
+    // It IS global. We must fork it.
+    const {
+      id,
+      isGlobal,
+      nextReview,
+      accuracyHistory,
+      lastPractice,
+      isWeekCompleted,
+      ...dataToCopy
+    } = nb;
+
+    // Create new private copy
+    const newId = await addNotebook({
+      ...dataToCopy,
+      accuracy: 0,
+      status: NotebookStatus.NOT_STARTED,
+      isGlobal: false, // Explicitly private
+    });
+
+    // UI Trick: Remove the global one from view immediately so it looks like it "transformed"
+    setNotebooks((prev) => prev.filter((n) => n.id !== notebookId)); // Remove global phantom
+
+    return newId;
   };
 
   const editNotebook = async (id: string, data: Partial<Notebook>) => {
-      let targetId = id;
-      // FIX: Use ref to get the absolute latest state and avoid race conditions
-      const currentNb = notebooksRef.current.find(n => n.id === id);
-      
-      if (!currentNb) return; // Should not happen
+    let targetId = id;
+    // FIX: Use ref to get the absolute latest state and avoid race conditions
+    const currentNb = notebooksRef.current.find((n) => n.id === id);
 
-      const email = user?.email || '';
-      const isAdmin = email === 'danielfla82@gmail.com' || email === 'dcsrj@hotmail.com';
+    if (!currentNb) return; // Should not happen
 
-      // 1. Determine Target (Fork or Edit Direct)
-      // IF Notebook is Global, AND we are NOT Admin (or we are admin explicitly un-globalizing it), we MUST FORK.
-      // Wait, if it's Global, standard users NEVER edit it directly. They always fork.
-      let isUpdatingGlobalTemplate = false;
+    const email = user?.email || "";
+    const isAdmin =
+      email === "danielfla82@gmail.com" || email === "dcsrj@hotmail.com";
 
-      if (currentNb.isGlobal) {
-          if (isAdmin && data.isGlobal === true) {
-              // Admin updating a template directly
-              isUpdatingGlobalTemplate = true;
-          } else {
-              // Standard user interaction (e.g. practicing, adding notes) with a global template
-              // OR Admin explicitly marking isGlobal: false (rare but possible). 
-              targetId = await ensureNotebookIsPrivate(id);
-          }
+    // 1. Determine Target (Fork or Edit Direct)
+    // IF Notebook is Global, AND we are NOT Admin (or we are admin explicitly un-globalizing it), we MUST FORK.
+    // Wait, if it's Global, standard users NEVER edit it directly. They always fork.
+    let isUpdatingGlobalTemplate = false;
+
+    if (currentNb.isGlobal) {
+      if (isAdmin && data.isGlobal === true) {
+        // Admin updating a template directly
+        isUpdatingGlobalTemplate = true;
       } else {
-          // If the admin is taking a PRIVATE notebook and marking it isGlobal: true, we need to PUBLISH it.
-          // That logic was handled below. Let's keep it.
+        // Standard user interaction (e.g. practicing, adding notes) with a global template
+        // OR Admin explicitly marking isGlobal: false (rare but possible).
+        targetId = await ensureNotebookIsPrivate(id);
       }
+    } else {
+      // If the admin is taking a PRIVATE notebook and marking it isGlobal: true, we need to PUBLISH it.
+      // That logic was handled below. Let's keep it.
+    }
 
-      // Prepare Data for Local Update (optimistic)
-      const dataToUpdate = { ...data };
-      
-      if (!isUpdatingGlobalTemplate && data.isGlobal === true) {
-          // If a user (admin) is trying to publish their private notebook, we keep the LOCAL version as private
-          dataToUpdate.isGlobal = false; 
-      }
+    // Prepare Data for Local Update (optimistic)
+    const dataToUpdate = { ...data };
 
-      // 3. Update Local State (Merge existing + new)
-      setNotebooks(prev => prev.map(n => n.id === targetId ? { ...n, ...dataToUpdate } : n));
-      
-      if (!isGuest && user) {
-          try {
-              // 4. Create Merged Object for DB Payload
-              const latestNb = notebooksRef.current.find(n => n.id === targetId) || currentNb;
-              const mergedForDB = { ...latestNb, ...dataToUpdate };
+    if (!isUpdatingGlobalTemplate && data.isGlobal === true) {
+      // If a user (admin) is trying to publish their private notebook, we keep the LOCAL version as private
+      dataToUpdate.isGlobal = false;
+    }
 
-              const payload: any = mapNotebookToDB(mergedForDB);
-              delete payload.id;
+    // 3. Update Local State (Merge existing + new)
+    setNotebooks((prev) =>
+      prev.map((n) => (n.id === targetId ? { ...n, ...dataToUpdate } : n)),
+    );
 
-              if (isUpdatingGlobalTemplate) {
-                  // Direct edit to the global template by admin
-                  payload.user_id = null;
-                  const { error } = await supabase.from('notebooks').update(payload).eq('id', targetId);
-                  if (error) throw error;
-              } else {
-                  // Standard Private Update
-                  payload.user_id = user.id; 
-                  const { error } = await supabase.from('notebooks').update(payload).eq('id', targetId);
-                  if (error) throw error;
+    if (!isGuest && user) {
+      try {
+        // 4. Create Merged Object for DB Payload
+        const latestNb =
+          notebooksRef.current.find((n) => n.id === targetId) || currentNb;
+        const mergedForDB = { ...latestNb, ...dataToUpdate };
 
-                  // If Publish Requested (isGlobal = true on a private notebook)
-                  if (data.isGlobal === true && isAdmin) {
-                      const combinedData = { ...currentNb, ...data };
-                      
-                      const publicPayload = {
-                          ...mapNotebookToDB(combinedData),
-                          id: generateId(),
-                          user_id: null,
-                          
-                          // SANITIZATION
-                          notes: '', 
-                          images: [], 
-                          accuracy: 0,
-                          status: NotebookStatus.NOT_STARTED,
-                          accuracy_history: [],
-                          week_id: null,
+        const payload: any = mapNotebookToDB(mergedForDB);
+        delete payload.id;
 
-                          tec_link: null,
-                          tec_link_comment: null,
-                          extra_tec_notebooks: [],
-                          error_notebook_link: null,
-                          error_notebook_comment: null,
-                          extra_error_notebooks: [],
-                          favorite_questions_link: null,
-                          law_link: null,
-                          obsidian_link: null,
-                          gemini_link_1: null,
-                          gemini_link_2: null
-                      };
-                      const { error: publicError } = await supabase.from('notebooks').insert(publicPayload);
-                      if (publicError) throw publicError;
-                  }
-              }
-          } catch (e: any) { 
-              console.error(e);
-              throw new Error(e.message);
+        if (isUpdatingGlobalTemplate) {
+          // Direct edit to the global template by admin
+          payload.user_id = null;
+          payload.id = targetId;
+          const { error } = await handleSupabaseError(
+            () => supabase.from("notebooks").update(payload).eq("id", targetId),
+            payload,
+            "notebooks",
+            "update"
+          );
+          delete payload.id;
+          if (error) throw error;
+        } else {
+          // Standard Private Update
+          payload.user_id = mergedForDB.userId || user.id;
+          payload.id = targetId;
+          const { error } = await handleSupabaseError(
+            () => supabase.from("notebooks").update(payload).eq("id", targetId),
+            payload,
+            "notebooks",
+            "update"
+          );
+          delete payload.id;
+          if (error) throw error;
+
+          // If Publish Requested (isGlobal = true on a private notebook)
+          if (data.isGlobal === true && isAdmin) {
+            const combinedData = { ...currentNb, ...data };
+
+            const publicPayload = {
+              ...mapNotebookToDB(combinedData),
+              id: generateId(),
+              user_id: null,
+
+              // SANITIZATION
+              notes: "",
+              images: [],
+              accuracy: 0,
+              status: NotebookStatus.NOT_STARTED,
+              accuracy_history: [],
+              week_id: null,
+
+              tec_link: null,
+              tec_link_comment: null,
+              extra_tec_notebooks: [],
+              error_notebook_link: null,
+              error_notebook_comment: null,
+              extra_error_notebooks: [],
+              favorite_questions_link: null,
+              law_link: null,
+              obsidian_link: null,
+              gemini_link_1: null,
+              gemini_link_2: null,
+            };
+            const { error: publicError } = await handleSupabaseError(
+              () => supabase.from("notebooks").insert(publicPayload),
+              publicPayload,
+              "notebooks",
+              "insert"
+            );
+            if (publicError) throw publicError;
           }
+        }
+      } catch (e: any) {
+        console.error(e);
+        throw new Error(e.message);
       }
+    }
   };
 
   const deleteNotebook = async (id: string) => {
-      const nb = notebooks.find(n => n.id === id);
-      const previousNotebooks = [...notebooks];
-      setNotebooks(prev => prev.filter(n => n.id !== id));
-      const validNotebookIds = new Set<string>(notebooks.filter(n => n.id !== id).map(n => n.id));
-      setCycles(prev => prev.map(c => sanitizeCycleData(c, validNotebookIds)));
-      
-      if (!isGuest && user) {
-          try { 
-              const { error } = await supabase.from('notebooks').delete().eq('id', id); 
-              if (error) {
-                  console.error("Delete failed", error);
-                  setNotebooks(previousNotebooks);
-                  alert("Erro: Você não tem permissão para excluir este caderno (Público).");
-              }
-          } catch (e) { 
-              console.error(e); 
-              setNotebooks(previousNotebooks); 
-          }
+    const nb = notebooks.find((n) => n.id === id);
+    const previousNotebooks = [...notebooks];
+    setNotebooks((prev) => prev.filter((n) => n.id !== id));
+    const validNotebookIds = new Set<string>(
+      notebooks.filter((n) => n.id !== id).map((n) => n.id),
+    );
+    setCycles((prev) =>
+      prev.map((c) => sanitizeCycleData(c, validNotebookIds)),
+    );
+
+    if (!isGuest && user) {
+      try {
+        const { error } = await supabase
+          .from("notebooks")
+          .delete()
+          .eq("id", id);
+        if (error) {
+          console.error("Delete failed", error);
+          setNotebooks(previousNotebooks);
+          alert(
+            "Erro: Você não tem permissão para excluir este caderno (Público).",
+          );
+        }
+      } catch (e) {
+        console.error(e);
+        setNotebooks(previousNotebooks);
       }
+    }
   };
 
   const updateNotebookAccuracy = async (id: string, accuracy: number) => {
-      let targetId = id;
-      // FIX: Use ref to get the absolute latest state
-      const currentNb = notebooksRef.current.find(n => n.id === id);
-      if (!currentNb) return;
-      
-      if (currentNb.isGlobal) {
-          targetId = await ensureNotebookIsPrivate(id);
-      }
+    let targetId = id;
+    // FIX: Use ref to get the absolute latest state
+    const currentNb = notebooksRef.current.find((n) => n.id === id);
+    if (!currentNb) return;
 
-      const prevHistory = currentNb.accuracyHistory ? [...currentNb.accuracyHistory] : [];
-      const history = [...prevHistory, { date: new Date().toISOString(), accuracy }];
-      const updatedNb = { 
-          ...currentNb, 
-          accuracy, 
-          accuracyHistory: history.slice(-365), 
-          lastPractice: new Date().toISOString() 
-      };
+    if (currentNb.isGlobal) {
+      targetId = await ensureNotebookIsPrivate(id);
+    }
 
-      const previousNotebooks = [...notebooksRef.current];
-      
-      // Update Local State Optimistically
-      setNotebooks(prev => prev.map(n => n.id === targetId ? updatedNb : n));
-      
-      if (!isGuest && user) {
-          try {
-              const payload = { 
-                  accuracy: updatedNb.accuracy, 
-                  accuracy_history: updatedNb.accuracyHistory, 
-                  last_practice: updatedNb.lastPractice 
-              };
-              const { error } = await supabase.from('notebooks').update(payload).eq('id', targetId);
-              if (error) throw error;
-          } catch (e) { 
-              console.error("Failed to update notebook accuracy:", e); 
-              setNotebooks(previousNotebooks); 
-          }
+    const prevHistory = currentNb.accuracyHistory
+      ? [...currentNb.accuracyHistory]
+      : [];
+    const history = [
+      ...prevHistory,
+      { date: new Date().toISOString(), accuracy },
+    ];
+    const updatedNb = {
+      ...currentNb,
+      accuracy,
+      accuracyHistory: history.slice(-365),
+      lastPractice: new Date().toISOString(),
+    };
+
+    const previousNotebooks = [...notebooksRef.current];
+
+    // Update Local State Optimistically
+    setNotebooks((prev) =>
+      prev.map((n) => (n.id === targetId ? updatedNb : n)),
+    );
+
+    if (!isGuest && user) {
+      try {
+        const payload = {
+          accuracy: updatedNb.accuracy,
+          accuracy_history: updatedNb.accuracyHistory,
+          last_practice: updatedNb.lastPractice,
+        };
+        const { error } = await supabase
+          .from("notebooks")
+          .update(payload)
+          .eq("id", targetId);
+        if (error) throw error;
+      } catch (e) {
+        console.error("Failed to update notebook accuracy:", e);
+        setNotebooks(previousNotebooks);
       }
+    }
   };
 
-  const updateCycleSchedule = async (cycleId: string, modifier: (schedule: Record<string, ScheduleItem[]>) => Record<string, ScheduleItem[]>) => {
-      const cycle = cyclesRef.current.find(c => c.id === cycleId);
-      if (!cycle) return;
+  const updateCycleSchedule = async (
+    cycleId: string,
+    modifier: (
+      schedule: Record<string, ScheduleItem[]>,
+    ) => Record<string, ScheduleItem[]>,
+  ) => {
+    const cycle = cyclesRef.current.find((c) => c.id === cycleId);
+    if (!cycle) return;
 
-      const currentSchedule = cycle.schedule ? JSON.parse(JSON.stringify(cycle.schedule)) : {};
-      const newSchedule = modifier(currentSchedule);
-      const previousCycles = [...cyclesRef.current];
+    const currentSchedule = cycle.schedule
+      ? JSON.parse(JSON.stringify(cycle.schedule))
+      : {};
+    const newSchedule = modifier(currentSchedule);
+    const previousCycles = [...cyclesRef.current];
 
-      // Optimistic Update
-      setCycles(prev => prev.map(c => c.id === cycleId ? { ...c, schedule: newSchedule } : c));
-      cyclesRef.current = cyclesRef.current.map(c => c.id === cycleId ? { ...c, schedule: newSchedule } : c);
+    // Optimistic Update
+    setCycles((prev) =>
+      prev.map((c) => (c.id === cycleId ? { ...c, schedule: newSchedule } : c)),
+    );
+    cyclesRef.current = cyclesRef.current.map((c) =>
+      c.id === cycleId ? { ...c, schedule: newSchedule } : c,
+    );
 
-      if (!isGuest && user) {
-          try { 
-              const { error } = await supabase.from('cycles').update({ schedule: newSchedule }).eq('id', cycleId); 
-              if (error) throw error;
-          } catch (e) { 
-              console.error("Failed to update cycle schedule:", e); 
-              setCycles(previousCycles); 
-              cyclesRef.current = previousCycles;
-          }
+    if (!isGuest && user) {
+      try {
+        const { error } = await supabase
+          .from("cycles")
+          .update({ schedule: newSchedule })
+          .eq("id", cycleId);
+        if (error) throw error;
+      } catch (e) {
+        console.error("Failed to update cycle schedule:", e);
+        setCycles(previousCycles);
+        cyclesRef.current = previousCycles;
       }
+    }
   };
 
   const addDiscipline = async (discipline: Partial<Discipline>) => {
-      const newId = generateId();
-      const newDisc: Discipline = {
-          id: newId,
-          name: discipline.name || 'Nova Disciplina',
-          edital: discipline.edital || '',
-          weight: discipline.weight || Weight.MEDIO,
-          relevance: discipline.relevance || Relevance.MEDIA,
-      };
-      
-      const prev = [...disciplines];
-      setDisciplines(p => [...p, newDisc]);
-      
-      if (!isGuest && user) {
-          try {
-              const { error } = await supabase.from('disciplines').insert({ ...newDisc, user_id: user.id });
-              if (error) throw error;
-          } catch (e) {
-              setDisciplines(prev);
-              throw e;
-          }
+    const newId = generateId();
+    const newDisc: Discipline = {
+      id: newId,
+      name: discipline.name || "Nova Disciplina",
+      edital: discipline.edital || "",
+      weight: discipline.weight || Weight.MEDIO,
+      relevance: discipline.relevance || Relevance.MEDIA,
+    };
+
+    const prev = [...disciplines];
+    setDisciplines((p) => [...p, newDisc]);
+
+    if (!isGuest && user) {
+      try {
+        const { error } = await supabase
+          .from("disciplines")
+          .insert({ ...newDisc, user_id: user.id });
+        if (error) throw error;
+      } catch (e) {
+        setDisciplines(prev);
+        throw e;
       }
-      return newId;
+    }
+    return newId;
   };
 
   const editDiscipline = async (id: string, data: Partial<Discipline>) => {
-      const prev = [...disciplines];
-      setDisciplines(p => p.map(d => d.id === id ? { ...d, ...data } : d));
-      
-      if (!isGuest && user) {
-          try {
-              const payload = { ...data };
-              delete (payload as any).id;
-              const { error } = await supabase.from('disciplines').update(payload).eq('id', id);
-              if (error) throw error;
-          } catch (e) {
-              setDisciplines(prev);
-              throw e;
-          }
+    const prev = [...disciplines];
+    setDisciplines((p) => p.map((d) => (d.id === id ? { ...d, ...data } : d)));
+
+    if (!isGuest && user) {
+      try {
+        const payload = { ...data };
+        delete (payload as any).id;
+        const { error } = await supabase
+          .from("disciplines")
+          .update(payload)
+          .eq("id", id);
+        if (error) throw error;
+      } catch (e) {
+        setDisciplines(prev);
+        throw e;
       }
+    }
   };
 
   const deleteDiscipline = async (id: string) => {
-      const prev = [...disciplines];
-      setDisciplines(p => p.filter(d => d.id !== id));
-      
-      if (!isGuest && user) {
-          try {
-              const { error } = await supabase.from('disciplines').delete().eq('id', id);
-              if (error) throw error;
-          } catch (e) {
-              setDisciplines(prev);
-              throw e;
-          }
+    const prev = [...disciplines];
+    setDisciplines((p) => p.filter((d) => d.id !== id));
+
+    if (!isGuest && user) {
+      try {
+        const { error } = await supabase
+          .from("disciplines")
+          .delete()
+          .eq("id", id);
+        if (error) throw error;
+      } catch (e) {
+        setDisciplines(prev);
+        throw e;
       }
+    }
   };
 
   const moveNotebookToWeek = async (notebookId: string, weekId: string) => {
-      let targetId = notebookId;
-      const nb = notebooks.find(n => n.id === notebookId);
-      if (nb?.isGlobal) {
-          targetId = await ensureNotebookIsPrivate(notebookId);
-      }
+    let targetId = notebookId;
+    const nb = notebooks.find((n) => n.id === notebookId);
+    if (nb?.isGlobal) {
+      targetId = await ensureNotebookIsPrivate(notebookId);
+    }
 
-      if (!activeCycleId) { editNotebook(targetId, { weekId }); return; }
-      const newSlot: ScheduleItem = { instanceId: generateId(), notebookId: targetId, completed: false };
-      await updateCycleSchedule(activeCycleId, (schedule) => {
-          const newSchedule = { ...schedule };
-          if (!newSchedule[weekId]) newSchedule[weekId] = [];
-          newSchedule[weekId] = [...newSchedule[weekId], newSlot];
-          return newSchedule;
-      });
+    if (!activeCycleId) {
+      editNotebook(targetId, { weekId });
+      return;
+    }
+    const newSlot: ScheduleItem = {
+      instanceId: generateId(),
+      notebookId: targetId,
+      completed: false,
+    };
+    await updateCycleSchedule(activeCycleId, (schedule) => {
+      const newSchedule = { ...schedule };
+      if (!newSchedule[weekId]) newSchedule[weekId] = [];
+      newSchedule[weekId] = [...newSchedule[weekId], newSlot];
+      return newSchedule;
+    });
   };
 
-  const updateNotebookSchedule = async (notebookId: string, newWeekId: string | null) => {
-      if (!activeCycleId) return;
-      
-      // Update notebook week_id in DB for consistency
-      if (!isGuest && user) {
-          supabase.from('notebooks').update({ week_id: newWeekId }).eq('id', notebookId).then(({error}) => {
-              if (error) console.error("Error updating notebook week_id:", error);
-          });
+  const updateNotebookSchedule = async (
+    notebookId: string,
+    newWeekId: string | null,
+  ) => {
+    if (!activeCycleId) return;
+
+    // Update notebook week_id in DB for consistency
+    if (!isGuest && user) {
+      supabase
+        .from("notebooks")
+        .update({ week_id: newWeekId })
+        .eq("id", notebookId)
+        .then(({ error }) => {
+          if (error) console.error("Error updating notebook week_id:", error);
+        });
+    }
+
+    await updateCycleSchedule(activeCycleId, (schedule) => {
+      const newSchedule = { ...schedule };
+
+      // Remove from all weeks
+      Object.keys(newSchedule).forEach((wId) => {
+        if (Array.isArray(newSchedule[wId])) {
+          newSchedule[wId] = newSchedule[wId].filter(
+            (s) => s.notebookId !== notebookId,
+          );
+        }
+      });
+
+      // Add to new week if provided
+      if (newWeekId) {
+        if (!newSchedule[newWeekId]) newSchedule[newWeekId] = [];
+        newSchedule[newWeekId] = [
+          ...newSchedule[newWeekId],
+          {
+            instanceId: generateId(),
+            notebookId,
+            completed: false,
+          },
+        ];
       }
 
-      await updateCycleSchedule(activeCycleId, (schedule) => {
-          const newSchedule = { ...schedule };
-          
-          // Remove from all weeks
-          Object.keys(newSchedule).forEach(wId => {
-              if (Array.isArray(newSchedule[wId])) {
-                  newSchedule[wId] = newSchedule[wId].filter(s => s.notebookId !== notebookId);
-              }
-          });
-          
-          // Add to new week if provided
-          if (newWeekId) {
-              if (!newSchedule[newWeekId]) newSchedule[newWeekId] = [];
-              newSchedule[newWeekId] = [...newSchedule[newWeekId], { 
-                  instanceId: generateId(), 
-                  notebookId, 
-                  completed: false 
-              }];
-          }
-          
-          return newSchedule;
-      });
+      return newSchedule;
+    });
   };
 
-  const reorderSlotInWeek = async (weekId: string, oldIndex: number, newIndex: number) => {
-      if (!activeCycleId) return;
-      await updateCycleSchedule(activeCycleId, (schedule) => {
-          if (!schedule[weekId]) return schedule;
-          const items = [...schedule[weekId]];
-          const [moved] = items.splice(oldIndex, 1);
-          items.splice(newIndex, 0, moved);
-          schedule[weekId] = items;
-          return schedule;
-      });
+  const reorderSlotInWeek = async (
+    weekId: string,
+    oldIndex: number,
+    newIndex: number,
+  ) => {
+    if (!activeCycleId) return;
+    await updateCycleSchedule(activeCycleId, (schedule) => {
+      if (!schedule[weekId]) return schedule;
+      const items = [...schedule[weekId]];
+      const [moved] = items.splice(oldIndex, 1);
+      items.splice(newIndex, 0, moved);
+      schedule[weekId] = items;
+      return schedule;
+    });
   };
 
   const toggleSlotCompletion = async (instanceId: string, weekId: string) => {
-      let notebookIdToUpdate: string | undefined;
-      let isCompletedNow = false;
+    let notebookIdToUpdate: string | undefined;
+    let isCompletedNow = false;
 
-      if (!activeCycleId) { 
-          const nb = notebooks.find(n => n.id === instanceId.replace('-legacy', '')); 
-          if(nb) {
-              const newStatus = !nb.isWeekCompleted;
-              const updates: any = { isWeekCompleted: newStatus };
-              if (newStatus) updates.lastPractice = new Date().toISOString();
-              editNotebook(nb.id, updates);
-          }
-          return; 
+    if (!activeCycleId) {
+      const nb = notebooks.find(
+        (n) => n.id === instanceId.replace("-legacy", ""),
+      );
+      if (nb) {
+        const newStatus = !nb.isWeekCompleted;
+        const updates: any = { isWeekCompleted: newStatus };
+        if (newStatus) updates.lastPractice = new Date().toISOString();
+        editNotebook(nb.id, updates);
       }
-      
-      await updateCycleSchedule(activeCycleId, (schedule) => {
-          if (!schedule[weekId]) return schedule;
-          schedule[weekId] = schedule[weekId].map(s => {
-              if (s.instanceId === instanceId) {
-                  notebookIdToUpdate = s.notebookId;
-                  isCompletedNow = !s.completed;
-                  return { 
-                      ...s, 
-                      completed: !s.completed,
-                      completedAt: !s.completed ? new Date().toISOString() : undefined 
-                  };
-              }
-              return s;
-          });
-          return schedule;
+      return;
+    }
+
+    await updateCycleSchedule(activeCycleId, (schedule) => {
+      if (!schedule[weekId]) return schedule;
+      schedule[weekId] = schedule[weekId].map((s) => {
+        if (s.instanceId === instanceId) {
+          notebookIdToUpdate = s.notebookId;
+          isCompletedNow = !s.completed;
+          return {
+            ...s,
+            completed: !s.completed,
+            completedAt: !s.completed ? new Date().toISOString() : undefined,
+          };
+        }
+        return s;
       });
+      return schedule;
+    });
 
-      if (notebookIdToUpdate && isCompletedNow) {
-          await editNotebook(notebookIdToUpdate, { lastPractice: new Date().toISOString() });
-      }
+    if (notebookIdToUpdate && isCompletedNow) {
+      await editNotebook(notebookIdToUpdate, {
+        lastPractice: new Date().toISOString(),
+      });
+    }
   };
 
   const removeSlotFromWeek = async (instanceId: string, weekId: string) => {
-      if (!activeCycleId) { const nb = notebooks.find(n => n.id === instanceId.replace('-legacy', '')); if(nb) editNotebook(nb.id, { weekId: null }); return; }
-      await updateCycleSchedule(activeCycleId, (schedule) => {
-          if (!schedule[weekId]) return schedule;
-          schedule[weekId] = schedule[weekId].filter(s => s.instanceId !== instanceId);
-          return schedule;
-      });
+    if (!activeCycleId) {
+      const nb = notebooks.find(
+        (n) => n.id === instanceId.replace("-legacy", ""),
+      );
+      if (nb) editNotebook(nb.id, { weekId: null });
+      return;
+    }
+    await updateCycleSchedule(activeCycleId, (schedule) => {
+      if (!schedule[weekId]) return schedule;
+      schedule[weekId] = schedule[weekId].filter(
+        (s) => s.instanceId !== instanceId,
+      );
+      return schedule;
+    });
   };
 
-  const moveSlotBetweenWeeks = async (instanceId: string, sourceWeekId: string, targetWeekId: string, targetIndex?: number) => {
-      if (!activeCycleId) return;
-      await updateCycleSchedule(activeCycleId, (schedule) => {
-          if (!schedule[sourceWeekId]) return schedule;
-          const sourceList = [...schedule[sourceWeekId]];
-          const slotIndex = sourceList.findIndex(s => s.instanceId === instanceId);
-          if (slotIndex === -1) return schedule;
-          
-          const [slot] = sourceList.splice(slotIndex, 1);
-          schedule[sourceWeekId] = sourceList;
-          
-          if (!schedule[targetWeekId]) schedule[targetWeekId] = [];
-          const targetList = [...schedule[targetWeekId]];
-          
-          if (targetIndex !== undefined) {
-              targetList.splice(targetIndex, 0, slot);
-          } else {
-              targetList.push(slot);
-          }
-          schedule[targetWeekId] = targetList;
-          
-          return schedule;
-      });
-  };
+  const moveSlotBetweenWeeks = async (
+    instanceId: string,
+    sourceWeekId: string,
+    targetWeekId: string,
+    targetIndex?: number,
+  ) => {
+    if (!activeCycleId) return;
+    await updateCycleSchedule(activeCycleId, (schedule) => {
+      if (!schedule[sourceWeekId]) return schedule;
+      const sourceList = [...schedule[sourceWeekId]];
+      const slotIndex = sourceList.findIndex(
+        (s) => s.instanceId === instanceId,
+      );
+      if (slotIndex === -1) return schedule;
 
-  const saveReport = async (reportData: Omit<SavedReport, 'id' | 'date'>) => {
-      const newReport: SavedReport = { id: generateId(), date: new Date().toISOString(), ...reportData };
-      const previousReports = [...reports];
-      setReports(prev => [newReport, ...prev]);
-      if (!isGuest && user) {
-          try { 
-              const { error } = await supabase.from('reports').insert({ ...newReport, user_id: user.id }); 
-              if (error) throw error;
-          } catch (e) { 
-              console.error("Failed to save report:", e); 
-              setReports(previousReports); 
-          }
+      const [slot] = sourceList.splice(slotIndex, 1);
+      schedule[sourceWeekId] = sourceList;
+
+      if (!schedule[targetWeekId]) schedule[targetWeekId] = [];
+      const targetList = [...schedule[targetWeekId]];
+
+      if (targetIndex !== undefined) {
+        targetList.splice(targetIndex, 0, slot);
+      } else {
+        targetList.push(slot);
       }
+      schedule[targetWeekId] = targetList;
+
+      return schedule;
+    });
+  };
+
+  const saveReport = async (reportData: Omit<SavedReport, "id" | "date">) => {
+    const newReport: SavedReport = {
+      id: generateId(),
+      date: new Date().toISOString(),
+      ...reportData,
+    };
+    const previousReports = [...reports];
+    setReports((prev) => [newReport, ...prev]);
+    if (!isGuest && user) {
+      try {
+        const { error } = await supabase
+          .from("reports")
+          .insert({ ...newReport, user_id: user.id });
+        if (error) throw error;
+      } catch (e) {
+        console.error("Failed to save report:", e);
+        setReports(previousReports);
+      }
+    }
   };
 
   const deleteReport = async (id: string) => {
-      const previousReports = [...reports];
-      setReports(prev => prev.filter(r => r.id !== id));
-      if (!isGuest && user) { 
-          try { 
-              const { error } = await supabase.from('reports').delete().eq('id', id); 
-              if (error) throw error;
-          } catch(e) { 
-              console.error("Failed to delete report:", e); 
-              setReports(previousReports); 
-          } 
+    const previousReports = [...reports];
+    setReports((prev) => prev.filter((r) => r.id !== id));
+    if (!isGuest && user) {
+      try {
+        const { error } = await supabase.from("reports").delete().eq("id", id);
+        if (error) throw error;
+      } catch (e) {
+        console.error("Failed to delete report:", e);
+        setReports(previousReports);
       }
+    }
   };
 
-  const addProtocolItem = async (item: Omit<ProtocolItem, 'id' | 'checked'>) => {
-      const newItem = { ...item, id: generateId(), checked: false };
-      const previousProtocol = [...protocol];
-      setProtocol(prev => [...prev, newItem]);
-      if (!isGuest && user) { 
-          try { 
-              const { error } = await supabase.from('protocol').insert({ ...newItem, user_id: user.id }); 
-              if (error) throw error;
-          } catch (e) { 
-              console.error("Failed to add protocol item:", e); 
-              setProtocol(previousProtocol); 
-          } 
+  const addProtocolItem = async (
+    item: Omit<ProtocolItem, "id" | "checked">,
+  ) => {
+    const newItem = { ...item, id: generateId(), checked: false };
+    const previousProtocol = [...protocol];
+    setProtocol((prev) => [...prev, newItem]);
+    if (!isGuest && user) {
+      try {
+        const { error } = await supabase
+          .from("protocol")
+          .insert({ ...newItem, user_id: user.id });
+        if (error) throw error;
+      } catch (e) {
+        console.error("Failed to add protocol item:", e);
+        setProtocol(previousProtocol);
       }
+    }
   };
 
   const toggleProtocolItem = async (id: string) => {
-      let updatedItem: ProtocolItem | undefined;
-      const previousProtocol = [...protocol];
-      setProtocol(prev => prev.map(p => { if (p.id === id) { updatedItem = { ...p, checked: !p.checked }; return updatedItem; } return p; }));
-      if (!isGuest && user && updatedItem) { 
-          try { 
-              const { error } = await supabase.from('protocol').update({ checked: updatedItem.checked }).eq('id', id); 
-              if (error) throw error;
-          } catch (e) { 
-              console.error("Failed to toggle protocol item:", e); 
-              setProtocol(previousProtocol); 
-          } 
+    let updatedItem: ProtocolItem | undefined;
+    const previousProtocol = [...protocol];
+    setProtocol((prev) =>
+      prev.map((p) => {
+        if (p.id === id) {
+          updatedItem = { ...p, checked: !p.checked };
+          return updatedItem;
+        }
+        return p;
+      }),
+    );
+    if (!isGuest && user && updatedItem) {
+      try {
+        const { error } = await supabase
+          .from("protocol")
+          .update({ checked: updatedItem.checked })
+          .eq("id", id);
+        if (error) throw error;
+      } catch (e) {
+        console.error("Failed to toggle protocol item:", e);
+        setProtocol(previousProtocol);
       }
+    }
   };
 
   const deleteProtocolItem = async (id: string) => {
-      const previousProtocol = [...protocol];
-      setProtocol(prev => prev.filter(p => p.id !== id));
-      if (!isGuest && user) { 
-          try { 
-              const { error } = await supabase.from('protocol').delete().eq('id', id); 
-              if (error) throw error;
-          } catch(e) { 
-              console.error("Failed to delete protocol item:", e);
-              setProtocol(previousProtocol); 
-          } 
+    const previousProtocol = [...protocol];
+    setProtocol((prev) => prev.filter((p) => p.id !== id));
+    if (!isGuest && user) {
+      try {
+        const { error } = await supabase.from("protocol").delete().eq("id", id);
+        if (error) throw error;
+      } catch (e) {
+        console.error("Failed to delete protocol item:", e);
+        setProtocol(previousProtocol);
       }
+    }
   };
 
   const addTheory = async (theory: Partial<Theory>) => {
-      const newTheory = { ...theory, id: generateId(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() } as Theory;
-      if (!isGuest && user) newTheory.userId = user.id;
-      setTheories(prev => [...prev, newTheory]);
-      if (!isGuest && user) {
-          try {
-              const { error } = await supabase.from('theories').insert({
-                  id: newTheory.id,
-                  user_id: user.id,
-                  discipline: newTheory.discipline,
-                  topic: newTheory.topic,
-                  subtopic: newTheory.subtopic,
-                  content: newTheory.content,
-                  created_at: newTheory.createdAt,
-                  updated_at: newTheory.updatedAt
-              });
-              if (error) throw error;
-          } catch(e) { console.error("Error adding theory", e); }
+    const newTheory = {
+      ...theory,
+      id: generateId(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } as Theory;
+    if (!isGuest && user) newTheory.userId = user.id;
+    setTheories((prev) => [...prev, newTheory]);
+    if (!isGuest && user) {
+      try {
+        const { error } = await supabase.from("theories").insert({
+          id: newTheory.id,
+          user_id: user.id,
+          discipline: newTheory.discipline,
+          topic: newTheory.topic,
+          subtopic: newTheory.subtopic,
+          content: newTheory.content,
+          created_at: newTheory.createdAt,
+          updated_at: newTheory.updatedAt,
+        });
+        if (error) throw error;
+      } catch (e) {
+        console.error("Error adding theory", e);
       }
-      return newTheory.id;
+    }
+    return newTheory.id;
   };
 
   const editTheory = async (id: string, data: Partial<Theory>) => {
-      const updatedAt = new Date().toISOString();
-      setTheories(prev => prev.map(t => t.id === id ? { ...t, ...data, updatedAt } : t));
-      if (!isGuest && user) {
-          try {
-              const updateData: any = { updated_at: updatedAt };
-              if (data.discipline !== undefined) updateData.discipline = data.discipline;
-              if (data.topic !== undefined) updateData.topic = data.topic;
-              if (data.subtopic !== undefined) updateData.subtopic = data.subtopic;
-              if (data.content !== undefined) updateData.content = data.content;
-              const { error } = await supabase.from('theories').update(updateData).eq('id', id);
-              if (error) throw error;
-          } catch(e) { console.error("Error editing theory", e); }
+    const updatedAt = new Date().toISOString();
+    setTheories((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, ...data, updatedAt } : t)),
+    );
+    if (!isGuest && user) {
+      try {
+        const updateData: any = { updated_at: updatedAt };
+        if (data.discipline !== undefined)
+          updateData.discipline = data.discipline;
+        if (data.topic !== undefined) updateData.topic = data.topic;
+        if (data.subtopic !== undefined) updateData.subtopic = data.subtopic;
+        if (data.content !== undefined) updateData.content = data.content;
+        const { error } = await supabase
+          .from("theories")
+          .update(updateData)
+          .eq("id", id);
+        if (error) throw error;
+      } catch (e) {
+        console.error("Error editing theory", e);
       }
+    }
   };
 
   const deleteTheory = async (id: string) => {
-      setTheories(prev => prev.filter(t => t.id !== id));
-      if (!isGuest && user) {
-          try {
-              const { error } = await supabase.from('theories').delete().eq('id', id);
-              if (error) throw error;
-          } catch(e) { console.error("Error deleting theory", e); }
+    setTheories((prev) => prev.filter((t) => t.id !== id));
+    if (!isGuest && user) {
+      try {
+        const { error } = await supabase.from("theories").delete().eq("id", id);
+        if (error) throw error;
+      } catch (e) {
+        console.error("Error deleting theory", e);
       }
+    }
   };
 
   const updateFramework = async (data: FrameworkData) => {
-      const previousFramework = { ...framework };
-      setFramework(data);
-      
-      if (!isGuest && user) {
-          try {
-              const payload = {
-                  user_id: user.id,
-                  values: data.values,
-                  dream: data.dream,
-                  motivation: data.motivation,
-                  action: data.action,
-                  habit: data.habit,
-              };
+    const previousFramework = { ...framework };
+    setFramework(data);
 
-              const { error } = await supabase
-                  .from('frameworks')
-                  .upsert(payload, { onConflict: 'user_id' }); 
+    if (!isGuest && user) {
+      try {
+        const payload = {
+          user_id: user.id,
+          values: data.values,
+          dream: data.dream,
+          motivation: data.motivation,
+          action: data.action,
+          habit: data.habit,
+        };
 
-              if (error) {
-                  throw error;
-              }
-          } catch (e: any) {
-              console.error("DB Error: Update Framework", e);
-              setFramework(previousFramework); 
-              let msg = e.message || JSON.stringify(e);
-              if (e.code === '42P01') msg = "Erro: A tabela 'frameworks' não existe no Supabase. Execute o script SQL fornecido.";
-              alert(`Erro ao salvar framework: ${msg}`);
-          }
+        const { error } = await supabase
+          .from("frameworks")
+          .upsert(payload, { onConflict: "user_id" });
+
+        if (error) {
+          throw error;
+        }
+      } catch (e: any) {
+        console.error("DB Error: Update Framework", e);
+        setFramework(previousFramework);
+        let msg = e.message || JSON.stringify(e);
+        if (e.code === "42P01")
+          msg =
+            "Erro: A tabela 'frameworks' não existe no Supabase. Execute o script SQL fornecido.";
+        alert(`Erro ao salvar framework: ${msg}`);
       }
+    }
   };
 
   const addNote = async () => {
-      const newNote: Note = { id: generateId(), content: '', color: 'yellow', isBold: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
-      const previousNotes = [...notes];
-      setNotes(prev => [newNote, ...prev]);
-      if (!isGuest && user) { 
-          try { 
-              const payload = { ...mapNoteToDB(newNote), user_id: user.id }; 
-              let { error } = await supabase.from('notes').insert(payload); 
-              if (error && error.message?.includes('is_bold')) {
-                  delete payload.is_bold;
-                  const retry = await supabase.from('notes').insert(payload);
-                  error = retry.error;
-              }
-              if (error) throw error;
-          } catch (e) { 
-              console.error("Failed to add note:", e); 
-              setNotes(previousNotes); 
-          } 
+    const newNote: Note = {
+      id: generateId(),
+      content: "",
+      color: "yellow",
+      isBold: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    const previousNotes = [...notes];
+    setNotes((prev) => [newNote, ...prev]);
+    if (!isGuest && user) {
+      try {
+        const payload = { ...mapNoteToDB(newNote), user_id: user.id };
+        let { error } = await supabase.from("notes").insert(payload);
+        if (error && error.message?.includes("is_bold")) {
+          delete payload.is_bold;
+          const retry = await supabase.from("notes").insert(payload);
+          error = retry.error;
+        }
+        if (error) throw error;
+      } catch (e) {
+        console.error("Failed to add note:", e);
+        setNotes(previousNotes);
       }
+    }
   };
 
-  const updateNote = async (id: string, content: string, color?: Note['color'], isBold?: boolean) => {
-      const now = new Date().toISOString();
-      const previousNotes = [...notes];
-      const prevNote = previousNotes.find(n => n.id === id);
-      
-      if (!prevNote) return;
+  const updateNote = async (
+    id: string,
+    content: string,
+    color?: Note["color"],
+    isBold?: boolean,
+  ) => {
+    const now = new Date().toISOString();
+    const previousNotes = [...notes];
+    const prevNote = previousNotes.find((n) => n.id === id);
 
-      const updatedLocalNote = { 
-          ...prevNote, 
-          content, 
-          color: color || prevNote.color, 
-          isBold: isBold !== undefined ? isBold : prevNote.isBold,
-          updatedAt: now 
-      };
+    if (!prevNote) return;
 
-      setNotes(prev => prev.map(n => n.id === id ? updatedLocalNote : n));
-      
-      if (!isGuest && user) {
-          try { 
-              const dbPayload = mapNoteToDB(updatedLocalNote);
-              delete (dbPayload as any).id; 
-              
-              let { error } = await supabase.from('notes').update(dbPayload).eq('id', id); 
-              if (error && error.message?.includes('is_bold')) {
-                  delete dbPayload.is_bold;
-                  const retry = await supabase.from('notes').update(dbPayload).eq('id', id);
-                  error = retry.error;
-              }
-              if (error) throw error;
-          } catch(e) { 
-              console.error("Failed to update note:", e); 
-              // Revert on failure
-              setNotes(previousNotes);
-          }
+    const updatedLocalNote = {
+      ...prevNote,
+      content,
+      color: color || prevNote.color,
+      isBold: isBold !== undefined ? isBold : prevNote.isBold,
+      updatedAt: now,
+    };
+
+    setNotes((prev) => prev.map((n) => (n.id === id ? updatedLocalNote : n)));
+
+    if (!isGuest && user) {
+      try {
+        const dbPayload = mapNoteToDB(updatedLocalNote);
+        delete (dbPayload as any).id;
+
+        let { error } = await supabase
+          .from("notes")
+          .update(dbPayload)
+          .eq("id", id);
+        if (error && error.message?.includes("is_bold")) {
+          delete dbPayload.is_bold;
+          const retry = await supabase
+            .from("notes")
+            .update(dbPayload)
+            .eq("id", id);
+          error = retry.error;
+        }
+        if (error) throw error;
+      } catch (e) {
+        console.error("Failed to update note:", e);
+        // Revert on failure
+        setNotes(previousNotes);
       }
+    }
   };
 
   const deleteNote = async (id: string) => {
-      const previousNotes = [...notes];
-      setNotes(prev => prev.filter(n => n.id !== id));
-      if (!isGuest && user) { 
-          try { 
-              const { error } = await supabase.from('notes').delete().eq('id', id); 
-              if (error) throw error;
-          } catch (e) { 
-              console.error("Failed to delete note:", e); 
-              setNotes(previousNotes); 
-          } 
+    const previousNotes = [...notes];
+    setNotes((prev) => prev.filter((n) => n.id !== id));
+    if (!isGuest && user) {
+      try {
+        const { error } = await supabase.from("notes").delete().eq("id", id);
+        if (error) throw error;
+      } catch (e) {
+        console.error("Failed to delete note:", e);
+        setNotes(previousNotes);
       }
+    }
   };
 
   const addMockExam = async (exam: Partial<MockExam>) => {
-      const newExam: MockExam = {
-          id: generateId(),
-          name: exam.name || '',
-          board: exam.board || '',
-          createdAt: new Date().toISOString()
-      };
-      setMockExams(prev => [...prev, newExam]);
-      if (!isGuest && user) {
-          try {
-              const { error } = await supabase.from('mock_exams').insert({
-                  id: newExam.id,
-                  user_id: user.id,
-                  name: newExam.name,
-                  board: newExam.board,
-                  created_at: newExam.createdAt
-              });
-              if (error) throw error;
-          } catch (e) {
-              console.error("Failed to add mock exam:", e);
-              setMockExams(prev => prev.filter(x => x.id !== newExam.id));
-          }
+    const newExam: MockExam = {
+      id: generateId(),
+      name: exam.name || "",
+      board: exam.board || "",
+      createdAt: new Date().toISOString(),
+    };
+    setMockExams((prev) => [...prev, newExam]);
+    if (!isGuest && user) {
+      try {
+        const { error } = await supabase.from("mock_exams").insert({
+          id: newExam.id,
+          user_id: user.id,
+          name: newExam.name,
+          board: newExam.board,
+          created_at: newExam.createdAt,
+        });
+        if (error) throw error;
+      } catch (e) {
+        console.error("Failed to add mock exam:", e);
+        setMockExams((prev) => prev.filter((x) => x.id !== newExam.id));
       }
-      return newExam.id;
+    }
+    return newExam.id;
   };
 
   const editMockExam = async (id: string, data: Partial<MockExam>) => {
-      const previousExams = [...mockExams];
-      setMockExams(prev => prev.map(x => x.id === id ? { ...x, ...data } : x));
-      if (!isGuest && user) {
-          try {
-              const payload: any = {};
-              if (data.name !== undefined) payload.name = data.name;
-              if (data.board !== undefined) payload.board = data.board;
-              if (data.notes !== undefined) payload.notes = data.notes;
-              const { error } = await supabase.from('mock_exams').update(payload).eq('id', id);
-              if (error) throw error;
-          } catch (e) {
-              console.error("Failed to edit mock exam:", e);
-              setMockExams(previousExams);
-          }
+    const previousExams = [...mockExams];
+    setMockExams((prev) =>
+      prev.map((x) => (x.id === id ? { ...x, ...data } : x)),
+    );
+    if (!isGuest && user) {
+      try {
+        const payload: any = {};
+        if (data.name !== undefined) payload.name = data.name;
+        if (data.board !== undefined) payload.board = data.board;
+        if (data.notes !== undefined) payload.notes = data.notes;
+        const { error } = await supabase
+          .from("mock_exams")
+          .update(payload)
+          .eq("id", id);
+        if (error) throw error;
+      } catch (e) {
+        console.error("Failed to edit mock exam:", e);
+        setMockExams(previousExams);
       }
+    }
   };
 
   const deleteMockExam = async (id: string) => {
-      const previousExams = [...mockExams];
-      setMockExams(prev => prev.filter(x => x.id !== id));
-      if (!isGuest && user) {
-          try {
-              const { error } = await supabase.from('mock_exams').delete().eq('id', id);
-              if (error) throw error;
-          } catch (e) {
-              console.error("Failed to delete mock exam:", e);
-              setMockExams(previousExams);
-          }
+    const previousExams = [...mockExams];
+    setMockExams((prev) => prev.filter((x) => x.id !== id));
+    if (!isGuest && user) {
+      try {
+        const { error } = await supabase
+          .from("mock_exams")
+          .delete()
+          .eq("id", id);
+        if (error) throw error;
+      } catch (e) {
+        console.error("Failed to delete mock exam:", e);
+        setMockExams(previousExams);
       }
+    }
   };
 
   const addMockExamResult = async (result: Partial<MockExamResult>) => {
-      const newResult: MockExamResult = {
-          id: generateId(),
-          examId: result.examId || '',
-          discipline: result.discipline || '',
-          accuracy: result.accuracy || 0,
-          date: result.date || new Date().toISOString(),
-          tecLink: result.tecLink || '',
-          tecAverage: result.tecAverage
-      };
-      setMockExamResults(prev => [...prev, newResult]);
-      if (!isGuest && user) {
-          try {
-              const { error } = await supabase.from('mock_exam_results').insert({
-                  id: newResult.id,
-                  user_id: user.id,
-                  exam_id: newResult.examId,
-                  discipline: newResult.discipline,
-                  accuracy: newResult.accuracy,
-                  date: newResult.date,
-                  tec_link: newResult.tecLink,
-                  tec_average: newResult.tecAverage
-              });
-              if (error) throw error;
-          } catch (e) {
-              console.error("Failed to add mock exam result:", e);
-              setMockExamResults(prev => prev.filter(x => x.id !== newResult.id));
-          }
+    const newResult: MockExamResult = {
+      id: generateId(),
+      examId: result.examId || "",
+      discipline: result.discipline || "",
+      accuracy: result.accuracy || 0,
+      date: result.date || new Date().toISOString(),
+      tecLink: result.tecLink || "",
+      tecAverage: result.tecAverage,
+    };
+    setMockExamResults((prev) => [...prev, newResult]);
+    if (!isGuest && user) {
+      try {
+        const { error } = await supabase.from("mock_exam_results").insert({
+          id: newResult.id,
+          user_id: user.id,
+          exam_id: newResult.examId,
+          discipline: newResult.discipline,
+          accuracy: newResult.accuracy,
+          date: newResult.date,
+          tec_link: newResult.tecLink,
+          tec_average: newResult.tecAverage,
+        });
+        if (error) throw error;
+      } catch (e) {
+        console.error("Failed to add mock exam result:", e);
+        setMockExamResults((prev) => prev.filter((x) => x.id !== newResult.id));
       }
-      return newResult.id;
+    }
+    return newResult.id;
   };
 
-  const editMockExamResult = async (id: string, data: Partial<MockExamResult>) => {
-      const previousResults = [...mockExamResults];
-      setMockExamResults(prev => prev.map(x => x.id === id ? { ...x, ...data } : x));
-      if (!isGuest && user) {
-          try {
-              const payload: any = {};
-              if (data.accuracy !== undefined) payload.accuracy = data.accuracy;
-              if (data.tecLink !== undefined) payload.tec_link = data.tecLink;
-              if (data.tecAverage !== undefined) payload.tec_average = data.tecAverage;
-              if (data.date !== undefined) payload.date = data.date;
-              const { error } = await supabase.from('mock_exam_results').update(payload).eq('id', id);
-              if (error) throw error;
-          } catch (e) {
-              console.error("Failed to edit mock exam result:", e);
-              setMockExamResults(previousResults);
-          }
+  const editMockExamResult = async (
+    id: string,
+    data: Partial<MockExamResult>,
+  ) => {
+    const previousResults = [...mockExamResults];
+    setMockExamResults((prev) =>
+      prev.map((x) => (x.id === id ? { ...x, ...data } : x)),
+    );
+    if (!isGuest && user) {
+      try {
+        const payload: any = {};
+        if (data.accuracy !== undefined) payload.accuracy = data.accuracy;
+        if (data.tecLink !== undefined) payload.tec_link = data.tecLink;
+        if (data.tecAverage !== undefined)
+          payload.tec_average = data.tecAverage;
+        if (data.date !== undefined) payload.date = data.date;
+        const { error } = await supabase
+          .from("mock_exam_results")
+          .update(payload)
+          .eq("id", id);
+        if (error) throw error;
+      } catch (e) {
+        console.error("Failed to edit mock exam result:", e);
+        setMockExamResults(previousResults);
       }
+    }
   };
 
   const deleteMockExamResult = async (id: string) => {
-      const previousResults = [...mockExamResults];
-      setMockExamResults(prev => prev.filter(x => x.id !== id));
-      if (!isGuest && user) {
-          try {
-              const { error } = await supabase.from('mock_exam_results').delete().eq('id', id);
-              if (error) throw error;
-          } catch (e) {
-              console.error("Failed to delete mock exam result:", e);
-              setMockExamResults(previousResults);
-          }
+    const previousResults = [...mockExamResults];
+    setMockExamResults((prev) => prev.filter((x) => x.id !== id));
+    if (!isGuest && user) {
+      try {
+        const { error } = await supabase
+          .from("mock_exam_results")
+          .delete()
+          .eq("id", id);
+        if (error) throw error;
+      } catch (e) {
+        console.error("Failed to delete mock exam result:", e);
+        setMockExamResults(previousResults);
       }
+    }
   };
 
   const addStudySession = async (duration: number) => {
-      const newSession: StudySessionRecord = {
-          id: generateId(),
-          duration,
-          date: new Date().toISOString()
-      };
-      setStudySessions(prev => [...prev, newSession]);
-      if (!isGuest && user) {
-          try {
-              const { error } = await supabase.from('study_sessions').insert({
-                  id: newSession.id,
-                  user_id: user.id,
-                  duration: newSession.duration,
-                  date: newSession.date
-              });
-              if (error) throw error;
-          } catch (e) {
-              console.error("Failed to add study session:", e);
-              setStudySessions(prev => prev.filter(x => x.id !== newSession.id));
-          }
+    const newSession: StudySessionRecord = {
+      id: generateId(),
+      duration,
+      date: new Date().toISOString(),
+    };
+    setStudySessions((prev) => [...prev, newSession]);
+    if (!isGuest && user) {
+      try {
+        const { error } = await supabase.from("study_sessions").insert({
+          id: newSession.id,
+          user_id: user.id,
+          duration: newSession.duration,
+          date: newSession.date,
+        });
+        if (error) throw error;
+      } catch (e) {
+        console.error("Failed to add study session:", e);
+        setStudySessions((prev) => prev.filter((x) => x.id !== newSession.id));
       }
-      return newSession.id;
+    }
+    return newSession.id;
   };
 
   const deleteStudySession = async (id: string) => {
-      const previous = [...studySessions];
-      setStudySessions(prev => prev.filter(x => x.id !== id));
-      if (!isGuest && user) {
-          try {
-              const { error } = await supabase.from('study_sessions').delete().eq('id', id);
-              if (error) throw error;
-          } catch (e) {
-              console.error("Failed to delete study session:", e);
-              setStudySessions(previous);
-          }
+    const previous = [...studySessions];
+    setStudySessions((prev) => prev.filter((x) => x.id !== id));
+    if (!isGuest && user) {
+      try {
+        const { error } = await supabase
+          .from("study_sessions")
+          .delete()
+          .eq("id", id);
+        if (error) throw error;
+      } catch (e) {
+        console.error("Failed to delete study session:", e);
+        setStudySessions(previous);
       }
+    }
   };
 
   const addQuestionSet = async (setData: Partial<QuestionSet>) => {
-      const newSet: QuestionSet = {
-          id: generateId(),
-          name: setData.name || 'Novo Caderno',
-          discipline: setData.discipline || '',
-          subject: setData.subject || '',
-          obs1: setData.obs1 || '',
-          obs2: setData.obs2 || '',
-          createdAt: new Date().toISOString()
-      };
-      setQuestionSets(prev => [...prev, newSet]);
-      if (!isGuest && user) {
-          try {
-              const { error } = await supabase.from('question_sets').insert({
-                  id: newSet.id,
-                  user_id: user.id,
-                  name: newSet.name,
-                  discipline: newSet.discipline,
-                  subject: newSet.subject,
-                  obs1: newSet.obs1,
-                  obs2: newSet.obs2,
-                  created_at: newSet.createdAt
-              });
-              if (error) throw error;
-          } catch (e: any) {
-              console.error("Failed to add question set:", e);
-              alert("Erro ao salvar caderno na nuvem: " + (e.message || JSON.stringify(e)));
-              setQuestionSets(prev => prev.filter(x => x.id !== newSet.id));
-          }
+    const newSet: QuestionSet = {
+      id: generateId(),
+      name: setData.name || "Novo Caderno",
+      discipline: setData.discipline || "",
+      subject: setData.subject || "",
+      obs1: setData.obs1 || "",
+      obs2: setData.obs2 || "",
+      createdAt: new Date().toISOString(),
+    };
+    setQuestionSets((prev) => [...prev, newSet]);
+    if (!isGuest && user) {
+      try {
+        const { error } = await supabase.from("question_sets").insert({
+          id: newSet.id,
+          user_id: user.id,
+          name: newSet.name,
+          discipline: newSet.discipline,
+          subject: newSet.subject,
+          obs1: newSet.obs1,
+          obs2: newSet.obs2,
+          created_at: newSet.createdAt,
+        });
+        if (error) throw error;
+      } catch (e: any) {
+        console.error("Failed to add question set:", e);
+        alert(
+          "Erro ao salvar caderno na nuvem: " +
+            (e.message || JSON.stringify(e)),
+        );
+        setQuestionSets((prev) => prev.filter((x) => x.id !== newSet.id));
       }
-      return newSet.id;
+    }
+    return newSet.id;
   };
 
   const editQuestionSet = async (id: string, data: Partial<QuestionSet>) => {
-      const previous = [...questionSets];
-      setQuestionSets(prev => prev.map(x => x.id === id ? { ...x, ...data } : x));
-      if (!isGuest && user) {
-          try {
-              const payload: any = {};
-              if (data.name !== undefined) payload.name = data.name;
-              if (data.discipline !== undefined) payload.discipline = data.discipline;
-              if (data.subject !== undefined) payload.subject = data.subject;
-              if (data.obs1 !== undefined) payload.obs1 = data.obs1;
-              if (data.obs2 !== undefined) payload.obs2 = data.obs2;
-              const { error } = await supabase.from('question_sets').update(payload).eq('id', id);
-              if (error) throw error;
-          } catch (e) {
-              console.error("Failed to edit question set:", e);
-              setQuestionSets(previous);
-          }
+    const previous = [...questionSets];
+    setQuestionSets((prev) =>
+      prev.map((x) => (x.id === id ? { ...x, ...data } : x)),
+    );
+    if (!isGuest && user) {
+      try {
+        const payload: any = {};
+        if (data.name !== undefined) payload.name = data.name;
+        if (data.discipline !== undefined) payload.discipline = data.discipline;
+        if (data.subject !== undefined) payload.subject = data.subject;
+        if (data.obs1 !== undefined) payload.obs1 = data.obs1;
+        if (data.obs2 !== undefined) payload.obs2 = data.obs2;
+        const { error } = await supabase
+          .from("question_sets")
+          .update(payload)
+          .eq("id", id);
+        if (error) throw error;
+      } catch (e) {
+        console.error("Failed to edit question set:", e);
+        setQuestionSets(previous);
       }
+    }
   };
 
   const deleteQuestionSet = async (id: string) => {
-      const previous = [...questionSets];
-      setQuestionSets(prev => prev.filter(x => x.id !== id));
-      if (!isGuest && user) {
-          try {
-              const { error } = await supabase.from('question_sets').delete().eq('id', id);
-              if (error) throw error;
-          } catch (e) {
-              console.error("Failed to delete question set:", e);
-              setQuestionSets(previous);
-          }
+    const previous = [...questionSets];
+    setQuestionSets((prev) => prev.filter((x) => x.id !== id));
+    if (!isGuest && user) {
+      try {
+        const { error } = await supabase
+          .from("question_sets")
+          .delete()
+          .eq("id", id);
+        if (error) throw error;
+      } catch (e) {
+        console.error("Failed to delete question set:", e);
+        setQuestionSets(previous);
       }
+    }
   };
 
   const addQuestions = async (newQuestions: Partial<QuestionItem>[]) => {
-      const items: QuestionItem[] = newQuestions.map(q => ({
-          id: generateId(),
-          setId: q.setId || '',
-          text: q.text || '',
-          correctAnswer: q.correctAnswer || 'C',
-          explanation: q.explanation || '',
-          code: q.code || '',
-          discipline: q.discipline || '',
-          subject: q.subject || '',
-          createdAt: new Date().toISOString()
-      }));
+    const items: QuestionItem[] = newQuestions.map((q) => ({
+      id: generateId(),
+      setId: q.setId || "",
+      text: q.text || "",
+      correctAnswer: q.correctAnswer || "C",
+      explanation: q.explanation || "",
+      code: q.code || "",
+      discipline: q.discipline || "",
+      subject: q.subject || "",
+      createdAt: new Date().toISOString(),
+    }));
 
-      setQuestions(prev => [...prev, ...items]);
+    setQuestions((prev) => [...prev, ...items]);
 
-      if (!isGuest && user) {
-          try {
-              const payload = items.map(q => ({
-                  id: q.id,
-                  user_id: user.id,
-                  set_id: q.setId,
-                  text: q.text,
-                  correct_answer: q.correctAnswer,
-                  explanation: q.explanation,
-                  code: q.code,
-                  discipline: q.discipline,
-                  subject: q.subject,
-                  created_at: q.createdAt
-              }));
-              const { error } = await supabase.from('questions').insert(payload);
-              if (error) throw error;
-          } catch (e: any) {
-              console.error("Failed to add questions:", e);
-              alert("Erro ao salvar questões na nuvem: " + (e.message || JSON.stringify(e)));
-              setQuestions(prev => prev.filter(x => !items.find(i => i.id === x.id)));
-          }
+    if (!isGuest && user) {
+      try {
+        const payload = items.map((q) => ({
+          id: q.id,
+          user_id: user.id,
+          set_id: q.setId,
+          text: q.text,
+          correct_answer: q.correctAnswer,
+          explanation: q.explanation,
+          code: q.code,
+          discipline: q.discipline,
+          subject: q.subject,
+          created_at: q.createdAt,
+        }));
+        const { error } = await supabase.from("questions").insert(payload);
+        if (error) throw error;
+      } catch (e: any) {
+        console.error("Failed to add questions:", e);
+        alert(
+          "Erro ao salvar questões na nuvem: " +
+            (e.message || JSON.stringify(e)),
+        );
+        setQuestions((prev) =>
+          prev.filter((x) => !items.find((i) => i.id === x.id)),
+        );
       }
+    }
   };
 
   const deleteQuestion = async (id: string) => {
-      const previous = [...questions];
-      setQuestions(prev => prev.filter(x => x.id !== id));
-      if (!isGuest && user) {
-          try {
-              const { error } = await supabase.from('questions').delete().eq('id', id);
-              if (error) throw error;
-          } catch (e) {
-              console.error("Failed to delete question:", e);
-              setQuestions(previous);
-          }
+    const previous = [...questions];
+    setQuestions((prev) => prev.filter((x) => x.id !== id));
+    if (!isGuest && user) {
+      try {
+        const { error } = await supabase
+          .from("questions")
+          .delete()
+          .eq("id", id);
+        if (error) throw error;
+      } catch (e) {
+        console.error("Failed to delete question:", e);
+        setQuestions(previous);
       }
+    }
   };
 
-  const addQuestionResult = async (result: Omit<QuestionResult, 'id' | 'date'>) => {
-      const newResult: QuestionResult = {
-          id: generateId(),
-          questionId: result.questionId,
-          setId: result.setId,
-          userAnswer: result.userAnswer,
-          isCorrect: result.isCorrect,
-          date: new Date().toISOString()
-      };
-      
-      const previous = [...questionResults];
-      setQuestionResults(prev => [...prev.filter(r => r.questionId !== result.questionId), newResult]);
-      
-      if (!isGuest && user) {
-          try {
-              // Delete old results for this question first
-              await supabase.from('question_results').delete().eq('question_id', result.questionId).eq('user_id', user.id);
-              
-              const { error } = await supabase.from('question_results').insert({
-                  id: newResult.id,
-                  user_id: user.id,
-                  question_id: newResult.questionId,
-                  set_id: newResult.setId,
-                  user_answer: newResult.userAnswer,
-                  is_correct: newResult.isCorrect,
-                  date: newResult.date
-              });
-              if (error) throw error;
-          } catch (e) {
-              console.error("Failed to add question result:", e);
-              setQuestionResults(previous);
-          }
+  const addQuestionResult = async (
+    result: Omit<QuestionResult, "id" | "date">,
+  ) => {
+    const newResult: QuestionResult = {
+      id: generateId(),
+      questionId: result.questionId,
+      setId: result.setId,
+      userAnswer: result.userAnswer,
+      isCorrect: result.isCorrect,
+      date: new Date().toISOString(),
+    };
+
+    const previous = [...questionResults];
+    setQuestionResults((prev) => [
+      ...prev.filter((r) => r.questionId !== result.questionId),
+      newResult,
+    ]);
+
+    if (!isGuest && user) {
+      try {
+        // Delete old results for this question first
+        await supabase
+          .from("question_results")
+          .delete()
+          .eq("question_id", result.questionId)
+          .eq("user_id", user.id);
+
+        const { error } = await supabase.from("question_results").insert({
+          id: newResult.id,
+          user_id: user.id,
+          question_id: newResult.questionId,
+          set_id: newResult.setId,
+          user_answer: newResult.userAnswer,
+          is_correct: newResult.isCorrect,
+          date: newResult.date,
+        });
+        if (error) throw error;
+      } catch (e) {
+        console.error("Failed to add question result:", e);
+        setQuestionResults(previous);
       }
+    }
   };
 
   const resetQuestionResults = async (setId: string) => {
-      const previous = [...questionResults];
-      setQuestionResults(prev => prev.filter(x => x.setId !== setId));
-      if (!isGuest && user) {
-          try {
-              const { error } = await supabase.from('question_results').delete().eq('set_id', setId).eq('user_id', user.id);
-              if (error) throw error;
-          } catch (e) {
-              console.error("Failed to reset question results:", e);
-              setQuestionResults(previous);
-          }
+    const previous = [...questionResults];
+    setQuestionResults((prev) => prev.filter((x) => x.setId !== setId));
+    if (!isGuest && user) {
+      try {
+        const { error } = await supabase
+          .from("question_results")
+          .delete()
+          .eq("set_id", setId)
+          .eq("user_id", user.id);
+        if (error) throw error;
+      } catch (e) {
+        console.error("Failed to reset question results:", e);
+        setQuestionResults(previous);
       }
+    }
   };
 
   const exportDatabase = () => {
-      const data = { notebooks, cycles, reports, protocol, framework, notes, activeCycleId };
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `atena_backup_${new Date().toISOString().split('T')[0]}.json`;
-      a.click();
+    const data = {
+      notebooks,
+      cycles,
+      reports,
+      protocol,
+      framework,
+      notes,
+      activeCycleId,
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `atena_backup_${new Date().toISOString().split("T")[0]}.json`;
+    a.click();
   };
 
   const startSession = async (notebook: Notebook) => {
-      let targetNb = notebook;
-      if (notebook.isGlobal) {
-          const newId = await ensureNotebookIsPrivate(notebook.id);
-          const freshNb = notebooks.find(n => n.id === newId); 
-          if (freshNb) targetNb = freshNb;
-          else targetNb = { ...notebook, id: newId, isGlobal: false }; 
-      }
-      setActiveSession(targetNb);
+    let targetNb = notebook;
+    if (notebook.isGlobal) {
+      const newId = await ensureNotebookIsPrivate(notebook.id);
+      const freshNb = notebooks.find((n) => n.id === newId);
+      if (freshNb) targetNb = freshNb;
+      else targetNb = { ...notebook, id: newId, isGlobal: false };
+    }
+    setActiveSession(targetNb);
   };
-  
+
   const endSession = () => setActiveSession(null);
 
   const value = {
-      user, isGuest, loading, isSyncing, dbError,
-      notebooks, disciplines, cycles, activeCycleId, config, reports, protocol, framework, notes,
-      mockExams, mockExamResults,
-      activeSession, pendingCreateData, focusedNotebookId,
-      createCycle, selectCycle, deleteCycle, updateConfig,
-      addNotebook, editNotebook, deleteNotebook, updateNotebookAccuracy, fetchNotebookImages, 
-      addDiscipline, editDiscipline, deleteDiscipline,
-      moveNotebookToWeek, updateNotebookSchedule, reorderSlotInWeek, moveSlotBetweenWeeks, toggleSlotCompletion, removeSlotFromWeek,
-      saveReport, deleteReport,
-      addProtocolItem, toggleProtocolItem, deleteProtocolItem,
-      updateFramework,
-      addNote, updateNote, deleteNote,
-      addMockExam, editMockExam, deleteMockExam,
-      addMockExamResult, editMockExamResult, deleteMockExamResult,
-      studySessions, addStudySession, deleteStudySession,
-      theories, addTheory, editTheory, deleteTheory,
-      questionSets, questions, questionResults,
-      addQuestionSet, editQuestionSet, deleteQuestionSet, addQuestions, deleteQuestion, addQuestionResult, resetQuestionResults,
-      enterGuestMode, exportDatabase, startSession, endSession, setPendingCreateData, setFocusedNotebookId
+    user,
+    isGuest,
+    loading,
+    isSyncing,
+    dbError,
+    notebooks,
+    disciplines,
+    cycles,
+    activeCycleId,
+    config,
+    reports,
+    protocol,
+    framework,
+    notes,
+    mockExams,
+    mockExamResults,
+    activeSession,
+    pendingCreateData,
+    focusedNotebookId,
+    createCycle,
+    selectCycle,
+    deleteCycle,
+    updateConfig,
+    addNotebook,
+    editNotebook,
+    deleteNotebook,
+    updateNotebookAccuracy,
+    fetchNotebookImages,
+    addDiscipline,
+    editDiscipline,
+    deleteDiscipline,
+    moveNotebookToWeek,
+    updateNotebookSchedule,
+    reorderSlotInWeek,
+    moveSlotBetweenWeeks,
+    toggleSlotCompletion,
+    removeSlotFromWeek,
+    saveReport,
+    deleteReport,
+    addProtocolItem,
+    toggleProtocolItem,
+    deleteProtocolItem,
+    updateFramework,
+    addNote,
+    updateNote,
+    deleteNote,
+    addMockExam,
+    editMockExam,
+    deleteMockExam,
+    addMockExamResult,
+    editMockExamResult,
+    deleteMockExamResult,
+    studySessions,
+    addStudySession,
+    deleteStudySession,
+    theories,
+    addTheory,
+    editTheory,
+    deleteTheory,
+    questionSets,
+    questions,
+    questionResults,
+    addQuestionSet,
+    editQuestionSet,
+    deleteQuestionSet,
+    addQuestions,
+    deleteQuestion,
+    addQuestionResult,
+    resetQuestionResults,
+    enterGuestMode,
+    exportDatabase,
+    startSession,
+    endSession,
+    setPendingCreateData,
+    setFocusedNotebookId,
   };
 
-  return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;
+  return (
+    <StoreContext.Provider value={value}>{children}</StoreContext.Provider>
+  );
 };
 
 export const useStore = () => {
   const context = useContext(StoreContext);
   if (context === undefined) {
-    throw new Error('useStore must be used within a StoreProvider');
+    throw new Error("useStore must be used within a StoreProvider");
   }
   return context;
 };
@@ -1933,14 +2594,14 @@ export const useMergedDisciplines = () => {
 
   return useMemo(() => {
     const disciplineMap = new Map<string, Discipline>();
-    
+
     // 1. Add explicitly saved disciplines
-    disciplines.forEach(d => {
+    disciplines.forEach((d) => {
       disciplineMap.set(d.name.toLowerCase().trim(), d);
     });
 
     // 2. Add virtual disciplines from notebooks
-    notebooks.forEach(nb => {
+    notebooks.forEach((nb) => {
       if (!nb.discipline) return;
       const key = nb.discipline.toLowerCase().trim();
       if (!disciplineMap.has(key)) {
@@ -1954,8 +2615,10 @@ export const useMergedDisciplines = () => {
     });
 
     return Array.from(disciplineMap.values()).sort((a, b) => {
-      const scoreA = (WEIGHT_SCORE[a.weight] || 0) * (RELEVANCE_SCORE[a.relevance] || 0);
-      const scoreB = (WEIGHT_SCORE[b.weight] || 0) * (RELEVANCE_SCORE[b.relevance] || 0);
+      const scoreA =
+        (WEIGHT_SCORE[a.weight] || 0) * (RELEVANCE_SCORE[a.relevance] || 0);
+      const scoreB =
+        (WEIGHT_SCORE[b.weight] || 0) * (RELEVANCE_SCORE[b.relevance] || 0);
       if (scoreB !== scoreA) return scoreB - scoreA;
       return a.name.localeCompare(b.name);
     });

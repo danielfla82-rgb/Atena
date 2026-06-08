@@ -24,6 +24,8 @@ export const AdminEditais: React.FC = () => {
     const [targetSyncMessage, setTargetSyncMessage] = useState<{text: string, type: 'error' | 'success'} | null>(null);
     const [isSyncingSpecific, setIsSyncingSpecific] = useState(false);
     
+    const [templateToDelete, setTemplateToDelete] = useState<string | null>(null);
+
     // Load templates
     useEffect(() => {
         const saved = localStorage.getItem('admin_edital_templates');
@@ -144,7 +146,7 @@ export const AdminEditais: React.FC = () => {
             return;
         }
 
-        let newTemplates = [...templates];
+        const newTemplates = [...templates];
         const existingIndex = newTemplates.findIndex(t => t.id === editingTemplate.id);
         
         if (existingIndex >= 0) {
@@ -158,8 +160,13 @@ export const AdminEditais: React.FC = () => {
     };
 
     const handleDelete = (id: string) => {
-        if (confirm("Deseja realmente excluir este template?")) {
-            saveTemplates(templates.filter(t => t.id !== id));
+        setTemplateToDelete(id);
+    };
+
+    const confirmDelete = () => {
+        if (templateToDelete) {
+            saveTemplates(templates.filter(t => t.id !== templateToDelete));
+            setTemplateToDelete(null);
         }
     };
 
@@ -425,6 +432,31 @@ export const AdminEditais: React.FC = () => {
                             >
                                 {isSyncingSpecific ? <Loader2 size={18} className="animate-spin" /> : <Globe size={18} />}
                                 {isSyncingSpecific ? 'Sincronizando...' : 'Sincronizar Edital'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {templateToDelete && (
+                <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+                        <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 text-center">Confirmar Exclusão</h3>
+                        <p className="text-slate-500 dark:text-slate-400 text-sm mb-6 text-center">
+                            Tem certeza que deseja excluir este template? Esta ação não pode ser desfeita.
+                        </p>
+                        <div className="flex justify-end gap-3 font-medium">
+                            <button
+                                onClick={() => setTemplateToDelete(null)}
+                                className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={confirmDelete}
+                                className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-colors"
+                            >
+                                Excluir
                             </button>
                         </div>
                     </div>

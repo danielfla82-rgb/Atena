@@ -8,7 +8,11 @@ ALTER TABLE notebooks
 ADD COLUMN IF NOT EXISTS law_link_comment TEXT,
 ADD COLUMN IF NOT EXISTS obsidian_link_comment TEXT,
 ADD COLUMN IF NOT EXISTS gemini_link_1_comment TEXT,
-ADD COLUMN IF NOT EXISTS theme_weight TEXT;
+ADD COLUMN IF NOT EXISTS theme_weight TEXT,
+ADD COLUMN IF NOT EXISTS theory_id TEXT,
+ADD COLUMN IF NOT EXISTS extra_subtopics JSONB,
+ADD COLUMN IF NOT EXISTS extra_tec_notebooks JSONB,
+ADD COLUMN IF NOT EXISTS extra_error_notebooks JSONB;
 
 -- 3. FIX MOCK EXAMS (Remover restrições de colunas errôneas caso tenham sido criadas)
 DO $$

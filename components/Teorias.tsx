@@ -45,7 +45,7 @@ export const Teorias: React.FC = () => {
         <div>
           <h2 className="text-3xl font-black text-slate-900 dark:text-white flex items-center gap-3">
             <Book className="text-[#ff6b00]" size={32} />
-            Módulos Teóricos
+            Biblioteca Atena
           </h2>
           <p className="text-slate-500 dark:text-slate-400 mt-2">
             Acesse as trilhas de conhecimento e resumos de véspera focados nos

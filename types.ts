@@ -53,6 +53,8 @@ export interface Discipline {
 export interface Notebook {
   /** UUID v4 */
   id: string;
+  /** UUID do usuário (null se for template global) */
+  userId?: string;
   /** Edital/Prova Alvo (Novo V10.4) */
   edital?: string;
   /** Disciplina pai (ex: Direito Constitucional) */
@@ -84,7 +86,10 @@ export interface Notebook {
     externalLink?: string;
     comments?: string;
     errorNotebookLink?: string;
+    theoryId?: string;
   }[];
+  /** Id da Teoria associada a este caderno */
+  theoryId?: string;
   /** Peso numérico do subtópico principal (Novo) */
   themeWeight?: string;
   /** Link externo para texto de lei ou legislação */
@@ -190,6 +195,9 @@ export interface AthensConfig {
   editalLink?: string;
   // Edital Estruturado (Salvo após processamento da IA)
   structuredEdital?: EditalDiscipline[];
+  // Extra draft fields for processing edital before saving to structuredEdital
+  draftEdital?: EditalDiscipline[];
+  draftEditalText?: string;
   // Algoritmo Customizável
   algorithm?: AlgorithmConfig;
   // Estado persistente da Calculadora de Ciclo

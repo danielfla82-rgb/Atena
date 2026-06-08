@@ -5,8 +5,27 @@ import { Plus, Edit2, Trash2, X, Save, Book, Target, AlertCircle, Info, Activity
 import { EditableLink } from './EditableLink';
 
 export const DisciplineManager: React.FC<{ onNavigate?: (view: string) => void }> = ({ onNavigate }) => {
-  const { addDiscipline, editDiscipline, deleteDiscipline, notebooks, setFocusedNotebookId } = useStore();
-  const mergedDisciplines = useMergedDisciplines();
+  const { addDiscipline, editDiscipline, deleteDiscipline, notebooks, setFocusedNotebookId, config, user } = useStore();
+  const rawMergedDisciplines = useMergedDisciplines();
+  
+  const isAdmin = user?.email === 'danielfla82@gmail.com' || user?.email === 'dcsrj@hotmail.com';
+  
+  const mergedDisciplines = useMemo(() => {
+    if (isAdmin) return rawMergedDisciplines;
+    
+    const allowed = new Set<string>();
+    if (config?.draftEdital) {
+      config.draftEdital.forEach((d: any) => allowed.add(d.name.toLowerCase().trim()));
+    }
+    notebooks.forEach(nb => {
+      if (nb.isGlobal && nb.discipline) {
+        allowed.add(nb.discipline.toLowerCase().trim());
+      }
+    });
+
+    return rawMergedDisciplines.filter(d => allowed.has(d.name.toLowerCase().trim()));
+  }, [rawMergedDisciplines, isAdmin, config, notebooks]);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Discipline>>({
@@ -226,13 +245,25 @@ export const DisciplineManager: React.FC<{ onNavigate?: (view: string) => void }
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (id: string, name: string) => {
     if (id.startsWith('virtual-')) {
       alert('Esta disciplina é gerada automaticamente a partir dos seus cadernos. Para removê-la, altere ou exclua os cadernos associados a ela.');
       return;
     }
-    if (confirm('Tem certeza que deseja excluir esta disciplina?')) {
-      await deleteDiscipline(id);
+    
+    // Check if there are notebooks using this discipline
+    const associatedNotebooks = notebooks.filter(nb => nb.discipline.toLowerCase().trim() === name.toLowerCase().trim());
+    if (associatedNotebooks.length > 0) {
+       alert(`Não é possível excluir a disciplina "${name}" porque ela possui ${associatedNotebooks.length} caderno(s) associado(s). Exclua ou mova os cadernos primeiro.`);
+       return;
+    }
+
+    if (confirm('Tem certeza que deseja excluir esta disciplina permanentemente?')) {
+      try {
+        await deleteDiscipline(id);
+      } catch (err: any) {
+        alert(err.message || 'Erro ao excluir disciplina.');
+      }
     }
   };
 
@@ -279,7 +310,7 @@ export const DisciplineManager: React.FC<{ onNavigate?: (view: string) => void }
                 </div>
                 <div className="flex gap-2">
                   <button onClick={() => handleOpenEdit(discipline)} className="p-1.5 text-slate-400 hover:text-green-500 bg-slate-100 dark:bg-slate-800 rounded-md transition-colors" title={isVirtual ? "Editar para salvar configurações" : "Editar"}><Edit2 size={14} /></button>
-                  {!isVirtual && <button onClick={() => handleDelete(discipline.id)} className="p-1.5 text-slate-400 hover:text-red-500 bg-slate-100 dark:bg-slate-800 rounded-md transition-colors"><Trash2 size={14} /></button>}
+                  {!isVirtual && <button onClick={() => handleDelete(discipline.id, discipline.name)} className="p-1.5 text-slate-400 hover:text-red-500 bg-slate-100 dark:bg-slate-800 rounded-md transition-colors"><Trash2 size={14} /></button>}
                 </div>
               </div>
               <div className="flex gap-2 mt-auto flex-wrap">

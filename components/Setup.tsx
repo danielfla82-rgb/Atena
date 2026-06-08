@@ -1011,7 +1011,6 @@ export const Setup: React.FC<Props> = ({ onNavigate }) => {
                     )}
                  </div>
                  <button onClick={exportDatabase} className="h-[42px] w-[42px] flex items-center justify-center rounded-xl transition-all border bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-700 hover:text-slate-900 dark:text-white hover:bg-slate-700 hover:border-green-500/50" title="Fazer Backup Manual (.json)"><Download size={18} /></button>
-                 <button onClick={() => { setLocalConfig(config); setIsConfigOpen(true); }} className={`h-[42px] w-[42px] flex items-center justify-center rounded-xl transition-all border flex-shrink-0 ${isConfigOpen ? 'bg-green-500/20 text-green-400 border-green-500/50' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-700 hover:text-slate-900 dark:text-white hover:bg-slate-700'}`}><Settings2 size={18} /></button>
             </div>
          </header>
 

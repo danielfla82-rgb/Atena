@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS disciplines (
 CREATE TABLE IF NOT EXISTS notebooks (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    theory_id TEXT,
     edital TEXT,
     discipline TEXT NOT NULL,
     name TEXT NOT NULL,
@@ -30,6 +31,10 @@ CREATE TABLE IF NOT EXISTS notebooks (
     obsidian_link TEXT,
     gemini_link_1 TEXT,
     gemini_link_2 TEXT,
+    gemini_link_1_comment TEXT,
+    law_link_comment TEXT,
+    obsidian_link_comment TEXT,
+    theme_weight TEXT,
     target_accuracy NUMERIC DEFAULT 90,
     accuracy NUMERIC DEFAULT 0,
     status TEXT DEFAULT 'Não Iniciado',
