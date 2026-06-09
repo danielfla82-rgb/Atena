@@ -7,6 +7,7 @@ import {
   ArrowRight,
   CheckCircle2,
   RotateCcw,
+  ExternalLink,
 } from "lucide-react";
 
 interface TheoryViewerProps {
@@ -21,7 +22,7 @@ export const TheoryViewer: React.FC<TheoryViewerProps> = ({ theory }) => {
   const [flashIndex, setFlashIndex] = useState(0);
   const errosRef = useRef<HTMLDivElement>(null);
 
-  const { trilhaConhecimento = [], resumoVespera = [], html } = theory.content;
+  const { trilhaConhecimento = [], resumoVespera = [] } = theory.content;
   const selected = trilhaConhecimento[selectedIndex] || null;
   const currentFlashcard = selected?.flashcards?.[flashIndex] || null;
 
@@ -43,17 +44,80 @@ export const TheoryViewer: React.FC<TheoryViewerProps> = ({ theory }) => {
     }, 0);
   }, [selectedIndex, theory]);
 
-  if (html) {
+  if (theory.content?.html) {
     return (
       <div className="h-full w-full relative">
         <iframe
-          srcDoc={html}
+          srcDoc={theory.content.html}
           className="w-full h-full border-0 rounded-2xl"
           title="Teoria HTML"
           sandbox="allow-scripts allow-same-origin"
         />
       </div>
     );
+  }
+
+  if (theory.content?.link) {
+     return (
+        <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-50 dark:bg-slate-950 text-slate-500 rounded-2xl">
+           <ExternalLink className="mx-auto mb-4 text-[#ff6b00]" size={48} />
+           <h3 className="text-xl font-bold dark:text-white mb-4">Acesso a Conteúdo Externo</h3>
+           <a href={theory.content.link} target="_blank" rel="noreferrer" className="px-6 py-3 bg-[#ff6b00] hover:bg-orange-600 text-white rounded-xl font-bold transition flex items-center gap-2">
+              <Book size={18} />
+              {theory.content.linkDescription || 'Acessar Material'}
+           </a>
+        </div>
+     );
+  }
+
+  if (theory.content?.text || (theory.content?.images && theory.content.images.length > 0)) {
+     return (
+      <div className="h-full overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col relative w-full rounded-2xl">
+         <div className="sticky top-0 z-40 border-b border-gray-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 shadow-sm backdrop-blur-md">
+            <div className="mx-auto flex w-full flex-col gap-4 px-4 py-4 sm:px-6">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.26em] text-[#ff6b00]">
+                    Material Estruturado
+                  </p>
+                  <h1 className="text-2xl font-extrabold tracking-tight text-gray-900 dark:text-white mt-1">
+                    {theory.topic} 
+                    {theory.subtopic && (
+                      <span className="opacity-50 font-normal">
+                        | {theory.subtopic}
+                      </span>
+                    )}
+                  </h1>
+                </div>
+              </div>
+            </div>
+         </div>
+         <main className="w-full max-w-5xl mx-auto px-4 py-8 sm:px-6 flex-1 space-y-8">
+            {theory.content?.text && (
+               <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 md:p-8">
+                  <div className="whitespace-pre-wrap text-slate-800 dark:text-slate-200 font-medium leading-relaxed">
+                     {theory.content.text}
+                  </div>
+               </div>
+            )}
+            {theory.content?.images && theory.content.images.length > 0 && (
+               <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-6 md:p-8">
+                  <h3 className="text-lg font-black mb-6 text-slate-800 dark:text-white flex items-center gap-2">
+                     <Zap size={20} className="text-[#ff6b00]" />
+                     Galeria de Imagens
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     {theory.content.images.map((img, i) => (
+                        <div key={i} className="rounded-xl overflow-hidden shadow-sm border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
+                           <img src={img} alt={`Referencia ${i + 1}`} className="w-full h-auto object-contain" style={{ maxHeight: '80vh' }} />
+                        </div>
+                     ))}
+                  </div>
+               </div>
+            )}
+         </main>
+      </div>
+     )
   }
 
   const scrollToErrors = () => {
@@ -97,9 +161,11 @@ export const TheoryViewer: React.FC<TheoryViewerProps> = ({ theory }) => {
                 </p>
                 <h1 className="text-2xl font-extrabold tracking-tight text-gray-900 dark:text-white mt-1">
                   {theory.topic}{" "}
-                  <span className="opacity-50 font-normal">
-                    | {theory.subtopic || "Geral"}
-                  </span>
+                  {theory.subtopic && (
+                    <span className="opacity-50 font-normal">
+                      | {theory.subtopic}
+                    </span>
+                  )}
                 </h1>
               </div>
             </div>

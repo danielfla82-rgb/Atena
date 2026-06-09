@@ -371,6 +371,11 @@ export const TREND_SCORE: Record<Trend, number> = {
 
 export interface TheoryContent {
   html?: string;
+  link?: string;
+  linkDescription?: string;
+  images?: string[];
+  text?: string;
+  description?: string;
   trilhaConhecimento?: {
     id: string;
     title: string;

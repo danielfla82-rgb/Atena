@@ -100,14 +100,20 @@ export const Teorias: React.FC = () => {
                                 onClick={() => setSelectedTheory(t)}
                                 className="text-left bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 hover:border-[#ff6b00] hover:shadow-md transition-all group"
                               >
-                                <div className="font-black text-slate-900 dark:text-white mb-2 group-hover:text-[#ff6b00] transition-colors">
-                                  {t.subtopic || "Geral"}
-                                </div>
-                                <div className="text-xs font-bold uppercase tracking-wider text-slate-500 flex flex-col gap-1">
+                                {t.subtopic ? (
+                                  <div className="font-black text-slate-900 dark:text-white mb-2 group-hover:text-[#ff6b00] transition-colors">
+                                    {t.subtopic}
+                                  </div>
+                                ) : null}
+                                <div className={`text-xs font-bold uppercase tracking-wider text-slate-500 flex flex-col gap-1 ${!t.subtopic ? 'text-sm text-slate-800 dark:text-slate-200 group-hover:text-[#ff6b00]' : ''}`}>
                                   <span>
-                                    {t.content.html
-                                      ? "Conteúdo Estruturado"
-                                      : "Formato Legado"}
+                                    {t.content.description || (
+                                      t.content.html ? "Conteúdo Estruturado" :
+                                      t.content.link ? "Acesso Externo" :
+                                      t.content.images && t.content.images.length > 0 ? "Galeria de Imagens" :
+                                      t.content.text ? "Anotação de Texto" :
+                                      "Material Adicional"
+                                    )}
                                   </span>
                                 </div>
                               </button>
